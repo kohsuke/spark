@@ -415,11 +415,8 @@ object SimplifyConditionals extends Rule[LogicalPlan] with PredicateHelper {
         val (h, t) = branches.span(_._1 != TrueLiteral)
         CaseWhen( h :+ t.head, None)
 
-      case CaseWhen(branches, elseValue) if branches.length == 1 =>
-        val cond = branches.head._1
-        val trueValue = branches.head._2
-        val falseValue = elseValue.getOrElse(Literal(null, trueValue.dataType))
-        If(cond, trueValue, falseValue)
+      case CaseWhen((cond, branchValue) :: Nil, elseValue) =>
+        If(cond, branchValue, elseValue.getOrElse(Literal(null, branchValue.dataType)))
     }
   }
 }
