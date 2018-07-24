@@ -2813,4 +2813,16 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       checkAnswer(df, Seq(Row(3, 99, 1)))
     }
   }
+
+  test("SPARK-24892: simplify `CaseWhen` to `If` when there is only one branch") {
+    withTable("t") {
+      Seq(Some(1), null, Some(3)).toDF("a").write.saveAsTable("t")
+
+      val plan1 = sql("select case when a is null then 1 end col1 from t")
+      val plan2 = sql("select if(a is null, 1, null) col1 from t")
+
+      checkAnswer(plan1, Row(null) :: Row(1) :: Row(null) :: Nil)
+      comparePlans(plan1.queryExecution.optimizedPlan, plan2.queryExecution.optimizedPlan)
+    }
+  }
 }
