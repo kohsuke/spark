@@ -415,15 +415,8 @@ object SimplifyConditionals extends Rule[LogicalPlan] with PredicateHelper {
         val (h, t) = branches.span(_._1 != TrueLiteral)
         CaseWhen( h :+ t.head, None)
 
-      case CaseWhen(branches, elseValue) if branches.length == 1 =>
-        // Using pattern matching like `CaseWhen((cond, branchValue) :: Nil, elseValue)` will not
-        // work since the implementation of `branches` can be `ArrayBuffer`. A full test is in
-        // "SPARK-24892: simplify `CaseWhen` to `If` when there is only one branch",
-        // `SQLQuerySuite.scala`.
-        val cond = branches.head._1
-        val trueValue = branches.head._2
-        val falseValue = elseValue.getOrElse(Literal(null, trueValue.dataType))
-        If(cond, trueValue, falseValue)
+      case CaseWhen(Seq((cond, trueValue)), elseValue) =>
+        If(cond, trueValue, elseValue.getOrElse(Literal(null, trueValue.dataType)))
     }
   }
 }
