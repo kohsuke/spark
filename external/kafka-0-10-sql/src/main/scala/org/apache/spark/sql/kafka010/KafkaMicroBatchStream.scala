@@ -29,8 +29,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.Network.NETWORK_TIMEOUT
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.execution.streaming.{HDFSMetadataLog, SerializedOffset}
 import org.apache.spark.sql.execution.streaming.sources.RateControlMicroBatchStream
 import org.apache.spark.sql.kafka010.KafkaSourceProvider.{INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_FALSE, INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_TRUE}
@@ -150,14 +148,9 @@ private[kafka010] class KafkaMicroBatchStream(
       untilOffsets = untilOffsets,
       executorLocations = getSortedExecutorList())
 
-    // Reuse Kafka consumers only when all the offset ranges have distinct TopicPartitions,
-    // that is, concurrent tasks will not read the same TopicPartitions.
-    val reuseKafkaConsumer = offsetRanges.map(_.topicPartition).toSet.size == offsetRanges.size
-
     // Generate factories based on the offset ranges
     offsetRanges.map { range =>
-      KafkaBatchInputPartition(
-        range, executorKafkaParams, pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer)
+      KafkaBatchInputPartition(range, executorKafkaParams, pollTimeoutMs, failOnDataLoss)
     }.toArray
   }
 
