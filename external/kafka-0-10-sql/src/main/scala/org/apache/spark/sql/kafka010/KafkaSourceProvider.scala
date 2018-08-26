@@ -70,7 +70,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     val caseInsensitiveParameters = CaseInsensitiveMap(parameters)
     validateStreamOptions(caseInsensitiveParameters)
     require(schema.isEmpty, "Kafka source has a fixed schema and cannot be set with a custom one")
-    (shortName(), KafkaOffsetReader.kafkaSchema)
+    val includeHeaders = parameters.getOrElse(INCLUDE_HEADERS, "false").toBoolean
+    (shortName(), KafkaOffsetReader.kafkaSchema(includeHeaders))
   }
 
   override def createSource(
@@ -108,7 +109,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
   }
 
   override def getTable(options: CaseInsensitiveStringMap): KafkaTable = {
-    new KafkaTable
+    val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
+    new KafkaTable(includeHeaders)
   }
 
   /**
@@ -132,12 +134,15 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       caseInsensitiveParameters, ENDING_OFFSETS_OPTION_KEY, LatestOffsetRangeLimit)
     assert(endingRelationOffsets != EarliestOffsetRangeLimit)
 
+    val includeHeaders = parameters.getOrElse(INCLUDE_HEADERS, "false").toBoolean
+
     new KafkaRelation(
       sqlContext,
       strategy(caseInsensitiveParameters),
       sourceOptions = caseInsensitiveParameters,
       specifiedKafkaParams = specifiedKafkaParams,
       failOnDataLoss = failOnDataLoss(caseInsensitiveParameters),
+      includeHeaders = includeHeaders,
       startingOffsets = startingRelationOffsets,
       endingOffsets = endingRelationOffsets)
   }
@@ -360,11 +365,11 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     }
   }
 
-  class KafkaTable extends Table with SupportsRead with SupportsWrite {
+  class KafkaTable(includeHeaders: Boolean) extends Table with SupportsRead with SupportsWrite {
 
     override def name(): String = "KafkaTable"
 
-    override def schema(): StructType = KafkaOffsetReader.kafkaSchema
+    override def schema(): StructType = KafkaOffsetReader.kafkaSchema(includeHeaders)
 
     override def capabilities(): ju.Set[TableCapability] = {
       // ACCEPT_ANY_SCHEMA is needed because of the following reasons:
@@ -403,8 +408,11 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
   }
 
   class KafkaScan(options: CaseInsensitiveStringMap) extends Scan {
+    val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
 
-    override def readSchema(): StructType = KafkaOffsetReader.kafkaSchema
+    override def readSchema(): StructType = {
+      KafkaOffsetReader.kafkaSchema(includeHeaders)
+    }
 
     override def toBatch(): Batch = {
       val caseInsensitiveOptions = CaseInsensitiveMap(options.asScala.toMap)
@@ -423,7 +431,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         specifiedKafkaParams,
         failOnDataLoss(caseInsensitiveOptions),
         startingRelationOffsets,
-        endingRelationOffsets)
+        endingRelationOffsets,
+        includeHeaders)
     }
 
     override def toMicroBatchStream(checkpointLocation: String): MicroBatchStream = {
@@ -498,6 +507,7 @@ private[kafka010] object KafkaSourceProvider extends Logging {
   private[kafka010] val FETCH_OFFSET_RETRY_INTERVAL_MS = "fetchoffset.retryintervalms"
   private[kafka010] val CONSUMER_POLL_TIMEOUT = "kafkaconsumer.polltimeoutms"
   private val GROUP_ID_PREFIX = "groupidprefix"
+  private[kafka010] val INCLUDE_HEADERS = "includeHeaders"
 
   val TOPIC_OPTION_KEY = "topic"
 
