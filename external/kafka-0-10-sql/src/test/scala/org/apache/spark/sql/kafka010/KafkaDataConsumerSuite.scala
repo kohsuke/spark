@@ -17,11 +17,10 @@
 
 package org.apache.spark.sql.kafka010
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.Duration
 import scala.util.Random
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -62,9 +61,16 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
 
   test("SPARK-23623: concurrent use of KafkaDataConsumer") {
     val topic = "topic" + Random.nextInt()
-    val data = (1 to 1000).map(_.toString)
+    val data = (1 to 1000).map(i =>
+      (i.toString,
+        Array(
+          ("once", i.toString.getBytes(StandardCharsets.UTF_8)),
+          ("twice", (i * 2).toString.getBytes(StandardCharsets.UTF_8))
+        ).toSeq
+      )
+    )
     testUtils.createTopic(topic, 1)
-    testUtils.sendMessages(topic, data.toArray)
+    testUtils.sendMessages(topic, data, None)
     val topicPartition = new TopicPartition(topic, 0)
 
     import ConsumerConfig._
@@ -95,10 +101,12 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
       try {
         val range = consumer.getAvailableOffsetRange()
         val rcvd = range.earliest until range.latest map { offset =>
-          val bytes = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false).value()
-          new String(bytes)
+          val record = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false)
+          val value = new String(record.value(), StandardCharsets.UTF_8)
+          val headers = record.headers().toArray.map(header => (header.key(), header.value())).toSeq
+          (value, headers)
         }
-        assert(rcvd == data)
+        data === rcvd
       } catch {
         case e: Throwable =>
           error = e
