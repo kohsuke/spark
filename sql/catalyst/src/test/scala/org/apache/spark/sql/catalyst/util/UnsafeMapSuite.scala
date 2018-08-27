@@ -60,5 +60,26 @@ class UnsafeMapSuite extends SparkFunSuite {
     assert(mapDataSer.keyArray().getInt(0) == 19285)
     assert(mapDataSer.valueArray().getInt(0) == 19286)
     assert(mapDataSer.getBaseObject.asInstanceOf[Array[Byte]].length == 1024)
+
+  test("UnsafeMap from two UnsafeArray") {
+    val keys = Array[String]("apache", "spark", "with", "kafka")
+    val values = Array[Array[Byte]](
+      Array[Byte](1.toByte, 2.toByte), Array[Byte](3.toByte, 4.toByte, 5.toByte),
+      Array[Byte](6.toByte), Array[Byte]()
+    )
+    val unsafeKeyData = UnsafeArrayData.fromStringArray(keys)
+    val unsafeValueData = UnsafeArrayData.fromBinaryArray(values)
+    val unsafeMapData = UnsafeMapData.of(unsafeKeyData, unsafeValueData)
+
+    assert(unsafeMapData.numElements() == 4)
+    assert(unsafeMapData.keyArray().getUTF8String(0).toString == "apache")
+    assert(unsafeMapData.keyArray().getUTF8String(1).toString == "spark")
+    assert(unsafeMapData.keyArray().getUTF8String(2).toString == "with")
+    assert(unsafeMapData.keyArray().getUTF8String(3).toString == "kafka")
+    assert(unsafeMapData.valueArray().getBinary(0).sameElements(Array[Byte](1.toByte, 2.toByte)))
+    assert(unsafeMapData.valueArray().getBinary(1)
+      .sameElements(Array[Byte](3.toByte, 4.toByte, 5.toByte)))
+    assert(unsafeMapData.valueArray().getBinary(2).sameElements(Array[Byte](6.toByte)))
+    assert(unsafeMapData.valueArray().getBinary(3) == null)
   }
 }

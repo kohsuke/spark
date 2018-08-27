@@ -135,6 +135,21 @@ public final class UnsafeMapData extends MapData implements Externalizable, Kryo
     return mapCopy;
   }
 
+  /**
+   * Creates {@link UnsafeMapData} from two {@link UnsafeArrayData}s.
+   */
+  public static UnsafeMapData of(UnsafeArrayData unsafeKeyData, UnsafeArrayData unsafeValueData) {
+    byte[] data = new byte[8 + unsafeKeyData.getSizeInBytes() + unsafeValueData.getSizeInBytes()];
+    Platform.putLong(data, Platform.BYTE_ARRAY_OFFSET, unsafeKeyData.getSizeInBytes());
+    unsafeKeyData.writeToMemory(data, Platform.BYTE_ARRAY_OFFSET + 8);
+    unsafeValueData.writeToMemory(data, Platform.BYTE_ARRAY_OFFSET + 8 +
+        unsafeKeyData.getSizeInBytes());
+    UnsafeMapData unsafeMapData = new UnsafeMapData();
+    unsafeMapData.pointTo(data, Platform.BYTE_ARRAY_OFFSET,
+        8 + unsafeKeyData.getSizeInBytes() + unsafeValueData.getSizeInBytes());
+    return unsafeMapData;
+  }
+
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
     byte[] bytes = UnsafeDataUtils.getBytes(baseObject, baseOffset, sizeInBytes);
