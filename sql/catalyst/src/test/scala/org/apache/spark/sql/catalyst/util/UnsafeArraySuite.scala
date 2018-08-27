@@ -237,6 +237,17 @@ class UnsafeArraySuite extends SparkFunSuite {
     assert(unsafeBlob.getBinary(4) == null)
   }
 
+  test("from string array") {
+    val strings = Array[String]("apache", "spark", null, "with", "", "kafka")
+    val unsafeBlob = UnsafeArrayData.fromStringArray(strings)
+    assert(unsafeBlob.getUTF8String(0).toString == "apache")
+    assert(unsafeBlob.getUTF8String(1).toString == "spark")
+    assert(unsafeBlob.getUTF8String(2) == null)
+    assert(unsafeBlob.getUTF8String(3).toString == "with")
+    assert(unsafeBlob.getUTF8String(4) == null)
+    assert(unsafeBlob.getUTF8String(5).toString == "kafka")
+  }
+
   test("unsafe java serialization") {
     val ser = new JavaSerializer(new SparkConf).newInstance()
     val arrayDataSer = ser.deserialize[UnsafeArrayData](ser.serialize(serialArray))
