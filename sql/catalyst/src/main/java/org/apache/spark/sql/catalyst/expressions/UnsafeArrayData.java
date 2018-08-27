@@ -558,6 +558,21 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
     return result;
   }
 
+  /**
+   * Creates {@link UnsafeArrayData} from an array of {@link String}s.
+   *
+   * @throws IllegalArgumentException
+   */
+  public static UnsafeArrayData fromStringArray(String[] strings) {
+    byte[][] blobs = Arrays.stream(strings)
+        .map(str -> {
+          UTF8String utf8String = UTF8String.fromString(str);
+          return utf8String != null ? utf8String.getBytes() : null;
+        })
+        .toArray(byte[][]::new);
+    return fromBinaryArray(blobs);
+  }
+
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
     byte[] bytes = UnsafeDataUtils.getBytes(baseObject, baseOffset, sizeInBytes);
