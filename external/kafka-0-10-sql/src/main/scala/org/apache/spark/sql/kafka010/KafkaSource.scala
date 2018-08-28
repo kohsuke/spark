@@ -31,6 +31,7 @@ import org.apache.spark.internal.config.Network.NETWORK_TIMEOUT
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{UnsafeArrayData, UnsafeMapData}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.kafka010.KafkaSource._
@@ -307,7 +308,12 @@ private[kafka010] class KafkaSource(
         cr.partition,
         cr.offset,
         DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-        cr.timestampType.id)
+        cr.timestampType.id,
+        UnsafeMapData.of(
+          UnsafeArrayData.fromStringArray(cr.headers().toArray.map(_.key())),
+          UnsafeArrayData.fromBinaryArray(cr.headers().toArray.map(_.value()))
+        )
+      )
     }
 
     logInfo("GetBatch generating RDD of offset range: " +

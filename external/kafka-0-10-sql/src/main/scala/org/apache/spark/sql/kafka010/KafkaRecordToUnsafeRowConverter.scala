@@ -19,14 +19,14 @@ package org.apache.spark.sql.kafka010
 
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
-import org.apache.spark.sql.catalyst.expressions.UnsafeRow
+import org.apache.spark.sql.catalyst.expressions.{UnsafeArrayData, UnsafeMapData, UnsafeRow}
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.unsafe.types.UTF8String
 
 /** A simple class for converting Kafka ConsumerRecord to UnsafeRow */
 private[kafka010] class KafkaRecordToUnsafeRowConverter {
-  private val rowWriter = new UnsafeRowWriter(7)
+  private val rowWriter = new UnsafeRowWriter(8)
 
   def toUnsafeRow(record: ConsumerRecord[Array[Byte], Array[Byte]]): UnsafeRow = {
     rowWriter.reset()
@@ -49,6 +49,11 @@ private[kafka010] class KafkaRecordToUnsafeRowConverter {
       5,
       DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(record.timestamp)))
     rowWriter.write(6, record.timestampType.id)
+    val keys = record.headers.toArray.map(_.key())
+    val unsafeKeyData = UnsafeArrayData.fromStringArray(keys)
+    val values = record.headers.toArray.map(_.value())
+    val unsafeValueData = UnsafeArrayData.fromBinaryArray(values)
+    rowWriter.write(7, UnsafeMapData.of(unsafeKeyData, unsafeValueData))
     rowWriter.getRow()
   }
 }

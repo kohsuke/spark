@@ -19,11 +19,15 @@ package org.apache.spark.sql.kafka010
 
 import java.{util => ju}
 
+import scala.collection.JavaConverters._
+
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.RecordHeader
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, Literal, UnsafeProjection}
-import org.apache.spark.sql.types.{BinaryType, StringType}
+import org.apache.spark.sql.types.{BinaryType, MapType, StringType}
 
 /**
  * Writes out data in a single Spark task, without any concerns about how
@@ -88,7 +92,21 @@ private[kafka010] abstract class KafkaRowWriter(
       throw new NullPointerException(s"null topic present in the data. Use the " +
         s"${KafkaSourceProvider.TOPIC_OPTION_KEY} option for setting a default topic.")
     }
-    val record = new ProducerRecord[Array[Byte], Array[Byte]](topic.toString, key, value)
+    val headerMap = projectedRow.getMap(3)
+    val headers = (0 until headerMap.numElements()).toArray.map(
+      i =>
+      new RecordHeader(
+          headerMap.keyArray().getUTF8String(i).toString,
+          headerMap.valueArray().getBinary(i)
+        ).asInstanceOf[Header]
+    )
+    val record = new ProducerRecord[Array[Byte], Array[Byte]](
+      topic.toString,
+      null,
+      key,
+      value,
+      headers.toIterable.asJava
+    )
     producer.send(record, callback)
   }
 
@@ -131,9 +149,26 @@ private[kafka010] abstract class KafkaRowWriter(
         throw new IllegalStateException(s"${KafkaWriter.VALUE_ATTRIBUTE_NAME} " +
           s"attribute unsupported type ${t.catalogString}")
     }
+    val headersExpression = inputSchema
+      .find(_.name == KafkaWriter.HEADERS_ATTRIBUTE_NAME).getOrElse(
+      throw new IllegalStateException("Required attribute " +
+        s"'${KafkaWriter.HEADERS_ATTRIBUTE_NAME}' not found")
+    )
+    headersExpression.dataType match {
+      case MapType(StringType, BinaryType, true) => // good
+      case t =>
+        throw new IllegalStateException(s"${KafkaWriter.HEADERS_ATTRIBUTE_NAME} " +
+          s"attribute unsupported type ${t.catalogString}")
+    }
     UnsafeProjection.create(
-      Seq(topicExpression, Cast(keyExpression, BinaryType),
-        Cast(valueExpression, BinaryType)), inputSchema)
+      Seq(
+        topicExpression,
+        Cast(keyExpression, BinaryType),
+        Cast(valueExpression, BinaryType),
+        Cast(headersExpression, MapType(StringType, BinaryType))
+      ),
+      inputSchema
+    )
   }
 }
 
