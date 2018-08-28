@@ -24,6 +24,7 @@ import org.apache.spark.internal.config.Network.NETWORK_TIMEOUT
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SQLContext}
 import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.{UnsafeArrayData, UnsafeMapData}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.sources.{BaseRelation, TableScan}
 import org.apache.spark.sql.types.StructType
@@ -110,7 +111,12 @@ private[kafka010] class KafkaRelation(
         cr.partition,
         cr.offset,
         DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-        cr.timestampType.id)
+        cr.timestampType.id,
+        UnsafeMapData.of(
+          UnsafeArrayData.fromStringArray(cr.headers().toArray.map(_.key())),
+          UnsafeArrayData.fromBinaryArray(cr.headers().toArray.map(_.value()))
+        )
+      )
     }
     sqlContext.internalCreateDataFrame(rdd.setName("kafka"), schema).rdd
   }

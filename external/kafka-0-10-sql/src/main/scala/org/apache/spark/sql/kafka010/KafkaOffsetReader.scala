@@ -430,6 +430,7 @@ private[kafka010] object KafkaOffsetReader {
     StructField("partition", IntegerType),
     StructField("offset", LongType),
     StructField("timestamp", TimestampType),
-    StructField("timestampType", IntegerType)
+    StructField("timestampType", IntegerType),
+    StructField("headers", MapType(StringType, BinaryType), true)
   ))
 }
