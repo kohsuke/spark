@@ -32,7 +32,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.test.SharedSQLContext
-import org.apache.spark.sql.types.{BinaryType, DataType}
+import org.apache.spark.sql.types.{BinaryType, DataType, IntegerType, StringType}
 
 abstract class KafkaSinkSuiteBase extends QueryTest with SharedSQLContext with KafkaTest {
   protected var testUtils: KafkaTestUtils = _
@@ -369,14 +369,23 @@ abstract class KafkaSinkBatchSuiteBase extends KafkaSinkSuiteBase {
     val topic = newTopic()
     testUtils.createTopic(topic)
     val df = Seq("1", "2", "3", "4", "5").map(v => (topic, v)).toDF("topic", "value")
+      .withColumn("headers",
+        map(lit("x"), col("value").plus(1).cast(IntegerType).cast(StringType).cast(BinaryType),
+          lit("y"), col("value").multiply(2).cast(IntegerType).cast(StringType).cast(BinaryType)))
     df.write
       .format("kafka")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)
       .option("topic", topic)
       .save()
     checkAnswer(
-      createKafkaReader(topic).selectExpr("CAST(value as STRING) value"),
-      Row("1") :: Row("2") :: Row("3") :: Row("4") :: Row("5") :: Nil)
+      createKafkaReader(topic).selectExpr(
+        "CAST(value as STRING) value",
+        "CAST(headers.x AS STRING)",
+        "CAST(headers.y AS STRING)"
+      ),
+      Row("1", "2", "2") :: Row("2", "3", "4") :: Row("3", "4", "6") :: Row("4", "5", "8"
+      ) :: Row("5", "6", "10") :: Nil
+    )
   }
 
   test("batch - null topic field value, and no topic option") {
