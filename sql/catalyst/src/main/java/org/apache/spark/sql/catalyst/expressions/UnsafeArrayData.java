@@ -500,12 +500,10 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
 
   /**
    * Creates {@link UnsafeArrayData} from an array of variable-length binary objects.
-   *
-   * @throws IllegalArgumentException
    */
   public static UnsafeArrayData fromBinaryArray(byte[][] blobs) {
     if (blobs == null) {
-      throw new IllegalArgumentException("Given array is null.");
+      return new UnsafeArrayData();
     }
 
     final long headerInBytes = calculateHeaderPortionInBytes(blobs.length);
@@ -521,7 +519,7 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
     ).sum();
 
     if (variableLengthRegionInLong == 0) {
-      throw new IllegalArgumentException("Given array is empty.");
+      return new UnsafeArrayData();
     }
 
     final long totalSizeInLongs = (headerInBytes + valueRegionInBytes) / 8 +
@@ -560,8 +558,6 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
 
   /**
    * Creates {@link UnsafeArrayData} from an array of {@link String}s.
-   *
-   * @throws IllegalArgumentException
    */
   public static UnsafeArrayData fromStringArray(String[] strings) {
     byte[][] blobs = Arrays.stream(strings)
