@@ -70,7 +70,7 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
   protected def createDF(
       topic: String,
       withOptions: Map[String, String] = Map.empty[String, String],
-      brokerAddress: Option[String] = None) = {
+      brokerAddress: Option[String] = None, includeHeaders: Boolean = false) = {
     val df = spark
       .read
       .format("kafka")
@@ -80,7 +80,13 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     withOptions.foreach {
       case (key, value) => df.option(key, value)
     }
-    df.load().selectExpr("CAST(value AS STRING)")
+    if (!includeHeaders) {
+      df.load().selectExpr("CAST(value AS STRING)")
+    } else {
+      df.load()
+        .selectExpr("CAST(value AS STRING)", "CAST(headers.once AS STRING)",
+          "CAST(headers.twice AS STRING)")
+    }
   }
 
   test("explicit earliest to latest offsets") {
@@ -145,6 +151,19 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     // latest offset partition 1, should change
     testUtils.sendMessages(topic, (21 to 30).map(_.toString).toArray, Some(1))
     checkAnswer(df, (0 to 30).map(_.toString).toDF)
+  }
+
+  test("default starting and ending offsets with headers") {
+    val topic = newTopic()
+    testUtils.createTopic(topic, partitions = 3)
+    testUtils.sendMessage(topic, (null, "1", Array(("once", "1"), ("twice", "2"))), Some(0))
+    testUtils.sendMessage(topic, (null, "2", Array(("once", "2"), ("twice", "4"))), Some(1))
+    testUtils.sendMessage(topic, (null, "3", Array(("once", "3"), ("twice", "6"))), Some(2))
+
+    // Implicit offset values, should default to earliest and latest
+    val df = createDF(topic, Map.empty[String, String], None, true)
+    // Test that we default to "earliest" and "latest"
+    checkAnswer(df, Seq(("1", "1", "2"), ("2", "2", "4"), ("3", "3", "6")).toDF)
   }
 
   test("reuse same dataframe in query") {
