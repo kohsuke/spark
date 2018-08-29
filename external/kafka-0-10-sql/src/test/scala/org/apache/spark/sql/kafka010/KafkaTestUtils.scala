@@ -35,6 +35,8 @@ import org.apache.kafka.clients.admin.{AdminClient, CreatePartitionsOptions, Lis
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer._
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.RecordHeader
 import org.apache.kafka.common.network.ListenerName
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 import org.apache.zookeeper.server.{NIOServerCnxnFactory, ZooKeeperServer}
@@ -257,17 +259,34 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
       topic: String,
       messages: Array[String],
       partition: Option[Int]): Seq[(String, RecordMetadata)] = {
+    sendMessages(topic, messages.map(
+      m => (null.asInstanceOf[String], m, Array[(String, String)]())), partition)
+  }
+
+  /** Send record to the Kafka broker with headers using specified partition */
+  def sendMessage(topic: String,
+                   record: (String, String, Array[(String, String)]),
+                   partition: Option[Int]): Seq[(String, RecordMetadata)] = {
+    sendMessages(topic, Array(record), partition)
+  }
+
+  /** Send the array of records to the Kafka broker with headers using specified partition */
+  def sendMessages(topic: String,
+                   records: Array[(String, String, Array[(String, String)])],
+                   partition: Option[Int]): Seq[(String, RecordMetadata)] = {
     producer = new KafkaProducer[String, String](producerConfiguration)
     val offsets = try {
-      messages.map { m =>
+      records.map { r =>
         val record = partition match {
-          case Some(p) => new ProducerRecord[String, String](topic, p, null, m)
-          case None => new ProducerRecord[String, String](topic, m)
+          case Some(p) => new ProducerRecord[String, String](
+            topic, p, r._1, r._2, r._3.map(
+              t => new RecordHeader(t._1, t._2.getBytes).asInstanceOf[Header]).toIterable.asJava)
+          case None => new ProducerRecord[String, String](topic, r._2)
         }
         val metadata =
           producer.send(record).get(10, TimeUnit.SECONDS)
-          logInfo(s"\tSent $m to partition ${metadata.partition}, offset ${metadata.offset}")
-        (m, metadata)
+        logInfo(s"\tSent $r to partition ${metadata.partition}, offset ${metadata.offset}")
+        (r._2, metadata)
       }
     } finally {
       if (producer != null) {
