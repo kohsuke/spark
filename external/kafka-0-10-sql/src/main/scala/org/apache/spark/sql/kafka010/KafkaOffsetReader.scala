@@ -431,6 +431,6 @@ private[kafka010] object KafkaOffsetReader {
     StructField("offset", LongType),
     StructField("timestamp", TimestampType),
     StructField("timestampType", IntegerType),
-    StructField("headers", MapType(StringType, BinaryType), true)
+    StructField("headers", MapType(StringType, BinaryType))
   ))
 }

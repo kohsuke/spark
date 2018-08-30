@@ -21,6 +21,7 @@ import java.{util => ju}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{AnalysisException, SparkSession}
+import org.apache.spark.sql.catalyst.CatalystTypeConverters
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.types.{BinaryType, MapType, StringType}
@@ -77,7 +78,7 @@ private[kafka010] object KafkaWriter extends Logging {
           s"must be a ${StringType.catalogString} or ${BinaryType.catalogString}")
     }
     schema.find(_.name == HEADERS_ATTRIBUTE_NAME).getOrElse(
-      Literal(null, MapType(StringType, BinaryType))
+      Literal(CatalystTypeConverters.convertToCatalyst(null), MapType(StringType, BinaryType))
     ).dataType match {
       case MapType(StringType, BinaryType, true) => // good
       case _ =>

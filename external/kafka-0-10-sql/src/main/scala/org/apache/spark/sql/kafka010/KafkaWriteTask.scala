@@ -25,7 +25,7 @@ import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecor
 import org.apache.kafka.common.header.Header
 import org.apache.kafka.common.header.internals.RecordHeader
 
-import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, Literal, UnsafeProjection}
 import org.apache.spark.sql.types.{BinaryType, MapType, StringType}
 
@@ -92,21 +92,30 @@ private[kafka010] abstract class KafkaRowWriter(
       throw new NullPointerException(s"null topic present in the data. Use the " +
         s"${KafkaSourceProvider.TOPIC_OPTION_KEY} option for setting a default topic.")
     }
-    val headerMap = projectedRow.getMap(3)
-    val headers = (0 until headerMap.numElements()).toArray.map(
-      i =>
-      new RecordHeader(
-          headerMap.keyArray().getUTF8String(i).toString,
-          headerMap.valueArray().getBinary(i)
-        ).asInstanceOf[Header]
-    )
-    val record = new ProducerRecord[Array[Byte], Array[Byte]](
-      topic.toString,
-      null,
-      key,
-      value,
-      headers.toIterable.asJava
-    )
+    val record = if (projectedRow.isNullAt(3)) {
+      new ProducerRecord[Array[Byte], Array[Byte]](
+        topic.toString,
+        null,
+        key,
+        value
+      )
+    } else {
+      val headerMap = projectedRow.getMap(3)
+      val headers = (0 until headerMap.numElements()).toArray.map(
+        i =>
+          new RecordHeader(
+            headerMap.keyArray().getUTF8String(i).toString,
+            headerMap.valueArray().getBinary(i)
+          ).asInstanceOf[Header]
+      )
+      new ProducerRecord[Array[Byte], Array[Byte]](
+        topic.toString,
+        null,
+        key,
+        value,
+        headers.toIterable.asJava
+      )
+    }
     producer.send(record, callback)
   }
 
@@ -151,8 +160,7 @@ private[kafka010] abstract class KafkaRowWriter(
     }
     val headersExpression = inputSchema
       .find(_.name == KafkaWriter.HEADERS_ATTRIBUTE_NAME).getOrElse(
-      throw new IllegalStateException("Required attribute " +
-        s"'${KafkaWriter.HEADERS_ATTRIBUTE_NAME}' not found")
+      Literal(CatalystTypeConverters.convertToCatalyst(null), MapType(StringType, BinaryType))
     )
     headersExpression.dataType match {
       case MapType(StringType, BinaryType, true) => // good
@@ -165,7 +173,7 @@ private[kafka010] abstract class KafkaRowWriter(
         topicExpression,
         Cast(keyExpression, BinaryType),
         Cast(valueExpression, BinaryType),
-        Cast(headersExpression, MapType(StringType, BinaryType))
+        headersExpression
       ),
       inputSchema
     )
