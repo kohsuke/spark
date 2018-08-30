@@ -1422,6 +1422,9 @@ abstract class KafkaSourceSuiteBase extends KafkaSourceTest {
       .option("startingOffsets", s"earliest")
       .option("subscribe", topic)
       .load()
+      .selectExpr(
+        "key", "value", "topic", "partition", "offset", "timestamp", "timestampType"
+      )
 
     val query = kafka
       .writeStream
