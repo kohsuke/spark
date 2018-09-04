@@ -93,28 +93,17 @@ private[kafka010] abstract class KafkaRowWriter(
         s"${KafkaSourceProvider.TOPIC_OPTION_KEY} option for setting a default topic.")
     }
     val record = if (projectedRow.isNullAt(3)) {
-      new ProducerRecord[Array[Byte], Array[Byte]](
-        topic.toString,
-        null,
-        key,
-        value
-      )
+      new ProducerRecord[Array[Byte], Array[Byte]](topic.toString, null, key, value)
     } else {
       val headerMap = projectedRow.getMap(3)
-      val headers = (0 until headerMap.numElements()).toArray.map(
+      val headers = (0 until headerMap.numElements()).map(
         i =>
           new RecordHeader(
             headerMap.keyArray().getUTF8String(i).toString,
             headerMap.valueArray().getBinary(i)
           ).asInstanceOf[Header]
       )
-      new ProducerRecord[Array[Byte], Array[Byte]](
-        topic.toString,
-        null,
-        key,
-        value,
-        headers.toIterable.asJava
-      )
+      new ProducerRecord[Array[Byte], Array[Byte]](topic.toString, null, key, value, headers.asJava)
     }
     producer.send(record, callback)
   }

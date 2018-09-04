@@ -161,7 +161,7 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     testUtils.sendMessage(topic, (null, "3", Array(("once", "3"), ("twice", "6"))), Some(2))
 
     // Implicit offset values, should default to earliest and latest
-    val df = createDF(topic, Map.empty[String, String], None, true)
+    val df = createDF(topic, includeHeaders = true)
     // Test that we default to "earliest" and "latest"
     checkAnswer(df, Seq(("1", "1", "2"), ("2", "2", "4"), ("3", "3", "6")).toDF)
   }

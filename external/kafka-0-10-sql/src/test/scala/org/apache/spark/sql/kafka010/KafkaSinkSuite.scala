@@ -383,8 +383,8 @@ abstract class KafkaSinkBatchSuiteBase extends KafkaSinkSuiteBase {
         "CAST(headers.x AS STRING)",
         "CAST(headers.y AS STRING)"
       ),
-      Row("1", "2", "2") :: Row("2", "3", "4") :: Row("3", "4", "6") :: Row("4", "5", "8"
-      ) :: Row("5", "6", "10") :: Nil
+      Row("1", "2", "2") :: Row("2", "3", "4") :: Row("3", "4", "6") :: Row("4", "5", "8") ::
+        Row("5", "6", "10") :: Nil
     )
   }
 
