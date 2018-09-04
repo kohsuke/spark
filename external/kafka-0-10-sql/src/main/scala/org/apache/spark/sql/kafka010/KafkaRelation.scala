@@ -104,6 +104,7 @@ private[kafka010] class KafkaRelation(
     val rdd = new KafkaSourceRDD(
       sqlContext.sparkContext, executorKafkaParams, offsetRanges,
       pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false).map { cr =>
+      val headers = cr.headers().toArray
       InternalRow(
         cr.key,
         cr.value,
@@ -113,8 +114,8 @@ private[kafka010] class KafkaRelation(
         DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
         cr.timestampType.id,
         UnsafeMapData.of(
-          UnsafeArrayData.fromStringArray(cr.headers().toArray.map(_.key())),
-          UnsafeArrayData.fromBinaryArray(cr.headers().toArray.map(_.value()))
+          UnsafeArrayData.fromStringArray(headers.map(_.key())),
+          UnsafeArrayData.fromBinaryArray(headers.map(_.value()))
         )
       )
     }

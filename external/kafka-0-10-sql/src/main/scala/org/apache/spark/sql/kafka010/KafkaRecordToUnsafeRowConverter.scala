@@ -49,10 +49,9 @@ private[kafka010] class KafkaRecordToUnsafeRowConverter {
       5,
       DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(record.timestamp)))
     rowWriter.write(6, record.timestampType.id)
-    val keys = record.headers.toArray.map(_.key())
-    val unsafeKeyData = UnsafeArrayData.fromStringArray(keys)
-    val values = record.headers.toArray.map(_.value())
-    val unsafeValueData = UnsafeArrayData.fromBinaryArray(values)
+    val headers = record.headers.toArray
+    val unsafeKeyData = UnsafeArrayData.fromStringArray(headers.map(_.key()))
+    val unsafeValueData = UnsafeArrayData.fromBinaryArray(headers.map(_.value()))
     rowWriter.write(7, UnsafeMapData.of(unsafeKeyData, unsafeValueData))
     rowWriter.getRow()
   }
