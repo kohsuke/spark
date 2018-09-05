@@ -50,9 +50,13 @@ private[kafka010] class KafkaRecordToUnsafeRowConverter {
       DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(record.timestamp)))
     rowWriter.write(6, record.timestampType.id)
     val headers = record.headers.toArray
-    val unsafeKeyData = UnsafeArrayData.fromStringArray(headers.map(_.key()))
-    val unsafeValueData = UnsafeArrayData.fromBinaryArray(headers.map(_.value()))
-    rowWriter.write(7, UnsafeMapData.of(unsafeKeyData, unsafeValueData))
+    if (headers.isEmpty) {
+      rowWriter.setNullAt(7)
+    } else {
+      val unsafeKeyData = UnsafeArrayData.fromStringArray(headers.map(_.key()))
+      val unsafeValueData = UnsafeArrayData.fromBinaryArray(headers.map(_.value()))
+      rowWriter.write(7, UnsafeMapData.of(unsafeKeyData, unsafeValueData))
+    }
     rowWriter.getRow()
   }
 }
