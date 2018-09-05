@@ -156,9 +156,21 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
   test("default starting and ending offsets with headers") {
     val topic = newTopic()
     testUtils.createTopic(topic, partitions = 3)
-    testUtils.sendMessage(topic, (null, "1", Array(("once", "1"), ("twice", "2"))), Some(0))
-    testUtils.sendMessage(topic, (null, "2", Array(("once", "2"), ("twice", "4"))), Some(1))
-    testUtils.sendMessage(topic, (null, "3", Array(("once", "3"), ("twice", "6"))), Some(2))
+    testUtils.sendMessage(
+      topic,
+      (null, "1", Array(("once", "1".getBytes), ("twice", "2".getBytes))),
+      Some(0)
+    )
+    testUtils.sendMessage(
+      topic,
+      (null, "2", Array(("once", "2".getBytes), ("twice", "4".getBytes))),
+      Some(1)
+    )
+    testUtils.sendMessage(
+      topic,
+      (null, "3", Array(("once", "3".getBytes), ("twice", "6".getBytes))),
+      Some(2)
+    )
 
     // Implicit offset values, should default to earliest and latest
     val df = createDF(topic, includeHeaders = true)
