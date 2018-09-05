@@ -20,8 +20,6 @@ package org.apache.spark.sql.kafka010
 import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.Duration
 import scala.util.Random
 
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -31,7 +29,6 @@ import org.scalatest.PrivateMethodTester
 
 import org.apache.spark.{TaskContext, TaskContextImpl}
 import org.apache.spark.sql.test.SharedSQLContext
-import org.apache.spark.util.ThreadUtils
 
 class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
 
@@ -62,9 +59,16 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
 
   test("SPARK-23623: concurrent use of KafkaDataConsumer") {
     val topic = "topic" + Random.nextInt()
-    val data = (1 to 1000).map(_.toString)
+    val data = (1 to 1000).map(
+      i =>
+      (
+        null.asInstanceOf[String],
+        i.toString,
+        Array(("once", i.toString.getBytes), ("twice", (i * 2).toString.getBytes))
+      )
+    )
     testUtils.createTopic(topic, 1)
-    testUtils.sendMessages(topic, data.toArray)
+    testUtils.sendMessages(topic, data.toArray, None)
     val topicPartition = new TopicPartition(topic, 0)
 
     import ConsumerConfig._
@@ -95,10 +99,14 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
       try {
         val range = consumer.getAvailableOffsetRange()
         val rcvd = range.earliest until range.latest map { offset =>
-          val bytes = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false).value()
-          new String(bytes)
+          val record = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false)
+          (
+            if (record.key() != null) new String(record.key()) else null,
+            new String(record.value()),
+            record.headers().toArray.map(header => (header.key(), header.value()))
+          )
         }
-        assert(rcvd == data)
+        KafkaTestUtils.assertEqual(data.toArray, rcvd.toArray)
       } catch {
         case e: Throwable =>
           error = e
