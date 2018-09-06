@@ -59,13 +59,8 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
 
   test("SPARK-23623: concurrent use of KafkaDataConsumer") {
     val topic = "topic" + Random.nextInt()
-    val data = (1 to 1000).map(
-      i =>
-      (
-        null.asInstanceOf[String],
-        i.toString,
-        Array(("once", i.toString.getBytes), ("twice", (i * 2).toString.getBytes))
-      )
+    val data = (1 to 1000).map( i =>
+      (i.toString, Array(("once", i.toString.getBytes), ("twice", (i * 2).toString.getBytes)))
     )
     testUtils.createTopic(topic, 1)
     testUtils.sendMessages(topic, data.toArray, None)
@@ -101,7 +96,6 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
         val rcvd = range.earliest until range.latest map { offset =>
           val record = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false)
           (
-            if (record.key() != null) new String(record.key()) else null,
             new String(record.value()),
             record.headers().toArray.map(header => (header.key(), header.value()))
           )

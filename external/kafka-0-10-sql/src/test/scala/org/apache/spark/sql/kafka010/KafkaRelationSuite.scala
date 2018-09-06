@@ -157,19 +157,13 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     val topic = newTopic()
     testUtils.createTopic(topic, partitions = 3)
     testUtils.sendMessage(
-      topic,
-      (null, "1", Array(("once", "1".getBytes), ("twice", "2".getBytes))),
-      Some(0)
+      topic, ("1", Array(("once", "1".getBytes), ("twice", "2".getBytes))), Some(0)
     )
     testUtils.sendMessage(
-      topic,
-      (null, "2", Array(("once", "2".getBytes), ("twice", "4".getBytes))),
-      Some(1)
+      topic, ("2", Array(("once", "2".getBytes), ("twice", "4".getBytes))), Some(1)
     )
     testUtils.sendMessage(
-      topic,
-      (null, "3", Array(("once", "3".getBytes), ("twice", "6".getBytes))),
-      Some(2)
+      topic, ("3", Array(("once", "3".getBytes), ("twice", "6".getBytes))), Some(2)
     )
 
     // Implicit offset values, should default to earliest and latest
