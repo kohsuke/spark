@@ -45,7 +45,6 @@ import org.scalatest.time.SpanSugar._
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.kafka010.KafkaTestUtils.RecordTupleType
 import org.apache.spark.util.{ShutdownHookManager, Utils}
 
 /**
@@ -260,36 +259,34 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
       topic: String,
       messages: Array[String],
       partition: Option[Int]): Seq[(String, RecordMetadata)] = {
-    sendMessages(topic, messages.map(
-      m => (null.asInstanceOf[String], m, Array[(String, Array[Byte])]())), partition)
+    sendMessages(topic, messages.map(m => (m, Array[(String, Array[Byte])]())), partition)
   }
 
   /** Send record to the Kafka broker with headers using specified partition */
   def sendMessage(topic: String,
-                   record: (String, String, Array[(String, Array[Byte])]),
-                   partition: Option[Int]): Seq[(String, RecordMetadata)] = {
+                  record: (String, Array[(String, Array[Byte])]),
+                  partition: Option[Int]): Seq[(String, RecordMetadata)] = {
     sendMessages(topic, Array(record), partition)
   }
 
   /** Send the array of records to the Kafka broker with headers using specified partition */
   def sendMessages(topic: String,
-                   records: Array[RecordTupleType],
+                   records: Array[(String, Array[(String, Array[Byte])])],
                    partition: Option[Int]): Seq[(String, RecordMetadata)] = {
     producer = new KafkaProducer[String, String](producerConfiguration)
     val offsets = try {
       records.map { r =>
-        val record = new ProducerRecord[String, String](
-          topic, partition match {
-            case Some(p) => p
-            case None => null.asInstanceOf[Int]
-          },
-          r._1, r._2, r._3.map(
-          t => new RecordHeader(t._1, t._2).asInstanceOf[Header]).toIterable.asJava
-        )
+        val record = partition match {
+          case Some(p) => new ProducerRecord[String, String](
+                topic, p, null, r._1, r._2.map(
+                    t => new RecordHeader(t._1, t._2).asInstanceOf[Header]).toIterable.asJava)
+          case None => new ProducerRecord[String, String](topic, null, null, r._1, r._2.map(
+            t => new RecordHeader(t._1, t._2).asInstanceOf[Header]).toIterable.asJava)
+        }
         val metadata =
           producer.send(record).get(10, TimeUnit.SECONDS)
         logInfo(s"\tSent $r to partition ${metadata.partition}, offset ${metadata.offset}")
-        (r._2, metadata)
+        (r._1, metadata)
       }
     } finally {
       if (producer != null) {
@@ -513,24 +510,18 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
 
 object KafkaTestUtils {
 
-  /** Compare (String, String, Array[(String, Array[Byte])]) tuple */
-  type RecordTupleType =
-    Tuple3[String, String, Array[Tuple2[String, Array[Byte]]]]
-
-  /** Compare two record tuples */
-  def assertEqual(lhs: RecordTupleType, rhs: RecordTupleType): Unit = {
+  def assertEqual(lhs: (String, Array[(String, Array[Byte])]),
+                  rhs: (String, Array[(String, Array[Byte])])): Unit = {
     assert(lhs._1 == rhs._1)
-    assert(lhs._2 == rhs._2)
-    assert(lhs._3.size == rhs._3.size)
-    (0 until lhs._3.size) foreach { i =>
-      assert(lhs._3(i)._1 == rhs._3(i)._1)
-      assert(lhs._3(i)._2.deep == rhs._3(i)._2.deep)
+    assert(lhs._2.size == rhs._2.size)
+    (0 until lhs._2.size) foreach { i =>
+      assert(lhs._2(i)._1 == rhs._2(i)._1)
+      assert(lhs._2(i)._2.deep == rhs._2(i)._2.deep)
     }
   }
 
-  /** Compare two record tuples */
-  def assertEqual(lhs: Array[RecordTupleType],
-                  rhs: Array[RecordTupleType]): Unit = {
+  def assertEqual(lhs: Array[(String, Array[(String, Array[Byte])])],
+                  rhs: Array[(String, Array[(String, Array[Byte])])]): Unit = {
     assert(lhs.length == rhs.length)
     (0 until lhs.length) foreach { i => assertEqual(lhs(i), rhs(i))
     }
