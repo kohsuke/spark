@@ -177,6 +177,7 @@ class Analyzer(
       ResolveTables ::
       ResolveRelations ::
       ResolveReferences ::
+      ResolveRecursiveReferences ::
       ResolveCreateNamedStruct ::
       ResolveDeserializer ::
       ResolveNewInstance ::
@@ -219,6 +220,31 @@ class Analyzer(
     Batch("Cleanup", fixedPoint,
       CleanupAliases)
   )
+
+  object ResolveRecursiveReferences extends Rule[LogicalPlan] {
+    def apply(plan: LogicalPlan): LogicalPlan = resolve(plan)
+
+    private def resolve(
+        plan: LogicalPlan,
+        recursiveTables: mutable.Map[String, Seq[Attribute]] = mutable.Map.empty): LogicalPlan = {
+      plan.foreach {
+        case rt @ RecursiveTable(name, _, _, _) if rt.firstAnchorResolved =>
+          recursiveTables += name -> rt.output
+        case _ =>
+      }
+
+      plan.resolveOperatorsUp {
+        case UnresolvedRecursiveReference(name, cumulated) if recursiveTables.contains(name) =>
+          // creating new instance of attributes here makes possible to avoid complex attribute
+          // handling in FoldablePropagation
+          RecursiveReference(name, recursiveTables(name).map(_.newInstance()), cumulated)
+        case other =>
+          other transformExpressions {
+            case e: SubqueryExpression => e.withNewPlan(resolve(e.plan, recursiveTables))
+          }
+      }
+    }
+  }
 
   /**
    * Substitute child plan with WindowSpecDefinitions.
@@ -1043,6 +1069,10 @@ class Analyzer(
             if AttributeSet(windowExpressions.map(_.toAttribute)).intersect(conflictingAttributes)
               .nonEmpty =>
           (oldVersion, oldVersion.copy(windowExpressions = newAliases(windowExpressions)))
+
+        case oldVersion @ RecursiveReference(_, output, _)
+            if oldVersion.outputSet.intersect(conflictingAttributes).nonEmpty =>
+          (oldVersion, oldVersion.copy(output = output.map(_.newInstance())))
       }
         // Only handle first case, others will be fixed on the next pass.
         .headOption match {
