@@ -47,7 +47,8 @@ import org.apache.spark.util.Utils
 class QueryExecution(
     val sparkSession: SparkSession,
     val logical: LogicalPlan,
-    val tracker: QueryPlanningTracker = new QueryPlanningTracker) {
+    val tracker: QueryPlanningTracker = new QueryPlanningTracker,
+    val alreadyOptimized: Boolean = false) {
 
   // TODO: Move the planner an optimizer into here from SessionState.
   protected def planner = sparkSession.sessionState.planner
@@ -74,10 +75,14 @@ class QueryExecution(
     sparkSession.sharedState.cacheManager.useCachedData(analyzed.clone())
   }
 
-  lazy val optimizedPlan: LogicalPlan = tracker.measurePhase(QueryPlanningTracker.OPTIMIZATION) {
-    // clone the plan to avoid sharing the plan instance between different stages like analyzing,
-    // optimizing and planning.
-    sparkSession.sessionState.optimizer.executeAndTrack(withCachedData.clone(), tracker)
+  lazy val optimizedPlan: LogicalPlan = if (alreadyOptimized) {
+    logical
+  } else {
+    tracker.measurePhase(QueryPlanningTracker.OPTIMIZATION) {
+      // clone the plan to avoid sharing the plan instance between different stages like analyzing,
+      // optimizing and planning.
+      sparkSession.sessionState.optimizer.executeAndTrack(withCachedData.clone(), tracker)
+    }
   }
 
   lazy val sparkPlan: SparkPlan = tracker.measurePhase(QueryPlanningTracker.PLANNING) {
@@ -85,7 +90,7 @@ class QueryExecution(
     // TODO: We use next(), i.e. take the first plan returned by the planner, here for now,
     //       but we will implement to choose the best plan.
     // Clone the logical plan here, in case the planner rules change the states of the logical plan.
-    planner.plan(ReturnAnswer(optimizedPlan.clone())).next()
+    planner.plan(ReturnAnswer(optimizedPlan.clone()), this).next()
   }
 
   // executedPlan should not be used to initialize any SparkPlan. It should be
