@@ -249,7 +249,7 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
 
   /** Send the array of messages to the Kafka broker */
   def sendMessages(topic: String, messages: Array[String]): Seq[(String, RecordMetadata)] = {
-    sendMessages(topic, messages, None)
+    sendMessages(topic, messages, None, None)
   }
 
   /** Send the array of messages to the Kafka broker using specified partition */
@@ -257,13 +257,27 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
       topic: String,
       messages: Array[String],
       partition: Option[Int]): Seq[(String, RecordMetadata)] = {
+    sendMessages(topic, messages, partition, None)
+  }
+
+  /** Send the array of messages to the Kafka broker using specified partition and timestamp */
+  def sendMessages(
+      topic: String,
+      messages: Array[String],
+      partition: Option[Int],
+      timestamp: Option[Long]): Seq[(String, RecordMetadata)] = {
     producer = new KafkaProducer[String, String](producerConfiguration)
     val offsets = try {
       messages.map { m =>
-        val record = partition match {
-          case Some(p) => new ProducerRecord[String, String](topic, p, null, m)
-          case None => new ProducerRecord[String, String](topic, m)
+        val ts: java.lang.Long = timestamp match {
+          case Some(t) => t
+          case None => null
         }
+        val part: java.lang.Integer = partition match {
+          case Some(p) => p
+          case None => null
+        }
+        val record = new ProducerRecord[String, String](topic, part, ts, null, m)
         val metadata =
           producer.send(record).get(10, TimeUnit.SECONDS)
           logInfo(s"\tSent $m to partition ${metadata.partition}, offset ${metadata.offset}")
@@ -488,4 +502,3 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
     }
   }
 }
-
