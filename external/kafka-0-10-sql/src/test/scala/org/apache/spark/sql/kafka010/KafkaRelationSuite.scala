@@ -80,12 +80,12 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     withOptions.foreach {
       case (key, value) => df.option(key, value)
     }
-    if (!includeHeaders) {
-      df.load().selectExpr("CAST(value AS STRING)")
-    } else {
+    if (includeHeaders) {
       df.load()
         .selectExpr("CAST(value AS STRING)", "CAST(headers.once AS STRING)",
           "CAST(headers.twice AS STRING)")
+    } else {
+      df.load().selectExpr("CAST(value AS STRING)")
     }
   }
 

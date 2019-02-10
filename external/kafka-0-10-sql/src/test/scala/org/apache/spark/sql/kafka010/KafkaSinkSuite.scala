@@ -370,8 +370,8 @@ abstract class KafkaSinkBatchSuiteBase extends KafkaSinkSuiteBase {
     testUtils.createTopic(topic)
     val df = Seq("1", "2", "3", "4", "5").map(v => (topic, v)).toDF("topic", "value")
       .withColumn("headers",
-        map(lit("x"), col("value").plus(1).cast(IntegerType).cast(StringType).cast(BinaryType),
-          lit("y"), col("value").multiply(2).cast(IntegerType).cast(StringType).cast(BinaryType)))
+        map(lit("x"), ($"value" + 1).cast(IntegerType).cast(StringType).cast(BinaryType),
+          lit("y"), ($"value" * 2).cast(IntegerType).cast(StringType).cast(BinaryType)))
     df.write
       .format("kafka")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)

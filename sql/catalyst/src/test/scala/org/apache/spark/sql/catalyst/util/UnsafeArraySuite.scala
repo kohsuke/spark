@@ -225,15 +225,15 @@ class UnsafeArraySuite extends SparkFunSuite {
 
   test("from binary array") {
     val blobs = Array[Array[Byte]](
-      Array[Byte](1.toByte, 2.toByte), Array[Byte](3.toByte, 4.toByte, 5.toByte), null,
-      Array[Byte](6.toByte), Array[Byte]()
+      toByteArray(Array(1, 2)), toByteArray(Array(3, 4, 5)),
+      null, toByteArray(Array(6)), Array[Byte]()
     )
 
     val unsafeBlob = UnsafeArrayData.fromBinaryArray(blobs)
-    assert(unsafeBlob.getBinary(0).sameElements(Array[Byte](1.toByte, 2.toByte)))
-    assert(unsafeBlob.getBinary(1).sameElements(Array[Byte](3.toByte, 4.toByte, 5.toByte)))
+    assert(unsafeBlob.getBinary(0).sameElements(toByteArray(Array(1, 2))))
+    assert(unsafeBlob.getBinary(1).sameElements(toByteArray(Array(3, 4, 5))))
     assert(unsafeBlob.getBinary(2) == null)
-    assert(unsafeBlob.getBinary(3).sameElements(Array[Byte](6.toByte)))
+    assert(unsafeBlob.getBinary(3).sameElements(toByteArray(Array(6))))
     assert(unsafeBlob.getBinary(4) == null)
   }
 

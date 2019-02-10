@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.kafka010
 
+import java.nio.charset.StandardCharsets
 import java.util.concurrent.{Executors, TimeUnit}
 
 import scala.collection.JavaConverters._
@@ -59,8 +60,13 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
 
   test("SPARK-23623: concurrent use of KafkaDataConsumer") {
     val topic = "topic" + Random.nextInt()
-    val data = (1 to 1000).map( i =>
-      (i.toString, Array(("once", i.toString.getBytes), ("twice", (i * 2).toString.getBytes)))
+    val data = (1 to 1000).map(i =>
+      (i.toString,
+        Array(
+          ("once", i.toString.getBytes(StandardCharsets.UTF_8)),
+          ("twice", (i * 2).toString.getBytes(StandardCharsets.UTF_8))
+        )
+      )
     )
     testUtils.createTopic(topic, 1)
     testUtils.sendMessages(topic, data.toArray, None)
@@ -95,10 +101,9 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
         val range = consumer.getAvailableOffsetRange()
         val rcvd = range.earliest until range.latest map { offset =>
           val record = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false)
-          (
-            new String(record.value()),
-            record.headers().toArray.map(header => (header.key(), header.value()))
-          )
+          val value = new String(record.value(), StandardCharsets.UTF_8)
+          val headers = record.headers().toArray.map(header => (header.key(), header.value()))
+          (value, headers)
         }
         KafkaTestUtils.assertEqual(data.toArray, rcvd.toArray)
       } catch {
