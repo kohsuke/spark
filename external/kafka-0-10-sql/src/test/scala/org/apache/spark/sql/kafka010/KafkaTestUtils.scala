@@ -276,17 +276,17 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
     producer = new KafkaProducer[String, String](producerConfiguration)
     val offsets = try {
       records.map { r =>
+        val value = r._1
+        val headers = r._2.map(t => new RecordHeader(t._1, t._2).asInstanceOf[Header])
         val record = partition match {
-          case Some(p) => new ProducerRecord[String, String](
-                topic, p, null, r._1, r._2.map(
-                    t => new RecordHeader(t._1, t._2).asInstanceOf[Header]).toIterable.asJava)
-          case None => new ProducerRecord[String, String](topic, null, null, r._1, r._2.map(
-            t => new RecordHeader(t._1, t._2).asInstanceOf[Header]).toIterable.asJava)
+          case Some(p) =>
+            new ProducerRecord[String, String](topic, p, null, value, headers.toIterable.asJava)
+          case None =>
+            new ProducerRecord[String, String](topic, null, null, value, headers.toIterable.asJava)
         }
-        val metadata =
-          producer.send(record).get(10, TimeUnit.SECONDS)
+        val metadata = producer.send(record).get(10, TimeUnit.SECONDS)
         logInfo(s"\tSent $r to partition ${metadata.partition}, offset ${metadata.offset}")
-        (r._1, metadata)
+        (value, metadata)
       }
     } finally {
       if (producer != null) {
