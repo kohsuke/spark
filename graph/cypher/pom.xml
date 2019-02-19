@@ -20,26 +20,27 @@
 
   <dependencies>
     <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-core_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-sql_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.spark</groupId>
+      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.opencypher</groupId>
       <artifactId>okapi-relational</artifactId>
       <version>${okapi.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_${scala.binary.version}</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-sql_${scala.binary.version}</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
-      <version>${project.version}</version>
-    </dependency>
 
+    <!-- Test dependencies -->
 
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -60,6 +61,118 @@
       <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
       <version>${project.version}</version>
       <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.opencypher</groupId>
+      <artifactId>okapi-tck</artifactId>
+      <version>${okapi.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- TODO: remove when https://trello.com/c/LlIcZShZ is solved -->
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>4.7.1</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.neo4j.test</groupId>
+      <artifactId>neo4j-harness-enterprise</artifactId>
+      <version>3.4.10</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.bouncycastle</groupId>
+      <artifactId>bctls-jdk15on</artifactId>
+      <version>1.59</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+      <version>4.1.24.Final</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-client</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-continuation</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-http</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-plus</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-proxy</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-security</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-server</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlet</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-servlets</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-util</artifactId>
+      <version>9.4.11.v20180605</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- TODO: remove when https://trello.com/c/KggnwDBk is solved -->
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-webapp</artifactId>
+      <version>9.4.11.v20180605</version>
       <scope>test</scope>
     </dependency>
 
