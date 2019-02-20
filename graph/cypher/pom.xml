@@ -10,12 +10,12 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>spark-cypher_2.11</artifactId>
+  <artifactId>spark-graph-cypher_2.11</artifactId>
   <properties>
     <sbt.project.name>cypher</sbt.project.name>
   </properties>
   <packaging>jar</packaging>
-  <name>Spark Project Cypher</name>
+  <name>Spark Project Graph Cypher</name>
   <url>http://spark.apache.org/</url>
 
   <dependencies>
