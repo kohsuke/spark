@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import java.io.{ByteArrayOutputStream, DataOutputStream}
 import java.sql.{Date, Timestamp}
 import java.util.{Calendar, TimeZone}
 import java.util.concurrent.TimeUnit._
@@ -27,14 +28,14 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCoercion.numericPrecedence
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenContext
 import org.apache.spark.sql.catalyst.util.DateTimeTestUtils._
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import org.apache.spark.sql.catalyst.util.{DateTimeUtils, GenericArrayData}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 
 /**
- * Test suite for data type casting expression [[Cast]].
- */
+  * Test suite for data type casting expression [[Cast]].
+  */
 class CastSuite extends SparkFunSuite with ExpressionEvalHelper {
 
   private def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): Cast = {
@@ -834,6 +835,57 @@ class CastSuite extends SparkFunSuite with ExpressionEvalHelper {
 
     checkEvaluation(cast("abc", BooleanType), null)
     checkEvaluation(cast("", BooleanType), null)
+  }
+
+  test("cast integer types to binary") {
+    val bos = new ByteArrayOutputStream()
+    val dos = new DataOutputStream(bos)
+
+    def withDos(f: DataOutputStream => Unit): UTF8String = {
+      f(dos)
+      dos.flush()
+      val res = UTF8String.fromBytes(bos.toByteArray)
+      bos.reset()
+      res
+    }
+
+    def checkBinaryCast[T](in: T): Unit = in match {
+      case b: Byte => checkEvaluation(cast(cast(in, BinaryType), StringType), withDos(_.writeByte(b)))
+      case s: Short => checkEvaluation(cast(cast(in, BinaryType), StringType), withDos(_.writeShort(s)))
+      case i: Int => checkEvaluation(cast(cast(in, BinaryType), StringType), withDos(_.writeInt(i)))
+      case l: Long => checkEvaluation(cast(cast(in, BinaryType), StringType), withDos(_.writeLong(l)))
+    }
+
+    // Byte
+    checkBinaryCast(0.toByte)
+    checkBinaryCast(1.toByte)
+    checkBinaryCast(-1.toByte)
+    checkBinaryCast(Byte.MaxValue)
+    checkBinaryCast(Byte.MinValue)
+
+    // Short
+    checkBinaryCast(0.toShort)
+    checkBinaryCast(1.toShort)
+    checkBinaryCast(-1.toShort)
+    checkBinaryCast(Short.MaxValue)
+    checkBinaryCast(Short.MinValue)
+
+    // Int
+    checkBinaryCast(0)
+    checkBinaryCast(1)
+    checkBinaryCast(-1)
+    checkBinaryCast(Int.MaxValue)
+    checkBinaryCast(Int.MinValue)
+
+    // Int
+    checkBinaryCast(0L)
+    checkBinaryCast(1L)
+    checkBinaryCast(-1L)
+    checkBinaryCast(Long.MaxValue)
+    checkBinaryCast(Long.MinValue)
+
+    dos.close()
+    bos.close()
   }
 
   test("SPARK-16729 type checking for casting to date type") {
