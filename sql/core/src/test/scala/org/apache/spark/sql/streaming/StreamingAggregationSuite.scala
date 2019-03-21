@@ -25,7 +25,7 @@ import org.scalatest.Assertions
 
 import org.apache.spark.{SparkEnv, SparkException}
 import org.apache.spark.rdd.BlockRDD
-import org.apache.spark.sql.{AnalysisException, DataFrame, Dataset, SparkSession}
+import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.plans.logical.Aggregate
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
@@ -638,6 +638,53 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
     )
   }
 
+  testQuietlyWithAllStateVersions("changing schema of state when restarting query") {
+    withTempDir { tempDir =>
+      val inputData = MemoryStream[Int]
+      val aggregated = inputData.toDF()
+        .selectExpr("value % 10 AS id", "value")
+        .groupBy($"id")
+        .agg(
+          sum("value").as("sum_value"),
+          avg("value").as("avg_value"),
+          max("value").as("max_value"))
+
+      testStream(aggregated, Update())(
+        StartStream(checkpointLocation = tempDir.getAbsolutePath),
+        AddData(inputData, 1, 11),
+        CheckLastBatch((1L, 12L, 6.0, 11)),
+        StopStream
+      )
+
+      StateStore.unloadAll()
+
+      val inputData2 = MemoryStream[Int]
+      val aggregated2 = inputData2.toDF()
+        .selectExpr("value % 10 AS id", "value")
+        .groupBy($"id")
+        .agg(
+          sum("value").as("sum_value"),
+          avg("value").as("avg_value"),
+          collect_list("value").as("values"))
+
+      // if we don't have verification phase on state schema, modified query would throw NPE with
+      // stack trace which end users would not easily understand
+
+      inputData2.addData(1, 11)
+
+      testStream(aggregated2, Update())(
+        StartStream(checkpointLocation = tempDir.getAbsolutePath),
+        AddData(inputData2, 21),
+        ExpectFailure[SparkException] { e =>
+          val cause = e.getCause
+          assert(cause.isInstanceOf[IllegalStateException])
+          val msg = cause.getMessage
+          assert(msg.contains("Provided schema doesn't match to the schema for existing state"))
+          // other verifications are presented in StateStoreSuite
+        }
+      )
+    }
+  }
 
   /** Add blocks of data to the `BlockRDDBackedSource`. */
   case class AddBlockData(source: BlockRDDBackedSource, data: Seq[Int]*) extends AddData {
