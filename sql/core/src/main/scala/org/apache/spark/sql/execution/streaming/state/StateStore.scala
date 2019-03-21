@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.execution.streaming.state
 
+import java.io.{BufferedReader, InputStreamReader}
 import java.util.UUID
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 import javax.annotation.concurrent.GuardedBy
@@ -30,8 +31,8 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.{SparkContext, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
-import org.apache.spark.sql.execution.streaming.StatefulOperatorStateInfo
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.execution.streaming.{CheckpointFileManager, StatefulOperatorStateInfo}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.util.{ThreadUtils, Utils}
 
 /**
@@ -361,9 +362,12 @@ object StateStore extends Logging {
     val storeProvider = loadedProviders.synchronized {
       startMaintenanceIfNeeded()
       val provider = loadedProviders.getOrElseUpdate(
-        storeProviderId,
-        StateStoreProvider.createAndInit(
-          storeProviderId.storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
+        storeProviderId, {
+          val checker = new StateSchemaCompatibilityChecker(storeProviderId, hadoopConf)
+          checker.check(keySchema, valueSchema)
+          StateStoreProvider.createAndInit(
+            storeProviderId.storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
+        }
       )
       reportActiveStoreInstance(storeProviderId)
       provider
@@ -374,6 +378,12 @@ object StateStore extends Logging {
   /** Unload a state store provider */
   def unload(storeProviderId: StateStoreProviderId): Unit = loadedProviders.synchronized {
     loadedProviders.remove(storeProviderId).foreach(_.close())
+  }
+
+  /** Unload all state store providers: unit test purpose */
+  private[sql] def unloadAll(): Unit = loadedProviders.synchronized {
+    loadedProviders.keySet.foreach { key => unload(key) }
+    loadedProviders.clear()
   }
 
   /** Whether a state store provider is loaded or not */
@@ -477,5 +487,73 @@ object StateStore extends Logging {
       None
     }
   }
-}
 
+  private class StateSchemaCompatibilityChecker(
+      providerId: StateStoreProviderId,
+      hadoopConf: Configuration) {
+
+    private val storeCpLocation = providerId.storeId.storeCheckpointLocation()
+    private val fm = CheckpointFileManager.create(storeCpLocation, hadoopConf)
+    private val schemaFileLocation = schemaFile(storeCpLocation)
+
+    fm.mkdirs(schemaFileLocation.getParent)
+
+    def check(keySchema: StructType, valueSchema: StructType): Unit = {
+      if (fm.exists(schemaFileLocation)) {
+        logDebug(s"Schema file for provider $providerId exists. Comparing with provided schema.")
+        val (storedKeySchema, storedValueSchema) = readSchemaFile()
+
+        def typesEq(schema1: StructType, schema2: StructType): Boolean = {
+          val fieldToType: StructField => (DataType, Boolean) = f => (f.dataType, f.nullable)
+          (schema1.length == schema2.length) &&
+            schema1.map(fieldToType).equals(schema2.map(fieldToType))
+        }
+
+        val errorMsg = "Provided schema doesn't match to the schema for existing state! " +
+          "Please note that Spark allow difference of field name: check count of fields " +
+          "and data type of each field.\n" +
+          s"- provided schema: key $keySchema value $valueSchema\n" +
+          s"- existing schema: key $storedKeySchema value $storedValueSchema\n"
+
+        if (!typesEq(keySchema, storedKeySchema) || !typesEq(valueSchema, storedValueSchema)) {
+          logError(errorMsg)
+          throw new IllegalStateException(errorMsg)
+        }
+      } else {
+        // schema doesn't exist, create one now
+        logDebug(s"Schema file for provider $providerId doesn't exist. Creating one.")
+        createSchemaFile(keySchema, valueSchema)
+      }
+    }
+
+    private def readSchemaFile(): (StructType, StructType) = {
+      val inStream = fm.open(schemaFileLocation)
+      val br = new BufferedReader(new InputStreamReader(inStream))
+
+      try {
+        val keySchemaStr = inStream.readUTF().stripSuffix("\n")
+        val valueSchemaStr = inStream.readUTF().stripSuffix("\n")
+
+        (StructType.fromString(keySchemaStr), StructType.fromString(valueSchemaStr))
+      } finally {
+        br.close()
+      }
+    }
+
+    private def createSchemaFile(keySchema: StructType, valueSchema: StructType): Unit = {
+      val outStream = fm.createAtomic(schemaFileLocation, overwriteIfPossible = true)
+      try {
+        outStream.writeUTF(keySchema.json + "\n")
+        outStream.writeUTF(valueSchema.json + "\n")
+        outStream.close()
+      } catch { case NonFatal(e) =>
+        logError(s"Fail to write schema file to $schemaFileLocation", e)
+        outStream.cancel()
+        throw e
+      }
+    }
+  }
+
+  private def schemaFile(storeCpLocation: Path): Path =
+    new Path(new Path(storeCpLocation, "_metadata"), "schema")
+}
