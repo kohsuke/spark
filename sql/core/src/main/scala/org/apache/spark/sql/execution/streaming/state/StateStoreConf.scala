@@ -52,6 +52,9 @@ class StateStoreConf(
   val formatValidationCheckValue: Boolean =
     extraOptions.getOrElse(StateStoreConf.FORMAT_VALIDATION_CHECK_VALUE_CONFIG, "true") == "true"
 
+  /** whether to validate state schema during query run. */
+  val stateSchemaCheckEnabled = sqlConf.isStateSchemaCheckEnabled
+
   /**
    * Additional configurations related to state store. This will capture all configs in
    * SQLConf that start with `spark.sql.streaming.stateStore.` and extraOptions for a specific
