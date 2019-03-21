@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.execution.streaming.state
 
-import java.io.{BufferedReader, InputStreamReader}
 import java.util.UUID
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 import javax.annotation.concurrent.GuardedBy
@@ -509,6 +508,10 @@ object StateStore extends Logging {
             schema1.map(fieldToType).equals(schema2.map(fieldToType))
         }
 
+        def namesEq(schema1: StructType, schema2: StructType): Boolean = {
+          schema1.fieldNames.toList.equals(schema2.fieldNames.toList)
+        }
+
         val errorMsg = "Provided schema doesn't match to the schema for existing state! " +
           "Please note that Spark allow difference of field name: check count of fields " +
           "and data type of each field.\n" +
@@ -518,6 +521,13 @@ object StateStore extends Logging {
         if (!typesEq(keySchema, storedKeySchema) || !typesEq(valueSchema, storedValueSchema)) {
           logError(errorMsg)
           throw new IllegalStateException(errorMsg)
+        } else if (!namesEq(keySchema, storedKeySchema) ||
+          !namesEq(valueSchema, storedValueSchema)) {
+          logInfo("Detected the change of field name, will overwrite schema file to new.")
+          // It tries best-effort to overwrite current schema file.
+          // the schema validation doesn't break even it fails, though it might miss on detecting
+          // change of field name which is not a big deal.
+          createSchemaFile(keySchema, valueSchema)
         }
       } else {
         // schema doesn't exist, create one now
@@ -528,15 +538,13 @@ object StateStore extends Logging {
 
     private def readSchemaFile(): (StructType, StructType) = {
       val inStream = fm.open(schemaFileLocation)
-      val br = new BufferedReader(new InputStreamReader(inStream))
-
       try {
         val keySchemaStr = inStream.readUTF().stripSuffix("\n")
         val valueSchemaStr = inStream.readUTF().stripSuffix("\n")
 
         (StructType.fromString(keySchemaStr), StructType.fromString(valueSchemaStr))
       } finally {
-        br.close()
+        inStream.close()
       }
     }
 
