@@ -30,8 +30,8 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.{SparkContext, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
-import org.apache.spark.sql.execution.streaming.{CheckpointFileManager, StatefulOperatorStateInfo}
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.execution.streaming.StatefulOperatorStateInfo
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.{ThreadUtils, Utils}
 
 /**
@@ -220,14 +220,17 @@ object StateStoreProvider {
    * Return a instance of the required provider, initialized with the given configurations.
    */
   def createAndInit(
-      stateStoreId: StateStoreId,
+      providerId: StateStoreProviderId,
       keySchema: StructType,
       valueSchema: StructType,
       indexOrdinal: Option[Int], // for sorting the data
       storeConf: StateStoreConf,
       hadoopConf: Configuration): StateStoreProvider = {
+    val checker = new StateSchemaCompatibilityChecker(providerId, hadoopConf)
+    checker.check(keySchema, valueSchema)
+
     val provider = create(storeConf.providerClass)
-    provider.init(stateStoreId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
+    provider.init(providerId.storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
     provider
   }
 }
@@ -361,12 +364,9 @@ object StateStore extends Logging {
     val storeProvider = loadedProviders.synchronized {
       startMaintenanceIfNeeded()
       val provider = loadedProviders.getOrElseUpdate(
-        storeProviderId, {
-          val checker = new StateSchemaCompatibilityChecker(storeProviderId, hadoopConf)
-          checker.check(keySchema, valueSchema)
+        storeProviderId,
           StateStoreProvider.createAndInit(
-            storeProviderId.storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
-        }
+            storeProviderId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
       )
       reportActiveStoreInstance(storeProviderId)
       provider
@@ -486,82 +486,4 @@ object StateStore extends Logging {
       None
     }
   }
-
-  private class StateSchemaCompatibilityChecker(
-      providerId: StateStoreProviderId,
-      hadoopConf: Configuration) {
-
-    private val storeCpLocation = providerId.storeId.storeCheckpointLocation()
-    private val fm = CheckpointFileManager.create(storeCpLocation, hadoopConf)
-    private val schemaFileLocation = schemaFile(storeCpLocation)
-
-    fm.mkdirs(schemaFileLocation.getParent)
-
-    def check(keySchema: StructType, valueSchema: StructType): Unit = {
-      if (fm.exists(schemaFileLocation)) {
-        logDebug(s"Schema file for provider $providerId exists. Comparing with provided schema.")
-        val (storedKeySchema, storedValueSchema) = readSchemaFile()
-
-        def typesEq(schema1: StructType, schema2: StructType): Boolean = {
-          val fieldToType: StructField => (DataType, Boolean) = f => (f.dataType, f.nullable)
-          (schema1.length == schema2.length) &&
-            schema1.map(fieldToType).equals(schema2.map(fieldToType))
-        }
-
-        def namesEq(schema1: StructType, schema2: StructType): Boolean = {
-          schema1.fieldNames.toList.equals(schema2.fieldNames.toList)
-        }
-
-        val errorMsg = "Provided schema doesn't match to the schema for existing state! " +
-          "Please note that Spark allow difference of field name: check count of fields " +
-          "and data type of each field.\n" +
-          s"- provided schema: key $keySchema value $valueSchema\n" +
-          s"- existing schema: key $storedKeySchema value $storedValueSchema\n"
-
-        if (!typesEq(keySchema, storedKeySchema) || !typesEq(valueSchema, storedValueSchema)) {
-          logError(errorMsg)
-          throw new IllegalStateException(errorMsg)
-        } else if (!namesEq(keySchema, storedKeySchema) ||
-          !namesEq(valueSchema, storedValueSchema)) {
-          logInfo("Detected the change of field name, will overwrite schema file to new.")
-          // It tries best-effort to overwrite current schema file.
-          // the schema validation doesn't break even it fails, though it might miss on detecting
-          // change of field name which is not a big deal.
-          createSchemaFile(keySchema, valueSchema)
-        }
-      } else {
-        // schema doesn't exist, create one now
-        logDebug(s"Schema file for provider $providerId doesn't exist. Creating one.")
-        createSchemaFile(keySchema, valueSchema)
-      }
-    }
-
-    private def readSchemaFile(): (StructType, StructType) = {
-      val inStream = fm.open(schemaFileLocation)
-      try {
-        val keySchemaStr = inStream.readUTF().stripSuffix("\n")
-        val valueSchemaStr = inStream.readUTF().stripSuffix("\n")
-
-        (StructType.fromString(keySchemaStr), StructType.fromString(valueSchemaStr))
-      } finally {
-        inStream.close()
-      }
-    }
-
-    private def createSchemaFile(keySchema: StructType, valueSchema: StructType): Unit = {
-      val outStream = fm.createAtomic(schemaFileLocation, overwriteIfPossible = true)
-      try {
-        outStream.writeUTF(keySchema.json + "\n")
-        outStream.writeUTF(valueSchema.json + "\n")
-        outStream.close()
-      } catch { case NonFatal(e) =>
-        logError(s"Fail to write schema file to $schemaFileLocation", e)
-        outStream.cancel()
-        throw e
-      }
-    }
-  }
-
-  private def schemaFile(storeCpLocation: Path): Path =
-    new Path(new Path(storeCpLocation, "_metadata"), "schema")
 }
