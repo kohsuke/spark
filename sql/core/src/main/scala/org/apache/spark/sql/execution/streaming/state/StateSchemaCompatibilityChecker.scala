@@ -19,9 +19,9 @@ package org.apache.spark.sql.execution.streaming.state
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.streaming.CheckpointFileManager
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 
 class StateSchemaCompatibilityChecker(
@@ -53,7 +53,9 @@ class StateSchemaCompatibilityChecker(
         "Please note that Spark allow difference of field name: check count of fields " +
         "and data type of each field.\n" +
         s"- provided schema: key $keySchema value $valueSchema\n" +
-        s"- existing schema: key $storedKeySchema value $storedValueSchema\n"
+        s"- existing schema: key $storedKeySchema value $storedValueSchema\n" +
+        s"If you want to force running query without schema validation, please set " +
+        s"${SQLConf.STATE_SCHEMA_CHECK_ENABLED.key} to false."
 
       if (!typesEq(keySchema, storedKeySchema) || !typesEq(valueSchema, storedValueSchema)) {
         logError(errorMsg)

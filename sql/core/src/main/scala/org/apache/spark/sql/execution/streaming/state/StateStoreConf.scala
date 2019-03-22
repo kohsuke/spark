@@ -43,6 +43,9 @@ class StateStoreConf(@transient private val sqlConf: SQLConf)
    */
   val providerClass: String = sqlConf.stateStoreProviderClass
 
+  /** whether to validate state schema during query run. */
+  val stateSchemaCheckEnabled = sqlConf.isStateSchemaCheckEnabled
+
   /**
    * Additional configurations related to state store. This will capture all configs in
    * SQLConf that start with `spark.sql.streaming.stateStore.` */

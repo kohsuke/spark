@@ -933,6 +933,13 @@ object SQLConf {
       .createWithDefault(
         "org.apache.spark.sql.execution.streaming.state.HDFSBackedStateStoreProvider")
 
+  val STATE_SCHEMA_CHECK_ENABLED =
+    buildConf("spark.sql.streaming.stateSchemaCheck")
+      .doc("When true, Spark will validate the state schema against schema on existing state and " +
+        "fail query if it's incompatible.")
+      .booleanConf
+      .createWithDefault(true)
+
   val STATE_STORE_MIN_DELTAS_FOR_SNAPSHOT =
     buildConf("spark.sql.streaming.stateStore.minDeltasForSnapshot")
       .internal()
@@ -1866,6 +1873,8 @@ class SQLConf extends Serializable with Logging {
   def optimizerPlanChangeBatches: Option[String] = getConf(OPTIMIZER_PLAN_CHANGE_LOG_BATCHES)
 
   def stateStoreProviderClass: String = getConf(STATE_STORE_PROVIDER_CLASS)
+
+  def isStateSchemaCheckEnabled: Boolean = getConf(STATE_SCHEMA_CHECK_ENABLED)
 
   def stateStoreMinDeltasForSnapshot: Int = getConf(STATE_STORE_MIN_DELTAS_FOR_SNAPSHOT)
 

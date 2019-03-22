@@ -226,8 +226,10 @@ object StateStoreProvider {
       indexOrdinal: Option[Int], // for sorting the data
       storeConf: StateStoreConf,
       hadoopConf: Configuration): StateStoreProvider = {
-    val checker = new StateSchemaCompatibilityChecker(providerId, hadoopConf)
-    checker.check(keySchema, valueSchema)
+    if (storeConf.stateSchemaCheckEnabled) {
+      val checker = new StateSchemaCompatibilityChecker(providerId, hadoopConf)
+      checker.check(keySchema, valueSchema)
+    }
 
     val provider = create(storeConf.providerClass)
     provider.init(providerId.storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
