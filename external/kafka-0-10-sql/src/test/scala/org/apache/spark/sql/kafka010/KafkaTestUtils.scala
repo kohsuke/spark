@@ -259,19 +259,19 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
       topic: String,
       messages: Array[String],
       partition: Option[Int]): Seq[(String, RecordMetadata)] = {
-    sendMessages(topic, messages.map(m => (m, Array[(String, Array[Byte])]())), partition)
+    sendMessages(topic, messages.map(m => (m, Seq())), partition)
   }
 
   /** Send record to the Kafka broker with headers using specified partition */
   def sendMessage(topic: String,
-                  record: (String, Array[(String, Array[Byte])]),
+                  record: (String, Seq[(String, Array[Byte])]),
                   partition: Option[Int]): Seq[(String, RecordMetadata)] = {
-    sendMessages(topic, Array(record), partition)
+    sendMessages(topic, Array(record).toSeq, partition)
   }
 
   /** Send the array of records to the Kafka broker with headers using specified partition */
   def sendMessages(topic: String,
-                   records: Array[(String, Array[(String, Array[Byte])])],
+                   records: Seq[(String, Seq[(String, Array[Byte])])],
                    partition: Option[Int]): Seq[(String, RecordMetadata)] = {
     producer = new KafkaProducer[String, String](producerConfiguration)
     val offsets = try {
@@ -504,26 +504,6 @@ class KafkaTestUtils(withBrokerProps: Map[String, Object] = Map.empty) extends L
         case e: IOException if Utils.isWindows =>
           logWarning(e.getMessage)
       }
-    }
-  }
-}
-
-object KafkaTestUtils {
-
-  def assertEqual(lhs: (String, Array[(String, Array[Byte])]),
-                  rhs: (String, Array[(String, Array[Byte])])): Unit = {
-    assert(lhs._1 == rhs._1)
-    assert(lhs._2.size == rhs._2.size)
-    (0 until lhs._2.size) foreach { i =>
-      assert(lhs._2(i)._1 == rhs._2(i)._1)
-      assert(lhs._2(i)._2.deep == rhs._2(i)._2.deep)
-    }
-  }
-
-  def assertEqual(lhs: Array[(String, Array[(String, Array[Byte])])],
-                  rhs: Array[(String, Array[(String, Array[Byte])])]): Unit = {
-    assert(lhs.length == rhs.length)
-    (0 until lhs.length) foreach { i => assertEqual(lhs(i), rhs(i))
     }
   }
 }

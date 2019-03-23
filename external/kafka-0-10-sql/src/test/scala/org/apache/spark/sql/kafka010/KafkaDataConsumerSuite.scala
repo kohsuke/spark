@@ -65,11 +65,11 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
         Array(
           ("once", i.toString.getBytes(StandardCharsets.UTF_8)),
           ("twice", (i * 2).toString.getBytes(StandardCharsets.UTF_8))
-        )
+        ).toSeq
       )
     )
     testUtils.createTopic(topic, 1)
-    testUtils.sendMessages(topic, data.toArray, None)
+    testUtils.sendMessages(topic, data, None)
     val topicPartition = new TopicPartition(topic, 0)
 
     import ConsumerConfig._
@@ -102,10 +102,10 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
         val rcvd = range.earliest until range.latest map { offset =>
           val record = consumer.get(offset, Long.MaxValue, 10000, failOnDataLoss = false)
           val value = new String(record.value(), StandardCharsets.UTF_8)
-          val headers = record.headers().toArray.map(header => (header.key(), header.value()))
+          val headers = record.headers().toArray.map(header => (header.key(), header.value())).toSeq
           (value, headers)
         }
-        KafkaTestUtils.assertEqual(data.toArray, rcvd.toArray)
+        data === rcvd
       } catch {
         case e: Throwable =>
           error = e
