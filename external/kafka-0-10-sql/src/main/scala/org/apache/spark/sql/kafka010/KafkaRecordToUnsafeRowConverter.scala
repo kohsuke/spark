@@ -19,7 +19,7 @@ package org.apache.spark.sql.kafka010
 
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
-import org.apache.spark.sql.catalyst.expressions.{UnsafeArrayData, UnsafeMapData, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.unsafe.types.UTF8String
@@ -53,9 +53,7 @@ private[kafka010] class KafkaRecordToUnsafeRowConverter {
     if (headers.isEmpty) {
       rowWriter.setNullAt(7)
     } else {
-      val unsafeKeyData = UnsafeArrayData.fromStringArray(headers.map(_.key()))
-      val unsafeValueData = UnsafeArrayData.fromBinaryArray(headers.map(_.value()))
-      rowWriter.write(7, UnsafeMapData.of(unsafeKeyData, unsafeValueData))
+      rowWriter.write(7, KafkaUtils.toUnsafeMapData(record.headers))
     }
     rowWriter.getRow()
   }
