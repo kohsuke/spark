@@ -15,7 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.catalyst.util
+package org.apache.spark.sql.kafka010
+
+import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
@@ -61,15 +63,13 @@ class UnsafeMapSuite extends SparkFunSuite {
     assert(mapDataSer.valueArray().getInt(0) == 19286)
     assert(mapDataSer.getBaseObject.asInstanceOf[Array[Byte]].length == 1024)
 
-  test("UnsafeMap from two UnsafeArray") {
-    val keys = Array[String]("apache", "spark", "with", "kafka")
-    val values = Array[Array[Byte]](
-      Array[Byte](1.toByte, 2.toByte), Array[Byte](3.toByte, 4.toByte, 5.toByte),
-      Array[Byte](6.toByte), Array[Byte]()
-    )
-    val unsafeKeyData = UnsafeArrayData.fromStringArray(keys)
-    val unsafeValueData = UnsafeArrayData.fromBinaryArray(values)
-    val unsafeMapData = UnsafeMapData.of(unsafeKeyData, unsafeValueData)
+  test("UnsafeMap from Kafka Headers") {
+    val headers = new RecordHeaders
+    headers.add(new RecordHeader("apache", Array[Byte](1.toByte, 2.toByte)))
+    headers.add(new RecordHeader("spark", Array[Byte](3.toByte, 4.toByte, 5.toByte)))
+    headers.add(new RecordHeader("with", Array[Byte](6.toByte)))
+    headers.add(new RecordHeader("kafka", Array[Byte]()))
+    val unsafeMapData = KafkaUtils.toUnsafeMapData(headers)
 
     assert(unsafeMapData.numElements() == 4)
     assert(unsafeMapData.keyArray().getUTF8String(0).toString == "apache")

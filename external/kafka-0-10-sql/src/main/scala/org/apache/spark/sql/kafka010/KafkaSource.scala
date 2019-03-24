@@ -31,7 +31,6 @@ import org.apache.spark.internal.config.Network.NETWORK_TIMEOUT
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
-import org.apache.spark.sql.catalyst.expressions.{UnsafeArrayData, UnsafeMapData}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.kafka010.KafkaSource._
@@ -313,10 +312,7 @@ private[kafka010] class KafkaSource(
         if (headers.isEmpty) {
           CatalystTypeConverters.convertToCatalyst(null)
         } else {
-          UnsafeMapData.of(
-            UnsafeArrayData.fromStringArray(headers.map(_.key())),
-            UnsafeArrayData.fromBinaryArray(headers.map(_.value()))
-          )
+          KafkaUtils.toUnsafeMapData(cr.headers)
         }
       )
     }
