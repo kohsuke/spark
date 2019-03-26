@@ -201,20 +201,14 @@ class StateStoreSuite extends StateStoreSuiteBase[HDFSBackedStateStoreProvider]
   testQuietly("changing schema of state when restarting query") {
     val opId = Random.nextInt
     val partitionId = 0
-    val dir = newDir()
-    val queryId = UUID.randomUUID()
-
-    val originKeySchema = new StructType()
-      .add(StructField("key1", IntegerType))
-      .add(StructField("key2", StringType))
-
-    val originValueSchema = new StructType()
-      .add(StructField("value1", IntegerType))
-      .add(StructField("value2", StringType))
 
     val hadoopConf: Configuration = new Configuration()
 
-    def initializeStoreProvider(newKeySchema: StructType, newValueSchema: StructType): Unit = {
+    def initializeStoreProvider(
+        dir: String,
+        queryId: UUID,
+        newKeySchema: StructType,
+        newValueSchema: StructType): Unit = {
       // in fact, Spark doesn't support online state schema change, so need to check
       // schema only once for each running of JVM
       val providerId = StateStoreProviderId(
@@ -225,42 +219,74 @@ class StateStoreSuite extends StateStoreSuiteBase[HDFSBackedStateStoreProvider]
       // we don't do anything with retrieved state store: we just want to initialize provider
     }
 
-    def verifyException(newKeySchema: StructType, newValueSchema: StructType): Unit = {
+    def verifyException(
+        oldKeySchema: StructType,
+        oldValueSchema: StructType,
+        newKeySchema: StructType,
+        newValueSchema: StructType): Unit = {
+      val dir = newDir()
+      val queryId = UUID.randomUUID()
+      initializeStoreProvider(dir, queryId, oldKeySchema, oldValueSchema)
+
       val e = intercept[IllegalStateException] {
-        initializeStoreProvider(newKeySchema, newValueSchema)
+        initializeStoreProvider(dir, queryId, newKeySchema, newValueSchema)
       }
 
       e.getMessage.contains("Provided schema doesn't match to the schema for existing state!")
       e.getMessage.contains(newKeySchema.json)
       e.getMessage.contains(newValueSchema.json)
-      e.getMessage.contains(originKeySchema.json)
-      e.getMessage.contains(originValueSchema.json)
+      e.getMessage.contains(oldKeySchema.json)
+      e.getMessage.contains(oldValueSchema.json)
     }
 
-    // initialize provider for the first time to store schema
-    initializeStoreProvider(originKeySchema, originValueSchema)
+    def verifySuccess(
+        oldKeySchema: StructType,
+        oldValueSchema: StructType,
+        newKeySchema: StructType,
+        newValueSchema: StructType): Unit = {
+      val dir = newDir()
+      val queryId = UUID.randomUUID()
+      initializeStoreProvider(dir, queryId, oldKeySchema, oldValueSchema)
+      initializeStoreProvider(dir, queryId, newKeySchema, newValueSchema)
+    }
+
+    val keySchema = new StructType()
+      .add(StructField("key1", IntegerType, nullable = true))
+      .add(StructField("key2", StringType, nullable = true))
+
+    val valueSchema = new StructType()
+      .add(StructField("value1", IntegerType, nullable = true))
+      .add(StructField("value2", StringType, nullable = true))
 
     // adding field should fail
-    val fieldAddedKeySchema = originKeySchema.add(StructField("newKey", IntegerType))
-    val fieldAddedValueSchema = originValueSchema.add(StructField("newValue", IntegerType))
-    verifyException(fieldAddedKeySchema, fieldAddedValueSchema)
+    val fieldAddedKeySchema = keySchema.add(StructField("newKey", IntegerType))
+    val fieldAddedValueSchema = valueSchema.add(StructField("newValue", IntegerType))
+    verifyException(keySchema, valueSchema, fieldAddedKeySchema, fieldAddedValueSchema)
 
     // removing field should fail
-    val fieldRemovedKeySchema = StructType(originKeySchema.dropRight(1))
-    val fieldRemovedValueSchema = StructType(originValueSchema.drop(1))
-    verifyException(fieldRemovedKeySchema, fieldRemovedValueSchema)
+    val fieldRemovedKeySchema = StructType(keySchema.dropRight(1))
+    val fieldRemovedValueSchema = StructType(valueSchema.drop(1))
+    verifyException(keySchema, valueSchema, fieldRemovedKeySchema, fieldRemovedValueSchema)
 
     // changing the type of field should fail
-    val typeChangedKeySchema = StructType(originKeySchema.map(_.copy(dataType = TimestampType)))
-    val typeChangedValueSchema = StructType(originKeySchema.map(_.copy(dataType = TimestampType)))
-    verifyException(typeChangedKeySchema, typeChangedValueSchema)
+    val typeChangedKeySchema = StructType(keySchema.map(_.copy(dataType = TimestampType)))
+    val typeChangedValueSchema = StructType(keySchema.map(_.copy(dataType = TimestampType)))
+    verifyException(keySchema, valueSchema, typeChangedKeySchema, typeChangedValueSchema)
+
+    // changing the nullability of nullable to non-nullable should fail
+    val nonNullChangedKeySchema = StructType(keySchema.map(_.copy(nullable = false)))
+    val nonNullChangedValueSchema = StructType(valueSchema.map(_.copy(nullable = false)))
+    verifyException(keySchema, valueSchema, nonNullChangedKeySchema, nonNullChangedValueSchema)
+
+    // changing the nullability of non-nullable to nullable should be allowed
+    verifySuccess(nonNullChangedKeySchema, nonNullChangedValueSchema, keySchema, valueSchema)
 
     // changing the name of field should be allowed
     val newName: StructField => StructField = f => f.copy(name = f.name + "_new")
-    val fieldNameChangedKeySchema = StructType(originKeySchema.map(newName))
-    val fieldNameChangedValueSchema = StructType(originValueSchema.map(newName))
+    val fieldNameChangedKeySchema = StructType(keySchema.map(newName))
+    val fieldNameChangedValueSchema = StructType(valueSchema.map(newName))
 
-    initializeStoreProvider(fieldNameChangedKeySchema, fieldNameChangedValueSchema)
+    verifySuccess(keySchema, valueSchema, fieldNameChangedKeySchema, fieldNameChangedValueSchema)
   }
 
   test("snapshotting") {

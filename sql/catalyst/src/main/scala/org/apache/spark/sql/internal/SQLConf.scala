@@ -1008,7 +1008,7 @@ object SQLConf {
         "org.apache.spark.sql.execution.streaming.state.HDFSBackedStateStoreProvider")
 
   val STATE_SCHEMA_CHECK_ENABLED =
-    buildConf("spark.sql.streaming.stateSchemaCheck")
+    buildConf("spark.sql.streaming.stateStore.stateSchemaCheck")
       .doc("When true, Spark will validate the state schema against schema on existing state and " +
         "fail query if it's incompatible.")
       .booleanConf
