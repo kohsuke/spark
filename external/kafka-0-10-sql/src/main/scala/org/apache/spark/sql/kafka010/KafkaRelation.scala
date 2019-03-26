@@ -36,6 +36,7 @@ private[kafka010] class KafkaRelation(
     sourceOptions: Map[String, String],
     specifiedKafkaParams: Map[String, String],
     failOnDataLoss: Boolean,
+    includeHeaders: Boolean,
     startingOffsets: KafkaOffsetRangeLimit,
     endingOffsets: KafkaOffsetRangeLimit)
   extends BaseRelation with TableScan with Logging {
@@ -49,7 +50,7 @@ private[kafka010] class KafkaRelation(
     (sqlContext.sparkContext.conf.get(NETWORK_TIMEOUT) * 1000L).toString
   ).toLong
 
-  override def schema: StructType = KafkaOffsetReader.kafkaSchema
+  override def schema: StructType = KafkaOffsetReader.kafkaSchema(includeHeaders)
 
   override def buildScan(): RDD[Row] = {
     // Each running query should use its own group id. Otherwise, the query may be only assigned
@@ -100,20 +101,35 @@ private[kafka010] class KafkaRelation(
     // Create an RDD that reads from Kafka and get the (key, value) pair as byte arrays.
     val executorKafkaParams =
       KafkaSourceProvider.kafkaParamsForExecutors(specifiedKafkaParams, uniqueGroupId)
-    val rdd = new KafkaSourceRDD(
-      sqlContext.sparkContext, executorKafkaParams, offsetRanges,
-      pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false).map { cr =>
-      val headers = cr.headers().toArray
-      InternalRow(
-        cr.key,
-        cr.value,
-        UTF8String.fromString(cr.topic),
-        cr.partition,
-        cr.offset,
-        DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-        cr.timestampType.id,
-        KafkaUtils.toUnsafeMapData(cr.headers)
-      )
+    val rdd = if (includeHeaders) {
+      new KafkaSourceRDD(
+        sqlContext.sparkContext, executorKafkaParams, offsetRanges,
+        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false).map { cr =>
+          InternalRow(
+            cr.key,
+            cr.value,
+            UTF8String.fromString(cr.topic),
+            cr.partition,
+            cr.offset,
+            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
+            cr.timestampType.id,
+            KafkaUtils.toUnsafeMapData(cr.headers)
+          )
+      }
+    } else {
+      new KafkaSourceRDD(
+        sqlContext.sparkContext, executorKafkaParams, offsetRanges,
+        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false).map { cr =>
+          InternalRow(
+            cr.key,
+            cr.value,
+            UTF8String.fromString(cr.topic),
+            cr.partition,
+            cr.offset,
+            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
+            cr.timestampType.id
+          )
+      }
     }
     sqlContext.internalCreateDataFrame(rdd.setName("kafka"), schema).rdd
   }

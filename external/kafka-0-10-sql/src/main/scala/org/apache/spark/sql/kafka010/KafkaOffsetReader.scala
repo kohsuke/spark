@@ -423,14 +423,28 @@ private[kafka010] class KafkaOffsetReader(
 
 private[kafka010] object KafkaOffsetReader {
 
-  def kafkaSchema: StructType = StructType(Seq(
-    StructField("key", BinaryType),
-    StructField("value", BinaryType),
-    StructField("topic", StringType),
-    StructField("partition", IntegerType),
-    StructField("offset", LongType),
-    StructField("timestamp", TimestampType),
-    StructField("timestampType", IntegerType),
-    StructField("headers", MapType(StringType, BinaryType))
-  ))
+  def kafkaSchema(includeHeaders: Boolean): StructType = {
+    if (includeHeaders) {
+      StructType(Seq(
+        StructField("key", BinaryType),
+        StructField("value", BinaryType),
+        StructField("topic", StringType),
+        StructField("partition", IntegerType),
+        StructField("offset", LongType),
+        StructField("timestamp", TimestampType),
+        StructField("timestampType", IntegerType),
+        StructField("headers", MapType(StringType, BinaryType))
+      ))
+    } else {
+      StructType(Seq(
+        StructField("key", BinaryType),
+        StructField("value", BinaryType),
+        StructField("topic", StringType),
+        StructField("partition", IntegerType),
+        StructField("offset", LongType),
+        StructField("timestamp", TimestampType),
+        StructField("timestampType", IntegerType)
+      ))
+    }
+  }
 }

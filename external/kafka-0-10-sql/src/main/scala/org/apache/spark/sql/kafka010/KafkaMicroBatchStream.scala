@@ -61,7 +61,8 @@ private[kafka010] class KafkaMicroBatchStream(
     options: CaseInsensitiveStringMap,
     metadataPath: String,
     startingOffsets: KafkaOffsetRangeLimit,
-    failOnDataLoss: Boolean) extends RateControlMicroBatchStream with Logging {
+    failOnDataLoss: Boolean,
+    includeHeaders: Boolean) extends RateControlMicroBatchStream with Logging {
 
   private val pollTimeoutMs = options.getLong(
     KafkaSourceProvider.CONSUMER_POLL_TIMEOUT,
@@ -157,7 +158,8 @@ private[kafka010] class KafkaMicroBatchStream(
     // Generate factories based on the offset ranges
     offsetRanges.map { range =>
       KafkaBatchInputPartition(
-        range, executorKafkaParams, pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer)
+        range, executorKafkaParams, pollTimeoutMs, failOnDataLoss,
+        reuseKafkaConsumer, includeHeaders)
     }.toArray
   }
 
