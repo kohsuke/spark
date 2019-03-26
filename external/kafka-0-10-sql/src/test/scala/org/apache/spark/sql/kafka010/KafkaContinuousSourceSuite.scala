@@ -41,6 +41,7 @@ class KafkaContinuousSourceSuite extends KafkaSourceSuiteBase with KafkaContinuo
           .option("kafka.isolation.level", "read_committed")
           .option("startingOffsets", "earliest")
           .option("subscribe", topic)
+          .option("includeHeaders", "true")
           .load()
           .selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)")
           .as[(String, String)]
@@ -107,6 +108,7 @@ class KafkaContinuousSourceSuite extends KafkaSourceSuiteBase with KafkaContinuo
           .option("kafka.isolation.level", "read_uncommitted")
           .option("startingOffsets", "earliest")
           .option("subscribe", topic)
+          .option("includeHeaders", "true")
           .load()
           .selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)")
           .as[(String, String)]

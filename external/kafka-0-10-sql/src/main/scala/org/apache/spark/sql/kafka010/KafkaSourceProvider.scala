@@ -67,9 +67,11 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       schema: Option[StructType],
       providerName: String,
       parameters: Map[String, String]): (String, StructType) = {
-    validateStreamOptions(parameters)
+    val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
+    validateStreamOptions(caseInsensitiveParams)
     require(schema.isEmpty, "Kafka source has a fixed schema and cannot be set with a custom one")
-    (shortName(), KafkaOffsetReader.kafkaSchema)
+    val includeHeaders = parameters.getOrElse(INCLUDE_HEADERS, "false").toBoolean
+    (shortName(), KafkaOffsetReader.kafkaSchema(includeHeaders))
   }
 
   override def createSource(
@@ -78,13 +80,13 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       schema: Option[StructType],
       providerName: String,
       parameters: Map[String, String]): Source = {
-    validateStreamOptions(parameters)
+    val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
+    validateStreamOptions(caseInsensitiveParams)
     // Each running query should use its own group id. Otherwise, the query may be only assigned
     // partial data since Kafka will assign partitions to multiple consumers having the same group
     // id. Hence, we should generate a unique id for each query.
     val uniqueGroupId = streamingUniqueGroupId(parameters, metadataPath)
 
-    val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
     val specifiedKafkaParams = convertToSpecifiedParams(parameters)
 
     val startingStreamOffsets = KafkaSourceProvider.getKafkaOffsetRangeLimit(caseInsensitiveParams,
@@ -96,6 +98,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       parameters,
       driverGroupIdPrefix = s"$uniqueGroupId-driver")
 
+    val includeHeaders = parameters.getOrElse(INCLUDE_HEADERS, "false").toBoolean
+
     new KafkaSource(
       sqlContext,
       kafkaOffsetReader,
@@ -103,11 +107,13 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       parameters,
       metadataPath,
       startingStreamOffsets,
-      failOnDataLoss(caseInsensitiveParams))
+      failOnDataLoss(caseInsensitiveParams),
+      includeHeaders)
   }
 
   override def getTable(options: CaseInsensitiveStringMap): KafkaTable = {
-    new KafkaTable
+    val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
+    new KafkaTable(includeHeaders)
   }
 
   /**
@@ -119,8 +125,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
   override def createRelation(
       sqlContext: SQLContext,
       parameters: Map[String, String]): BaseRelation = {
-    validateBatchOptions(parameters)
     val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
+    validateBatchOptions(caseInsensitiveParams)
     val specifiedKafkaParams = convertToSpecifiedParams(parameters)
 
     val startingRelationOffsets = KafkaSourceProvider.getKafkaOffsetRangeLimit(
@@ -131,12 +137,15 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       ENDING_OFFSETS_OPTION_KEY, LatestOffsetRangeLimit)
     assert(endingRelationOffsets != EarliestOffsetRangeLimit)
 
+    val includeHeaders = parameters.getOrElse(INCLUDE_HEADERS, "false").toBoolean
+
     new KafkaRelation(
       sqlContext,
       strategy(caseInsensitiveParams),
       sourceOptions = parameters,
       specifiedKafkaParams = specifiedKafkaParams,
       failOnDataLoss = failOnDataLoss(caseInsensitiveParams),
+      includeHeaders = includeHeaders,
       startingOffsets = startingRelationOffsets,
       endingOffsets = endingRelationOffsets)
   }
@@ -201,9 +210,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
   private def failOnDataLoss(caseInsensitiveParams: Map[String, String]) =
     caseInsensitiveParams.getOrElse(FAIL_ON_DATA_LOSS_OPTION_KEY, "true").toBoolean
 
-  private def validateGeneralOptions(parameters: Map[String, String]): Unit = {
+  private def validateGeneralOptions(caseInsensitiveParams: Map[String, String]): Unit = {
     // Validate source options
-    val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
     val specifiedStrategies =
       caseInsensitiveParams.filter { case (k, _) => STRATEGY_OPTION_KEYS.contains(k) }.toSeq
 
@@ -354,11 +362,11 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     }
   }
 
-  class KafkaTable extends Table with SupportsRead with SupportsWrite {
+  class KafkaTable(includeHeaders: Boolean) extends Table with SupportsRead with SupportsWrite {
 
     override def name(): String = "KafkaTable"
 
-    override def schema(): StructType = KafkaOffsetReader.kafkaSchema
+    override def schema(): StructType = KafkaOffsetReader.kafkaSchema(includeHeaders)
 
     override def capabilities(): ju.Set[TableCapability] = {
       // ACCEPT_ANY_SCHEMA is needed because of the following reasons:
@@ -369,7 +377,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     }
 
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
-      () => new KafkaScan(options)
+      () => new KafkaScan(options, includeHeaders)
 
     override def newWriteBuilder(options: CaseInsensitiveStringMap): WriteBuilder = {
       new WriteBuilder {
@@ -395,9 +403,9 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     }
   }
 
-  class KafkaScan(options: CaseInsensitiveStringMap) extends Scan {
+  class KafkaScan(options: CaseInsensitiveStringMap, includeHeaders: Boolean) extends Scan {
 
-    override def readSchema(): StructType = KafkaOffsetReader.kafkaSchema
+    override def readSchema(): StructType = KafkaOffsetReader.kafkaSchema(includeHeaders)
 
     override def toBatch(): Batch = {
       val caseInsensitiveOptions = CaseInsensitiveMap(options.asScala.toMap)
@@ -416,25 +424,26 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         specifiedKafkaParams,
         failOnDataLoss(caseInsensitiveOptions),
         startingRelationOffsets,
-        endingRelationOffsets)
+        endingRelationOffsets,
+        includeHeaders)
     }
 
     override def toMicroBatchStream(checkpointLocation: String): MicroBatchStream = {
       val parameters = options.asScala.toMap
-      validateStreamOptions(parameters)
+      val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
+      validateStreamOptions(caseInsensitiveParams)
       // Each running query should use its own group id. Otherwise, the query may be only assigned
       // partial data since Kafka will assign partitions to multiple consumers having the same group
       // id. Hence, we should generate a unique id for each query.
       val uniqueGroupId = streamingUniqueGroupId(parameters, checkpointLocation)
 
-      val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
       val specifiedKafkaParams = convertToSpecifiedParams(parameters)
 
       val startingStreamOffsets = KafkaSourceProvider.getKafkaOffsetRangeLimit(
         caseInsensitiveParams, STARTING_OFFSETS_OPTION_KEY, LatestOffsetRangeLimit)
 
       val kafkaOffsetReader = new KafkaOffsetReader(
-        strategy(parameters),
+        strategy(caseInsensitiveParams),
         kafkaParamsForDriver(specifiedKafkaParams),
         parameters,
         driverGroupIdPrefix = s"$uniqueGroupId-driver")
@@ -445,24 +454,20 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         options,
         checkpointLocation,
         startingStreamOffsets,
-        failOnDataLoss(caseInsensitiveParams))
+        failOnDataLoss(caseInsensitiveParams),
+        includeHeaders)
     }
 
     override def toContinuousStream(checkpointLocation: String): ContinuousStream = {
       val parameters = options.asScala.toMap
-      validateStreamOptions(parameters)
+      val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
+      validateStreamOptions(caseInsensitiveParams)
       // Each running query should use its own group id. Otherwise, the query may be only assigned
       // partial data since Kafka will assign partitions to multiple consumers having the same group
       // id. Hence, we should generate a unique id for each query.
       val uniqueGroupId = streamingUniqueGroupId(parameters, checkpointLocation)
 
-      val caseInsensitiveParams = parameters.map { case (k, v) => (k.toLowerCase(Locale.ROOT), v) }
-      val specifiedKafkaParams =
-        parameters
-          .keySet
-          .filter(_.toLowerCase(Locale.ROOT).startsWith("kafka."))
-          .map { k => k.drop(6).toString -> parameters(k) }
-          .toMap
+      val specifiedKafkaParams = convertToSpecifiedParams(parameters)
 
       val startingStreamOffsets = KafkaSourceProvider.getKafkaOffsetRangeLimit(
         caseInsensitiveParams, STARTING_OFFSETS_OPTION_KEY, LatestOffsetRangeLimit)
@@ -479,7 +484,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         options,
         checkpointLocation,
         startingStreamOffsets,
-        failOnDataLoss(caseInsensitiveParams))
+        failOnDataLoss(caseInsensitiveParams),
+        includeHeaders)
     }
   }
 }
@@ -498,6 +504,7 @@ private[kafka010] object KafkaSourceProvider extends Logging {
   private[kafka010] val FETCH_OFFSET_RETRY_INTERVAL_MS = "fetchOffset.retryIntervalMs"
   private[kafka010] val CONSUMER_POLL_TIMEOUT = "kafkaConsumer.pollTimeoutMs"
   private val GROUP_ID_PREFIX = "groupidprefix"
+  private[kafka010] val INCLUDE_HEADERS = "includeHeaders"
 
   val TOPIC_OPTION_KEY = "topic"
 

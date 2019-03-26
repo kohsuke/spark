@@ -44,6 +44,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  * @param failOnDataLoss Flag indicating whether reading should fail in data loss
  *                       scenarios, where some offsets after the specified initial ones can't be
  *                       properly read.
+ * @param includeHeaders Flag indicating whether to include Kafka records' headers.
  */
 class KafkaContinuousStream(
     offsetReader: KafkaOffsetReader,
@@ -51,7 +52,8 @@ class KafkaContinuousStream(
     options: CaseInsensitiveStringMap,
     metadataPath: String,
     initialOffsets: KafkaOffsetRangeLimit,
-    failOnDataLoss: Boolean)
+    failOnDataLoss: Boolean,
+    includeHeaders: Boolean)
   extends ContinuousStream with Logging {
 
   private val pollTimeoutMs =
@@ -102,7 +104,7 @@ class KafkaContinuousStream(
     startOffsets.toSeq.map {
       case (topicPartition, start) =>
         KafkaContinuousInputPartition(
-          topicPartition, start, kafkaParams, pollTimeoutMs, failOnDataLoss)
+          topicPartition, start, kafkaParams, pollTimeoutMs, failOnDataLoss, includeHeaders)
     }.toArray
   }
 
@@ -153,19 +155,22 @@ class KafkaContinuousStream(
  * @param pollTimeoutMs The timeout for Kafka consumer polling.
  * @param failOnDataLoss Flag indicating whether data reader should fail if some offsets
  *                       are skipped.
+ * @param includeHeaders Flag indicating whether to include Kafka records' headers.
  */
 case class KafkaContinuousInputPartition(
-    topicPartition: TopicPartition,
-    startOffset: Long,
-    kafkaParams: ju.Map[String, Object],
-    pollTimeoutMs: Long,
-    failOnDataLoss: Boolean) extends InputPartition
+  topicPartition: TopicPartition,
+  startOffset: Long,
+  kafkaParams: ju.Map[String, Object],
+  pollTimeoutMs: Long,
+  failOnDataLoss: Boolean,
+  includeHeaders: Boolean) extends InputPartition
 
 object KafkaContinuousReaderFactory extends ContinuousPartitionReaderFactory {
   override def createReader(partition: InputPartition): ContinuousPartitionReader[InternalRow] = {
     val p = partition.asInstanceOf[KafkaContinuousInputPartition]
     new KafkaContinuousPartitionReader(
-      p.topicPartition, p.startOffset, p.kafkaParams, p.pollTimeoutMs, p.failOnDataLoss)
+      p.topicPartition, p.startOffset, p.kafkaParams, p.pollTimeoutMs,
+      p.failOnDataLoss, p.includeHeaders)
   }
 }
 
@@ -184,9 +189,10 @@ class KafkaContinuousPartitionReader(
     startOffset: Long,
     kafkaParams: ju.Map[String, Object],
     pollTimeoutMs: Long,
-    failOnDataLoss: Boolean) extends ContinuousPartitionReader[InternalRow] {
+    failOnDataLoss: Boolean,
+    includeHeaders: Boolean) extends ContinuousPartitionReader[InternalRow] {
   private val consumer = KafkaDataConsumer.acquire(topicPartition, kafkaParams, useCache = false)
-  private val converter = new KafkaRecordToUnsafeRowConverter
+  private val converter = new KafkaRecordToUnsafeRowConverter(includeHeaders)
 
   private var nextKafkaOffset = startOffset
   private var currentRecord: ConsumerRecord[Array[Byte], Array[Byte]] = _

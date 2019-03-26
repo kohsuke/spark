@@ -62,6 +62,7 @@ class UnsafeMapSuite extends SparkFunSuite {
     assert(mapDataSer.keyArray().getInt(0) == 19285)
     assert(mapDataSer.valueArray().getInt(0) == 19286)
     assert(mapDataSer.getBaseObject.asInstanceOf[Array[Byte]].length == 1024)
+  }
 
   test("UnsafeMap from Kafka Headers") {
     val headers = new RecordHeaders

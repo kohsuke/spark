@@ -1443,7 +1443,6 @@ abstract class KafkaSourceSuiteBase extends KafkaSourceTest {
     // producer. So here we just use a low bound to make sure the internal conversion works.
     assert(row.getAs[java.sql.Timestamp]("timestamp").getTime >= now, s"Unexpected results: $row")
     assert(row.getAs[Int]("timestampType") === 0, s"Unexpected results: $row")
-    assert(row.getAs[Map[String, Array[Byte]]]("headers") === null, s"Unexpected results: $row")
     query.stop()
   }
 

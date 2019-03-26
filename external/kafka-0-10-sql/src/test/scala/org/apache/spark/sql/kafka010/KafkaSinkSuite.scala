@@ -59,14 +59,17 @@ abstract class KafkaSinkSuiteBase extends QueryTest with SharedSQLContext with K
 
   protected def newTopic(): String = s"topic-${topicId.getAndIncrement()}"
 
-  protected def createKafkaReader(topic: String): DataFrame = {
-    spark.read
+  protected def createKafkaReader(topic: String, includeHeaders: Boolean = false): DataFrame = {
+    val df = spark.read
       .format("kafka")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)
       .option("startingOffsets", "earliest")
       .option("endingOffsets", "latest")
       .option("subscribe", topic)
-      .load()
+    if (includeHeaders) {
+      df.option("includeHeaders", "true")
+    }
+    df.load()
   }
 }
 
@@ -378,7 +381,7 @@ abstract class KafkaSinkBatchSuiteBase extends KafkaSinkSuiteBase {
       .option("topic", topic)
       .save()
     checkAnswer(
-      createKafkaReader(topic).selectExpr(
+      createKafkaReader(topic, includeHeaders = true).selectExpr(
         "CAST(value as STRING) value",
         "CAST(headers.x AS STRING)",
         "CAST(headers.y AS STRING)"

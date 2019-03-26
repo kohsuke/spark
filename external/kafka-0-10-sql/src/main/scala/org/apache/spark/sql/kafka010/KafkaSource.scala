@@ -79,7 +79,8 @@ private[kafka010] class KafkaSource(
     sourceOptions: Map[String, String],
     metadataPath: String,
     startingOffsets: KafkaOffsetRangeLimit,
-    failOnDataLoss: Boolean)
+    failOnDataLoss: Boolean,
+    includeHeaders: Boolean)
   extends Source with Logging {
 
   private val sc = sqlContext.sparkContext
@@ -143,7 +144,7 @@ private[kafka010] class KafkaSource(
 
   private var currentPartitionOffsets: Option[Map[TopicPartition, Long]] = None
 
-  override def schema: StructType = KafkaOffsetReader.kafkaSchema
+  override def schema: StructType = KafkaOffsetReader.kafkaSchema(includeHeaders)
 
   /** Returns the maximum available offset for this source. */
   override def getOffset: Option[Offset] = {
@@ -297,24 +298,35 @@ private[kafka010] class KafkaSource(
     }.toArray
 
     // Create an RDD that reads from Kafka and get the (key, value) pair as byte arrays.
-    val rdd = new KafkaSourceRDD(
+    val rdd = if (includeHeaders) {
+      new KafkaSourceRDD(
       sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
       reuseKafkaConsumer = true).map { cr =>
-      val headers = cr.headers().toArray
-      InternalRow(
-        cr.key,
-        cr.value,
-        UTF8String.fromString(cr.topic),
-        cr.partition,
-        cr.offset,
-        DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-        cr.timestampType.id,
-        if (headers.isEmpty) {
-          CatalystTypeConverters.convertToCatalyst(null)
-        } else {
+        InternalRow(
+          cr.key,
+          cr.value,
+          UTF8String.fromString(cr.topic),
+          cr.partition,
+          cr.offset,
+          DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
+          cr.timestampType.id,
           KafkaUtils.toUnsafeMapData(cr.headers)
-        }
-      )
+        )
+      }
+    } else {
+      new KafkaSourceRDD(
+        sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
+        reuseKafkaConsumer = true).map { cr =>
+          InternalRow(
+            cr.key,
+            cr.value,
+            UTF8String.fromString(cr.topic),
+            cr.partition,
+            cr.offset,
+            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
+            cr.timestampType.id
+          )
+      }
     }
 
     logInfo("GetBatch generating RDD of offset range: " +
