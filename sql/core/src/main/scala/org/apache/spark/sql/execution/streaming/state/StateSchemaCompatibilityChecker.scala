@@ -40,14 +40,19 @@ class StateSchemaCompatibilityChecker(
       logDebug(s"Schema file for provider $providerId exists. Comparing with provided schema.")
       val (storedKeySchema, storedValueSchema) = readSchemaFile()
 
-      def fieldToType: StructField => (DataType, Boolean) = f => (f.dataType, f.nullable)
-
-      def typesEq(schema1: StructType, schema2: StructType): Boolean = {
-        (schema1.length == schema2.length) && schema1.map(fieldToType) == schema2.map(fieldToType)
+      def fieldCompatible(fieldOld: StructField, fieldNew: StructField): Boolean = {
+        // compatibility for nullable
+        // - same: OK
+        // - non-nullable -> nullable: OK
+        // - nullable -> non-nullable: Not compatible
+        (fieldOld.dataType == fieldNew.dataType) &&
+          ((fieldOld.nullable == fieldNew.nullable) ||
+            (!fieldOld.nullable && fieldNew.nullable))
       }
 
-      def namesEq(schema1: StructType, schema2: StructType): Boolean = {
-        schema1.fieldNames.sameElements(schema2.fieldNames)
+      def schemaCompatible(schemaOld: StructType, schemaNew: StructType): Boolean = {
+        (schemaOld.length == schemaNew.length) &&
+          schemaOld.zip(schemaNew).forall { case (f1, f2) => fieldCompatible(f1, f2) }
       }
 
       val errorMsg = "Provided schema doesn't match to the schema for existing state! " +
@@ -58,15 +63,17 @@ class StateSchemaCompatibilityChecker(
         s"If you want to force running query without schema validation, please set " +
         s"${SQLConf.STATE_SCHEMA_CHECK_ENABLED.key} to false."
 
-      if (!typesEq(keySchema, storedKeySchema) || !typesEq(valueSchema, storedValueSchema)) {
+      if (storedKeySchema.equals(keySchema) && storedValueSchema.equals(valueSchema)) {
+        // schema is exactly same
+      } else if (!schemaCompatible(storedKeySchema, keySchema) ||
+        !schemaCompatible(storedValueSchema, valueSchema)) {
         logError(errorMsg)
         throw new IllegalStateException(errorMsg)
-      } else if (!namesEq(keySchema, storedKeySchema) ||
-        !namesEq(valueSchema, storedValueSchema)) {
-        logInfo("Detected the change of field name, will overwrite schema file to new.")
+      } else {
+        logInfo("Detected schema change which is compatible: will overwrite schema file to new.")
         // It tries best-effort to overwrite current schema file.
         // the schema validation doesn't break even it fails, though it might miss on detecting
-        // change of field name which is not a big deal.
+        // change which is not a big deal.
         createSchemaFile(keySchema, valueSchema)
       }
     } else {
