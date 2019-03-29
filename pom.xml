@@ -126,7 +126,7 @@
     <yarn.version>${hadoop.version}</yarn.version>
     <zookeeper.version>3.4.6</zookeeper.version>
     <curator.version>2.7.1</curator.version>
-    <okapi.version>0.3.0</okapi.version>
+    <okapi.version>0.3.1-SNAPSHOT</okapi.version>
     <hive.group>org.spark-project.hive</hive.group>
     <hive.classifier></hive.classifier>
     <!-- Version used in Maven Hive dependency -->
