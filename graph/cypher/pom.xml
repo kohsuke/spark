@@ -9,7 +9,7 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>spark-graph-cypher_2.12</artifactId>
+  <artifactId>spark-cypher_2.12</artifactId>
   <properties>
     <sbt.project.name>cypher</sbt.project.name>
   </properties>
