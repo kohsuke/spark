@@ -36,7 +36,7 @@ package object avro {
   def from_avro(
       data: Column,
       jsonFormatSchema: String): Column =
-    org.apache.spark.sql.avro.functions.from_avro(data, jsonFormatSchema)
+    org.apache.spark.sql.avro.functions.from_avro(data, jsonFormatSchema, None)
 
   /**
    * Converts a column into binary of avro format.

@@ -33,7 +33,8 @@ import org.apache.spark.sql.types._
 case class AvroDataToCatalyst(
     child: Expression,
     jsonFormatSchema: String,
-    options: Map[String, String])
+    options: Map[String, String],
+    writerJsonFormatSchema: Option[String] = None)
   extends UnaryExpression with ExpectsInputTypes {
 
   override def inputTypes: Seq[AbstractDataType] = Seq(BinaryType)
@@ -53,7 +54,9 @@ case class AvroDataToCatalyst(
 
   @transient private lazy val avroSchema = new Schema.Parser().parse(jsonFormatSchema)
 
-  @transient private lazy val reader = new GenericDatumReader[Any](avroSchema)
+  @transient private lazy val reader = writerJsonFormatSchema
+    .map(s => new GenericDatumReader[Any](new Schema.Parser().parse(s), avroSchema))
+    .getOrElse(new GenericDatumReader[Any](avroSchema))
 
   @transient private lazy val deserializer = new AvroDeserializer(avroSchema, dataType)
 

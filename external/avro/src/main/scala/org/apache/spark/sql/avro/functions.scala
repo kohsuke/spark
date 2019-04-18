@@ -28,30 +28,14 @@ object functions {
 // scalastyle:on: object.name
 
   /**
-   * Converts a binary column of avro format into its corresponding catalyst value. The specified
-   * schema must match the read data, otherwise the behavior is undefined: it may fail or return
-   * arbitrary result.
+   * Converts a binary column of avro format into its corresponding catalyst value. If a writer's
+   * schema is provided, a different (but compatible) schema can be used for reading. If no writer's
+   * schema is provided, the specified schema must match the read data, otherwise the behavior is
+   * undefined: it may fail or return arbitrary result.
    *
    * @param data the binary column.
    * @param jsonFormatSchema the avro schema in JSON string format.
-   *
-   * @since 3.0.0
-   */
-  @Experimental
-  def from_avro(
-      data: Column,
-      jsonFormatSchema: String): Column = {
-    new Column(AvroDataToCatalyst(data.expr, jsonFormatSchema, Map.empty))
-  }
-
-  /**
-   * Converts a binary column of avro format into its corresponding catalyst value. The specified
-   * schema must match the read data, otherwise the behavior is undefined: it may fail or return
-   * arbitrary result.
-   *
-   * @param data the binary column.
-   * @param jsonFormatSchema the avro schema in JSON string format.
-   * @param options options to control how the Avro record is parsed.
+   * @param writerJsonFormatSchema the avro schema in JSON string format used to serialize the data.
    *
    * @since 3.0.0
    */
@@ -59,8 +43,44 @@ object functions {
   def from_avro(
       data: Column,
       jsonFormatSchema: String,
-      options: java.util.Map[String, String]): Column = {
-    new Column(AvroDataToCatalyst(data.expr, jsonFormatSchema, options.asScala.toMap))
+      writerJsonFormatSchema: Option[String]): Column = {
+    new Column(
+      AvroDataToCatalyst(
+        data.expr,
+        jsonFormatSchema,
+        Map.empty,
+        writerJsonFormatSchema
+      )
+    )
+  }
+
+  /**
+   * Converts a binary column of avro format into its corresponding catalyst value. If a writer's
+   * schema is provided, a different (but compatible) schema can be used for reading. If no writer's
+   * schema is provided, the specified schema must match the read data, otherwise the behavior is
+   * undefined: it may fail or return arbitrary result.
+   *
+   * @param data the binary column.
+   * @param jsonFormatSchema the avro schema in JSON string format.
+   * @param options options to control how the Avro record is parsed.
+   * @param writerJsonFormatSchema the avro schema in JSON string format used to serialize the data.
+   *
+   * @since 3.0.0
+   */
+  @Experimental
+  def from_avro(
+      data: Column,
+      jsonFormatSchema: String,
+      options: java.util.Map[String, String],
+      writerJsonFormatSchema: Option[String] = None): Column = {
+    new Column(
+      AvroDataToCatalyst(
+        data.expr,
+        jsonFormatSchema,
+        options.asScala.toMap,
+        writerJsonFormatSchema
+      )
+    )
   }
 
   /**

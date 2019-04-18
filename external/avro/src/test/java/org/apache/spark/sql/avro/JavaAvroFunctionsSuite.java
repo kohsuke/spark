@@ -66,8 +66,8 @@ public class JavaAvroFunctionsSuite {
     String avroTypeStr = "{\"type\": \"string\", \"name\": \"str\"}";
 
     Dataset<Row> actual = avroDF.select(
-      from_avro(avroDF.col("a"), avroTypeLong),
-      from_avro(avroDF.col("b"), avroTypeStr));
+      from_avro(avroDF.col("a"), avroTypeLong, scala.Option$.MODULE$.empty()),
+      from_avro(avroDF.col("b"), avroTypeStr, scala.Option$.MODULE$.empty()));
 
     checkAnswer(actual, df);
   }
