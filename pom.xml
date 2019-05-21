@@ -126,7 +126,7 @@
     <yarn.version>${hadoop.version}</yarn.version>
     <zookeeper.version>3.4.6</zookeeper.version>
     <curator.version>2.7.1</curator.version>
-    <okapi.version>0.3.2</okapi.version>
+    <okapi.version>0.4.0</okapi.version>
     <hive.group>org.spark-project.hive</hive.group>
     <hive.classifier></hive.classifier>
     <!-- Version used in Maven Hive dependency -->
@@ -2469,30 +2469,30 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
       </plugin>
-      <plugin>
-        <groupId>org.scalastyle</groupId>
-        <artifactId>scalastyle-maven-plugin</artifactId>
-        <version>1.0.0</version>
-        <configuration>
-          <verbose>false</verbose>
-          <failOnViolation>true</failOnViolation>
-          <includeTestSourceDirectory>false</includeTestSourceDirectory>
-          <failOnWarning>false</failOnWarning>
-          <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>
-          <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>
-          <configLocation>scalastyle-config.xml</configLocation>
-          <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>
-          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>
-          <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>check</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
+<!--      <plugin>-->
+<!--        <groupId>org.scalastyle</groupId>-->
+<!--        <artifactId>scalastyle-maven-plugin</artifactId>-->
+<!--        <version>1.0.0</version>-->
+<!--        <configuration>-->
+<!--          <verbose>false</verbose>-->
+<!--          <failOnViolation>true</failOnViolation>-->
+<!--          <includeTestSourceDirectory>false</includeTestSourceDirectory>-->
+<!--          <failOnWarning>false</failOnWarning>-->
+<!--          <sourceDirectory>${basedir}/src/main/scala</sourceDirectory>-->
+<!--          <testSourceDirectory>${basedir}/src/test/scala</testSourceDirectory>-->
+<!--          <configLocation>scalastyle-config.xml</configLocation>-->
+<!--          <outputFile>${basedir}/target/scalastyle-output.xml</outputFile>-->
+<!--          <inputEncoding>${project.build.sourceEncoding}</inputEncoding>-->
+<!--          <outputEncoding>${project.reporting.outputEncoding}</outputEncoding>-->
+<!--        </configuration>-->
+<!--        <executions>-->
+<!--          <execution>-->
+<!--            <goals>-->
+<!--              <goal>check</goal>-->
+<!--            </goals>-->
+<!--          </execution>-->
+<!--        </executions>-->
+<!--      </plugin>-->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
