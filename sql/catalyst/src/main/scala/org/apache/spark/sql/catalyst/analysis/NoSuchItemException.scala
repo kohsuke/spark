@@ -58,7 +58,7 @@ class NoSuchPermanentFunctionException(db: String, func: String)
 
 class NoSuchFunctionException(
     msg: String,
-    cause: Option[Throwable] = None) extends AnalysisException(msg, cause = cause) {
+    cause: Option[Throwable]) extends AnalysisException(msg, cause = cause) {
 
   import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
 
@@ -68,8 +68,8 @@ class NoSuchFunctionException(
         s"a permanent function registered in the database '$db'.", cause = cause)
   }
 
-  def this(identifier: Identifier, cause: Option[Throwable]) = {
-    this(s"Undefined function: ${identifier.quoted}", cause = cause)
+  def this(identifier: Identifier) = {
+    this(s"Undefined function: ${identifier.quoted}", cause = None)
   }
 }
 
