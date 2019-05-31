@@ -32,6 +32,7 @@ import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
@@ -543,7 +544,8 @@ case class InputAdapter(child: SparkPlan, isChildColumnar: Boolean)
       verbose: Boolean,
       prefix: String = "",
       addSuffix: Boolean = false,
-      maxFields: Int): Unit = {
+      maxFields: Int,
+      planLabelMap: mutable.LinkedHashMap[TreeNode[_], Int]): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
@@ -551,7 +553,8 @@ case class InputAdapter(child: SparkPlan, isChildColumnar: Boolean)
       verbose,
       prefix = "",
       addSuffix = false,
-      maxFields)
+      maxFields,
+      planLabelMap)
   }
 
   override def needCopyResult: Boolean = false
@@ -784,15 +787,19 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
       verbose: Boolean,
       prefix: String = "",
       addSuffix: Boolean = false,
-      maxFields: Int): Unit = {
+      maxFields: Int,
+      planLabelMap: mutable.LinkedHashMap[TreeNode[_], Int]): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
       append,
       verbose,
-      s"*($codegenStageId) ",
+      if (!planLabelMap.isEmpty) "" else s"*($codegenStageId) ",
+      // "",
+      // s"*($codegenStageId) ",
       false,
-      maxFields)
+      maxFields,
+      planLabelMap)
   }
 
   override def needStopCheck: Boolean = true
