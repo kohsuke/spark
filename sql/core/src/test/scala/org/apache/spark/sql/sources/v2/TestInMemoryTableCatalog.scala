@@ -24,12 +24,13 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 import org.apache.spark.sql.catalog.v2.{CatalogV2Implicits, Identifier, TableCatalog, TableChange}
-import org.apache.spark.sql.catalog.v2.expressions.Transform
+import org.apache.spark.sql.catalog.v2.expressions.{IdentityTransform, Transform}
 import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{NoSuchTableException, TableAlreadyExistsException}
+import org.apache.spark.sql.sources.{EqualTo, Filter}
 import org.apache.spark.sql.sources.v2.reader.{Batch, InputPartition, PartitionReader, PartitionReaderFactory, Scan, ScanBuilder}
-import org.apache.spark.sql.sources.v2.writer.{BatchWrite, DataWriter, DataWriterFactory, SupportsTruncate, WriteBuilder, WriterCommitMessage}
+import org.apache.spark.sql.sources.v2.writer.{BatchWrite, DataWriter, DataWriterFactory, SupportsDynamicOverwrite, SupportsOverwrite, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -71,12 +72,7 @@ class TestInMemoryTableCatalog extends TableCatalog {
       throw new TableAlreadyExistsException(ident)
     }
 
-    if (partitions.nonEmpty) {
-      throw new UnsupportedOperationException(
-        s"Catalog $name: Partitioned tables are not supported")
-    }
-
-    val table = new InMemoryTable(s"$name.${ident.quoted}", schema, properties)
+    val table = new InMemoryTable(s"$name.${ident.quoted}", schema, partitions, properties)
 
     tables.put(ident, table)
 
@@ -95,6 +91,7 @@ class TestInMemoryTableCatalog extends TableCatalog {
         }
 
         val newTable = new InMemoryTable(table.name, schema, properties, table.data)
+          .withData(table.data)
 
         tables.put(ident, newTable)
 
@@ -117,28 +114,43 @@ class TestInMemoryTableCatalog extends TableCatalog {
 private class InMemoryTable(
     val name: String,
     val schema: StructType,
+    override val partitioning: Array[Transform],
     override val properties: util.Map[String, String])
   extends Table with SupportsRead with SupportsWrite {
 
-  def this(
-      name: String,
-      schema: StructType,
-      properties: util.Map[String, String],
-      data: Array[BufferedRows]) = {
-    this(name, schema, properties)
-    replaceData(data)
+  partitioning.foreach { t =>
+    if (!t.isInstanceOf[IdentityTransform]) {
+      throw new IllegalArgumentException(s"Transform $t must be IdentityTransform")
+    }
   }
 
-  def rows: Seq[InternalRow] = data.flatMap(_.rows)
+  @volatile var dataMap: mutable.Map[Seq[Any], BufferedRows] = mutable.Map.empty
 
-  @volatile var data: Array[BufferedRows] = Array.empty
+  def data: Array[BufferedRows] = dataMap.values.toArray
 
-  def replaceData(buffers: Array[BufferedRows]): Unit = synchronized {
-    data = buffers
+  def rows: Seq[InternalRow] = dataMap.values.flatMap(_.rows).toSeq
+
+  private val partFieldNames = partitioning.flatMap(_.references).toSeq.flatMap(_.fieldNames)
+  private val partIndexes = partFieldNames.map(schema.fieldIndex(_))
+
+  private def getKey(row: InternalRow): Seq[Any] = partIndexes.map(row.toSeq(schema)(_))
+
+  def withData(data: Array[BufferedRows]): InMemoryTable = dataMap.synchronized {
+    data.foreach(_.rows.foreach { row =>
+      val key = getKey(row)
+      dataMap += dataMap.get(key)
+        .map(key -> _.withRow(row))
+        .getOrElse(key -> new BufferedRows().withRow(row))
+    })
+    this
   }
 
   override def capabilities: util.Set[TableCapability] = Set(
-    TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.TRUNCATE).asJava
+    TableCapability.BATCH_READ,
+    TableCapability.BATCH_WRITE,
+    TableCapability.OVERWRITE_BY_FILTER,
+    TableCapability.OVERWRITE_DYNAMIC,
+    TableCapability.TRUNCATE).asJava
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
     () => new InMemoryBatchScan(data.map(_.asInstanceOf[InputPartition]))
@@ -155,49 +167,89 @@ private class InMemoryTable(
   }
 
   override def newWriteBuilder(options: CaseInsensitiveStringMap): WriteBuilder = {
-    new WriteBuilder with SupportsTruncate {
-      private var shouldTruncate: Boolean = false
+    new WriteBuilder with SupportsTruncate with SupportsOverwrite with SupportsDynamicOverwrite {
+      private var writer: BatchWrite = Append
 
       override def truncate(): WriteBuilder = {
-        shouldTruncate = true
+        assert(writer == Append)
+        writer = TruncateAndAppend
         this
       }
 
-      override def buildForBatch(): BatchWrite = {
-        if (shouldTruncate) TruncateAndAppend else Append
+      override def overwrite(filters: Array[Filter]): WriteBuilder = {
+        assert(writer == Append)
+        writer = new Overwrite(filters)
+        this
       }
+
+      override def overwriteDynamicPartitions(): WriteBuilder = {
+        assert(writer == Append)
+        writer = DynamicOverwrite
+        this
+      }
+
+      override def buildForBatch(): BatchWrite = writer
     }
   }
 
-  private object TruncateAndAppend extends BatchWrite {
+  private abstract class TestBatchWrite extends BatchWrite {
     override def createBatchWriterFactory(): DataWriterFactory = {
       BufferedRowsWriterFactory
-    }
-
-    override def commit(messages: Array[WriterCommitMessage]): Unit = {
-      replaceData(messages.map(_.asInstanceOf[BufferedRows]))
     }
 
     override def abort(messages: Array[WriterCommitMessage]): Unit = {
     }
   }
 
-  private object Append extends BatchWrite {
-    override def createBatchWriterFactory(): DataWriterFactory = {
-      BufferedRowsWriterFactory
+  private object Append extends TestBatchWrite {
+    override def commit(messages: Array[WriterCommitMessage]): Unit = dataMap.synchronized {
+      withData(messages.map(_.asInstanceOf[BufferedRows]))
     }
+  }
 
-    override def commit(messages: Array[WriterCommitMessage]): Unit = {
-      replaceData(data ++ messages.map(_.asInstanceOf[BufferedRows]))
+  private object DynamicOverwrite extends TestBatchWrite {
+    override def commit(messages: Array[WriterCommitMessage]): Unit = dataMap.synchronized {
+      val newData = messages.map(_.asInstanceOf[BufferedRows])
+      dataMap --= newData.flatMap(_.rows.map(getKey))
+      withData(newData)
     }
+  }
 
-    override def abort(messages: Array[WriterCommitMessage]): Unit = {
+  private class Overwrite(filters: Array[Filter]) extends TestBatchWrite {
+    override def commit(messages: Array[WriterCommitMessage]): Unit = dataMap.synchronized {
+      val deleteKeys = dataMap.keys.filter { partValues =>
+        filters.exists {
+          case EqualTo(attr, value) =>
+            partFieldNames.zipWithIndex.find(_._1 == attr) match {
+              case Some((_, partIndex)) =>
+                value == partValues(partIndex)
+              case _ =>
+                throw new IllegalArgumentException(s"Unknown filter attribute: $attr")
+            }
+          case f @ _ =>
+            throw new IllegalArgumentException(s"Unsupported filter type: $f")
+        }
+      }
+      dataMap --= deleteKeys
+      withData(messages.map(_.asInstanceOf[BufferedRows]))
+    }
+  }
+
+  private object TruncateAndAppend extends TestBatchWrite {
+    override def commit(messages: Array[WriterCommitMessage]): Unit = dataMap.synchronized {
+      dataMap = mutable.Map.empty
+      withData(messages.map(_.asInstanceOf[BufferedRows]))
     }
   }
 }
 
 private class BufferedRows extends WriterCommitMessage with InputPartition with Serializable {
   val rows = new mutable.ArrayBuffer[InternalRow]()
+
+  def withRow(row: InternalRow): BufferedRows = {
+    rows.append(row)
+    this
+  }
 }
 
 private object BufferedRowsReaderFactory extends PartitionReaderFactory {
