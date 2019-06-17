@@ -3146,15 +3146,17 @@ See [Input Sources](#input-sources) and [Output Sinks](#output-sinks) sections f
       - After `coalesce`, the number of (reduced) tasks will be kept unless another shuffle happens.
   - `spark.sql.streaming.stateStore.providerClass`: To read the previous state of the query properly, the class of state store provider should be unchanged.
   - `spark.sql.streaming.multipleWatermarkPolicy`: Modification of this would lead inconsistent watermark value when query contains multiple watermarks, hence the policy should be unchanged.
-- Structured Streaming uses `global watermark` which might impact on queries having multiple stateful operations.
+- Structured Streaming uses `global watermark` which might impact on query having multiple stateful operations.
   - Stateful operators: aggregation, deduplication, stream-stream join, (flat)mapGroupsWithState
   - You should be able to answer below questions for your query to get correct outputs:
     - How global watermark is calculated on your query?
     - How global watermark is applied to each stateful operator?
     - Is there any intermediate output being discarded as "late input" due to watermark?
   - Fail to answer above questions might lead to incorrect outputs - e.g. intermediate outputs being discarded. 
-  - One of "alternative" approach is breaking your query into multiple chained queries, each per stateful operation.
+  - One of "alternative" approach is breaking down your query into multiple chained queries, each per stateful operation.
     - Each query must guarantee "end-to-end" exactly once, otherwise intermediate outputs can be duplicated which leads to incorrect outputs.
+- Only 'Append mode' can be "semantically" correct for a query having multiple stateful operations.
+  - In 'Update mode', downstream stateful operator cannot distinguish whether the input is new, or updated.
 
 **Further Reading**
 
