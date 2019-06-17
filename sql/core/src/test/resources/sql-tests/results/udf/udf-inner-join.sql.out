@@ -59,9 +59,51 @@ struct<>
 -- !query 6
 SELECT tb.* FROM ta INNER JOIN tb ON ta.a = tb.a AND ta.tag = tb.tag
 -- !query 6 schema
-struct<a:string,tag:string>
+struct<>
 -- !query 6 output
-1	a
-1	a
-1	b
-1	b
+java.util.concurrent.ExecutionException
+org.apache.spark.SparkException: Job aborted due to stage failure: Task 0 in stage 1975.0 failed 1 times, most recent failure: Lost task 0.0 in stage 1975.0 (TID 91756, localhost, executor driver): java.lang.IllegalArgumentException: port out of range:459092027
+	at java.net.InetSocketAddress.checkPort(InetSocketAddress.java:143)
+	at java.net.InetSocketAddress.<init>(InetSocketAddress.java:188)
+	at java.net.Socket.<init>(Socket.java:244)
+	at org.apache.spark.api.python.PythonWorkerFactory.createSocket$1(PythonWorkerFactory.scala:119)
+	at org.apache.spark.api.python.PythonWorkerFactory.liftedTree1$1(PythonWorkerFactory.scala:136)
+	at org.apache.spark.api.python.PythonWorkerFactory.createThroughDaemon(PythonWorkerFactory.scala:135)
+	at org.apache.spark.api.python.PythonWorkerFactory.create(PythonWorkerFactory.scala:105)
+	at org.apache.spark.SparkEnv.createPythonWorker(SparkEnv.scala:117)
+	at org.apache.spark.api.python.BasePythonRunner.compute(PythonRunner.scala:112)
+	at org.apache.spark.sql.execution.python.ArrowEvalPythonExec.evaluate(ArrowEvalPythonExec.scala:87)
+	at org.apache.spark.sql.execution.python.EvalPythonExec.$anonfun$doExecute$2(EvalPythonExec.scala:128)
+	at org.apache.spark.rdd.RDD.$anonfun$mapPartitions$2(RDD.scala:817)
+	at org.apache.spark.rdd.RDD.$anonfun$mapPartitions$2$adapted(RDD.scala:817)
+	at org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.rdd.UnionRDD.compute(UnionRDD.scala:105)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)
+	at org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:327)
+	at org.apache.spark.rdd.RDD.iterator(RDD.scala:291)
+	at org.apache.spark.scheduler.ResultTask.runTask(ResultTask.scala:90)
+	at org.apache.spark.scheduler.Task.run(Task.scala:125)
+	at org.apache.spark.executor.Executor$TaskRunner.$anonfun$run$3(Executor.scala:426)
+	at org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:1350)
+	at org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:429)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+
+Driver stacktrace:
