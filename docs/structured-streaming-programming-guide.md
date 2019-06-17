@@ -3152,7 +3152,7 @@ See [Input Sources](#input-sources) and [Output Sinks](#output-sinks) sections f
     - How global watermark is calculated on your query?
     - How global watermark is applied to each stateful operator?
     - Is there any intermediate output being discarded as "late input" due to watermark?
-  - Fail to answer above questions might bring intermediate outputs being discarded, leading incorrect outputs. 
+  - Fail to answer above questions might lead to incorrect outputs - e.g. intermediate outputs being discarded. 
   - One of "alternative" approach is breaking your query into multiple chained queries, each per stateful operation.
     - Each query must guarantee "end-to-end" exactly once, otherwise intermediate outputs can be duplicated which leads to incorrect outputs.
 
