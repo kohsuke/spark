@@ -98,8 +98,6 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       parameters,
       driverGroupIdPrefix = s"$uniqueGroupId-driver")
 
-    val includeHeaders = parameters.getOrElse(INCLUDE_HEADERS, "false").toBoolean
-
     new KafkaSource(
       sqlContext,
       kafkaOffsetReader,
@@ -107,8 +105,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       parameters,
       metadataPath,
       startingStreamOffsets,
-      failOnDataLoss(caseInsensitiveParams),
-      includeHeaders)
+      failOnDataLoss(caseInsensitiveParams))
   }
 
   override def getTable(options: CaseInsensitiveStringMap): KafkaTable = {
@@ -377,7 +374,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     }
 
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
-      () => new KafkaScan(options, includeHeaders)
+      () => new KafkaScan(options)
 
     override def newWriteBuilder(options: CaseInsensitiveStringMap): WriteBuilder = {
       new WriteBuilder {
@@ -403,7 +400,9 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
     }
   }
 
-  class KafkaScan(options: CaseInsensitiveStringMap, includeHeaders: Boolean) extends Scan {
+  class KafkaScan(options: CaseInsensitiveStringMap) extends Scan {
+
+    private val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
 
     override def readSchema(): StructType = KafkaOffsetReader.kafkaSchema(includeHeaders)
 
@@ -454,8 +453,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         options,
         checkpointLocation,
         startingStreamOffsets,
-        failOnDataLoss(caseInsensitiveParams),
-        includeHeaders)
+        failOnDataLoss(caseInsensitiveParams))
     }
 
     override def toContinuousStream(checkpointLocation: String): ContinuousStream = {
@@ -484,8 +482,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         options,
         checkpointLocation,
         startingStreamOffsets,
-        failOnDataLoss(caseInsensitiveParams),
-        includeHeaders)
+        failOnDataLoss(caseInsensitiveParams))
     }
   }
 }
