@@ -136,7 +136,7 @@ private[spark] class Executor(
   // for fetching remote cached RDD blocks, so need to make sure it uses the right classloader too.
   env.serializerManager.setDefaultClassLoader(replClassLoader)
 
-  private val executorPlugins: Seq[ExecutorPlugin] = {
+  private val executorPlainPlugins: Seq[ExecutorPlugin] = {
     val pluginNames = conf.get(EXECUTOR_PLUGINS)
     if (pluginNames.nonEmpty) {
       logDebug(s"Initializing the following plugins: ${pluginNames.mkString(", ")}")
@@ -147,7 +147,8 @@ private[spark] class Executor(
           val plugins = Utils.loadExtensions(classOf[ExecutorPlugin], pluginNames, conf)
           plugins.foreach { plugin =>
             plugin.init()
-            logDebug(s"Successfully loaded plugin " + plugin.getClass().getCanonicalName())
+            logDebug(s"Successfully loaded executor plugin " +
+              plugin.getClass().getCanonicalName())
           }
           plugins
         }
@@ -158,6 +159,36 @@ private[spark] class Executor(
       Nil
     }
   }
+
+  private val executorMetricsPlugins: Seq[ExecutorPlugin] = {
+    val pluginMetricsNames = conf.get(EXECUTOR_METRICS_PLUGINS)
+    if (pluginMetricsNames.nonEmpty) {
+      logDebug("Initializing the following executor metrics plugins: " +
+        s"${pluginMetricsNames.mkString(", ")}")
+      val executorPluginSource = new(ExecutorPluginSource)
+      // Plugins need to load using a class loader that includes the executor's user classpath
+      val metricsPluginList: Seq[ExecutorPlugin] =
+        Utils.withContextClassLoader(replClassLoader) {
+          val metricsPlugins = Utils.loadExtensions(
+            classOf[ExecutorPlugin], pluginMetricsNames, conf)
+          metricsPlugins.foreach { metricsPlugin =>
+            // the plugin can add metrics using the Dropwizard library (gauges, counters, etc)
+            metricsPlugin.init(executorPluginSource.metricRegistry)
+            logDebug(s"Successfully loaded executor metrics plugin " +
+              metricsPlugin.getClass().getCanonicalName())
+          }
+          metricsPlugins
+        }
+
+      env.metricsSystem.registerSource(executorPluginSource)
+      logDebug("Finished initializing executor metrics plugins")
+      metricsPluginList
+    } else {
+      Nil
+    }
+  }
+
+  private val executorPlugins = executorMetricsPlugins ++ executorPlainPlugins
 
   // Max size of direct result. If task result is bigger than this, we use the block manager
   // to send the result back.

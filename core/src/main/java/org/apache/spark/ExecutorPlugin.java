@@ -17,6 +17,7 @@
 
 package org.apache.spark;
 
+import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.annotation.DeveloperApi;
 
 /**
@@ -46,6 +47,17 @@ public interface ExecutorPlugin {
    * any polling, blocking, or intensive computation.</p>
    */
   default void init() {}
+
+  /**
+   * Initialize the executor plugins used to extend the Spark/Dropwizard metrics system.
+   *
+   * <p>Each executor will, during its initialization, invoke this method on each
+   * plugin provided in the spark.executor.metrics.plugins configuration.</p>
+   *
+   * <p>Plugins should register the data sources using the Dropwizard/codahale API</p>
+   *
+   */
+  default void init(MetricRegistry sourceMetricsRegistry) {}
 
   /**
    * Clean up and terminate this plugin.

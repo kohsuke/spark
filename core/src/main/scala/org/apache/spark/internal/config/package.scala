@@ -1087,6 +1087,18 @@ package object config {
       .toSequence
       .createWithDefault(Nil)
 
+  private[spark] val EXECUTOR_METRICS_PLUGINS =
+    ConfigBuilder("spark.executor.metrics.plugins")
+      .doc("Comma-separated list of class names for \"plugins\" implementing " +
+        "org.apache.spark.ExecutorMetric.  Executor metrics \"plugins\" will be" +
+        "initialized with a handle to the executorPlugin Dropwizard metric registry.  " +
+        "Plugins have the same privileges as any task in a Spark executor.  " +
+        "They can also interfere with task execution and fail in " +
+        "unexpected ways.  So be sure to only use this for trusted plugins.")
+      .stringConf
+      .toSequence
+      .createWithDefault(Nil)
+
   private[spark] val CLEANER_PERIODIC_GC_INTERVAL =
     ConfigBuilder("spark.cleaner.periodicGC.interval")
       .timeConf(TimeUnit.SECONDS)
