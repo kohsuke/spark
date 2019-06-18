@@ -16,6 +16,7 @@
 #
 
 import unittest
+import os
 
 import py4j
 
@@ -28,6 +29,11 @@ from pyspark.testing.mlutils import SparkSessionTestCase
 
 class JavaWrapperMemoryTests(SparkSessionTestCase):
 
+    @unittest.skipIf(
+        os.environ.get("PYSPARK_PIN_THREAD", "false").lower() == "true",
+        "When the thread is pinned between Python and JVM, detaching seems having not "
+        "working. This is potentially a bug in Py4J and SPARK-18630 can be persistent when "
+        "PYSPARK_PIN_THREAD is enabled. Skipping for now.")
     def test_java_object_gets_detached(self):
         df = self.spark.createDataFrame([(1.0, 2.0, Vectors.dense(1.0)),
                                          (0.0, 2.0, Vectors.sparse(1, [], []))],
