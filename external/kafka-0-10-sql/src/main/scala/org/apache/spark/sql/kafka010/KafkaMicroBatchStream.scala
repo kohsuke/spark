@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.execution.streaming.{HDFSMetadataLog, SerializedOffset}
 import org.apache.spark.sql.execution.streaming.sources.RateControlMicroBatchStream
-import org.apache.spark.sql.kafka010.KafkaSourceProvider.{INCLUDE_HEADERS, INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_FALSE, INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_TRUE}
+import org.apache.spark.sql.kafka010.KafkaSourceProvider._
 import org.apache.spark.sql.sources.v2.reader._
 import org.apache.spark.sql.sources.v2.reader.streaming.{MicroBatchStream, Offset}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -63,12 +63,10 @@ private[kafka010] class KafkaMicroBatchStream(
     startingOffsets: KafkaOffsetRangeLimit,
     failOnDataLoss: Boolean) extends RateControlMicroBatchStream with Logging {
 
-  private val pollTimeoutMs = options.getLong(
-    KafkaSourceProvider.CONSUMER_POLL_TIMEOUT,
-    SparkEnv.get.conf.get(NETWORK_TIMEOUT) * 1000L)
+  private val pollTimeoutMs =
+    options.getLong(CONSUMER_POLL_TIMEOUT, SparkEnv.get.conf.get(NETWORK_TIMEOUT) * 1000L)
 
-  private val maxOffsetsPerTrigger = Option(options.get(KafkaSourceProvider.MAX_OFFSET_PER_TRIGGER))
-    .map(_.toLong)
+  private val maxOffsetsPerTrigger = Option(options.get(MAX_OFFSET_PER_TRIGGER)).map(_.toLong)
 
   private val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
 
@@ -120,7 +118,7 @@ private[kafka010] class KafkaMicroBatchStream(
     if (deletedPartitions.nonEmpty) {
       val message =
         if (kafkaOffsetReader.driverKafkaParams.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
-          s"$deletedPartitions are gone. ${KafkaSourceProvider.CUSTOM_GROUP_ID_ERROR_MESSAGE}"
+          s"$deletedPartitions are gone. ${CUSTOM_GROUP_ID_ERROR_MESSAGE}"
         } else {
           s"$deletedPartitions are gone. Some data may have been missed."
         }
