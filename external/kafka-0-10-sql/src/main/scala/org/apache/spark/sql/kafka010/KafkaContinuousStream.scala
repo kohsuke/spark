@@ -27,7 +27,7 @@ import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
-import org.apache.spark.sql.kafka010.KafkaSourceProvider.{INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_FALSE, INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_TRUE}
+import org.apache.spark.sql.kafka010.KafkaSourceProvider.{INCLUDE_HEADERS, INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_FALSE, INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_TRUE}
 import org.apache.spark.sql.sources.v2.reader._
 import org.apache.spark.sql.sources.v2.reader.streaming._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -44,7 +44,6 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  * @param failOnDataLoss Flag indicating whether reading should fail in data loss
  *                       scenarios, where some offsets after the specified initial ones can't be
  *                       properly read.
- * @param includeHeaders Flag indicating whether to include Kafka records' headers.
  */
 class KafkaContinuousStream(
     offsetReader: KafkaOffsetReader,
@@ -52,12 +51,12 @@ class KafkaContinuousStream(
     options: CaseInsensitiveStringMap,
     metadataPath: String,
     initialOffsets: KafkaOffsetRangeLimit,
-    failOnDataLoss: Boolean,
-    includeHeaders: Boolean)
+    failOnDataLoss: Boolean)
   extends ContinuousStream with Logging {
 
   private val pollTimeoutMs =
     options.getLong(KafkaSourceProvider.CONSUMER_POLL_TIMEOUT, 512)
+  private val includeHeaders = options.getBoolean(INCLUDE_HEADERS, "false")
 
   // Initialized when creating reader factories. If this diverges from the partitions at the latest
   // offsets, we need to reconfigure.
