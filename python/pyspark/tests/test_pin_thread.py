@@ -23,17 +23,22 @@ from pyspark import SparkContext, SparkConf
 
 
 class PinThreadTests(unittest.TestCase):
-    # These tests are separate because it uses 'PYSPARK_PIN_THREAD' environment
-    # variable to test thread pin feature.
+    # These tests are in a separate class because it uses
+    # 'PYSPARK_PIN_THREAD' environment variable to test thread pin feature.
 
     @classmethod
     def setUpClass(cls):
+        cls.old_pin_thread = os.environ.get("PYSPARK_PIN_THREAD")
         os.environ["PYSPARK_PIN_THREAD"] = "true"
         cls.sc = SparkContext('local[4]', cls.__name__, conf=SparkConf())
 
     @classmethod
     def tearDownClass(cls):
         cls.sc.stop()
+        if cls.old_pin_thread is not None:
+            os.environ["PYSPARK_PIN_THREAD"] = cls.old_pin_thread
+        else:
+            del os.environ["PYSPARK_PIN_THREAD"]
 
     def test_pinned_thread(self):
         threads = []
