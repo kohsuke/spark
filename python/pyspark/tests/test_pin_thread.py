@@ -16,6 +16,7 @@
 #
 import os
 import time
+import random
 import threading
 import unittest
 
@@ -44,12 +45,26 @@ class PinThreadTests(unittest.TestCase):
         threads = []
         exceptions = []
         property_name = "test_property_%s" % PinThreadTests.__name__
+        jvm_thread_ids = []
+
         for i in range(10):
             def test_local_property():
+                jvm_thread_id = self.sc._jvm.java.lang.Thread.currentThread().getId()
+                jvm_thread_ids.append(jvm_thread_id)
+
+                # If a property is set in this thread, later it should get the same property
+                # within this thread.
                 self.sc.setLocalProperty(property_name, str(i))
-                time.sleep(1)
+
+                # Sleep for some arbitrary time.
+                time.sleep(random.random())
+
                 try:
                     assert self.sc.getLocalProperty(property_name) == str(i)
+
+                    # Each command might create a thread in multi-treading mode in Py4J.
+                    # This assert makes sure that the created thread is being reused.
+                    assert jvm_thread_id == self.sc._jvm.java.lang.Thread.currentThread().getId()
                 except Exception as e:
                     exceptions.append(e)
             threads.append(threading.Thread(target=test_local_property))
@@ -62,6 +77,9 @@ class PinThreadTests(unittest.TestCase):
 
         for e in exceptions:
             raise e
+
+        # Created JVM threads should be 10 because Python thread are 10.
+        assert len(set(jvm_thread_ids)) == 10
 
     def test_multiple_group_jobs(self):
         # SPARK-22340 Add a mode to pin Python thread into JVM's
