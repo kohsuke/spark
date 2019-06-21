@@ -366,6 +366,8 @@ case class StateStoreSaveExec(
           // Assumption: watermark predicates must be non-empty if append mode is allowed
           case Some(Append) =>
             allUpdatesTimeMs += timeTakenMs {
+              // Here we filter out late rows again, given this iterator also contains
+              // rows from state store.
               val filteredIter = iter.filter(row => !watermarkPredicateForData.get.eval(row))
               while (filteredIter.hasNext) {
                 val row = filteredIter.next().asInstanceOf[UnsafeRow]
@@ -406,7 +408,8 @@ case class StateStoreSaveExec(
           case Some(Update) =>
 
             new NextIterator[InternalRow] {
-              // Filter late date using watermark if specified
+              // Here we filter out late rows again, given this iterator also contains
+              // rows from state store.
               private[this] val baseIterator = watermarkPredicateForData match {
                 case Some(predicate) => iter.filter((row: InternalRow) => !predicate.eval(row))
                 case None => iter
@@ -492,14 +495,11 @@ case class StreamingDeduplicateExec(
       val allRemovalsTimeMs = longMetric("allRemovalsTimeMs")
       val commitTimeMs = longMetric("commitTimeMs")
 
-      val baseIterator = watermarkPredicateForData match {
-        case Some(predicate) => iter.filter(row => !predicate.eval(row))
-        case None => iter
-      }
-
       val updatesStartTimeNs = System.nanoTime
 
-      val result = baseIterator.filter { r =>
+      // We assume discarding late rows is done in prior to join via
+      // DiscardLateRowsExec, so we expect the iterator doesn't have late rows.
+      val result = iter.filter { r =>
         val row = r.asInstanceOf[UnsafeRow]
         val key = getKey(row)
         val value = store.get(key)
