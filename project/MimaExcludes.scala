@@ -470,7 +470,11 @@ object MimaExcludes {
     ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.sql.streaming.StreamingQueryListener#QueryStartedEvent.this"),
 
     // [SPARK-30667][CORE] Add allGather method to BarrierTaskContext
-    ProblemFilters.exclude[IncompatibleTemplateDefProblem]("org.apache.spark.RequestToSync")
+    ProblemFilters.exclude[IncompatibleTemplateDefProblem]("org.apache.spark.RequestToSync"),
+
+    // [SPARK-24634][SQL] Add a new metric regarding number of rows later than watermark
+    ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.sql.streaming.StateOperatorProgress.<init>$default$4"),
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.sql.streaming.StateOperatorProgress.<init>$default$4")
   )
 
   // Exclude rules for 2.4.x

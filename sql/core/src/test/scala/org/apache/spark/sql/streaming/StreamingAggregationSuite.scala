@@ -206,7 +206,9 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
         val operatorProgress = mutable.ArrayBuffer[StateOperatorProgress]()
         var progress = query.recentProgress.last
 
-        operatorProgress ++= progress.stateOperators.map { op => op.copy(op.numRowsUpdated) }
+        operatorProgress ++= progress.stateOperators.map {
+          op => op.copy(op.numRowsUpdated, op.numLateInputRows)
+        }
         if (progress.numInputRows == 0) {
           // empty batch, merge metrics from previous batch as well
           progress = query.recentProgress.takeRight(2).head
@@ -215,7 +217,8 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
             // (for now it is only updated from previous batch, but things can be changed.)
             // other metrics represent current status of state so picking up the latest values.
             val newOperatorProgress = sop.copy(
-              sop.numRowsUpdated + progress.stateOperators(index).numRowsUpdated)
+              sop.numRowsUpdated + progress.stateOperators(index).numRowsUpdated,
+              sop.numLateInputRows)
             operatorProgress(index) = newOperatorProgress
           }
         }
@@ -481,10 +484,12 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
       expectShuffling: Boolean,
       expectedPartition: Int): Boolean = {
     val executedPlan = se.lastExecution.executedPlan
-    val restore = executedPlan
-      .collect { case ss: StateStoreRestoreExec => ss }
-      .head
-    restore.child match {
+    val nodeToCheck = executedPlan
+      .collect {
+        case StateStoreRestoreExec(_, _, _, s: CountLateRowsExec) => s.child
+        case ss: StateStoreRestoreExec => ss.child
+      }.head
+    nodeToCheck match {
       case node: UnaryExecNode =>
         assert(node.outputPartitioning.numPartitions === expectedPartition,
           "Didn't get the expected number of partitions.")
