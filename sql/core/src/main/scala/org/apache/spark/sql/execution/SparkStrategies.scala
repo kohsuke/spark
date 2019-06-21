@@ -427,7 +427,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
           aggregateExpressions.map(expr => expr.asInstanceOf[AggregateExpression]),
           rewrittenResultExpressions,
           stateVersion,
-          planLater(child))
+          CountLateRowsExec(None, planLater(child)))
 
       case _ => Nil
     }
@@ -439,7 +439,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
   object StreamingDeduplicationStrategy extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
       case Deduplicate(keys, child) if child.isStreaming =>
-        StreamingDeduplicateExec(keys, planLater(child)) :: Nil
+        StreamingDeduplicateExec(keys, CountLateRowsExec(None, planLater(child))) :: Nil
 
       case _ => Nil
     }
@@ -475,7 +475,9 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
           if left.isStreaming && right.isStreaming =>
 
           new StreamingSymmetricHashJoinExec(
-            leftKeys, rightKeys, joinType, condition, planLater(left), planLater(right)) :: Nil
+            leftKeys, rightKeys, joinType, condition,
+            CountLateRowsExec(None, planLater(left)),
+            CountLateRowsExec(None, planLater(right))) :: Nil
 
         case Join(left, right, _, _, _) if left.isStreaming && right.isStreaming =>
           throw new AnalysisException(
@@ -608,10 +610,13 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
       case FlatMapGroupsWithState(
         func, keyDeser, valueDeser, groupAttr, dataAttr, outputAttr, stateEnc, outputMode, _,
         timeout, child) =>
+
         val stateVersion = conf.getConf(SQLConf.FLATMAPGROUPSWITHSTATE_STATE_FORMAT_VERSION)
         val execPlan = FlatMapGroupsWithStateExec(
           func, keyDeser, valueDeser, groupAttr, dataAttr, outputAttr, None, stateEnc, stateVersion,
-          outputMode, timeout, batchTimestampMs = None, eventTimeWatermark = None, planLater(child))
+          outputMode, timeout, batchTimestampMs = None, eventTimeWatermark = None,
+          CountLateRowsExec(None, planLater(child)))
+
         execPlan :: Nil
       case _ =>
         Nil

@@ -436,7 +436,6 @@ case class StreamingSymmetricHashJoinExec(
           case None =>
             inputIter
         }
-
       nonLateRows.flatMap { row =>
         val thisRow = row.asInstanceOf[UnsafeRow]
         // If this row fails the pre join filter, that means it can never satisfy the full join
