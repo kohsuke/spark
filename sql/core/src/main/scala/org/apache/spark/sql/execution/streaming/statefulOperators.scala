@@ -37,6 +37,39 @@ import org.apache.spark.sql.streaming.{OutputMode, StateOperatorProgress}
 import org.apache.spark.sql.types._
 import org.apache.spark.util.{CompletionIterator, NextIterator, Utils}
 
+case class DiscardLateRowsExec(
+    eventTimeWatermark: Option[Long] = None,
+    child: SparkPlan)
+  extends UnaryExecNode with WatermarkSupport {
+
+  // No need to determine key expressions here.
+  override def keyExpressions: Seq[Attribute] = Seq.empty
+
+  override def output: Seq[Attribute] = child.output
+
+  override def outputOrdering: Seq[SortOrder] = child.outputOrdering
+
+  override def outputPartitioning: Partitioning = child.outputPartitioning
+
+  override lazy val metrics = Map(
+    "numLateRows" -> SQLMetrics.createMetric(sparkContext, "number of late rows being discarded"))
+
+  override protected def doExecute(): RDD[InternalRow] = {
+    val numLateRows = longMetric("numLateRows")
+    child.execute().mapPartitionsWithIndex { (_, iter) =>
+      watermarkPredicateForData match {
+        case Some(pred) =>
+          iter.filter { row =>
+            val r = pred.eval(row)
+            if (r) numLateRows += 1
+            !r
+          }
+
+        case None => iter
+      }
+    }
+  }
+}
 
 /** Used to identify the state store for a given operator. */
 case class StatefulOperatorStateInfo(
@@ -96,9 +129,14 @@ trait StateStoreWriter extends StatefulOperator { self: SparkPlan =>
     val javaConvertedCustomMetrics: java.util.HashMap[String, java.lang.Long] =
       new java.util.HashMap(customMetrics.mapValues(long2Long).asJava)
 
+    val numLateInputRows = self.collectFirst {
+      case d: DiscardLateRowsExec => d
+    }.map(_.metrics("numLateRows").value).getOrElse(0L)
+
     new StateOperatorProgress(
       numRowsTotal = longMetric("numTotalStateRows").value,
       numRowsUpdated = longMetric("numUpdatedStateRows").value,
+      numLateInputRows = numLateInputRows,
       memoryUsedBytes = longMetric("stateMemory").value,
       javaConvertedCustomMetrics
     )
