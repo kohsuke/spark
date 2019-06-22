@@ -366,7 +366,11 @@ object MimaExcludes {
 
     // [SPARK-26616][MLlib] Expose document frequency in IDFModel
     ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.mllib.feature.IDFModel.this"),
-    ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.mllib.feature.IDF#DocumentFrequencyAggregator.idf")
+    ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.mllib.feature.IDF#DocumentFrequencyAggregator.idf"),
+
+    // [SPARK-24634][SQL] Add a new metric regarding number of rows later than watermark
+    ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.sql.streaming.StateOperatorProgress.<init>$default$4"),
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.sql.streaming.StateOperatorProgress.<init>$default$4")
   )
 
   // Exclude rules for 2.4.x

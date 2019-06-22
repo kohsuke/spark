@@ -44,14 +44,6 @@ class StateOperatorProgress private[sql](
     val customMetrics: ju.Map[String, JLong] = new ju.HashMap())
   extends Serializable {
 
-  def this(
-      numRowsTotal: Long,
-      numRowsUpdated: Long,
-      memoryUsedBytes: Long,
-      customMetrics: ju.Map[String, JLong] = new ju.HashMap()) {
-    this(numRowsTotal, numRowsUpdated, 0, customMetrics)
-  }
-
   /** The compact JSON representation of this progress. */
   def json: String = compact(render(jsonValue))
 
@@ -59,8 +51,8 @@ class StateOperatorProgress private[sql](
   def prettyJson: String = pretty(render(jsonValue))
 
   private[sql] def copy(newNumRowsUpdated: Long, newNumLateInputRows: Long): StateOperatorProgress =
-    new StateOperatorProgress(numRowsTotal, newNumRowsUpdated, newNumLateInputRows,
-      memoryUsedBytes, customMetrics)
+    new StateOperatorProgress(numRowsTotal, newNumRowsUpdated, newNumLateInputRows, memoryUsedBytes,
+      customMetrics)
 
   private[sql] def jsonValue: JValue = {
     ("numRowsTotal" -> JInt(numRowsTotal)) ~
