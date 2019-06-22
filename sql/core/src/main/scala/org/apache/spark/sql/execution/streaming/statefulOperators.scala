@@ -138,7 +138,7 @@ trait StateStoreWriter extends StatefulOperator { self: SparkPlan =>
       numRowsUpdated = longMetric("numUpdatedStateRows").value,
       numLateInputRows = numLateInputRows,
       memoryUsedBytes = longMetric("stateMemory").value,
-      javaConvertedCustomMetrics
+      customMetrics = javaConvertedCustomMetrics
     )
   }
 

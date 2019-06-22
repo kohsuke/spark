@@ -395,6 +395,10 @@ object MimaExcludes {
     // [SPARK-25382][SQL][PYSPARK] Remove ImageSchema.readImages in 3.0
     ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ml.image.ImageSchema.readImages"),
     ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ml.image.ImageSchema.readImages")
+
+    // [SPARK-24634][SQL] Add a new metric regarding number of rows later than watermark
+    ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.sql.streaming.StateOperatorProgress.<init>$default$4"),
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.sql.streaming.StateOperatorProgress.<init>$default$4")
   )
 
   // Exclude rules for 2.4.x
