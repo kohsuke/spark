@@ -44,6 +44,14 @@ class StateOperatorProgress private[sql](
     val customMetrics: ju.Map[String, JLong] = new ju.HashMap())
   extends Serializable {
 
+  def this(
+      numRowsTotal: Long,
+      numRowsUpdated: Long,
+      memoryUsedBytes: Long,
+      customMetrics: ju.Map[String, JLong] = new ju.HashMap()) {
+    this(numRowsTotal, numRowsUpdated, 0, customMetrics)
+  }
+
   /** The compact JSON representation of this progress. */
   def json: String = compact(render(jsonValue))
 
