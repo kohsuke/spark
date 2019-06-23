@@ -160,7 +160,8 @@ class StreamingInnerJoinSuite extends StreamTest with StateStoreMetricsTest with
       AddData(input2, 1),
       CheckNewAnswer(),                             // Should not join as < 15 removed
       // row not add as 1 < state key watermark = 15
-      assertNumStateRows(total = 2, updated = 0, lateInput = 1),
+      // note that input row is not discarded as right side doesn't have watermark
+      assertNumStateRows(total = 2, updated = 0, lateInput = 0),
       AddData(input1, 5),
       CheckNewAnswer(),                             // Same reason as above
       assertNumStateRows(total = 2, updated = 0, lateInput = 1)
