@@ -496,7 +496,7 @@ class EventTimeWatermarkSuite extends StreamTest with BeforeAndAfter with Matche
         .select($"window".getField("start").cast("long").as[Long], $"count".as[Long])
 
     // No state eviction when asked to compute complete results.
-    // But it should still discard late rows.
+    // It still counts late input rows, though.
     testStream(windowedAggregation, OutputMode.Complete)(
       AddData(inputData, 10, 11, 12),
       CheckAnswer((10, 3)),
@@ -505,10 +505,10 @@ class EventTimeWatermarkSuite extends StreamTest with BeforeAndAfter with Matche
       AddData(inputData, 25),
       CheckAnswer((10, 3), (25, 2)),
       AddData(inputData, 10),
-      CheckAnswer((10, 3), (25, 2)),
+      CheckAnswer((10, 4), (25, 2)),
       assertNumLateRows(1),
       AddData(inputData, 25),
-      CheckAnswer((10, 3), (25, 3))
+      CheckAnswer((10, 4), (25, 3))
     )
   }
 
