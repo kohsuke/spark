@@ -37,7 +37,7 @@ import org.apache.spark.sql.streaming.{OutputMode, StateOperatorProgress}
 import org.apache.spark.sql.types._
 import org.apache.spark.util.{CompletionIterator, NextIterator, Utils}
 
-case class DiscardLateRowsExec(
+case class CountLateRowsExec(
     eventTimeWatermark: Option[Long] = None,
     child: SparkPlan)
   extends UnaryExecNode with WatermarkSupport {
@@ -52,17 +52,18 @@ case class DiscardLateRowsExec(
   override def outputPartitioning: Partitioning = child.outputPartitioning
 
   override lazy val metrics = Map(
-    "numLateRows" -> SQLMetrics.createMetric(sparkContext, "number of late rows being discarded"))
+    "numLateRows" -> SQLMetrics.createMetric(sparkContext,
+      "number of input rows later than watermark"))
 
   override protected def doExecute(): RDD[InternalRow] = {
     val numLateRows = longMetric("numLateRows")
     child.execute().mapPartitionsWithIndex { (_, iter) =>
       watermarkPredicateForData match {
         case Some(pred) =>
-          iter.filter { row =>
+          iter.map { row =>
             val r = pred.eval(row)
             if (r) numLateRows += 1
-            !r
+            row
           }
 
         case None => iter
@@ -130,7 +131,7 @@ trait StateStoreWriter extends StatefulOperator { self: SparkPlan =>
       new java.util.HashMap(customMetrics.mapValues(long2Long).asJava)
 
     val numLateInputRows = self.children.flatMap(_.collectFirst {
-      case d: DiscardLateRowsExec => d
+      case d: CountLateRowsExec => d
     }).map(_.metrics("numLateRows").value).sum
 
     new StateOperatorProgress(
@@ -366,8 +367,6 @@ case class StateStoreSaveExec(
           // Assumption: watermark predicates must be non-empty if append mode is allowed
           case Some(Append) =>
             allUpdatesTimeMs += timeTakenMs {
-              // Here we filter out late rows again, given this iterator also contains
-              // rows from state store.
               val filteredIter = iter.filter(row => !watermarkPredicateForData.get.eval(row))
               while (filteredIter.hasNext) {
                 val row = filteredIter.next().asInstanceOf[UnsafeRow]
@@ -408,8 +407,6 @@ case class StateStoreSaveExec(
           case Some(Update) =>
 
             new NextIterator[InternalRow] {
-              // Here we filter out late rows again, given this iterator also contains
-              // rows from state store.
               private[this] val baseIterator = watermarkPredicateForData match {
                 case Some(predicate) => iter.filter((row: InternalRow) => !predicate.eval(row))
                 case None => iter
@@ -495,11 +492,14 @@ case class StreamingDeduplicateExec(
       val allRemovalsTimeMs = longMetric("allRemovalsTimeMs")
       val commitTimeMs = longMetric("commitTimeMs")
 
+      val baseIterator = watermarkPredicateForData match {
+        case Some(predicate) => iter.filter(row => !predicate.eval(row))
+        case None => iter
+      }
+
       val updatesStartTimeNs = System.nanoTime
 
-      // We assume discarding late rows is done in prior to join via
-      // DiscardLateRowsExec, so we expect the iterator doesn't have late rows.
-      val result = iter.filter { r =>
+      val result = baseIterator.filter { r =>
         val row = r.asInstanceOf[UnsafeRow]
         val key = getKey(row)
         val value = store.get(key)

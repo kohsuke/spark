@@ -430,7 +430,7 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
     val executedPlan = se.lastExecution.executedPlan
     val nodeToCheck = executedPlan
       .collect {
-        case StateStoreRestoreExec(_, _, _, s: DiscardLateRowsExec) => s.child
+        case StateStoreRestoreExec(_, _, _, s: CountLateRowsExec) => s.child
         case ss: StateStoreRestoreExec => ss.child
       }.head
     nodeToCheck match {

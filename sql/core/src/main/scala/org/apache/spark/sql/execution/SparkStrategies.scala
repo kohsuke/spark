@@ -427,7 +427,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
           aggregateExpressions.map(expr => expr.asInstanceOf[AggregateExpression]),
           rewrittenResultExpressions,
           stateVersion,
-          DiscardLateRowsExec(None, planLater(child)))
+          CountLateRowsExec(None, planLater(child)))
 
       case _ => Nil
     }
@@ -439,7 +439,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
   object StreamingDeduplicationStrategy extends Strategy {
     override def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
       case Deduplicate(keys, child) if child.isStreaming =>
-        StreamingDeduplicateExec(keys, DiscardLateRowsExec(None, planLater(child))) :: Nil
+        StreamingDeduplicateExec(keys, CountLateRowsExec(None, planLater(child))) :: Nil
 
       case _ => Nil
     }
@@ -476,8 +476,8 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
 
           new StreamingSymmetricHashJoinExec(
             leftKeys, rightKeys, joinType, condition,
-            DiscardLateRowsExec(None, planLater(left)),
-            DiscardLateRowsExec(None, planLater(right))) :: Nil
+            CountLateRowsExec(None, planLater(left)),
+            CountLateRowsExec(None, planLater(right))) :: Nil
 
         case Join(left, right, _, _, _) if left.isStreaming && right.isStreaming =>
           throw new AnalysisException(
@@ -615,7 +615,7 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         val execPlan = FlatMapGroupsWithStateExec(
           func, keyDeser, valueDeser, groupAttr, dataAttr, outputAttr, None, stateEnc, stateVersion,
           outputMode, timeout, batchTimestampMs = None, eventTimeWatermark = None,
-          DiscardLateRowsExec(None, planLater(child)))
+          CountLateRowsExec(None, planLater(child)))
 
         execPlan :: Nil
       case _ =>
