@@ -369,8 +369,6 @@ case class StreamingSymmetricHashJoinExec(
    * @param inputAttributes The input attributes for this side of the join.
    * @param joinKeys The join keys.
    * @param inputIter The iterator of input rows on this side to be joined.
-   *                  We assume discarding late rows is done in prior to join via
-   *                  [[DiscardLateRowsExec]], so we expect the iterator doesn't have late rows.
    * @param preJoinFilterExpr A filter over rows on this side. This filter rejects rows that could
    *                          never pass the overall join condition no matter what other side row
    *                          they're joined with.
@@ -429,7 +427,16 @@ case class StreamingSymmetricHashJoinExec(
         otherSideJoiner: OneSideHashJoiner)(
         generateJoinedRow: (InternalRow, InternalRow) => JoinedRow):
     Iterator[InternalRow] = {
-      inputIter.flatMap { row =>
+      val watermarkAttribute = inputAttributes.find(_.metadata.contains(delayKey))
+      val nonLateRows =
+        WatermarkSupport.watermarkExpression(watermarkAttribute, eventTimeWatermark) match {
+          case Some(watermarkExpr) =>
+            val predicate = newPredicate(watermarkExpr, inputAttributes)
+            inputIter.filter { row => !predicate.eval(row) }
+          case None =>
+            inputIter
+        }
+      nonLateRows.flatMap { row =>
         val thisRow = row.asInstanceOf[UnsafeRow]
         // If this row fails the pre join filter, that means it can never satisfy the full join
         // condition no matter what other side row it's matched with. This allows us to avoid
