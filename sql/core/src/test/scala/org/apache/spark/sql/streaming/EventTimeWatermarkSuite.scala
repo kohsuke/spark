@@ -500,15 +500,19 @@ class EventTimeWatermarkSuite extends StreamTest with BeforeAndAfter with Matche
     testStream(windowedAggregation, OutputMode.Complete)(
       AddData(inputData, 10, 11, 12),
       CheckAnswer((10, 3)),
+      assertNumLateRows(0),
       AddData(inputData, 25),
       CheckAnswer((10, 3), (25, 1)),
+      assertNumLateRows(0),
       AddData(inputData, 25),
       CheckAnswer((10, 3), (25, 2)),
+      assertNumLateRows(0),
       AddData(inputData, 10),
       CheckAnswer((10, 4), (25, 2)),
       assertNumLateRows(1),
       AddData(inputData, 25),
-      CheckAnswer((10, 4), (25, 3))
+      CheckAnswer((10, 4), (25, 3)),
+      assertNumLateRows(0)
     )
   }
 
