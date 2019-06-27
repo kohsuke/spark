@@ -50,9 +50,6 @@ class StateTable(
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder =
     new StateScanBuilder(session, schema, checkpointLocation, version, operatorId, storeName)
 
-  /**
-    * Returns the string map of table properties.
-    */
   override def properties(): util.Map[String, String] = Map(
       "checkpointLocation" -> checkpointLocation,
       "version" -> version.toString,
