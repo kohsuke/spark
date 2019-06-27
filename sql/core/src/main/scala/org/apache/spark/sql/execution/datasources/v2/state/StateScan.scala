@@ -65,10 +65,6 @@ class StateScan(
     checkpointPath.makeQualified(fs.getUri, fs.getWorkingDirectory).toUri.toString
   }
 
-  /**
-    * Returns the actual schema of this data source scan, which may be different from the physical
-    * schema of the underlying storage, as column pruning or other optimizations may happen.
-    */
   override def readSchema(): StructType = schema
 
   override def planInputPartitions(): Array[InputPartition] = {
