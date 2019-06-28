@@ -231,10 +231,12 @@ class StageData private[spark](
     val outputRecords: Long,
     val shuffleRemoteBlocksFetched: Long,
     val shuffleLocalBlocksFetched: Long,
+    val shuffleHostLocalBlocksFetched: Long,
     val shuffleFetchWaitTime: Long,
     val shuffleRemoteBytesRead: Long,
     val shuffleRemoteBytesReadToDisk: Long,
     val shuffleLocalBytesRead: Long,
+    val shuffleHostLocalBytesRead: Long,
     val shuffleReadBytes: Long,
     val shuffleReadRecords: Long,
     val shuffleWriteBytes: Long,
@@ -299,10 +301,12 @@ class OutputMetrics private[spark](
 class ShuffleReadMetrics private[spark](
     val remoteBlocksFetched: Long,
     val localBlocksFetched: Long,
+    val hostLocalBlocksFetched: Long,
     val fetchWaitTime: Long,
     val remoteBytesRead: Long,
     val remoteBytesReadToDisk: Long,
     val localBytesRead: Long,
+    val hostLocalBytesRead: Long,
     val recordsRead: Long)
 
 class ShuffleWriteMetrics private[spark](
@@ -344,6 +348,7 @@ class ShuffleReadMetricDistributions private[spark](
     val readRecords: IndexedSeq[Double],
     val remoteBlocksFetched: IndexedSeq[Double],
     val localBlocksFetched: IndexedSeq[Double],
+    val hostLocalBlocksFetched: IndexedSeq[Double],
     val fetchWaitTime: IndexedSeq[Double],
     val remoteBytesRead: IndexedSeq[Double],
     val remoteBytesReadToDisk: IndexedSeq[Double],
