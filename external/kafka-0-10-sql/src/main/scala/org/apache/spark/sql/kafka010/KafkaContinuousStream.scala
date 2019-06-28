@@ -56,7 +56,7 @@ class KafkaContinuousStream(
 
   private val pollTimeoutMs =
     options.getLong(KafkaSourceProvider.CONSUMER_POLL_TIMEOUT, 512)
-  private val includeHeaders = options.getBoolean(INCLUDE_HEADERS, "false")
+  private val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
 
   // Initialized when creating reader factories. If this diverges from the partitions at the latest
   // offsets, we need to reconfigure.
