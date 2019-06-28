@@ -301,6 +301,19 @@ class JsonProtocolSuite extends SparkFunSuite {
     assert(expectedFetchFailed === JsonProtocol.taskEndReasonFromJson(oldEvent))
   }
 
+  test("ShuffleReadMetrics: Host Local backwards compatibility") {
+    // Metrics about host local shuffle were added in 3.0.0
+    val metrics = makeTaskMetrics(1L, 2L, 3L, 4L, 5, 6,
+      hasHadoopInput = false, hasOutput = false, hasRecords = false)
+    val newJson = JsonProtocol.taskMetricsToJson(metrics)
+    val oldJson = newJson.removeField { case (field, _) =>
+      field == "Host Local Bytes Read" || field == "Host Local Blocks Fetched"
+    }
+    val newMetrics = JsonProtocol.taskMetricsFromJson(oldJson)
+    assert(newMetrics.shuffleReadMetrics.hostLocalBytesRead == 0)
+    assert(newMetrics.shuffleReadMetrics.hostLocalBlocksFetched == 0)
+  }
+
   test("ShuffleReadMetrics: Local bytes read backwards compatibility") {
     // Metrics about local shuffle bytes read were added in 1.3.1.
     val metrics = makeTaskMetrics(1L, 2L, 3L, 4L, 5, 6,
@@ -699,6 +712,7 @@ private[spark] object JsonProtocolSuite extends Assertions {
   private def assertEquals(metrics1: ShuffleReadMetrics, metrics2: ShuffleReadMetrics) {
     assert(metrics1.remoteBlocksFetched === metrics2.remoteBlocksFetched)
     assert(metrics1.localBlocksFetched === metrics2.localBlocksFetched)
+    assert(metrics1.hostLocalBlocksFetched === metrics2.hostLocalBlocksFetched)
     assert(metrics1.fetchWaitTime === metrics2.fetchWaitTime)
     assert(metrics1.remoteBytesRead === metrics2.remoteBytesRead)
   }
@@ -946,10 +960,12 @@ private[spark] object JsonProtocolSuite extends Assertions {
       sr.incRemoteBytesRead(b + d)
       sr.incRemoteBytesReadToDisk(b)
       sr.incLocalBlocksFetched(e)
+      sr.incHostLocalBlocksFetched(b + e)
       sr.incFetchWaitTime(a + d)
       sr.incRemoteBlocksFetched(f)
       sr.incRecordsRead(if (hasRecords) (b + d) / 100 else -1)
       sr.incLocalBytesRead(a + f)
+      sr.incHostLocalBytesRead(a + e)
       t.mergeShuffleReadMetrics()
     }
     if (hasOutput) {
@@ -1245,10 +1261,12 @@ private[spark] object JsonProtocolSuite extends Assertions {
       |    "Shuffle Read Metrics": {
       |      "Remote Blocks Fetched": 800,
       |      "Local Blocks Fetched": 700,
+      |      "Host Local Blocks Fetched": 1100,
       |      "Fetch Wait Time": 900,
       |      "Remote Bytes Read": 1000,
       |      "Remote Bytes Read To Disk": 400,
       |      "Local Bytes Read": 1100,
+      |      "Host Local Bytes Read": 1000,
       |      "Total Records Read": 10
       |    },
       |    "Shuffle Write Metrics": {
@@ -1368,10 +1386,12 @@ private[spark] object JsonProtocolSuite extends Assertions {
       |    "Shuffle Read Metrics" : {
       |      "Remote Blocks Fetched" : 0,
       |      "Local Blocks Fetched" : 0,
+      |      "Host Local Blocks Fetched" : 0,
       |      "Fetch Wait Time" : 0,
       |      "Remote Bytes Read" : 0,
       |      "Remote Bytes Read To Disk" : 0,
       |      "Local Bytes Read" : 0,
+      |      "Host Local Bytes Read" : 0,
       |      "Total Records Read" : 0
       |    },
       |    "Shuffle Write Metrics": {
@@ -1491,10 +1511,12 @@ private[spark] object JsonProtocolSuite extends Assertions {
       |    "Shuffle Read Metrics" : {
       |      "Remote Blocks Fetched" : 0,
       |      "Local Blocks Fetched" : 0,
+      |      "Host Local Blocks Fetched" : 0,
       |      "Fetch Wait Time" : 0,
       |      "Remote Bytes Read" : 0,
       |      "Remote Bytes Read To Disk" : 0,
       |      "Local Bytes Read" : 0,
+      |      "Host Local Bytes Read" : 0,
       |      "Total Records Read" : 0
       |    },
       |    "Shuffle Write Metrics": {
@@ -2081,90 +2103,104 @@ private[spark] object JsonProtocolSuite extends Assertions {
       |        },
       |        {
       |          "ID": 13,
-      |          "Name": "${shuffleRead.REMOTE_BYTES_READ}",
+      |          "Name": "${shuffleRead.HOST_LOCAL_BLOCKS_FETCHED}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 14,
-      |          "Name": "${shuffleRead.REMOTE_BYTES_READ_TO_DISK}",
+      |          "Name": "${shuffleRead.REMOTE_BYTES_READ}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 15,
-      |          "Name": "${shuffleRead.LOCAL_BYTES_READ}",
+      |          "Name": "${shuffleRead.REMOTE_BYTES_READ_TO_DISK}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 16,
-      |          "Name": "${shuffleRead.FETCH_WAIT_TIME}",
+      |          "Name": "${shuffleRead.LOCAL_BYTES_READ}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 17,
-      |          "Name": "${shuffleRead.RECORDS_READ}",
+      |          "Name": "${shuffleRead.HOST_LOCAL_BYTES_READ}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 18,
-      |          "Name": "${shuffleWrite.BYTES_WRITTEN}",
+      |          "Name": "${shuffleRead.FETCH_WAIT_TIME}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 19,
-      |          "Name": "${shuffleWrite.RECORDS_WRITTEN}",
+      |          "Name": "${shuffleRead.RECORDS_READ}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 20,
-      |          "Name": "${shuffleWrite.WRITE_TIME}",
+      |          "Name": "${shuffleWrite.BYTES_WRITTEN}",
       |          "Update": 0,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
       |          "ID": 21,
+      |          "Name": "${shuffleWrite.RECORDS_WRITTEN}",
+      |          "Update": 0,
+      |          "Internal": true,
+      |          "Count Failed Values": true
+      |        },
+      |        {
+      |          "ID": 22,
+      |          "Name": "${shuffleWrite.WRITE_TIME}",
+      |          "Update": 0,
+      |          "Internal": true,
+      |          "Count Failed Values": true
+      |        },
+      |        {
+      |          "ID": 23,
       |          "Name": "${input.BYTES_READ}",
       |          "Update": 2100,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
-      |          "ID": 22,
+      |          "ID": 24,
       |          "Name": "${input.RECORDS_READ}",
       |          "Update": 21,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
-      |          "ID": 23,
+      |          "ID": 25,
       |          "Name": "${output.BYTES_WRITTEN}",
       |          "Update": 1200,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
-      |          "ID": 24,
+      |          "ID": 26,
       |          "Name": "${output.RECORDS_WRITTEN}",
       |          "Update": 12,
       |          "Internal": true,
       |          "Count Failed Values": true
       |        },
       |        {
-      |          "ID": 25,
+      |          "ID": 27,
       |          "Name": "$TEST_ACCUM",
       |          "Update": 0,
       |          "Internal": true,
