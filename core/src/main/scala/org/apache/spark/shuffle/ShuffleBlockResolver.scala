@@ -31,10 +31,14 @@ trait ShuffleBlockResolver {
   type ShuffleId = Int
 
   /**
-   * Retrieve the data for the specified block. If the data for that block is not available,
-   * throws an unspecified exception.
+   * Retrieve the data for the specified block.
+   *
+   * When the dirs param is None then the disk manager's local directories are used and this way
+   * local blocks are read otherwise via the specified directories host-local blocks can be read.
+   *
+   * If the data for that block is not available, throws an unspecified exception.
    */
-  def getBlockData(blockId: ShuffleBlockId): ManagedBuffer
+  def getBlockData(blockId: ShuffleBlockId, dirs: Option[Array[String]] = None): ManagedBuffer
 
   def stop(): Unit
 }

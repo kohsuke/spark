@@ -57,7 +57,7 @@ class NettyBlockRpcServer(
       case openBlocks: OpenBlocks =>
         val blocksNum = openBlocks.blockIds.length
         val blocks = for (i <- (0 until blocksNum).view)
-          yield blockManager.getBlockData(BlockId.apply(openBlocks.blockIds(i)))
+          yield blockManager.getLocalBlockData(BlockId.apply(openBlocks.blockIds(i)))
         val streamId = streamManager.registerStream(appId, blocks.iterator.asJava,
           client.getChannel)
         logTrace(s"Registered streamId $streamId with $blocksNum buffers")
@@ -66,7 +66,7 @@ class NettyBlockRpcServer(
       case fetchShuffleBlocks: FetchShuffleBlocks =>
         val blocks = fetchShuffleBlocks.mapIds.zipWithIndex.flatMap { case (mapId, index) =>
           fetchShuffleBlocks.reduceIds.apply(index).map { reduceId =>
-            blockManager.getBlockData(
+            blockManager.getLocalBlockData(
               ShuffleBlockId(fetchShuffleBlocks.shuffleId, mapId, reduceId))
           }
         }
