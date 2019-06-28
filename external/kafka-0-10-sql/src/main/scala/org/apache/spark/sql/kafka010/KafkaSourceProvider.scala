@@ -401,9 +401,9 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
   }
 
   class KafkaScan(options: CaseInsensitiveStringMap) extends Scan {
+    val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
 
     override def readSchema(): StructType = {
-      val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
       KafkaOffsetReader.kafkaSchema(includeHeaders)
     }
 
