@@ -651,7 +651,7 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with BeforeAndAfterE
       // check getRemoteBytes
       val bytesViaStore1 = cleanBm.getRemoteBytes(blockId)
       assert(bytesViaStore1.isDefined)
-      val expectedContent = sameHostBm.getBlockData(blockId).nioByteBuffer().array()
+      val expectedContent = sameHostBm.getLocalBlockData(blockId).nioByteBuffer().array()
       assert(bytesViaStore1.get.toArray === expectedContent)
 
       // check getRemoteValues
@@ -1092,7 +1092,7 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with BeforeAndAfterE
     val blockStatus = blockStatusOption.get
     assert((blockStatus.diskSize > 0) === !storageLevel.useMemory)
     assert((blockStatus.memSize > 0) === storageLevel.useMemory)
-    assert(blockManager.getBlockData(blockId).nioByteBuffer().array() === ser)
+    assert(blockManager.getLocalBlockData(blockId).nioByteBuffer().array() === ser)
   }
 
   Seq(
