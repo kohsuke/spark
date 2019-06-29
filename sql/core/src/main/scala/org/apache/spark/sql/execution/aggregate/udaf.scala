@@ -21,7 +21,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, _}
-import org.apache.spark.sql.catalyst.expressions.aggregate.ImperativeAggregate
+import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateMutableProjection
 import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
 import org.apache.spark.sql.types._
@@ -449,4 +449,96 @@ case class ScalaUDAF(
   }
 
   override def nodeName: String = udaf.getClass.getSimpleName
+}
+
+case class TypedImperativeUDAF(
+    child: Expression,
+    udaf: UserDefinedAggregateFunction,
+    mutableAggBufferOffset: Int = 0,
+    inputAggBufferOffset: Int = 0)
+  extends TypedImperativeAggregate[MutableAggregationBuffer] {
+
+  def this(child: Expression, udaf: UserDefinedAggregateFunction) = {
+    this(
+      child = child,
+      udaf = udaf,
+      mutableAggBufferOffset = 0,
+      inputAggBufferOffset = 0)
+  }
+
+  def dataType: DataType = udaf.dataType
+
+  def nullable: Boolean = true
+
+  override lazy val deterministic: Boolean = udaf.deterministic
+
+  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): TypedImperativeUDAF =
+    copy(mutableAggBufferOffset = newMutableAggBufferOffset)
+
+  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): TypedImperativeUDAF =
+    copy(inputAggBufferOffset = newInputAggBufferOffset)
+
+  private[this] lazy val bufferValuesToCatalystConverters: Array[Any => Any] = {
+    udaf.bufferSchema.fields.map { field =>
+      CatalystTypeConverters.createToCatalystConverter(field.dataType)
+    }
+  }
+
+  private[this] lazy val bufferValuesToScalaConverters: Array[Any => Any] = {
+    udaf.bufferSchema.fields.map { field =>
+      CatalystTypeConverters.createToScalaConverter(field.dataType)
+    }
+  }
+
+  def createAggregationBuffer(): MutableAggregationBuffer = {
+    val buf = new MutableAggregationBufferImpl(
+      udaf.bufferSchema,
+      bufferValuesToCatalystConverters,
+      bufferValuesToScalaConverters,
+      mutableAggBufferOffset,
+      new GenericInternalRow(udaf.bufferSchema.length))
+    udaf.initialize(buf)
+    buf
+  }
+
+  def update(buffer: MutableAggregationBuffer, input: InternalRow): MutableAggregationBuffer = {
+    udaf.update(buffer, new GenericRow(input.asInstanceOf[GenericInternalRow].values))
+    buffer
+  }
+
+  def merge(
+      buffer: MutableAggregationBuffer,
+      input: MutableAggregationBuffer): MutableAggregationBuffer = {
+    udaf.merge(buffer, input)
+    buffer
+  }
+
+  def eval(buffer: MutableAggregationBuffer): Any = udaf.evaluate(buffer)
+
+  import java.io._
+  // scalastyle:off classforname
+  class ObjectInputStreamWithCustomClassLoader(
+    inputStream: InputStream) extends ObjectInputStream(inputStream) {
+    override def resolveClass(desc: java.io.ObjectStreamClass): Class[_] = {
+      try { Class.forName(desc.getName, false, getClass.getClassLoader) }
+      catch { case ex: ClassNotFoundException => super.resolveClass(desc) }
+    }
+  }
+  // scalastyle:off classforname
+
+  def serialize(buffer: MutableAggregationBuffer): Array[Byte] = {
+    val bufout = new ByteArrayOutputStream()
+    val obout = new ObjectOutputStream(bufout)
+    obout.writeObject(buffer)
+    bufout.toByteArray
+  }
+
+  def deserialize(storageFormat: Array[Byte]): MutableAggregationBuffer = {
+    val bufin = new ByteArrayInputStream(storageFormat)
+    val obin = new ObjectInputStreamWithCustomClassLoader(bufin)
+
+    obin.readObject().asInstanceOf[MutableAggregationBuffer]
+  }
+
+  def children: Seq[Expression] = Seq(child)
 }
