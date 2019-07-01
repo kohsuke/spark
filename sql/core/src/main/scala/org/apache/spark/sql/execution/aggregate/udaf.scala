@@ -452,21 +452,19 @@ case class ScalaUDAF(
 }
 
 case class TypedImperativeUDAF(
-    child: Expression,
+    children: Seq[Expression],
     udaf: UserDefinedAggregateFunction,
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
-  extends TypedImperativeAggregate[MutableAggregationBuffer] {
-
-  def this(child: Expression, udaf: UserDefinedAggregateFunction) = {
-    this(
-      child = child,
-      udaf = udaf,
-      mutableAggBufferOffset = 0,
-      inputAggBufferOffset = 0)
-  }
+  extends TypedImperativeAggregate[MutableAggregationBuffer]
+  with UserDefinedExpression
+  with NonSQLExpression
+  with ImplicitCastInputTypes
+  with Logging {
 
   def dataType: DataType = udaf.dataType
+
+  val inputTypes: Seq[DataType] = udaf.inputSchema.map(_.dataType)
 
   def nullable: Boolean = true
 
@@ -490,6 +488,24 @@ case class TypedImperativeUDAF(
     }
   }
 
+  private[this] lazy val childrenSchema: StructType = {
+    val inputFields = children.zipWithIndex.map {
+      case (child, index) =>
+        StructField(s"input$index", child.dataType, child.nullable, Metadata.empty)
+    }
+    StructType(inputFields)
+  }
+
+  private lazy val inputProjection = {
+    val inputAttributes = childrenSchema.toAttributes
+    log.debug(
+      s"Creating MutableProj: $children, inputSchema: $inputAttributes.")
+    MutableProjection.create(children, inputAttributes)
+  }
+
+  private[this] lazy val inputToScalaConverters: Any => Any =
+    CatalystTypeConverters.createToScalaConverter(childrenSchema)
+
   def createAggregationBuffer(): MutableAggregationBuffer = {
     val buf = new MutableAggregationBufferImpl(
       udaf.bufferSchema,
@@ -502,7 +518,8 @@ case class TypedImperativeUDAF(
   }
 
   def update(buffer: MutableAggregationBuffer, input: InternalRow): MutableAggregationBuffer = {
-    udaf.update(buffer, new GenericRow(input.asInstanceOf[GenericInternalRow].values))
+    val inbuf = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
+    udaf.update(buffer, inbuf)
     buffer
   }
 
@@ -513,7 +530,12 @@ case class TypedImperativeUDAF(
     buffer
   }
 
-  def eval(buffer: MutableAggregationBuffer): Any = udaf.evaluate(buffer)
+  private[this] lazy val outputToCatalystConverter: Any => Any = {
+    CatalystTypeConverters.createToCatalystConverter(dataType)
+  }
+
+  def eval(buffer: MutableAggregationBuffer): Any =
+    outputToCatalystConverter(udaf.evaluate(buffer))
 
   import java.io._
   // scalastyle:off classforname
@@ -539,6 +561,4 @@ case class TypedImperativeUDAF(
 
     obin.readObject().asInstanceOf[MutableAggregationBuffer]
   }
-
-  def children: Seq[Expression] = Seq(child)
 }
