@@ -509,7 +509,6 @@ case class TypedImperativeUDIA[T](
   def update(buffer: T, input: InternalRow): T = {
     val inrow = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
     udia.update(buffer, inrow)
-    buffer
   }
 
   def merge(buffer: T, input: T): T = udia.merge(buffer, input)
