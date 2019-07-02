@@ -21,9 +21,11 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util._
+import org.apache.spark.sql.execution.aggregate.UserDefinedImperativeAggregator
 import org.apache.spark.sql.expressions.MutableAggregationBuffer
 import org.apache.spark.sql.expressions.UserDefinedAggregateFunction
 import org.apache.spark.sql.types._
+
 
 @SQLUserDefinedType(udt = classOf[CountSerDeUDT])
 case class CountSerDeSQL(nSer: Int, nDeSer: Int)
@@ -64,6 +66,42 @@ class CountSerDeUDT extends UserDefinedType[CountSerDeSQL] {
 }
 
 case object CountSerDeUDT extends CountSerDeUDT
+
+case object CountSerDeUDIA extends UserDefinedImperativeAggregator[CountSerDeSQL] {
+  def inputSchema: StructType = StructType(StructField("x", DoubleType) :: Nil)
+  def resultType: DataType = CountSerDeUDT
+  def deterministic: Boolean = true
+  def empty(): CountSerDeSQL = CountSerDeSQL(0, 0)
+  def update(agg: CountSerDeSQL, input: Row): CountSerDeSQL = agg
+  def merge(agg1: CountSerDeSQL, agg2: CountSerDeSQL): CountSerDeSQL =
+    CountSerDeSQL(agg1.nSer + agg2.nSer, agg1.nDeSer + agg2.nDeSer)
+  def evaluate(agg: CountSerDeSQL): Any = agg
+
+  import java.io._
+  // scalastyle:off classforname
+  class ObjectInputStreamWithCustomClassLoader(
+    inputStream: InputStream) extends ObjectInputStream(inputStream) {
+    override def resolveClass(desc: java.io.ObjectStreamClass): Class[_] = {
+      try { Class.forName(desc.getName, false, getClass.getClassLoader) }
+      catch { case ex: ClassNotFoundException => super.resolveClass(desc) }
+    }
+  }
+  // scalastyle:off classforname
+
+  def serialize(agg: CountSerDeSQL): Array[Byte] = {
+    val bufout = new ByteArrayOutputStream()
+    val obout = new ObjectOutputStream(bufout)
+    obout.writeObject(CountSerDeSQL(agg.nSer + 1, agg.nDeSer))
+    bufout.toByteArray
+  }
+  def deserialize(data: Array[Byte]): CountSerDeSQL = {
+    val bufin = new ByteArrayInputStream(data)
+    val obin = new ObjectInputStreamWithCustomClassLoader(bufin)
+
+    val agg = obin.readObject().asInstanceOf[CountSerDeSQL]
+    CountSerDeSQL(agg.nSer, agg.nDeSer + 1)
+  }
+}
 
 case object CountSerDeUDAF extends UserDefinedAggregateFunction {
   def deterministic: Boolean = true
