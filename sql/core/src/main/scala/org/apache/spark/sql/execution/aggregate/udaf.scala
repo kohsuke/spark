@@ -456,7 +456,7 @@ trait UserDefinedImperativeAggregator[A] extends Serializable {
   def inputSchema: StructType
   def resultType: DataType
   def deterministic: Boolean
-  def empty(): A
+  def initial: A
   def update(agg: A, input: Row): A
   def merge(agg1: A, agg2: A): A
   def evaluate(agg: A): Any
@@ -525,7 +525,7 @@ case class TypedImperativeUDIA[T](
   private[this] lazy val inputToScalaConverters: Any => Any =
     CatalystTypeConverters.createToScalaConverter(childrenSchema)
 
-  def createAggregationBuffer(): T = udia.empty
+  def createAggregationBuffer(): T = udia.initial
 
   def update(buffer: T, input: InternalRow): T = {
     val inrow = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
