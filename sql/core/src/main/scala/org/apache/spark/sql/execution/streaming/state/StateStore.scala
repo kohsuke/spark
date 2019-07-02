@@ -226,11 +226,6 @@ object StateStoreProvider {
       indexOrdinal: Option[Int], // for sorting the data
       storeConf: StateStoreConf,
       hadoopConf: Configuration): StateStoreProvider = {
-    if (storeConf.stateSchemaCheckEnabled) {
-      val checker = new StateSchemaCompatibilityChecker(providerId, hadoopConf)
-      checker.check(keySchema, valueSchema)
-    }
-
     val provider = create(storeConf.providerClass)
     provider.init(providerId.storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
     provider
@@ -252,6 +247,11 @@ object StateStoreProviderId {
     val storeId = StateStoreId(
       stateInfo.checkpointLocation, stateInfo.operatorId, partitionIndex, storeName)
     StateStoreProviderId(storeId, stateInfo.queryRunId)
+  }
+
+  private[sql] def withNoPartitionInformation(
+      providerId: StateStoreProviderId): StateStoreProviderId = {
+    providerId.copy(storeId = providerId.storeId.copy(partitionId = -1))
   }
 }
 
@@ -315,6 +315,9 @@ object StateStore extends Logging {
   @GuardedBy("loadedProviders")
   private val loadedProviders = new mutable.HashMap[StateStoreProviderId, StateStoreProvider]()
 
+  @GuardedBy("loadedProviders")
+  private val schemaValidated = new mutable.HashSet[StateStoreProviderId]()
+
   /**
    * Runs the `task` periodically and automatically cancels it if there is an exception. `onError`
    * will be called when an exception happens.
@@ -365,10 +368,18 @@ object StateStore extends Logging {
     require(version >= 0)
     val storeProvider = loadedProviders.synchronized {
       startMaintenanceIfNeeded()
+
+      val newProvIdSchemaCheck = StateStoreProviderId.withNoPartitionInformation(storeProviderId)
+      if (!schemaValidated.contains(newProvIdSchemaCheck)) {
+        validateSchema(newProvIdSchemaCheck, keySchema, valueSchema)
+        schemaValidated.add(newProvIdSchemaCheck)
+      }
+
       val provider = loadedProviders.getOrElseUpdate(
-        storeProviderId,
+        storeProviderId, {
           StateStoreProvider.createAndInit(
             storeProviderId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
+        }
       )
       reportActiveStoreInstance(storeProviderId)
       provider
@@ -466,6 +477,23 @@ object StateStore extends Logging {
       verified
     } else {
       false
+    }
+  }
+
+  private def validateSchema(
+      storeProviderId: StateStoreProviderId,
+      keySchema: StructType,
+      valueSchema: StructType): Unit = {
+    if (SparkEnv.get != null) {
+      val validated = coordinatorRef.flatMap(
+        _.validateSchema(storeProviderId, keySchema, valueSchema))
+
+      validated match {
+        case Some(exc) =>
+          // driver would log the information, so just re-throw here
+          throw exc
+        case None =>
+      }
     }
   }
 

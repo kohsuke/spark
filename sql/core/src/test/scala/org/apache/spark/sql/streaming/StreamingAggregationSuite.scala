@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.execution.exchange.Exchange
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.execution.streaming.sources.MemorySink
-import org.apache.spark.sql.execution.streaming.state.StreamingAggregationStateManager
+import org.apache.spark.sql.execution.streaming.state.{StateSchemaNotCompatible, StateStore, StreamingAggregationStateManager}
 import org.apache.spark.sql.expressions.scalalang.typed
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -640,50 +640,74 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
 
   testQuietlyWithAllStateVersions("changing schema of state when restarting query") {
     withTempDir { tempDir =>
-      val inputData = MemoryStream[Int]
-      val aggregated = inputData.toDF()
-        .selectExpr("value % 10 AS id", "value")
-        .groupBy($"id")
-        .agg(
-          sum("value").as("sum_value"),
-          avg("value").as("avg_value"),
-          max("value").as("max_value"))
-
-      testStream(aggregated, Update())(
-        StartStream(checkpointLocation = tempDir.getAbsolutePath),
-        AddData(inputData, 1, 11),
-        CheckLastBatch((1L, 12L, 6.0, 11)),
-        StopStream
-      )
-
-      StateStore.unloadAll()
-
-      val inputData2 = MemoryStream[Int]
-      val aggregated2 = inputData2.toDF()
-        .selectExpr("value % 10 AS id", "value")
-        .groupBy($"id")
-        .agg(
-          sum("value").as("sum_value"),
-          avg("value").as("avg_value"),
-          collect_list("value").as("values"))
+      val (inputData, aggregated) = prepareTestForChangingSchemaOfState(tempDir)
 
       // if we don't have verification phase on state schema, modified query would throw NPE with
       // stack trace which end users would not easily understand
 
-      inputData2.addData(1, 11)
-
-      testStream(aggregated2, Update())(
+      testStream(aggregated, Update())(
         StartStream(checkpointLocation = tempDir.getAbsolutePath),
-        AddData(inputData2, 21),
+        AddData(inputData, 21),
         ExpectFailure[SparkException] { e =>
           val cause = e.getCause
-          assert(cause.isInstanceOf[IllegalStateException])
+          assert(cause.isInstanceOf[StateSchemaNotCompatible])
           val msg = cause.getMessage
           assert(msg.contains("Provided schema doesn't match to the schema for existing state"))
           // other verifications are presented in StateStoreSuite
         }
       )
     }
+  }
+
+  testQuietlyWithAllStateVersions("changing schema of state when restarting query -" +
+    " schema check off", (SQLConf.STATE_SCHEMA_CHECK_ENABLED.key, "false")) {
+    withTempDir { tempDir =>
+      val (inputData, aggregated) = prepareTestForChangingSchemaOfState(tempDir)
+
+      testStream(aggregated, Update())(
+        StartStream(checkpointLocation = tempDir.getAbsolutePath),
+        AddData(inputData, 21),
+        ExpectFailure[SparkException] { e =>
+          val cause = e.getCause
+          // it would bring other error in runtime, but it shouldn't check schema in any way
+          assert(!cause.isInstanceOf[StateSchemaNotCompatible])
+        }
+      )
+    }
+  }
+
+  private def prepareTestForChangingSchemaOfState(
+      tempDir: File): (MemoryStream[Int], DataFrame) = {
+    val inputData = MemoryStream[Int]
+    val aggregated = inputData.toDF()
+      .selectExpr("value % 10 AS id", "value")
+      .groupBy($"id")
+      .agg(
+        sum("value").as("sum_value"),
+        avg("value").as("avg_value"),
+        max("value").as("max_value"))
+
+    testStream(aggregated, Update())(
+      StartStream(checkpointLocation = tempDir.getAbsolutePath),
+      AddData(inputData, 1, 11),
+      CheckLastBatch((1L, 12L, 6.0, 11)),
+      StopStream
+    )
+
+    StateStore.unloadAll()
+
+    val inputData2 = MemoryStream[Int]
+    val aggregated2 = inputData2.toDF()
+      .selectExpr("value % 10 AS id", "value")
+      .groupBy($"id")
+      .agg(
+        sum("value").as("sum_value"),
+        avg("value").as("avg_value"),
+        collect_list("value").as("values"))
+
+    inputData2.addData(1, 11)
+
+    (inputData2, aggregated2)
   }
 
   /** Add blocks of data to the `BlockRDDBackedSource`. */

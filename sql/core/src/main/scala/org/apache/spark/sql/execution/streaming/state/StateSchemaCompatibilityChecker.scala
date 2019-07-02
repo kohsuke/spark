@@ -23,7 +23,9 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.execution.streaming.CheckpointFileManager
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.types.{StructField, StructType}
+
+case class StateSchemaNotCompatible(message: String) extends Exception(message)
 
 class StateSchemaCompatibilityChecker(
     providerId: StateStoreProviderId,
@@ -68,7 +70,7 @@ class StateSchemaCompatibilityChecker(
       } else if (!schemaCompatible(storedKeySchema, keySchema) ||
         !schemaCompatible(storedValueSchema, valueSchema)) {
         logError(errorMsg)
-        throw new IllegalStateException(errorMsg)
+        throw new StateSchemaNotCompatible(errorMsg)
       } else {
         logInfo("Detected schema change which is compatible: will overwrite schema file to new.")
         // It tries best-effort to overwrite current schema file.
