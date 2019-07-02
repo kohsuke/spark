@@ -376,10 +376,9 @@ object StateStore extends Logging {
       }
 
       val provider = loadedProviders.getOrElseUpdate(
-        storeProviderId, {
-          StateStoreProvider.createAndInit(
-            storeProviderId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
-        }
+        storeProviderId,
+        StateStoreProvider.createAndInit(
+          storeProviderId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
       )
       reportActiveStoreInstance(storeProviderId)
       provider
