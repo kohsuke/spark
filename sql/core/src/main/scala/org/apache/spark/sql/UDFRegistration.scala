@@ -29,7 +29,7 @@ import org.apache.spark.sql.api.java._
 import org.apache.spark.sql.catalyst.{JavaTypeInference, ScalaReflection}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.expressions.{Expression, ScalaUDF}
-import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, TypedImperativeUDAF}
+import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, TypedImperativeUDIA, UserDefinedImperativeAggregator}
 import org.apache.spark.sql.execution.python.UserDefinedPythonFunction
 import org.apache.spark.sql.expressions.{SparkUserDefinedFunction, UserDefinedAggregateFunction, UserDefinedFunction}
 import org.apache.spark.sql.types.DataType
@@ -74,9 +74,16 @@ class UDFRegistration private[sql] (functionRegistry: FunctionRegistry) extends 
    * @since 1.5.0
    */
   def register(name: String, udaf: UserDefinedAggregateFunction): UserDefinedAggregateFunction = {
-    def builder(children: Seq[Expression]) = TypedImperativeUDAF(children, udaf)
+    def builder(children: Seq[Expression]) = ScalaUDAF(children, udaf)
     functionRegistry.createOrReplaceTempFunction(name, builder)
     udaf
+  }
+
+  def register[A](name: String, udia: UserDefinedImperativeAggregator[A]):
+      UserDefinedImperativeAggregator[A] = {
+    def builder(children: Seq[Expression]) = TypedImperativeUDIA(children, udia)
+    functionRegistry.createOrReplaceTempFunction(name, builder)
+    udia
   }
 
   /**

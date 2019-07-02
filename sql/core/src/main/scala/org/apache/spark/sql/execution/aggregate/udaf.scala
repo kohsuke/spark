@@ -451,42 +451,40 @@ case class ScalaUDAF(
   override def nodeName: String = udaf.getClass.getSimpleName
 }
 
-case class TypedImperativeUDAF(
+trait UserDefinedImperativeAggregator[A] extends Serializable {
+  def inputSchema: StructType
+  def resultType: DataType
+  def deterministic: Boolean
+  def empty(): A
+  def update(agg: A, input: Row): A
+  def merge(agg1: A, agg2: A): A
+  def evaluate(agg: A): Any
+  def serialize(agg: A): Array[Byte]
+  def deserialize(data: Array[Byte]): A
+}
+
+case class TypedImperativeUDIA[T](
     children: Seq[Expression],
-    udaf: UserDefinedAggregateFunction,
+    udia: UserDefinedImperativeAggregator[T],
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
-  extends TypedImperativeAggregate[MutableAggregationBuffer]
-  with UserDefinedExpression
-  with NonSQLExpression
+  extends TypedImperativeAggregate[T]
   with ImplicitCastInputTypes
   with Logging {
 
-  def dataType: DataType = udaf.dataType
+  def dataType: DataType = udia.resultType
 
-  val inputTypes: Seq[DataType] = udaf.inputSchema.map(_.dataType)
+  val inputTypes: Seq[DataType] = udia.inputSchema.map(_.dataType)
 
   def nullable: Boolean = true
 
-  override lazy val deterministic: Boolean = udaf.deterministic
+  override lazy val deterministic: Boolean = udia.deterministic
 
-  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): TypedImperativeUDAF =
+  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): TypedImperativeUDIA[T] =
     copy(mutableAggBufferOffset = newMutableAggBufferOffset)
 
-  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): TypedImperativeUDAF =
+  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): TypedImperativeUDIA[T] =
     copy(inputAggBufferOffset = newInputAggBufferOffset)
-
-  private[this] lazy val bufferValuesToCatalystConverters: Array[Any => Any] = {
-    udaf.bufferSchema.fields.map { field =>
-      CatalystTypeConverters.createToCatalystConverter(field.dataType)
-    }
-  }
-
-  private[this] lazy val bufferValuesToScalaConverters: Array[Any => Any] = {
-    udaf.bufferSchema.fields.map { field =>
-      CatalystTypeConverters.createToScalaConverter(field.dataType)
-    }
-  }
 
   private[this] lazy val childrenSchema: StructType = {
     val inputFields = children.zipWithIndex.map {
@@ -506,36 +504,22 @@ case class TypedImperativeUDAF(
   private[this] lazy val inputToScalaConverters: Any => Any =
     CatalystTypeConverters.createToScalaConverter(childrenSchema)
 
-  def createAggregationBuffer(): MutableAggregationBuffer = {
-    val buf = new MutableAggregationBufferImpl(
-      udaf.bufferSchema,
-      bufferValuesToCatalystConverters,
-      bufferValuesToScalaConverters,
-      mutableAggBufferOffset,
-      new GenericInternalRow(udaf.bufferSchema.length))
-    udaf.initialize(buf)
-    buf
-  }
+  def createAggregationBuffer(): T = udia.empty
 
-  def update(buffer: MutableAggregationBuffer, input: InternalRow): MutableAggregationBuffer = {
-    val inbuf = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
-    udaf.update(buffer, inbuf)
+  def update(buffer: T, input: InternalRow): T = {
+    val inrow = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
+    udia.update(buffer, inrow)
     buffer
   }
 
-  def merge(
-      buffer: MutableAggregationBuffer,
-      input: MutableAggregationBuffer): MutableAggregationBuffer = {
-    udaf.merge(buffer, input)
-    buffer
-  }
+  def merge(buffer: T, input: T): T = udia.merge(buffer, input)
 
   private[this] lazy val outputToCatalystConverter: Any => Any = {
     CatalystTypeConverters.createToCatalystConverter(dataType)
   }
 
-  def eval(buffer: MutableAggregationBuffer): Any =
-    outputToCatalystConverter(udaf.evaluate(buffer))
+  def eval(buffer: T): Any =
+    outputToCatalystConverter(udia.evaluate(buffer))
 
   import java.io._
   // scalastyle:off classforname
@@ -548,17 +532,7 @@ case class TypedImperativeUDAF(
   }
   // scalastyle:off classforname
 
-  def serialize(buffer: MutableAggregationBuffer): Array[Byte] = {
-    val bufout = new ByteArrayOutputStream()
-    val obout = new ObjectOutputStream(bufout)
-    obout.writeObject(buffer)
-    bufout.toByteArray
-  }
+  def serialize(agg: T): Array[Byte] = udia.serialize(agg)
 
-  def deserialize(storageFormat: Array[Byte]): MutableAggregationBuffer = {
-    val bufin = new ByteArrayInputStream(storageFormat)
-    val obin = new ObjectInputStreamWithCustomClassLoader(bufin)
-
-    obin.readObject().asInstanceOf[MutableAggregationBuffer]
-  }
+  def deserialize(storageFormat: Array[Byte]): T = udia.deserialize(storageFormat)
 }
