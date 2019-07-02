@@ -75,11 +75,8 @@ case object CountSerDeUDIA extends UserDefinedImperativeAggregator[CountSerDeSQL
   def resultType: DataType = CountSerDeUDT
   def deterministic: Boolean = true
   def empty(): CountSerDeSQL = CountSerDeSQL(0, 0, 0)
-  def update(agg: CountSerDeSQL, input: Row): CountSerDeSQL = {
-    val u = agg.copy(sum = agg.sum + input.getDouble(0))
-    //log.warn(s"agg= $agg  input= $input  u= $u")
-    u
-  }
+  def update(agg: CountSerDeSQL, input: Row): CountSerDeSQL =
+    agg.copy(sum = agg.sum + input.getDouble(0))
   def merge(agg1: CountSerDeSQL, agg2: CountSerDeSQL): CountSerDeSQL =
     CountSerDeSQL(agg1.nSer + agg2.nSer, agg1.nDeSer + agg2.nDeSer, agg1.sum + agg2.sum)
   def evaluate(agg: CountSerDeSQL): Any = agg
