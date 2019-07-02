@@ -521,17 +521,6 @@ case class TypedImperativeUDIA[T](
   def eval(buffer: T): Any =
     outputToCatalystConverter(udia.evaluate(buffer))
 
-  import java.io._
-  // scalastyle:off classforname
-  class ObjectInputStreamWithCustomClassLoader(
-    inputStream: InputStream) extends ObjectInputStream(inputStream) {
-    override def resolveClass(desc: java.io.ObjectStreamClass): Class[_] = {
-      try { Class.forName(desc.getName, false, getClass.getClassLoader) }
-      catch { case ex: ClassNotFoundException => super.resolveClass(desc) }
-    }
-  }
-  // scalastyle:off classforname
-
   def serialize(agg: T): Array[Byte] = udia.serialize(agg)
 
   def deserialize(storageFormat: Array[Byte]): T = udia.deserialize(storageFormat)
