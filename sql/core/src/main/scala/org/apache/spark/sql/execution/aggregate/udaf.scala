@@ -18,9 +18,10 @@
 package org.apache.spark.sql.execution.aggregate
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.Row
+import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, _}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateMutableProjection
 import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
@@ -461,6 +462,26 @@ trait UserDefinedImperativeAggregator[A] extends Serializable {
   def evaluate(agg: A): Any
   def serialize(agg: A): Array[Byte]
   def deserialize(data: Array[Byte]): A
+
+  @scala.annotation.varargs
+  def apply(exprs: Column*): Column = {
+    val aggregateExpression =
+      AggregateExpression(
+        TypedImperativeUDIA[A](exprs.map(_.expr), this),
+        Complete,
+        isDistinct = false)
+    Column(aggregateExpression)
+  }
+
+  @scala.annotation.varargs
+  def distinct(exprs: Column*): Column = {
+    val aggregateExpression =
+      AggregateExpression(
+        TypedImperativeUDIA[A](exprs.map(_.expr), this),
+        Complete,
+        isDistinct = true)
+    Column(aggregateExpression)
+  }
 }
 
 case class TypedImperativeUDIA[T](
