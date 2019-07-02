@@ -74,7 +74,7 @@ case object CountSerDeUDIA extends UserDefinedImperativeAggregator[CountSerDeSQL
   def inputSchema: StructType = StructType(StructField("x", DoubleType) :: Nil)
   def resultType: DataType = CountSerDeUDT
   def deterministic: Boolean = true
-  def empty(): CountSerDeSQL = CountSerDeSQL(0, 0, 0)
+  def initial: CountSerDeSQL = CountSerDeSQL(0, 0, 0)
   def update(agg: CountSerDeSQL, input: Row): CountSerDeSQL =
     agg.copy(sum = agg.sum + input.getDouble(0))
   def merge(agg1: CountSerDeSQL, agg2: CountSerDeSQL): CountSerDeSQL =
