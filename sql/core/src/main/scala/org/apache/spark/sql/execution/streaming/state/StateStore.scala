@@ -371,7 +371,8 @@ object StateStore extends Logging {
 
       val newProvIdSchemaCheck = StateStoreProviderId.withNoPartitionInformation(storeProviderId)
       if (!schemaValidated.contains(newProvIdSchemaCheck)) {
-        validateSchema(newProvIdSchemaCheck, keySchema, valueSchema)
+        validateSchema(newProvIdSchemaCheck, keySchema, valueSchema,
+          storeConf.stateSchemaCheckEnabled)
         schemaValidated.add(newProvIdSchemaCheck)
       }
 
@@ -482,10 +483,11 @@ object StateStore extends Logging {
   private def validateSchema(
       storeProviderId: StateStoreProviderId,
       keySchema: StructType,
-      valueSchema: StructType): Unit = {
+      valueSchema: StructType,
+      checkEnabled: Boolean): Unit = {
     if (SparkEnv.get != null) {
       val validated = coordinatorRef.flatMap(
-        _.validateSchema(storeProviderId, keySchema, valueSchema))
+        _.validateSchema(storeProviderId, keySchema, valueSchema, checkEnabled))
 
       validated match {
         case Some(exc) =>

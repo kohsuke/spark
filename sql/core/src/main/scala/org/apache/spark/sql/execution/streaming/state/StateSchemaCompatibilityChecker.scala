@@ -70,7 +70,7 @@ class StateSchemaCompatibilityChecker(
       } else if (!schemaCompatible(storedKeySchema, keySchema) ||
         !schemaCompatible(storedValueSchema, valueSchema)) {
         logError(errorMsg)
-        throw new StateSchemaNotCompatible(errorMsg)
+        throw StateSchemaNotCompatible(errorMsg)
       } else {
         logInfo("Detected schema change which is compatible: will overwrite schema file to new.")
         // It tries best-effort to overwrite current schema file.

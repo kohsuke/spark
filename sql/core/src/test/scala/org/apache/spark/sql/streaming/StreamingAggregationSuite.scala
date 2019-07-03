@@ -20,6 +20,8 @@ package org.apache.spark.sql.streaming
 import java.io.File
 import java.util.{Locale, TimeZone}
 
+import scala.annotation.tailrec
+
 import org.apache.commons.io.FileUtils
 import org.scalatest.Assertions
 
@@ -649,9 +651,9 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
         StartStream(checkpointLocation = tempDir.getAbsolutePath),
         AddData(inputData, 21),
         ExpectFailure[SparkException] { e =>
-          val cause = e.getCause
-          assert(cause.isInstanceOf[StateSchemaNotCompatible])
-          val msg = cause.getMessage
+          val stateSchemaExc = findStateSchemaNotCompatible(e)
+          assert(stateSchemaExc.isDefined)
+          val msg = stateSchemaExc.get.getMessage
           assert(msg.contains("Provided schema doesn't match to the schema for existing state"))
           // other verifications are presented in StateStoreSuite
         }
@@ -668,9 +670,9 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
         StartStream(checkpointLocation = tempDir.getAbsolutePath),
         AddData(inputData, 21),
         ExpectFailure[SparkException] { e =>
-          val cause = e.getCause
+          val stateSchemaExc = findStateSchemaNotCompatible(e)
           // it would bring other error in runtime, but it shouldn't check schema in any way
-          assert(!cause.isInstanceOf[StateSchemaNotCompatible])
+          assert(stateSchemaExc.isEmpty)
         }
       )
     }
@@ -708,6 +710,15 @@ class StreamingAggregationSuite extends StateStoreMetricsTest with Assertions {
     inputData2.addData(1, 11)
 
     (inputData2, aggregated2)
+  }
+
+  @tailrec
+  private def findStateSchemaNotCompatible(exc: Throwable): Option[StateSchemaNotCompatible] = {
+    exc match {
+      case e1: StateSchemaNotCompatible => Some(e1)
+      case e1 if e1.getCause != null => findStateSchemaNotCompatible(e1.getCause)
+      case _ => None
+    }
   }
 
   /** Add blocks of data to the `BlockRDDBackedSource`. */
