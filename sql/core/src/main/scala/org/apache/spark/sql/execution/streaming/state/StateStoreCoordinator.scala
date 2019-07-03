@@ -27,7 +27,6 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.RpcUtils
 
@@ -50,7 +49,8 @@ private case class GetLocation(storeId: StateStoreProviderId)
 private case class ValidateSchema(
     storeProviderId: StateStoreProviderId,
     keySchema: StructType,
-    valueSchema: StructType) extends StateStoreCoordinatorMessage
+    valueSchema: StructType,
+    checkEnabled: Boolean) extends StateStoreCoordinatorMessage
 
 private case class DeactivateInstances(runId: UUID)
   extends StateStoreCoordinatorMessage
@@ -68,6 +68,7 @@ object StateStoreCoordinatorRef extends Logging {
    */
   def forDriver(env: SparkEnv): StateStoreCoordinatorRef = synchronized {
     try {
+
       val coordinator = new StateStoreCoordinator(env.conf, env.rpcEnv)
       val coordinatorRef = env.rpcEnv.setupEndpoint(endpointName, coordinator)
       logInfo("Registered StateStoreCoordinator endpoint")
@@ -120,9 +121,10 @@ class StateStoreCoordinatorRef private(rpcEndpointRef: RpcEndpointRef) {
   private[sql] def validateSchema(
       storeProviderId: StateStoreProviderId,
       keySchema: StructType,
-      valueSchema: StructType): Option[Exception] = {
+      valueSchema: StructType,
+      checkEnabled: Boolean): Option[Exception] = {
     rpcEndpointRef.askSync[Option[Exception]](
-      ValidateSchema(storeProviderId, keySchema, valueSchema))
+      ValidateSchema(storeProviderId, keySchema, valueSchema, checkEnabled))
   }
 
   private[state] def stop(): Unit = {
@@ -141,15 +143,6 @@ private class StateStoreCoordinator(conf: SparkConf, override val rpcEnv: RpcEnv
   private val schemaValidated = new mutable.HashMap[StateStoreProviderId, Option[Throwable]]
 
   private lazy val hadoopConf = SparkHadoopUtil.get.newConfiguration(conf)
-  private lazy val sqlConf: SQLConf = {
-    val sqlCnf = new SQLConf()
-    conf.getAll.foreach { case (k, v) =>
-      sqlCnf.setConfString(k, v)
-    }
-    sqlCnf
-  }
-
-  private lazy val storeConf = new StateStoreConf(sqlConf)
 
   override def receive: PartialFunction[Any, Unit] = {
     case ReportActiveInstance(id, host, executorId) =>
@@ -179,7 +172,7 @@ private class StateStoreCoordinator(conf: SparkConf, override val rpcEnv: RpcEnv
         storeIdsToRemove.mkString(", "))
       context.reply(true)
 
-    case ValidateSchema(providerId, keySchema, valueSchema) =>
+    case ValidateSchema(providerId, keySchema, valueSchema, checkEnabled) =>
       // normalize partition ID to validate only once for one state operator
       val newProviderId = StateStoreProviderId.withNoPartitionInformation(providerId)
 
@@ -189,7 +182,7 @@ private class StateStoreCoordinator(conf: SparkConf, override val rpcEnv: RpcEnv
         // regardless of configuration, we check compatibility to at least write schema file
         // if necessary
         val ret = Try(checker.check(keySchema, valueSchema)).toEither.fold(Some(_), _ => None)
-        if (storeConf.stateSchemaCheckEnabled) {
+        if (checkEnabled) {
           ret
         } else {
           None
