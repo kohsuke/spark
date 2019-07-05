@@ -172,7 +172,7 @@ abstract class UDIAQuerySuite extends QueryTest with SQLTestUtils with TestHiveS
       StructType(StructField("key", StringType) :: StructField("value", IntegerType) :: Nil))
     emptyDF.createOrReplaceTempView("emptyTable")
 
-    // Register UDAFs
+    // Register UDIAs
     spark.udf.register("mydoublesum", new MyDoubleSumUDIA)
     spark.udf.register("mydoubleavg", new MyDoubleAvgUDIA)
     spark.udf.register("longProductSum", new LongProductSumUDIA)
@@ -189,7 +189,7 @@ abstract class UDIAQuerySuite extends QueryTest with SQLTestUtils with TestHiveS
     }
   }
 
-  test("udaf") {
+  test("udia") {
     checkAnswer(
       spark.sql(
         """
@@ -209,7 +209,7 @@ abstract class UDIAQuerySuite extends QueryTest with SQLTestUtils with TestHiveS
         Row(null, null, 110.0, null, null, 10.0) :: Nil)
   }
 
-  test("non-deterministic children expressions of UDAF") {
+  test("non-deterministic children expressions of UDIA") {
     val e = intercept[AnalysisException] {
       spark.sql(
         """
