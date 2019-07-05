@@ -29,9 +29,9 @@ import org.apache.spark.sql.api.java._
 import org.apache.spark.sql.catalyst.{JavaTypeInference, ScalaReflection}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.expressions.{Expression, ScalaUDF}
-import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, TypedImperativeUDIA, UserDefinedImperativeAggregator}
+import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, TypedImperativeUDIA}
 import org.apache.spark.sql.execution.python.UserDefinedPythonFunction
-import org.apache.spark.sql.expressions.{SparkUserDefinedFunction, UserDefinedAggregateFunction, UserDefinedFunction}
+import org.apache.spark.sql.expressions.{SparkUserDefinedFunction, UserDefinedAggregateFunction, UserDefinedFunction, UserDefinedImperativeAggregator}
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.Utils
 

@@ -20,7 +20,7 @@ package org.apache.spark.sql.expressions
 import org.apache.spark.annotation.Stable
 import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete}
-import org.apache.spark.sql.execution.aggregate.ScalaUDAF
+import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, TypedImperativeUDIA}
 import org.apache.spark.sql.types._
 
 /**
@@ -164,4 +164,36 @@ abstract class MutableAggregationBuffer extends Row {
 
   /** Update the ith value of this buffer. */
   def update(i: Int, value: Any): Unit
+}
+
+trait UserDefinedImperativeAggregator[A] extends Serializable {
+  def inputSchema: StructType
+  def resultType: DataType
+  def deterministic: Boolean
+  def initial: A
+  def update(agg: A, input: Row): A
+  def merge(agg1: A, agg2: A): A
+  def evaluate(agg: A): Any
+  def serialize(agg: A): Array[Byte]
+  def deserialize(data: Array[Byte]): A
+
+  @scala.annotation.varargs
+  def apply(exprs: Column*): Column = {
+    val aggregateExpression =
+      AggregateExpression(
+        TypedImperativeUDIA[A](exprs.map(_.expr), this),
+        Complete,
+        isDistinct = false)
+    Column(aggregateExpression)
+  }
+
+  @scala.annotation.varargs
+  def distinct(exprs: Column*): Column = {
+    val aggregateExpression =
+      AggregateExpression(
+        TypedImperativeUDIA[A](exprs.map(_.expr), this),
+        Complete,
+        isDistinct = true)
+    Column(aggregateExpression)
+  }
 }

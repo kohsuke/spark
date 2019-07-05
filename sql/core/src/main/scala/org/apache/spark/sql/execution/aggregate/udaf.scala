@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateMutableProjection
-import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction}
+import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction, UserDefinedImperativeAggregator}
 import org.apache.spark.sql.types._
 
 /**
@@ -450,38 +450,6 @@ case class ScalaUDAF(
   }
 
   override def nodeName: String = udaf.getClass.getSimpleName
-}
-
-trait UserDefinedImperativeAggregator[A] extends Serializable {
-  def inputSchema: StructType
-  def resultType: DataType
-  def deterministic: Boolean
-  def initial: A
-  def update(agg: A, input: Row): A
-  def merge(agg1: A, agg2: A): A
-  def evaluate(agg: A): Any
-  def serialize(agg: A): Array[Byte]
-  def deserialize(data: Array[Byte]): A
-
-  @scala.annotation.varargs
-  def apply(exprs: Column*): Column = {
-    val aggregateExpression =
-      AggregateExpression(
-        TypedImperativeUDIA[A](exprs.map(_.expr), this),
-        Complete,
-        isDistinct = false)
-    Column(aggregateExpression)
-  }
-
-  @scala.annotation.varargs
-  def distinct(exprs: Column*): Column = {
-    val aggregateExpression =
-      AggregateExpression(
-        TypedImperativeUDIA[A](exprs.map(_.expr), this),
-        Complete,
-        isDistinct = true)
-    Column(aggregateExpression)
-  }
 }
 
 case class TypedImperativeUDIA[T](

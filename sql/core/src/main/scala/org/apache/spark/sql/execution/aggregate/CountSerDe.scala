@@ -22,9 +22,9 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.util._
-import org.apache.spark.sql.execution.aggregate.UserDefinedImperativeAggregator
 import org.apache.spark.sql.expressions.MutableAggregationBuffer
 import org.apache.spark.sql.expressions.UserDefinedAggregateFunction
+import org.apache.spark.sql.expressions.UserDefinedImperativeAggregator
 import org.apache.spark.sql.types._
 
 
