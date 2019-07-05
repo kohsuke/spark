@@ -24,6 +24,8 @@ import test.org.apache.spark.sql.MyDoubleAvg
 import test.org.apache.spark.sql.MyDoubleSum
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.expressions.{UserDefinedImperativeAggregator}
 import org.apache.spark.sql.functions._
@@ -111,6 +113,84 @@ class LongProductSumUDIA extends UserDefinedImperativeAggregator[Long] {
 
   def deserialize(data: Array[Byte]): Long = {
     Platform.getLong(data, Platform.BYTE_ARRAY_OFFSET)
+  }
+}
+
+@SQLUserDefinedType(udt = classOf[CountSerDeUDT])
+case class CountSerDeSQL(nSer: Int, nDeSer: Int, sum: Int)
+
+class CountSerDeUDT extends UserDefinedType[CountSerDeSQL] {
+  def userClass: Class[CountSerDeSQL] = classOf[CountSerDeSQL]
+
+  override def typeName: String = "count-ser-de"
+
+  private[spark] override def asNullable: CountSerDeUDT = this
+
+  def sqlType: DataType = StructType(
+    StructField("nSer", IntegerType, false) ::
+    StructField("nDeSer", IntegerType, false) ::
+    StructField("sum", IntegerType, false) ::
+    Nil)
+
+  def serialize(sql: CountSerDeSQL): Any = {
+    val row = new GenericInternalRow(3)
+    row.setInt(0, 1 + sql.nSer)
+    row.setInt(1, sql.nDeSer)
+    row.setInt(2, sql.sum)
+    row
+  }
+
+  def deserialize(any: Any): CountSerDeSQL = any match {
+    case row: InternalRow if (row.numFields == 3) =>
+      CountSerDeSQL(row.getInt(0), 1 + row.getInt(1), row.getInt(2))
+    case u => throw new Exception(s"failed to deserialize: $u")
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case _: CountSerDeUDT => true
+      case _ => false
+    }
+  }
+
+  override def hashCode(): Int = classOf[CountSerDeUDT].getName.hashCode()
+}
+
+case object CountSerDeUDT extends CountSerDeUDT
+
+case object CountSerDeUDIA extends UserDefinedImperativeAggregator[CountSerDeSQL] {
+  import org.apache.spark.unsafe.Platform
+
+  def inputSchema: StructType = StructType(StructField("x", IntegerType) :: Nil)
+
+  def resultType: DataType = CountSerDeUDT
+
+  def deterministic: Boolean = true
+
+  def initial: CountSerDeSQL = CountSerDeSQL(0, 0, 0)
+
+  def update(agg: CountSerDeSQL, input: Row): CountSerDeSQL =
+    agg.copy(sum = agg.sum + input.getInt(0))
+
+  def merge(agg1: CountSerDeSQL, agg2: CountSerDeSQL): CountSerDeSQL =
+    CountSerDeSQL(agg1.nSer + agg2.nSer, agg1.nDeSer + agg2.nDeSer, agg1.sum + agg2.sum)
+
+  def evaluate(agg: CountSerDeSQL): Any = agg
+
+  def serialize(agg: CountSerDeSQL): Array[Byte] = {
+    val CountSerDeSQL(ns, nd, s) = agg
+    val byteArray = new Array[Byte](3 * 4)
+    Platform.putInt(byteArray, Platform.BYTE_ARRAY_OFFSET, ns + 1)
+    Platform.putInt(byteArray, Platform.BYTE_ARRAY_OFFSET + 4, nd)
+    Platform.putInt(byteArray, Platform.BYTE_ARRAY_OFFSET + 8, s)
+    byteArray
+  }
+
+  def deserialize(data: Array[Byte]): CountSerDeSQL = {
+    val ns = Platform.getInt(data, Platform.BYTE_ARRAY_OFFSET)
+    val nd = Platform.getInt(data, Platform.BYTE_ARRAY_OFFSET + 4)
+    val s = Platform.getInt(data, Platform.BYTE_ARRAY_OFFSET + 8)
+    CountSerDeSQL(ns, nd + 1, s)
   }
 }
 
@@ -342,6 +422,13 @@ abstract class UDIAQuerySuite extends QueryTest with SQLTestUtils with TestHiveS
         Row(1, 2, 40, 3, -10, 3, -100, 3, 70, 3, -10, -100, 3, 3) ::
         Row(2, 2, 0, 1, 1, 1, 1, 3, 1, 3, 3, 2, 4, 4) ::
         Row(3, 0, null, 1, 3, 0, 0, 0, null, 1, 3, 0, 2, 2) :: Nil)
+  }
+
+  test("verify UDIA ser/de behavior") {
+    val data = sparkContext.parallelize((1 to 100).toSeq, 3).toDF("value1")
+    checkAnswer(
+      data.agg(CountSerDeUDIA($"value1")),
+      Row(CountSerDeSQL(4, 4, 5050)) :: Nil)
   }
 }
 
