@@ -458,6 +458,8 @@ case class TypedImperativeUDIA[T](
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
   extends TypedImperativeAggregate[T]
+  with NonSQLExpression
+  with UserDefinedExpression
   with ImplicitCastInputTypes
   with Logging {
 
