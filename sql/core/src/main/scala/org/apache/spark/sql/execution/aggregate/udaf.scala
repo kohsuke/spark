@@ -514,4 +514,9 @@ case class TypedImperativeUDIA[T](
   def serialize(agg: T): Array[Byte] = udia.serialize(agg)
 
   def deserialize(storageFormat: Array[Byte]): T = udia.deserialize(storageFormat)
+
+  override def toString: String =
+    s"""${udia.getClass.getSimpleName}(${children.mkString(",")})"""
+
+  override def nodeName: String = udia.getClass.getSimpleName
 }
