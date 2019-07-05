@@ -452,6 +452,10 @@ case class ScalaUDAF(
   override def nodeName: String = udaf.getClass.getSimpleName
 }
 
+/**
+ * The internal wrapper used to hook a [[UserDefinedImperativeAggregator]] `udia` in the
+ * internal aggregation code path.
+ */
 case class ScalaUDIA[T](
     children: Seq[Expression],
     udia: UserDefinedImperativeAggregator[T],
