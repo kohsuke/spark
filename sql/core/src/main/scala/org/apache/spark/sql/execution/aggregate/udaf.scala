@@ -452,7 +452,7 @@ case class ScalaUDAF(
   override def nodeName: String = udaf.getClass.getSimpleName
 }
 
-case class TypedImperativeUDIA[T](
+case class ScalaUDIA[T](
     children: Seq[Expression],
     udia: UserDefinedImperativeAggregator[T],
     mutableAggBufferOffset: Int = 0,
@@ -471,10 +471,10 @@ case class TypedImperativeUDIA[T](
 
   override lazy val deterministic: Boolean = udia.deterministic
 
-  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): TypedImperativeUDIA[T] =
+  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ScalaUDIA[T] =
     copy(mutableAggBufferOffset = newMutableAggBufferOffset)
 
-  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): TypedImperativeUDIA[T] =
+  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ScalaUDIA[T] =
     copy(inputAggBufferOffset = newInputAggBufferOffset)
 
   private[this] lazy val childrenSchema: StructType = {

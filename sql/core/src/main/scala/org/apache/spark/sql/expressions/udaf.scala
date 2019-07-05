@@ -20,7 +20,7 @@ package org.apache.spark.sql.expressions
 import org.apache.spark.annotation.{Experimental, Stable}
 import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete}
-import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, TypedImperativeUDIA}
+import org.apache.spark.sql.execution.aggregate.{ScalaUDAF, ScalaUDIA}
 import org.apache.spark.sql.types._
 
 /**
@@ -182,7 +182,7 @@ trait UserDefinedImperativeAggregator[A] extends Serializable {
   def apply(exprs: Column*): Column = {
     val aggregateExpression =
       AggregateExpression(
-        TypedImperativeUDIA[A](exprs.map(_.expr), this),
+        ScalaUDIA[A](exprs.map(_.expr), this),
         Complete,
         isDistinct = false)
     Column(aggregateExpression)
@@ -192,7 +192,7 @@ trait UserDefinedImperativeAggregator[A] extends Serializable {
   def distinct(exprs: Column*): Column = {
     val aggregateExpression =
       AggregateExpression(
-        TypedImperativeUDIA[A](exprs.map(_.expr), this),
+        ScalaUDIA[A](exprs.map(_.expr), this),
         Complete,
         isDistinct = true)
     Column(aggregateExpression)
