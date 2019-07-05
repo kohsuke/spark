@@ -167,7 +167,7 @@ abstract class MutableAggregationBuffer extends Row {
 }
 
 @Experimental
-trait UserDefinedImperativeAggregator[A] extends Serializable {
+abstract class UserDefinedImperativeAggregator[A] extends Serializable {
   def inputSchema: StructType
   def resultType: DataType
   def deterministic: Boolean
