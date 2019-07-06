@@ -166,18 +166,116 @@ abstract class MutableAggregationBuffer extends Row {
   def update(i: Int, value: Any): Unit
 }
 
+/**
+ * The base class for implementing user-defined imperative aggregator (UDIA).
+ *
+ * @tparam A the aggregating type: implements the aggregation logic.
+ *
+ * @since 3.0.0
+ */
 @Experimental
 abstract class UserDefinedImperativeAggregator[A] extends Serializable {
+
+  /**
+   * A `StructType` represents data types of input arguments of this aggregate function.
+   * For example, if a [[UserDefinedImperativeAggregator]] expects two input arguments
+   * with type of `DoubleType` and `LongType`, the returned `StructType` will look like
+   *
+   * ```
+   *   new StructType()
+   *    .add("doubleInput", DoubleType)
+   *    .add("longInput", LongType)
+   * ```
+   *
+   * The name of a field of this `StructType` is only used to identify the corresponding
+   * input argument. Users can choose names to identify the input arguments.
+   *
+   * @since 3.0.0
+   */
   def inputSchema: StructType
+
+  /**
+   * The `DataType` of the returned value of this [[UserDefinedImperativeAggregator]].
+   *
+   * @since 3.0.0
+   */
   def resultType: DataType
+
+  /**
+   * Returns true iff this function is deterministic, i.e. given the same input,
+   * always return the same output.
+   *
+   * @since 3.0.0
+   */
   def deterministic: Boolean
+
+  /**
+   * Returns a new "empty" aggregator, corresponding to "zero", or "no data"
+   *
+   * @since 3.0.0
+   */
   def initial: A
+
+  /**
+   * Updates the aggregator with the input row.
+   *
+   * @param agg the current aggregator
+   * @param input the next input row
+   * @return the result of updating `agg` with `input`. For efficiency, this
+   * method may update `agg` in place and return it as the result.
+   *
+   * @since 3.0.0
+   */
   def update(agg: A, input: Row): A
+
+  /**
+   * Merge the results of two partial aggregations.
+   *
+   * @param agg1 the first partial aggregation
+   * @param agg2 the second partial aggregation
+   * @return the result of combining `agg1` and `agg2`. For efficiency, this
+   * method may update either partial result in-place with the other and return it.
+   *
+   * @since 3.0.0
+   */
   def merge(agg1: A, agg2: A): A
+
+  /**
+   * Return the result of an aggregation.
+   * The return value must correspond to the DataType returned by `resultType`
+   *
+   * @param agg the state of the completed aggregation.
+   * @return the final result, repesented as the DataType `resultType`
+   *
+   * @since 3.0.0
+   */
   def evaluate(agg: A): Any
+
+  /**
+   * Serialize an aggregation as a byte array
+   *
+   * @param agg the current state of an aggregation
+   * @return `agg` encoded as an array of bytes
+   *
+   * @since 3.0.0
+   */
   def serialize(agg: A): Array[Byte]
+
+  /**
+   * De-serialize an array of bytes into an aggregation
+   *
+   * @param data the serialized form of an aggregation state
+   * @return an aggregation structure of type `A`
+   *
+   * @since 3.0.0
+   */
   def deserialize(data: Array[Byte]): A
 
+  /**
+   * Creates a `Column` for this UDIA using given `Column`s as input arguments.
+   *
+   * @since 3.0.0
+   */
   @scala.annotation.varargs
   def apply(exprs: Column*): Column = {
     val aggregateExpression =
@@ -188,6 +286,12 @@ abstract class UserDefinedImperativeAggregator[A] extends Serializable {
     Column(aggregateExpression)
   }
 
+  /**
+   * Creates a `Column` for this UDIA using the distinct values of the given
+   * `Column`s as input arguments.
+   *
+   * @since 3.0.0
+   */
   @scala.annotation.varargs
   def distinct(exprs: Column*): Column = {
     val aggregateExpression =
