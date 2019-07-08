@@ -3759,7 +3759,7 @@ class RFormula(JavaEstimator, HasFeaturesCol, HasLabelCol, HasHandleInvalid,
     +---+---+---+---------+-----+
     ...
     >>> str(loadedModel)
-    'RFormulaModel(ResolvedRFormula(label=y, terms=[x,s], hasIntercept=true)) (uid=...)'
+    'RFormulaModel(ResolvedRFormula(label=y, terms=[x,s], hasIntercept=true, evalExprs=[])) (...)'
 
     .. versionadded:: 1.5.0
     """
