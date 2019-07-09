@@ -2516,4 +2516,26 @@ class HiveDDLSuite
       }
     }
   }
+
+  test("SPARK-28313: Spark sql null type incompatible with hive void type") {
+    val expectedMsg = "DataType void is not supported"
+    withTable("t") {
+      val e = intercept[AnalysisException] {
+        sql("create table t (a void)")
+      }.getMessage
+      assert(e.contains(expectedMsg))
+    }
+
+    withTable("t") {
+      sql("CREATE TABLE t AS SELECT NULL AS col ")
+      val desc = sql("DESC t").collect().toSeq
+      assert(desc.contains(Row("col", "void", null)))
+    }
+
+    withView("v") {
+      sql("CREATE VIEW v AS SELECT NULL AS col ")
+      val desc = sql("DESC v").collect().toSeq
+      assert(desc.contains(Row("col", "void", null)))
+    }
+  }
 }
