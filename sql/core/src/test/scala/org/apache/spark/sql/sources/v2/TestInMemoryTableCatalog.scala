@@ -21,15 +21,11 @@ import java.util
 import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.spark.sql.catalog.v2.{CatalogV2Implicits, Identifier, TableCatalog, TableChange}
 import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util
-import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{NoSuchTableException, TableAlreadyExistsException}
-import org.apache.spark.sql.sources.v2.reader.{Batch, InputPartition, PartitionReader, PartitionReaderFactory, Scan, ScanBuilder}
-import org.apache.spark.sql.sources.v2.writer.{BatchWrite, DataWriter, DataWriterFactory, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -109,128 +105,4 @@ class TestInMemoryTableCatalog extends TableCatalog {
   def clearTables(): Unit = {
     tables.clear()
   }
-}
-
-/**
- * A simple in-memory table. Rows are stored as a buffered group produced by each output task.
- */
-private class InMemoryTable(
-    val name: String,
-    val schema: StructType,
-    override val properties: util.Map[String, String])
-  extends Table with SupportsRead with SupportsWrite {
-
-  def this(
-      name: String,
-      schema: StructType,
-      properties: util.Map[String, String],
-      data: Array[BufferedRows]) = {
-    this(name, schema, properties)
-    replaceData(data)
-  }
-
-  def rows: Seq[InternalRow] = data.flatMap(_.rows)
-
-  @volatile var data: Array[BufferedRows] = Array.empty
-
-  def replaceData(buffers: Array[BufferedRows]): Unit = synchronized {
-    data = buffers
-  }
-
-  override def capabilities: util.Set[TableCapability] = Set(
-    TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.TRUNCATE).asJava
-
-  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    () => new InMemoryBatchScan(data.map(_.asInstanceOf[InputPartition]))
-  }
-
-  class InMemoryBatchScan(data: Array[InputPartition]) extends Scan with Batch {
-    override def readSchema(): StructType = schema
-
-    override def toBatch: Batch = this
-
-    override def planInputPartitions(): Array[InputPartition] = data
-
-    override def createReaderFactory(): PartitionReaderFactory = BufferedRowsReaderFactory
-  }
-
-  override def newWriteBuilder(options: CaseInsensitiveStringMap): WriteBuilder = {
-    new WriteBuilder with SupportsTruncate {
-      private var shouldTruncate: Boolean = false
-
-      override def truncate(): WriteBuilder = {
-        shouldTruncate = true
-        this
-      }
-
-      override def buildForBatch(): BatchWrite = {
-        if (shouldTruncate) TruncateAndAppend else Append
-      }
-    }
-  }
-
-  private object TruncateAndAppend extends BatchWrite {
-    override def createBatchWriterFactory(): DataWriterFactory = {
-      BufferedRowsWriterFactory
-    }
-
-    override def commit(messages: Array[WriterCommitMessage]): Unit = {
-      replaceData(messages.map(_.asInstanceOf[BufferedRows]))
-    }
-
-    override def abort(messages: Array[WriterCommitMessage]): Unit = {
-    }
-  }
-
-  private object Append extends BatchWrite {
-    override def createBatchWriterFactory(): DataWriterFactory = {
-      BufferedRowsWriterFactory
-    }
-
-    override def commit(messages: Array[WriterCommitMessage]): Unit = {
-      replaceData(data ++ messages.map(_.asInstanceOf[BufferedRows]))
-    }
-
-    override def abort(messages: Array[WriterCommitMessage]): Unit = {
-    }
-  }
-}
-
-private class BufferedRows extends WriterCommitMessage with InputPartition with Serializable {
-  val rows = new mutable.ArrayBuffer[InternalRow]()
-}
-
-private object BufferedRowsReaderFactory extends PartitionReaderFactory {
-  override def createReader(partition: InputPartition): PartitionReader[InternalRow] = {
-    new BufferedRowsReader(partition.asInstanceOf[BufferedRows])
-  }
-}
-
-private class BufferedRowsReader(partition: BufferedRows) extends PartitionReader[InternalRow] {
-  private var index: Int = -1
-
-  override def next(): Boolean = {
-    index += 1
-    index < partition.rows.length
-  }
-
-  override def get(): InternalRow = partition.rows(index)
-
-  override def close(): Unit = {}
-}
-
-private object BufferedRowsWriterFactory extends DataWriterFactory {
-  override def createWriter(partitionId: Int, taskId: Long): DataWriter[InternalRow] = {
-    new BufferWriter
-  }
-}
-
-private class BufferWriter extends DataWriter[InternalRow] {
-  private val buffer = new BufferedRows
-
-  override def write(row: InternalRow): Unit = buffer.rows.append(row.copy())
-
-  override def commit(): WriterCommitMessage = buffer
-
-  override def abort(): Unit = {}
 }
