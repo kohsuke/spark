@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, Alte
 import org.apache.spark.sql.execution.datasources.v2.{CatalogTableAsV2, DataSourceV2Relation}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.v2.TableProvider
-import org.apache.spark.sql.types.{HIVE_TYPE_STRING, HiveStringType, MetadataBuilder, StructField, StructType}
+import org.apache.spark.sql.types._
 
 case class DataSourceResolution(
     conf: SQLConf,
