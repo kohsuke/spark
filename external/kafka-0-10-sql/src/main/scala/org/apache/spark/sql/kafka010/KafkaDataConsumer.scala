@@ -58,8 +58,9 @@ private[kafka010] class InternalKafkaConsumer(
    * @throws TimeoutException if the consumer position is not changed after polling. It means the
    *                          consumer polls nothing before timeout.
    */
-  def fetch(offset: Long, pollTimeoutMs: Long)
-  : (ju.List[ConsumerRecord[Array[Byte], Array[Byte]]], Long) = {
+  def fetch(offset: Long, pollTimeoutMs: Long):
+    (ju.List[ConsumerRecord[Array[Byte], Array[Byte]]], Long) = {
+
     // Seek to the offset because we may call seekToBeginning or seekToEnd before this.
     seek(offset)
     val p = consumer.poll(pollTimeoutMs)
@@ -254,8 +255,8 @@ private[kafka010] class KafkaDataConsumer(
       offset: Long,
       untilOffset: Long,
       pollTimeoutMs: Long,
-      failOnDataLoss: Boolean)
-    : ConsumerRecord[Array[Byte], Array[Byte]] = runUninterruptiblyIfPossible {
+      failOnDataLoss: Boolean):
+    ConsumerRecord[Array[Byte], Array[Byte]] = runUninterruptiblyIfPossible {
     require(offset < untilOffset,
       s"offset must always be less than untilOffset [offset: $offset, untilOffset: $untilOffset]")
 
@@ -336,8 +337,10 @@ private[kafka010] class KafkaDataConsumer(
    * [offset, untilOffset) are invalid (e.g., the topic is deleted and recreated), it will return
    * `UNKNOWN_OFFSET`.
    */
-  private def getEarliestAvailableOffsetBetween(consumer: InternalKafkaConsumer, offset: Long,
-                                                untilOffset: Long): Long = {
+  private def getEarliestAvailableOffsetBetween(
+      consumer: InternalKafkaConsumer,
+      offset: Long,
+      untilOffset: Long): Long = {
     val range = consumer.getAvailableOffsetRange()
     logWarning(s"Some data may be lost. Recovering from the earliest offset: ${range.earliest}")
 
@@ -487,8 +490,11 @@ private[kafka010] class KafkaDataConsumer(
    * @throws TimeoutException if the consumer position is not changed after polling. It means the
    *                          consumer polls nothing before timeout.
    */
-  private def fetchData(consumer: InternalKafkaConsumer, fetchedData: FetchedData, offset: Long,
-                        pollTimeoutMs: Long): Unit = {
+  private def fetchData(
+      consumer: InternalKafkaConsumer,
+      fetchedData: FetchedData,
+      offset: Long,
+      pollTimeoutMs: Long): Unit = {
     val (records, offsetAfterPoll) = consumer.fetch(offset, pollTimeoutMs)
     fetchedData.withNewPoll(records.listIterator, offsetAfterPoll)
   }
@@ -514,8 +520,10 @@ private[kafka010] class KafkaDataConsumer(
   /**
    * Return an addition message including useful message and instruction.
    */
-  private def additionalMessage(topicPartition: TopicPartition, groupId: String,
-                                failOnDataLoss: Boolean): String = {
+  private def additionalMessage(
+      topicPartition: TopicPartition,
+      groupId: String,
+      failOnDataLoss: Boolean): String = {
     if (failOnDataLoss) {
       s"(GroupId: $groupId, TopicPartition: $topicPartition). " +
         s"$INSTRUCTION_FOR_FAIL_ON_DATA_LOSS_TRUE"

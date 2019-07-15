@@ -54,13 +54,13 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
 
   override def beforeEach(): Unit = {
     fetchedDataPool = {
-      val fetchedDataPoolHack = PrivateMethod[FetchedDataPool]('fetchedDataPool)
-      KafkaDataConsumer.invokePrivate(fetchedDataPoolHack())
+      val fetchedDataPoolMethod = PrivateMethod[FetchedDataPool]('fetchedDataPool)
+      KafkaDataConsumer.invokePrivate(fetchedDataPoolMethod())
     }
 
     consumerPool = {
-      val internalKafkaConsumerPoolHack = PrivateMethod[InternalKafkaConsumerPool]('consumerPool)
-      KafkaDataConsumer.invokePrivate(internalKafkaConsumerPoolHack())
+      val internalKafkaConsumerPoolMethod = PrivateMethod[InternalKafkaConsumerPool]('consumerPool)
+      KafkaDataConsumer.invokePrivate(internalKafkaConsumerPoolMethod())
     }
 
     fetchedDataPool.reset()

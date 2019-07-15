@@ -234,15 +234,22 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
     assert(pooledObject.topicPartition === expectedTopicPartition)
   }
 
-  private def assertPoolState(pool: InternalKafkaConsumerPool, numIdle: Int,
-                              numActive: Int, numTotal: Int): Unit = {
+  private def assertPoolState(
+      pool: InternalKafkaConsumerPool,
+      numIdle: Int,
+      numActive: Int,
+      numTotal: Int): Unit = {
     assert(pool.getNumIdle === numIdle)
     assert(pool.getNumActive === numActive)
     assert(pool.getTotal === numTotal)
   }
 
-  private def assertPoolStateForKey(pool: InternalKafkaConsumerPool, key: CacheKey,
-                                    numIdle: Int, numActive: Int, numTotal: Int): Unit = {
+  private def assertPoolStateForKey(
+      pool: InternalKafkaConsumerPool,
+      key: CacheKey,
+      numIdle: Int,
+      numActive: Int,
+      numTotal: Int): Unit = {
     assert(pool.getNumIdle(key) === numIdle)
     assert(pool.getNumActive(key) === numActive)
     assert(pool.getTotal(key) === numTotal)
@@ -276,8 +283,9 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
     }
   }
 
-  private def returnObjects(pool: InternalKafkaConsumerPool,
-                            objects: Seq[(CacheKey, InternalKafkaConsumer)]): Unit = {
+  private def returnObjects(
+      pool: InternalKafkaConsumerPool,
+      objects: Seq[(CacheKey, InternalKafkaConsumer)]): Unit = {
     objects.foreach { case (key, pooledObj) =>
       val numActiveBeforeReturning = pool.getNumActive
       val numIdleBeforeReturning = pool.getNumIdle
