@@ -162,19 +162,14 @@ private[kafka010] object InternalKafkaConsumerPool {
     init()
 
     def init(): Unit = {
-      import PoolConfig._
-
       val conf = SparkEnv.get.conf
 
-      softMaxTotal = conf.getInt(CONFIG_NAME_CAPACITY, DEFAULT_VALUE_CAPACITY)
+      softMaxTotal = conf.get(CONSUMER_CACHE_CAPACITY)
 
-      val jmxEnabled = conf.getBoolean(CONFIG_NAME_JMX_ENABLED,
-        defaultValue = DEFAULT_VALUE_JMX_ENABLED)
-      val minEvictableIdleTimeMillis = conf.getLong(CONFIG_NAME_MIN_EVICTABLE_IDLE_TIME_MILLIS,
-        DEFAULT_VALUE_MIN_EVICTABLE_IDLE_TIME_MILLIS)
-      val evictorThreadRunIntervalMillis = conf.getLong(
-        CONFIG_NAME_EVICTOR_THREAD_RUN_INTERVAL_MILLIS,
-        DEFAULT_VALUE_EVICTOR_THREAD_RUN_INTERVAL_MILLIS)
+      val jmxEnabled = conf.get(CONSUMER_CACHE_JMX_ENABLED)
+      val minEvictableIdleTimeMillis = conf.get(CONSUMER_CACHE_MIN_EVICTABLE_IDLE_TIME_MILLIS)
+      val evictorThreadRunIntervalMillis = conf.get(
+        CONSUMER_CACHE_EVICTOR_THREAD_RUN_INTERVAL_MILLIS)
 
       // NOTE: Below lines define the behavior, so do not modify unless you know what you are
       // doing, and update the class doc accordingly if necessary when you modify.
@@ -203,21 +198,6 @@ private[kafka010] object InternalKafkaConsumerPool {
       setJmxEnabled(jmxEnabled)
       setJmxNamePrefix("kafka010-cached-simple-kafka-consumer-pool")
     }
-  }
-
-  object PoolConfig {
-    val CONFIG_NAME_PREFIX = "spark.sql.kafkaConsumerCache."
-    val CONFIG_NAME_CAPACITY = CONFIG_NAME_PREFIX + "capacity"
-    val CONFIG_NAME_JMX_ENABLED = CONFIG_NAME_PREFIX + "jmx.enable"
-    val CONFIG_NAME_MIN_EVICTABLE_IDLE_TIME_MILLIS = CONFIG_NAME_PREFIX +
-      "minEvictableIdleTimeMillis"
-    val CONFIG_NAME_EVICTOR_THREAD_RUN_INTERVAL_MILLIS = CONFIG_NAME_PREFIX +
-      "evictorThreadRunIntervalMillis"
-
-    val DEFAULT_VALUE_CAPACITY = 64
-    val DEFAULT_VALUE_JMX_ENABLED = false
-    val DEFAULT_VALUE_MIN_EVICTABLE_IDLE_TIME_MILLIS = 5 * 60 * 1000 // 5 minutes
-    val DEFAULT_VALUE_EVICTOR_THREAD_RUN_INTERVAL_MILLIS = 3 * 60 * 1000 // 3 minutes
   }
 
   class ObjectFactory extends BaseKeyedPooledObjectFactory[CacheKey, InternalKafkaConsumer]

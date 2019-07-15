@@ -81,16 +81,7 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
     val data: immutable.IndexedSeq[String] = prepareTestTopicHavingTestMessages(topic)
 
     val topicPartition = new TopicPartition(topic, 0)
-
-    import ConsumerConfig._
-    val kafkaParams = Map[String, Object](
-      GROUP_ID_CONFIG -> "groupId",
-      BOOTSTRAP_SERVERS_CONFIG -> testUtils.brokerAddress,
-      KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      AUTO_OFFSET_RESET_CONFIG -> "earliest",
-      ENABLE_AUTO_COMMIT_CONFIG -> "false"
-    )
+    val kafkaParams = getKafkaParams()
 
     val numThreads = 100
     val numConsumerUsages = 500
@@ -140,15 +131,7 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
     prepareTestTopicHavingTestMessages(topic)
     val topicPartition = new TopicPartition(topic, 0)
 
-    import ConsumerConfig._
-    val kafkaParams = Map[String, Object](
-      GROUP_ID_CONFIG -> "groupId",
-      BOOTSTRAP_SERVERS_CONFIG -> testUtils.brokerAddress,
-      KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      AUTO_OFFSET_RESET_CONFIG -> "earliest",
-      ENABLE_AUTO_COMMIT_CONFIG -> "false"
-    )
+    val kafkaParams = getKafkaParams()
 
     withTaskContext(TaskContext.empty()) {
       // task A trying to fetch offset 0 to 100, and read 5 records
@@ -191,15 +174,7 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
     prepareTestTopicHavingTestMessages(topic)
     val topicPartition = new TopicPartition(topic, 0)
 
-    import ConsumerConfig._
-    val kafkaParams = Map[String, Object](
-      GROUP_ID_CONFIG -> "groupId",
-      BOOTSTRAP_SERVERS_CONFIG -> testUtils.brokerAddress,
-      KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      AUTO_OFFSET_RESET_CONFIG -> "earliest",
-      ENABLE_AUTO_COMMIT_CONFIG -> "false"
-    )
+    val kafkaParams = getKafkaParams()
 
     withTaskContext(TaskContext.empty()) {
       // task A trying to fetch offset 0 to 100, and read 5 records (still reading)
@@ -228,15 +203,7 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
     prepareTestTopicHavingTestMessages(topic)
     val topicPartition = new TopicPartition(topic, 0)
 
-    import ConsumerConfig._
-    val kafkaParams = Map[String, Object](
-      GROUP_ID_CONFIG -> "groupId",
-      BOOTSTRAP_SERVERS_CONFIG -> testUtils.brokerAddress,
-      KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
-      AUTO_OFFSET_RESET_CONFIG -> "earliest",
-      ENABLE_AUTO_COMMIT_CONFIG -> "false"
-    )
+    val kafkaParams = getKafkaParams()
 
     withTaskContext(TaskContext.empty()) {
       // task A trying to fetch offset 0 to 100, and read 5 records (still reading)
@@ -262,6 +229,18 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
     }
   }
 
+  private def getKafkaParams(): Map[String, Object] = {
+    import ConsumerConfig._
+    Map[String, Object](
+      GROUP_ID_CONFIG -> "groupId",
+      BOOTSTRAP_SERVERS_CONFIG -> testUtils.brokerAddress,
+      KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
+      VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
+      AUTO_OFFSET_RESET_CONFIG -> "earliest",
+      ENABLE_AUTO_COMMIT_CONFIG -> "false"
+    )
+  }
+
   private def assertFetchedDataPoolStatistic(
       fetchedDataPool: FetchedDataPool,
       expectedNumCreated: Long,
@@ -270,8 +249,11 @@ class KafkaDataConsumerSuite extends SharedSparkSession with PrivateMethodTester
     assert(fetchedDataPool.getNumTotal === expectedNumTotal)
   }
 
-  private def readAndGetLastOffset(consumer: KafkaDataConsumer, startOffset: Long,
-                                   untilOffset: Long, numToRead: Int): Long = {
+  private def readAndGetLastOffset(
+      consumer: KafkaDataConsumer,
+      startOffset: Long,
+      untilOffset: Long,
+      numToRead: Int): Long = {
     var lastOffset: Long = startOffset - 1
     (0 until numToRead).foreach { _ =>
       val record = consumer.get(lastOffset + 1, untilOffset, 10000, failOnDataLoss = false)

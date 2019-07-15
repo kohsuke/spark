@@ -30,7 +30,6 @@ import org.apache.spark.sql.kafka010.KafkaDataConsumer.CacheKey
 import org.apache.spark.sql.test.SharedSQLContext
 
 class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
-  import org.apache.spark.sql.kafka010.InternalKafkaConsumerPool.PoolConfig._
 
   test("basic multiple borrows and returns for single key") {
     val pool = InternalKafkaConsumerPool.build
@@ -76,14 +75,8 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
     val pool = InternalKafkaConsumerPool.build
 
     val kafkaParams = getTestKafkaParams
-    val topicPartitions: List[TopicPartition] = for (
-      topic <- List("topic", "topic2");
-      partitionId <- 0 to 5
-    ) yield new TopicPartition(topic, partitionId)
-
-    val keys: List[CacheKey] = topicPartitions.map { part =>
-      new CacheKey(part, kafkaParams)
-    }
+    val topicPartitions = createTopicPartitions(Seq("topic", "topic2"), 6)
+    val keys = createCacheKeys(topicPartitions, kafkaParams)
 
     // while in loop pool doesn't still exceed total pool size
     val keyToPooledObjectPairs = borrowObjectsPerKey(pool, kafkaParams, keys)
@@ -101,23 +94,14 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
 
   test("borrow more than soft max capacity from pool which is neither free space nor idle object") {
     val capacity = 16
-
-    val newConf = Seq(
-      CONFIG_NAME_CAPACITY -> capacity.toString,
-      CONFIG_NAME_MIN_EVICTABLE_IDLE_TIME_MILLIS -> (-1).toString,
-      CONFIG_NAME_EVICTOR_THREAD_RUN_INTERVAL_MILLIS -> (-1).toString)
+    val newConf = newConfForKafkaPool(Some(capacity), Some(-1), Some(-1))
 
     withSparkConf(newConf: _*) {
       val pool = InternalKafkaConsumerPool.build
 
       val kafkaParams = getTestKafkaParams
-      val topicPartitions: List[TopicPartition] = for (
-        partitionId <- (0 until capacity).toList
-      ) yield new TopicPartition("topic", partitionId)
-
-      val keys: List[CacheKey] = topicPartitions.map { part =>
-        new CacheKey(part, kafkaParams)
-      }
+      val topicPartitions = createTopicPartitions(Seq("topic"), capacity)
+      val keys = createCacheKeys(topicPartitions, kafkaParams)
 
       // while in loop pool doesn't still exceed soft max pool size
       val keyToPooledObjectPairs = borrowObjectsPerKey(pool, kafkaParams, keys)
@@ -138,23 +122,14 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
 
   test("borrow more than soft max capacity from pool frees up idle objects automatically") {
     val capacity = 16
-
-    val newConf = Seq(
-      CONFIG_NAME_CAPACITY -> capacity.toString,
-      CONFIG_NAME_MIN_EVICTABLE_IDLE_TIME_MILLIS -> (-1).toString,
-      CONFIG_NAME_EVICTOR_THREAD_RUN_INTERVAL_MILLIS -> (-1).toString)
+    val newConf = newConfForKafkaPool(Some(capacity), Some(-1), Some(-1))
 
     withSparkConf(newConf: _*) {
       val pool = InternalKafkaConsumerPool.build
 
       val kafkaParams = getTestKafkaParams
-      val topicPartitions: List[TopicPartition] = for (
-        partitionId <- (0 until capacity).toList
-      ) yield new TopicPartition("topic", partitionId)
-
-      val keys: List[CacheKey] = topicPartitions.map { part =>
-        new CacheKey(part, kafkaParams)
-      }
+      val topicPartitions = createTopicPartitions(Seq("topic"), capacity)
+      val keys = createCacheKeys(topicPartitions, kafkaParams)
 
       // borrow objects which makes pool reaching soft capacity
       val keyToPooledObjectPairs = borrowObjectsPerKey(pool, kafkaParams, keys)
@@ -192,21 +167,14 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
     val minEvictableIdleTimeMillis = 3 * 1000 // 3 seconds
     val evictorThreadRunIntervalMillis = 500 // triggering multiple evictions by intention
 
-    val newConf = Seq(
-      CONFIG_NAME_MIN_EVICTABLE_IDLE_TIME_MILLIS -> minEvictableIdleTimeMillis.toString,
-      CONFIG_NAME_EVICTOR_THREAD_RUN_INTERVAL_MILLIS -> evictorThreadRunIntervalMillis.toString)
-
+    val newConf = newConfForKafkaPool(None, Some(minEvictableIdleTimeMillis),
+      Some(evictorThreadRunIntervalMillis))
     withSparkConf(newConf: _*) {
       val pool = InternalKafkaConsumerPool.build
 
       val kafkaParams = getTestKafkaParams
-      val topicPartitions: List[TopicPartition] = for (
-        partitionId <- (0 until 10).toList
-      ) yield new TopicPartition("topic", partitionId)
-
-      val keys: List[CacheKey] = topicPartitions.map { part =>
-        new CacheKey(part, kafkaParams)
-      }
+      val topicPartitions = createTopicPartitions(Seq("topic"), 10)
+      val keys = createCacheKeys(topicPartitions, kafkaParams)
 
       // borrow and return some consumers to ensure some partitions are being idle
       // this test covers the use cases: rebalance / topic removal happens while running query
@@ -223,6 +191,32 @@ class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
 
       pool.close()
     }
+  }
+
+  private def newConfForKafkaPool(
+      capacity: Option[Int],
+      minEvictableIdleTimeMillis: Option[Long],
+      evictorThreadRunIntervalMillis: Option[Long]): Seq[(String, String)] = {
+    Seq(
+      CONSUMER_CACHE_CAPACITY.key -> capacity,
+      CONSUMER_CACHE_MIN_EVICTABLE_IDLE_TIME_MILLIS.key -> minEvictableIdleTimeMillis,
+      CONSUMER_CACHE_EVICTOR_THREAD_RUN_INTERVAL_MILLIS.key -> evictorThreadRunIntervalMillis
+    ).filter(_._2.isDefined).map(e => (e._1 -> e._2.get.toString))
+  }
+
+  private def createTopicPartitions(
+      topicNames: Seq[String],
+      countPartition: Int): List[TopicPartition] = {
+    for (
+      topic <- topicNames.toList;
+      partitionId <- 0 until countPartition
+    ) yield new TopicPartition(topic, partitionId)
+  }
+
+  private def createCacheKeys(
+      topicPartitions: List[TopicPartition],
+      kafkaParams: ju.Map[String, Object]): List[CacheKey] = {
+    topicPartitions.map(new CacheKey(_, kafkaParams))
   }
 
   private def assertPooledObject(
