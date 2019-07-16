@@ -33,6 +33,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ReturnAnswer}
 import org.apache.spark.sql.catalyst.rules.{Rule, RuleExecutor}
+import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.adaptive.AdaptiveSparkPlanExec._
 import org.apache.spark.sql.execution.adaptive.rule.ReduceNumShufflePartitions
@@ -190,10 +191,25 @@ case class AdaptiveSparkPlanExec(
       verbose: Boolean,
       prefix: String = "",
       addSuffix: Boolean = false,
-      maxFields: Int): Unit = {
-    super.generateTreeString(depth, lastChildren, append, verbose, prefix, addSuffix, maxFields)
+      maxFields: Int,
+      planToOperatorID: mutable.LinkedHashMap[TreeNode[_], Int]): Unit = {
+    super.generateTreeString(depth,
+      lastChildren,
+      append,
+      verbose,
+      prefix,
+      addSuffix,
+      maxFields,
+      planToOperatorID)
     currentPhysicalPlan.generateTreeString(
-      depth + 1, lastChildren :+ true, append, verbose, "", addSuffix = false, maxFields)
+      depth + 1,
+      lastChildren :+ true,
+      append,
+      verbose,
+      "",
+      addSuffix = false,
+      maxFields,
+      planToOperatorID)
   }
 
   /**
