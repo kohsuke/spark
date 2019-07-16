@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{CannotReplaceMissingTableException, NoSuchTableException, TableAlreadyExistsException}
-import org.apache.spark.sql.sources.v2.reader.{Batch, InputPartition, PartitionReader, PartitionReaderFactory, Scan, ScanBuilder}
+import org.apache.spark.sql.sources.v2.reader.{BatchScan, InputPartition, PartitionReader, PartitionReaderFactory, ScanBuilder}
 import org.apache.spark.sql.sources.v2.writer.{BatchWrite, DataWriter, DataWriterFactory, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -141,14 +141,14 @@ class InMemoryTable(
   override def capabilities: util.Set[TableCapability] = Set(
     TableCapability.BATCH_READ, TableCapability.BATCH_WRITE, TableCapability.TRUNCATE).asJava
 
-  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
-    () => new InMemoryBatchScan(data.map(_.asInstanceOf[InputPartition]))
+  override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = new ScanBuilder {
+    override def buildForBatch(): BatchScan = {
+      new InMemoryBatchScan(data.map(_.asInstanceOf[InputPartition]))
+    }
   }
 
-  class InMemoryBatchScan(data: Array[InputPartition]) extends Scan with Batch {
+  class InMemoryBatchScan(data: Array[InputPartition]) extends BatchScan {
     override def readSchema(): StructType = schema
-
-    override def toBatch: Batch = this
 
     override def planInputPartitions(): Array[InputPartition] = data
 

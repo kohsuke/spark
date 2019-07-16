@@ -22,21 +22,19 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql.{AnalysisException, SparkSession}
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjection
 import org.apache.spark.sql.execution.PartitionedFileUtil
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.reader._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.Utils
 
 abstract class FileScan(
     sparkSession: SparkSession,
     fileIndex: PartitioningAwareFileIndex,
     readDataSchema: StructType,
-    readPartitionSchema: StructType) extends Scan with Batch with SupportsReportStatistics {
+    readPartitionSchema: StructType) extends BatchScan with SupportsReportStatistics {
   /**
    * Returns whether a file with `path` could be split or not.
    */
@@ -109,8 +107,6 @@ abstract class FileScan(
       override def numRows(): OptionalLong = OptionalLong.empty()
     }
   }
-
-  override def toBatch: Batch = this
 
   override def readSchema(): StructType =
     StructType(readDataSchema.fields ++ readPartitionSchema.fields)
