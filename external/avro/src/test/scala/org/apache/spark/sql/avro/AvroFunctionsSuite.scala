@@ -154,12 +154,9 @@ class AvroFunctionsSuite extends QueryTest with SharedSQLContext with SQLTestUti
     }
   }
 
-  test("roundtrip in to_avro and from_avro with different compatible schemas") {
+  test("SPARK-27506: roundtrip in to_avro and from_avro with different compatible schemas") {
     val df = spark.range(10).select(
-      struct(
-        'id.as("col1"),
-        'id.cast("string").as("col2")
-      ).as("struct")
+      struct('id.as("col1"), 'id.cast("string").as("col2")).as("struct")
     )
     val avroStructDF = df.select(to_avro('struct).as("avro"))
     val writerAvroTypeStruct = s"""
@@ -186,11 +183,7 @@ class AvroFunctionsSuite extends QueryTest with SharedSQLContext with SQLTestUti
     """.stripMargin
 
     val expected = spark.range(10).select(
-      struct(
-        'id.as("col1"),
-        'id.cast("string").as("col2"),
-        lit("")
-      ).as("struct")
+      struct('id.as("col1"), 'id.cast("string").as("col2"), lit("")).as("struct")
     )
 
     checkAnswer(
