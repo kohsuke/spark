@@ -396,12 +396,13 @@ case class PreprocessTableInsertion(conf: SQLConf) extends Rule[LogicalPlan] {
 /**
  * SPARK-28313: Spark sql null type incompatible with hive void type
  */
-object CreateTableCheck extends Rule[LogicalPlan]{
+object CreateTableCheck extends Rule[LogicalPlan] {
   override def apply(plan: LogicalPlan): LogicalPlan = {
     plan match {
-      case ct: CreateTable
-        if ct.tableDesc.schema.exists {f => DataTypes.NullType.sameType(f.dataType)} =>
-          throw new AnalysisException("DataType NullType is not supported for create table")
+      case ct: CreateTable if ct.tableDesc.schema.exists { f =>
+        DataTypes.NullType.sameType(f.dataType)
+      } =>
+        throw new AnalysisException("DataType NullType is not supported for create table")
       case _ => plan
     }
   }
