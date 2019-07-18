@@ -384,7 +384,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
         ""
       }
       def errorMessage(format: String): String = {
-        s"$format data source does not support null data type."
+        s"$format data source does not support void data type."
       }
       withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1List,
         SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> useV1List) {
