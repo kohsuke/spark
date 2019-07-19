@@ -308,7 +308,7 @@ struct<1:int>
 -- !query 14
 select foo.* from (select null) as foo
 -- !query 14 schema
-struct<NULL:null>
+struct<NULL:void>
 -- !query 14 output
 NULL
 
