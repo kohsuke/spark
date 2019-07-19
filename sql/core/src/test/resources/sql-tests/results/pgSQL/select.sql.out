@@ -316,7 +316,7 @@ NULL
 -- !query 15
 select foo.* from (select 'xyzzy',1,null) as foo
 -- !query 15 schema
-struct<xyzzy:string,1:int,NULL:null>
+struct<xyzzy:string,1:int,NULL:void>
 -- !query 15 output
 xyzzy	1	NULL
 
