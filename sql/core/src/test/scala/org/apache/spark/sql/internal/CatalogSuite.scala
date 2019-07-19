@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.{Expression, ExpressionInfo}
 import org.apache.spark.sql.catalyst.plans.logical.Range
 import org.apache.spark.sql.test.SharedSQLContext
-import org.apache.spark.sql.types.{NullType, StructType}
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.storage.StorageLevel
 
 
@@ -547,19 +547,4 @@ class CatalogSuite
     assert(spark.table("my_temp_table").storageLevel == StorageLevel.DISK_ONLY)
   }
 
-  test("SPARK-28313: Spark sql null type incompatible with hive void type") {
-    val expectedMsg = "DataType NullType is not supported for create table"
-    val schema = new StructType().add("c", NullType)
-    withTable("t") {
-      val e = intercept[AnalysisException] {
-        spark.catalog.createTable(
-          tableName = "t",
-          source = "json",
-          schema = schema,
-          options = Map.empty[String, String])
-      }.getMessage
-      assert(e.contains(expectedMsg))
-    }
-
-  }
 }
