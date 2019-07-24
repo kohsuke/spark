@@ -52,15 +52,15 @@ trait SharedSparkSession
   }
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    *
    * By default, the underlying [[org.apache.spark.SparkContext]] will be run in local
    * mode with the default test configurations.
    */
-  private var _spark: TestSparkSession = null
+  protected var _spark: SparkSession = null
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    */
   protected implicit def spark: SparkSession = _spark
 
