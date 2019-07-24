@@ -223,37 +223,6 @@ class UnsafeArraySuite extends SparkFunSuite {
     assert(doubleEncoder.toRow(doubleArray).getArray(0).toDoubleArray.sameElements(doubleArray))
   }
 
-  test("from binary array") {
-    val blobs = Array[Array[Byte]](
-      UnsafeArrayData.fromPrimitiveArray(Array(1, 2)).toByteArray,
-      UnsafeArrayData.fromPrimitiveArray(Array(3, 4, 5)).toByteArray,
-      null,
-      UnsafeArrayData.fromPrimitiveArray(Array(6)).toByteArray,
-      UnsafeArrayData.fromPrimitiveArray(Array[Byte]()).toByteArray
-    )
-
-    val unsafeBlob = UnsafeArrayData.fromBinaryArray(blobs)
-    assert(unsafeBlob.getBinary(0)
-      .sameElements(UnsafeArrayData.fromPrimitiveArray(Array(1, 2)).toByteArray))
-    assert(unsafeBlob.getBinary(1)
-      .sameElements(UnsafeArrayData.fromPrimitiveArray(Array(3, 4, 5)).toByteArray))
-    assert(unsafeBlob.getBinary(2) == null)
-    assert(unsafeBlob.getBinary(3)
-      .sameElements(UnsafeArrayData.fromPrimitiveArray(Array(6)).toByteArray))
-    assert(unsafeBlob.getBinary(4) == null)
-  }
-
-  test("from string array") {
-    val strings = Array[String]("apache", "spark", null, "with", "", "kafka")
-    val unsafeBlob = UnsafeArrayData.fromStringArray(strings)
-    assert(unsafeBlob.getUTF8String(0).toString == "apache")
-    assert(unsafeBlob.getUTF8String(1).toString == "spark")
-    assert(unsafeBlob.getUTF8String(2) == null)
-    assert(unsafeBlob.getUTF8String(3).toString == "with")
-    assert(unsafeBlob.getUTF8String(4) == null)
-    assert(unsafeBlob.getUTF8String(5).toString == "kafka")
-  }
-
   test("unsafe java serialization") {
     val ser = new JavaSerializer(new SparkConf).newInstance()
     val arrayDataSer = ser.deserialize[UnsafeArrayData](ser.serialize(serialArray))

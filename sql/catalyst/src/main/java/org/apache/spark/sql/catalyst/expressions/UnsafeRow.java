@@ -30,6 +30,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.Platform;
@@ -283,6 +284,7 @@ public final class UnsafeRow extends InternalRow implements Externalizable, Kryo
         // keep the offset for future update
         Platform.putLong(baseObject, getFieldOffset(ordinal), cursor << 32);
       } else {
+
         final BigInteger integer = value.toJavaBigDecimal().unscaledValue();
         byte[] bytes = integer.toByteArray();
         assert(bytes.length <= 16);

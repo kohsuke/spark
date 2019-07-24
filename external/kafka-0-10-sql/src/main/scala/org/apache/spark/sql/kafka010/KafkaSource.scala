@@ -302,32 +302,13 @@ private[kafka010] class KafkaSource(
     val rdd = if (includeHeaders) {
       new KafkaSourceRDD(
       sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
-      reuseKafkaConsumer = true).map { cr =>
-        InternalRow(
-          cr.key,
-          cr.value,
-          UTF8String.fromString(cr.topic),
-          cr.partition,
-          cr.offset,
-          DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-          cr.timestampType.id,
-          KafkaUtils.toUnsafeMapData(cr.headers)
-        )
-      }
+      reuseKafkaConsumer = true)
+        .map(KafkaOffsetReader.toInternalRowWithHeaders(_))
     } else {
       new KafkaSourceRDD(
         sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
-        reuseKafkaConsumer = true).map { cr =>
-          InternalRow(
-            cr.key,
-            cr.value,
-            UTF8String.fromString(cr.topic),
-            cr.partition,
-            cr.offset,
-            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-            cr.timestampType.id
-          )
-      }
+        reuseKafkaConsumer = true)
+        .map(KafkaOffsetReader.toInternalRowWithoutHeaders(_))
     }
 
     logInfo("GetBatch generating RDD of offset range: " +

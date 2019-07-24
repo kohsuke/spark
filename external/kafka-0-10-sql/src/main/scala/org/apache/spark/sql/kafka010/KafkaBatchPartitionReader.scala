@@ -55,7 +55,7 @@ private case class KafkaBatchPartitionReader(
     offsetRange.topicPartition, executorKafkaParams, reuseKafkaConsumer)
 
   private val rangeToRead = resolveRange(offsetRange)
-  private val converter = new KafkaRecordToUnsafeRowConverter(includeHeaders)
+  private val converter = KafkaOffsetReader.toUnsafeRowProjector(includeHeaders)
 
   private var nextOffset = rangeToRead.fromOffset
   private var nextRow: UnsafeRow = _
@@ -64,7 +64,7 @@ private case class KafkaBatchPartitionReader(
     if (nextOffset < rangeToRead.untilOffset) {
       val record = consumer.get(nextOffset, rangeToRead.untilOffset, pollTimeoutMs, failOnDataLoss)
       if (record != null) {
-        nextRow = converter.toUnsafeRow(record)
+        nextRow = converter(record)
         nextOffset = record.offset + 1
         true
       } else {
