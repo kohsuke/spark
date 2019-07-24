@@ -83,8 +83,7 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     if (includeHeaders) {
       df.option("includeHeaders", "true")
       df.load()
-        .selectExpr("CAST(value AS STRING)", "CAST(headers.once AS STRING)",
-          "CAST(headers.twice AS STRING)")
+        .selectExpr("CAST(value AS STRING)", "headers")
     } else {
       df.load().selectExpr("CAST(value AS STRING)")
     }
@@ -158,19 +157,21 @@ abstract class KafkaRelationSuiteBase extends QueryTest with SharedSQLContext wi
     val topic = newTopic()
     testUtils.createTopic(topic, partitions = 3)
     testUtils.sendMessage(
-      topic, ("1", Array(("once", "1".getBytes), ("twice", "2".getBytes))), Some(0)
+      topic, ("1", Seq()), Some(0)
     )
     testUtils.sendMessage(
-      topic, ("2", Array(("once", "2".getBytes), ("twice", "4".getBytes))), Some(1)
+      topic, ("2", Seq(("a", "b".getBytes("UTF-8")), ("c", "d".getBytes("UTF-8")))), Some(1)
     )
     testUtils.sendMessage(
-      topic, ("3", Array(("once", "3".getBytes), ("twice", "6".getBytes))), Some(2)
+      topic, ("3", Seq(("e", "f".getBytes("UTF-8")), ("e", "g".getBytes("UTF-8")))), Some(2)
     )
 
     // Implicit offset values, should default to earliest and latest
     val df = createDF(topic, includeHeaders = true)
     // Test that we default to "earliest" and "latest"
-    checkAnswer(df, Seq(("1", "1", "2"), ("2", "2", "4"), ("3", "3", "6")).toDF)
+    checkAnswer(df, Seq(("1", null),
+      ("2", Seq(("a", "b".getBytes("UTF-8")), ("c", "d".getBytes("UTF-8")))),
+      ("3", Seq(("e", "f".getBytes("UTF-8")), ("e", "g".getBytes("UTF-8"))))).toDF)
   }
 
   test("reuse same dataframe in query") {
