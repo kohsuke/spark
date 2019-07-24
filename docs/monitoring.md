@@ -1042,6 +1042,10 @@ when running in local mode.
   - hiveClientCalls.count
   - sourceCodeSize (histogram)
 
+- namespace=executorPlugin
+  - This allows to introduce metrics defined by user-supplied code, using the executor plugin infrastructure.
+  It is configured using `spark.executor.metrics.plugins`
+
 ### Source = JVM Source 
 Notes: 
   - Activate this source by setting the relevant `metrics.properties` file entry or the 
