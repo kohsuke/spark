@@ -1524,5 +1524,20 @@ class DDLParserSuite extends AnalysisTest with SharedSQLContext {
     assert(isOverwrite2)
     assert(partition2.nonEmpty)
     assert(partition2.get.apply("c") == "1" && partition2.get.apply("d") == "2")
+
+    // check for case insensitive property of partition column name in load command.
+    withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
+      val v3 = "LOAD DATA LOCAL INPATH 'path' OVERWRITE INTO TABLE table1 PARTITION(C='1', D='2')"
+      val (table2, path2, isLocal2, isOverwrite2, partition2) = parser.parsePlan(v3).collect {
+        case LoadDataCommand(t, path, l, o, partition) => (t, path, l, o, partition)
+      }.head
+      assert(table2.database.isEmpty)
+      assert(table2.table == "table1")
+      assert(path2 == "path")
+      assert(isLocal2)
+      assert(isOverwrite2)
+      assert(partition2.nonEmpty)
+      assert(partition2.get.apply("c") == "1" && partition2.get.apply("d") == "2")
+    }
   }
 }
