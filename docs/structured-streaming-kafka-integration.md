@@ -27,7 +27,7 @@ For Scala/Java applications using SBT/Maven project definitions, link your appli
     artifactId = spark-sql-kafka-0-10_{{site.SCALA_BINARY_VERSION}}
     version = {{site.SPARK_VERSION_SHORT}}
 
-Please note that to use the headers functionality, your Kafka client version should be version 0.10 or up.
+Please note that to use the headers functionality, your Kafka client version should be version 0.11.0.0 or up.
 
 For Python applications, you need to add this above library and its dependencies when deploying your
 application. See the [Deploying](#deploying) subsection below.
@@ -321,7 +321,7 @@ Each row in the source has the following schema:
 </tr>
 <tr>
   <td>headers (optional)</td>
-  <td>map</td>
+  <td>array</td>
 </tr>
 </table>
 
@@ -465,7 +465,7 @@ The following configurations are optional:
   <td>true or false</td>
   <td>false</td>
   <td>streaming and batch</td>
-  <td>Whether to use Kafka's headers functionality.</td>
+  <td>Whether to include the Kafka's headers in the row.</td>
 </tr>
 </table>
 
@@ -511,7 +511,7 @@ The Dataframe being written to Kafka should have the following columns in schema
 </tr>
 <tr>
   <td>headers (optional)</td>
-  <td>map</td>
+  <td>array</td>
 </tr>
 <tr>
   <td>topic (*optional)</td>
@@ -555,7 +555,7 @@ The following configurations are optional:
   <td>string</td>
   <td>true or false</td>
   <td>streaming and batch</td>
-  <td>Whether to use Kafka's headers functionality.</td>
+  <td>Whether to include the Kafka's headers in the row.</td>
 </tr>
 </table>
 

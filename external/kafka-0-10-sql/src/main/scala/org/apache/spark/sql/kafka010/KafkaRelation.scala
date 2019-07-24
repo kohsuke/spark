@@ -23,11 +23,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.Network.NETWORK_TIMEOUT
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Row, SQLContext}
-import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.sources.{BaseRelation, TableScan}
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.unsafe.types.UTF8String
 
 
 private[kafka010] class KafkaRelation(
@@ -104,32 +101,13 @@ private[kafka010] class KafkaRelation(
     val rdd = if (includeHeaders) {
       new KafkaSourceRDD(
         sqlContext.sparkContext, executorKafkaParams, offsetRanges,
-        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false).map { cr =>
-          InternalRow(
-            cr.key,
-            cr.value,
-            UTF8String.fromString(cr.topic),
-            cr.partition,
-            cr.offset,
-            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-            cr.timestampType.id,
-            KafkaUtils.toUnsafeMapData(cr.headers)
-          )
-      }
+        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false)
+        .map(KafkaOffsetReader.toInternalRowWithHeaders(_))
     } else {
       new KafkaSourceRDD(
         sqlContext.sparkContext, executorKafkaParams, offsetRanges,
-        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false).map { cr =>
-          InternalRow(
-            cr.key,
-            cr.value,
-            UTF8String.fromString(cr.topic),
-            cr.partition,
-            cr.offset,
-            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-            cr.timestampType.id
-          )
-      }
+        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false)
+        .map(KafkaOffsetReader.toInternalRowWithoutHeaders(_))
     }
     sqlContext.internalCreateDataFrame(rdd.setName("kafka"), schema).rdd
   }

@@ -27,7 +27,7 @@ import org.apache.kafka.common.header.internals.RecordHeader
 
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Cast, Literal, UnsafeProjection}
-import org.apache.spark.sql.types.{BinaryType, MapType, StringType}
+import org.apache.spark.sql.types.{BinaryType, StringType}
 
 /**
  * Writes out data in a single Spark task, without any concerns about how
@@ -95,13 +95,13 @@ private[kafka010] abstract class KafkaRowWriter(
     val record = if (projectedRow.isNullAt(3)) {
       new ProducerRecord[Array[Byte], Array[Byte]](topic.toString, null, key, value)
     } else {
-      val headerMap = projectedRow.getMap(3)
-      val headers = (0 until headerMap.numElements()).map(
-        i =>
-          new RecordHeader(
-            headerMap.keyArray().getUTF8String(i).toString,
-            headerMap.valueArray().getBinary(i)
-          ).asInstanceOf[Header]
+      val headerArray = projectedRow.getArray(3)
+      val headers = (0 until headerArray.numElements()).map(
+        i => {
+          val struct = headerArray.getStruct(i, 2)
+          new RecordHeader(struct.getUTF8String(0).toString, struct.getBinary(1))
+            .asInstanceOf[Header]
+        }
       )
       new ProducerRecord[Array[Byte], Array[Byte]](topic.toString, null, key, value, headers.asJava)
     }
@@ -149,10 +149,10 @@ private[kafka010] abstract class KafkaRowWriter(
     }
     val headersExpression = inputSchema
       .find(_.name == KafkaWriter.HEADERS_ATTRIBUTE_NAME).getOrElse(
-      Literal(CatalystTypeConverters.convertToCatalyst(null), MapType(StringType, BinaryType))
+      Literal(CatalystTypeConverters.convertToCatalyst(null), KafkaOffsetReader.headersType)
     )
     headersExpression.dataType match {
-      case MapType(StringType, BinaryType, true) => // good
+      case KafkaOffsetReader.headersType => // good
       case t =>
         throw new IllegalStateException(s"${KafkaWriter.HEADERS_ATTRIBUTE_NAME} " +
           s"attribute unsupported type ${t.catalogString}")

@@ -24,15 +24,14 @@ import java.io.ObjectOutput;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.sql.types.*;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.array.ByteArrayMethods;
 import org.apache.spark.unsafe.bitset.BitSetMethods;
@@ -496,77 +495,6 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
 
   public static UnsafeArrayData fromPrimitiveArray(double[] arr) {
     return fromPrimitiveArray(arr, Platform.DOUBLE_ARRAY_OFFSET, arr.length, 8);
-  }
-
-  /**
-   * Creates {@link UnsafeArrayData} from an array of variable-length binary objects.
-   */
-  public static UnsafeArrayData fromBinaryArray(byte[][] blobs) {
-    if (blobs == null) {
-      return new UnsafeArrayData();
-    }
-
-    final long headerInBytes = calculateHeaderPortionInBytes(blobs.length);
-    final long valueRegionInBytes = (long) blobs.length * 8;
-    final long variableLengthRegionInLong = Arrays.stream(blobs).mapToLong(
-        (byte[] blob) -> {
-          if (blob == null) {
-            return 0;
-          } else {
-            return (blob.length + 7) / 8;
-          }
-        }
-    ).sum();
-
-    if (variableLengthRegionInLong == 0) {
-      return new UnsafeArrayData();
-    }
-
-    final long totalSizeInLongs = (headerInBytes + valueRegionInBytes) / 8 +
-        variableLengthRegionInLong;
-    if (totalSizeInLongs > Integer.MAX_VALUE / 8) {
-      throw new UnsupportedOperationException("Cannot convert this array to unsafe format as " +
-          "it's too big.");
-    }
-
-    final long[] data = new long[(int) totalSizeInLongs];
-    Platform.putLong(data, Platform.LONG_ARRAY_OFFSET, blobs.length);
-    UnsafeArrayData result = new UnsafeArrayData();
-    result.pointTo(data, Platform.LONG_ARRAY_OFFSET, (int) totalSizeInLongs * 8);
-
-    int offset = (int) headerInBytes + (int) valueRegionInBytes;
-    for (int i = 0; i < blobs.length; ++i) {
-      byte[] blob = blobs[i];
-      if (blob == null || blob.length == 0) {
-        // null object
-        result.setNullAt(i);
-      } else {
-        // offset and size
-        int size = blob.length;
-        long offsetAndSize = ((long) offset << 32) | size;
-        result.setLong(i, offsetAndSize);
-        // copy contents
-        Platform.copyMemory(blob, Platform.BYTE_ARRAY_OFFSET, data,
-            Platform.BYTE_ARRAY_OFFSET + offset, size);
-        // update offset
-        offset += ((size + 7) / 8) * 8;
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Creates {@link UnsafeArrayData} from an array of {@link String}s.
-   */
-  public static UnsafeArrayData fromStringArray(String[] strings) {
-    byte[][] blobs = Arrays.stream(strings)
-        .map(str -> {
-          UTF8String utf8String = UTF8String.fromString(str);
-          return utf8String != null ? utf8String.getBytes() : null;
-        })
-        .toArray(byte[][]::new);
-    return fromBinaryArray(blobs);
   }
 
   @Override
