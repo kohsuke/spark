@@ -32,7 +32,7 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.test.SharedSQLContext
-import org.apache.spark.sql.types.{BinaryType, DataType, IntegerType, StringType}
+import org.apache.spark.sql.types.{BinaryType, DataType, StringType, StructField, StructType}
 
 abstract class KafkaSinkSuiteBase extends QueryTest with SharedSQLContext with KafkaTest {
   protected var testUtils: KafkaTestUtils = _
@@ -60,16 +60,14 @@ abstract class KafkaSinkSuiteBase extends QueryTest with SharedSQLContext with K
   protected def newTopic(): String = s"topic-${topicId.getAndIncrement()}"
 
   protected def createKafkaReader(topic: String, includeHeaders: Boolean = false): DataFrame = {
-    val df = spark.read
+    spark.read
       .format("kafka")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)
       .option("startingOffsets", "earliest")
       .option("endingOffsets", "latest")
       .option("subscribe", topic)
-    if (includeHeaders) {
-      df.option("includeHeaders", "true")
-    }
-    df.load()
+      .option("includeHeaders", includeHeaders.toString)
+      .load()
   }
 }
 
@@ -371,10 +369,32 @@ abstract class KafkaSinkBatchSuiteBase extends KafkaSinkSuiteBase {
   test("batch - write to kafka") {
     val topic = newTopic()
     testUtils.createTopic(topic)
-    val df = Seq("1", "2", "3", "4", "5").map(v => (topic, v)).toDF("topic", "value")
-      .withColumn("headers",
-        map(lit("x"), ($"value" + 1).cast(IntegerType).cast(StringType).cast(BinaryType),
-          lit("y"), ($"value" * 2).cast(IntegerType).cast(StringType).cast(BinaryType)))
+    val data = Seq(
+      Row(topic, "1", Seq(
+        Row("a", "b".getBytes("UTF-8"))
+      )),
+      Row(topic, "2", Seq(
+        Row("c", "d".getBytes("UTF-8")),
+        Row("e", "f".getBytes("UTF-8"))
+      )),
+      Row(topic, "3", Seq(
+        Row("g", "h".getBytes("UTF-8")),
+        Row("g", "i".getBytes("UTF-8"))
+      )),
+      Row(topic, "4", null),
+      Row(topic, "5", Seq(
+        Row("j", "k".getBytes("UTF-8")),
+        Row("j", "l".getBytes("UTF-8")),
+        Row("m", "n".getBytes("UTF-8"))
+      ))
+    )
+
+    val df = spark.createDataFrame(
+      spark.sparkContext.parallelize(data),
+      StructType(Seq(StructField("topic", StringType), StructField("value", StringType),
+        StructField("headers", KafkaOffsetReader.headersType)))
+    )
+
     df.write
       .format("kafka")
       .option("kafka.bootstrap.servers", testUtils.brokerAddress)
@@ -383,11 +403,17 @@ abstract class KafkaSinkBatchSuiteBase extends KafkaSinkSuiteBase {
     checkAnswer(
       createKafkaReader(topic, includeHeaders = true).selectExpr(
         "CAST(value as STRING) value",
-        "CAST(headers.x AS STRING)",
-        "CAST(headers.y AS STRING)"
+        "CAST(headers as ARRAY<STRUCT<key:STRING,value:BINARY>>) headers"
       ),
-      Row("1", "2", "2") :: Row("2", "3", "4") :: Row("3", "4", "6") :: Row("4", "5", "8") ::
-        Row("5", "6", "10") :: Nil
+      Row("1", Seq(Row("a", "b".getBytes("UTF-8")))) ::
+        Row("2", Seq(Row("c", "d".getBytes("UTF-8")), Row("e", "f".getBytes("UTF-8")))) ::
+        Row("3", Seq(Row("g", "h".getBytes("UTF-8")), Row("g", "i".getBytes("UTF-8")))) ::
+        Row("4", null) ::
+        Row("5", Seq(
+          Row("j", "k".getBytes("UTF-8")),
+          Row("j", "l".getBytes("UTF-8")),
+          Row("m", "n".getBytes("UTF-8")))) ::
+        Nil
     )
   }
 

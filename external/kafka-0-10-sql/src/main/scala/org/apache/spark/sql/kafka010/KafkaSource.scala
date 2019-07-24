@@ -31,12 +31,10 @@ import org.apache.spark.internal.config.Network.NETWORK_TIMEOUT
 import org.apache.spark.scheduler.ExecutorCacheTaskLocation
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.kafka010.KafkaSource._
 import org.apache.spark.sql.kafka010.KafkaSourceProvider._
 import org.apache.spark.sql.types._
-import org.apache.spark.unsafe.types.UTF8String
 
 /**
  * A [[Source]] that reads data from Kafka using the following design.
@@ -302,32 +300,13 @@ private[kafka010] class KafkaSource(
     val rdd = if (includeHeaders) {
       new KafkaSourceRDD(
       sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
-      reuseKafkaConsumer = true).map { cr =>
-        InternalRow(
-          cr.key,
-          cr.value,
-          UTF8String.fromString(cr.topic),
-          cr.partition,
-          cr.offset,
-          DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-          cr.timestampType.id,
-          KafkaUtils.toUnsafeMapData(cr.headers)
-        )
-      }
+      reuseKafkaConsumer = true)
+        .map(KafkaOffsetReader.toInternalRowWithHeaders(_))
     } else {
       new KafkaSourceRDD(
         sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
-        reuseKafkaConsumer = true).map { cr =>
-          InternalRow(
-            cr.key,
-            cr.value,
-            UTF8String.fromString(cr.topic),
-            cr.partition,
-            cr.offset,
-            DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)),
-            cr.timestampType.id
-          )
-      }
+        reuseKafkaConsumer = true)
+        .map(KafkaOffsetReader.toInternalRowWithoutHeaders(_))
     }
 
     logInfo("GetBatch generating RDD of offset range: " +
