@@ -20,8 +20,10 @@ package org.apache.spark.sql.execution.datasources.jdbc
 import java.sql.{Connection, DriverManager}
 import java.util.{Locale, Properties}
 
+import scala.collection.JavaConverters._
+
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 /**
  * Options for the JDBC data source.
@@ -33,6 +35,10 @@ class JDBCOptions(
   import JDBCOptions._
 
   def this(parameters: Map[String, String]) = this(CaseInsensitiveMap(parameters))
+
+  def this(parameters: CaseInsensitiveStringMap) = {
+    this(parameters.asCaseSensitiveMap().asScala.toMap)
+  }
 
   def this(url: String, table: String, parameters: Map[String, String]) = {
     this(CaseInsensitiveMap(parameters ++ Map(
@@ -67,33 +73,37 @@ class JDBCOptions(
   require(parameters.isDefinedAt(JDBC_URL), s"Option '$JDBC_URL' is required.")
   // a JDBC URL
   val url = parameters(JDBC_URL)
-  // table name or a table subquery.
-  val tableOrQuery = (parameters.get(JDBC_TABLE_NAME), parameters.get(JDBC_QUERY_STRING)) match {
-    case (Some(name), Some(subquery)) =>
-      throw new IllegalArgumentException(
-        s"Both '$JDBC_TABLE_NAME' and '$JDBC_QUERY_STRING' can not be specified at the same time."
-      )
-    case (None, None) =>
-      throw new IllegalArgumentException(
-        s"Option '$JDBC_TABLE_NAME' or '$JDBC_QUERY_STRING' is required."
-      )
-    case (Some(name), None) =>
-      if (name.isEmpty) {
-        throw new IllegalArgumentException(s"Option '$JDBC_TABLE_NAME' can not be empty.")
-      } else {
-        name.trim
-      }
-    case (None, Some(subquery)) =>
-      if (subquery.isEmpty) {
-        throw new IllegalArgumentException(s"Option `$JDBC_QUERY_STRING` can not be empty.")
-      } else {
-        s"(${subquery}) SPARK_GEN_SUBQ_${curId.getAndIncrement()}"
-      }
-  }
 
   // ------------------------------------------------------------
   // Optional parameters
   // ------------------------------------------------------------
+
+  // table name or a table subquery. Only used by JDBC v1.
+  lazy val tableOrQuery = {
+    (parameters.get(JDBC_TABLE_NAME), parameters.get(JDBC_QUERY_STRING)) match {
+      case (Some(name), Some(subquery)) =>
+        throw new IllegalArgumentException(
+          s"Both '$JDBC_TABLE_NAME' and '$JDBC_QUERY_STRING' can not be specified at the same time."
+        )
+      case (None, None) =>
+        throw new IllegalArgumentException(
+          s"Option '$JDBC_TABLE_NAME' or '$JDBC_QUERY_STRING' is required."
+        )
+      case (Some(name), None) =>
+        if (name.isEmpty) {
+          throw new IllegalArgumentException(s"Option '$JDBC_TABLE_NAME' can not be empty.")
+        } else {
+          name.trim
+        }
+      case (None, Some(subquery)) =>
+        if (subquery.isEmpty) {
+          throw new IllegalArgumentException(s"Option `$JDBC_QUERY_STRING` can not be empty.")
+        } else {
+          s"(${subquery}) SPARK_GEN_SUBQ_${curId.getAndIncrement()}"
+        }
+    }
+  }
+
   val driverClass = {
     val userSpecifiedDriverClass = parameters.get(JDBC_DRIVER_CLASS)
     userSpecifiedDriverClass.foreach(DriverRegistry.register)
