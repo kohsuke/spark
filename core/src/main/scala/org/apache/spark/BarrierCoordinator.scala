@@ -184,6 +184,7 @@ private[spark] class BarrierCoordinator(
     def clear(): Unit = synchronized {
       // The global sync fails so the stage is expected to retry another attempt, all sync
       // messages come from current stage attempt shall fail.
+      println("DBG: do barrier state clear.")
       barrierEpoch = -1
       requesters.clear()
       cancelTimerTask()
