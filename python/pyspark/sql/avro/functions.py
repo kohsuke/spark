@@ -28,11 +28,12 @@ from pyspark.util import _print_missing_jar
 
 @ignore_unicode_prefix
 @since(3.0)
-def from_avro(data, jsonFormatSchema, options={}):
+def from_avro(data, jsonFormatSchema, options={}, writerJsonFormatSchema=None):
     """
-    Converts a binary column of avro format into its corresponding catalyst value. The specified
-    schema must match the read data, otherwise the behavior is undefined: it may fail or return
-    arbitrary result.
+    Converts a binary column of avro format into its corresponding catalyst value. If a writer's
+    schema is provided, a different (but compatible) schema can be used for reading. If no writer's
+    schema is provided, the specified schema must match the read data, otherwise the behavior is
+    undefined: it may fail or return arbitrary result.
 
     Note: Avro is built-in but external data source module since Spark 2.4. Please deploy the
     application as per the deployment section of "Apache Avro Data Source Guide".
@@ -40,6 +41,7 @@ def from_avro(data, jsonFormatSchema, options={}):
     :param data: the binary column.
     :param jsonFormatSchema: the avro schema in JSON string format.
     :param options: options to control how the Avro record is parsed.
+    :param writerJsonFormatSchema: the avro schema in JSON string format used to serialize the data.
 
     >>> from pyspark.sql import Row
     >>> from pyspark.sql.avro.functions import from_avro, to_avro
@@ -57,9 +59,13 @@ def from_avro(data, jsonFormatSchema, options={}):
     """
 
     sc = SparkContext._active_spark_context
+    if writerJsonFormatSchema is None:
+        optWriterJsonFormatSchema = sc._jvm.scala.Option.empty()
+    else:
+        optWriterJsonFormatSchema = sc._jvm.scala.Some(writerJsonFormatSchema)
     try:
         jc = sc._jvm.org.apache.spark.sql.avro.functions.from_avro(
-            _to_java_column(data), jsonFormatSchema, options)
+            _to_java_column(data), jsonFormatSchema, options, optWriterJsonFormatSchema)
     except TypeError as e:
         if str(e) == "'JavaPackage' object is not callable":
             _print_missing_jar("Avro", "avro", "avro", sc.version)
