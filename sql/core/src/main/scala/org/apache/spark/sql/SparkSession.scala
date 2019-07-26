@@ -612,7 +612,7 @@ class SparkSession private(
    */
   @transient lazy val catalog: Catalog = new CatalogImpl(self)
 
-  @transient private lazy val catalogs = new mutable.HashMap[String, CatalogPlugin]()
+  @transient private[sql] lazy val catalogs = new mutable.HashMap[String, CatalogPlugin]()
 
   private[sql] def catalog(name: String): CatalogPlugin = synchronized {
     catalogs.getOrElseUpdate(name, Catalogs.load(name, sessionState.conf))
