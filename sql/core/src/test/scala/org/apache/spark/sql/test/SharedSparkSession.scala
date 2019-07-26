@@ -25,6 +25,8 @@ import org.scalatest.concurrent.Eventually
 import org.apache.spark.{DebugFilesystem, SparkConf}
 import org.apache.spark.internal.config.{ConfigEntry, UNSAFE_EXCEPTION_ON_MEMORY_LEAK}
 import org.apache.spark.sql.{SparkSession, SQLContext}
+import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.catalyst.analysis.FunctionRegistry
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
@@ -133,8 +135,7 @@ trait SharedSparkSession
 
   protected override def afterEach(): Unit = {
     super.afterEach()
-    // Clear all persistent datasets after each test
-    spark.sharedState.cacheManager.clearCache()
+    _spark.reset()
     // files can be closed from other threads, so wait a bit
     // normally this doesn't take more than 1s
     eventually(timeout(10.seconds), interval(2.seconds)) {
