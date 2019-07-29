@@ -24,8 +24,7 @@ import org.apache.spark.sql.{AnalysisException, Strategy}
 import org.apache.spark.sql.catalog.v2.StagingTableCatalog
 import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
-import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect}
-import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.{DataSourceStrategy, LogicalRelation}
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
@@ -229,7 +228,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
         filter => DataSourceStrategy.translateFilter(deleteExpr).getOrElse(
           throw new AnalysisException(s"Cannot translate expression to source filter: $filter"))
       }.toArray
-      DeleteFromTableExec(r.table.asMaintainable, r.options, filters, planLater(r)) :: Nil
+      DeleteFromTableExec(r.table.asDeletable, r.options, filters, planLater(r)) :: Nil
 
     case WriteToContinuousDataSource(writer, query) =>
       WriteToContinuousDataSourceExec(writer, planLater(query)) :: Nil
