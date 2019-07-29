@@ -26,7 +26,6 @@ import org.apache.spark.sql.{Column, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{EqualNullSafe, Literal, Not}
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.sources.v2.maintain.{Maintainer, MaintainerBuilder, SupportsDelete}
 import org.apache.spark.sql.sources.v2.reader._
 import org.apache.spark.sql.sources.v2.writer._
 import org.apache.spark.sql.types._
@@ -41,7 +40,7 @@ private[v2] class InMemoryTable(
     val name: String,
     val schema: StructType,
     override val properties: util.Map[String, String])
-    extends Table with SupportsRead with SupportsWrite with SupportsMaintenance {
+    extends Table with SupportsRead with SupportsWrite with SupportsDelete {
 
   def this(
       name: String,
@@ -89,26 +88,6 @@ private[v2] class InMemoryTable(
       override def buildForBatch(): BatchWrite = {
         if (shouldTruncate) TruncateAndAppend else Append
       }
-    }
-  }
-
-  override def newMaintainerBuilder(options: CaseInsensitiveStringMap): MaintainerBuilder = {
-    () => {
-      Delete
-    }
-  }
-
-  private object Delete extends Maintainer with SupportsDelete {
-
-    override def delete(filters: Array[Filter]): Unit = {
-      val filtered = data.map {
-        rows =>
-          val newRows = filter(rows.rows, filters)
-          val newBufferedRows = new BufferedRows()
-          newBufferedRows.rows.appendAll(newRows)
-          newBufferedRows
-      }.filter(_.rows.nonEmpty)
-      replaceData(filtered)
     }
   }
 
@@ -163,6 +142,17 @@ private[v2] class InMemoryTable(
 
     override def abort(messages: Array[WriterCommitMessage]): Unit = {
     }
+  }
+
+  override def deleteWhere(filters: Array[Filter]): Unit = {
+    val filtered = data.map {
+      rows =>
+        val newRows = filter(rows.rows, filters)
+        val newBufferedRows = new BufferedRows()
+        newBufferedRows.rows.appendAll(newRows)
+        newBufferedRows
+    }.filter(_.rows.nonEmpty)
+    replaceData(filtered)
   }
 }
 
