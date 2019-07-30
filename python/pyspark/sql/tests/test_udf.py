@@ -617,9 +617,8 @@ class UDFTests(ReusedSQLTestCase):
         self.spark.range(1).select(f()).collect()
 
     def test_worker_original_stdin_closed(self):
-        # Test the original stdin of worker inherit from daemon is closed
-        # and is replaced with '/dev/null'.
-        # See SPARK-26175
+        # Test if it closes the original standard input of worker inherited from the daemon,
+        # and replaces it with '/dev/null'.  See SPARK-26175.
         def task(iterator):
             import sys
             res = sys.stdin.read()
