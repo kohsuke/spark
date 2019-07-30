@@ -36,6 +36,10 @@ object MimaExcludes {
 
   // Exclude rules for 3.0.x
   lazy val v30excludes = v24excludes ++ Seq(
+    // [SPARK-27651][Core] Avoid the network when shuffle blocks are fetched from the same host
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.storage.BlockManagerMessages.GetLocalDirs"),
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.storage.BlockManagerMessages.BlockManagerLocalDirs"),
+
     // [SPARK-27366][CORE] Support GPU Resources in Spark job scheduling
     ProblemFilters.exclude[ReversedMissingMethodProblem]("org.apache.spark.TaskContext.resources"),
 
