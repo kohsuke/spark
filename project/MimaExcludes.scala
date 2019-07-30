@@ -376,7 +376,11 @@ object MimaExcludes {
 
     // [SPARK-28199][SS] Remove deprecated ProcessingTime
     ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.streaming.ProcessingTime"),
-    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.streaming.ProcessingTime$")
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.sql.streaming.ProcessingTime$"),
+
+    // [SPARK-25382][SQL][PYSPARK] Remove ImageSchema.readImages in 3.0
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ml.image.ImageSchema.readImages"),
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ml.image.ImageSchema.readImages")
   )
 
   // Exclude rules for 2.4.x
