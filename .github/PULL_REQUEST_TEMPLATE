@@ -1,10 +1,31 @@
-## What changes were proposed in this pull request?
+<!--  Thanks for sending a pull request!  Here are some tips for you:
+1. If this is your first time, please read our contributor guidelines: https://spark.apache.org/contributing.html
+2. Ensure you have added or ran the appropriate tests for your PR: https://spark.apache.org/developer-tools.html
+3. If the PR is unfinished, add `[WIP]` in your PR title.
+4. Update your PR description whenever it is needed.
+-->
 
-(Please fill in changes proposed in this fix)
+### What changes were proposed in this pull request?
 
-## How was this patch tested?
+### Why changes are needed?
 
-(Please explain how this patch was tested. E.g. unit tests, integration tests, manual tests)
-(If this patch involves UI changes, please attach a screenshot; otherwise, remove this)
+### Special notes for your reviewer
+<!--
+This special notes can be any notes for reviewers to review faster and more efficiently.
+For instance,
+  - if you refactor some codes with changing classes, showing the class hierarchy will help reviewers.
+  - if you fix some SQL features, you can provide some references of other DBMSes.
+  - if there is a design documentation, please leave the link.
+  - if there is a discussion in the mailing thread, please leave the link.
+-->
 
-Please review https://spark.apache.org/contributing.html before opening a pull request.
+### Does this PR introduce any user-facing change?
+<!--
+If yes, please clarify the previous behavior and the change this PR proposes. Also, please provide the console output, description and/or the reproducer to test if possible so that reviewers can review this patch faster.
+If no, write 'No'.
+-->
+
+### How was this patch tested?
+<!--
+If it was tested in a way different from regular unit tests, please clarify how you tested step by step, ideally copy and paste-able, so that other reviewers can test and check through, and descendants can verify in the future.
+-->
