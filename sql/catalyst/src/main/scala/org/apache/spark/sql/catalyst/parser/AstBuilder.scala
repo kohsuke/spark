@@ -18,7 +18,6 @@
 package org.apache.spark.sql.catalyst.parser
 
 import java.util.Locale
-
 import javax.xml.bind.DatatypeConverter
 
 import scala.collection.JavaConverters._
