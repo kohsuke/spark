@@ -1,8 +1,10 @@
 <!--  Thanks for sending a pull request!  Here are some tips for you:
 1. If this is your first time, please read our contributor guidelines: https://spark.apache.org/contributing.html
-2. Ensure you have added or ran the appropriate tests for your PR: https://spark.apache.org/developer-tools.html
-3. If the PR is unfinished, add `[WIP]` in your PR title.
-4. Update your PR description whenever it is needed.
+2. Ensure you have added or run the appropriate tests for your PR: https://spark.apache.org/developer-tools.html
+3. Understand the relationship beteween JIRAs to file issues and PRs to propose some changes for them, as documented in guidelines.
+4. If the PR is unfinished, add '[WIP]' in your PR title, e.g., '[WIP][SPARK-XXXX] Your PR title ...'
+5. Update your PR description whenever it is needed.
+6. Provide a minimised example to reproduce the issue if possible.
 -->
 
 ### What changes were proposed in this pull request?
@@ -11,12 +13,11 @@
 
 ### Special notes for your reviewer
 <!--
-This special notes can be any notes for reviewers to review faster and more efficiently.
-For instance,
-  - if you refactor some codes with changing classes, showing the class hierarchy will help reviewers.
-  - if you fix some SQL features, you can provide some references of other DBMSes.
-  - if there is a design documentation, please leave the link.
-  - if there is a discussion in the mailing thread, please leave the link.
+This special notes can be any notes for reviewers to review faster and more efficiently. For instance, see the examples below.
+1. If you refactor some codes with changing classes, showing the class hierarchy will help reviewers.
+2. If you fix some SQL features, you can provide some references of other DBMSes.
+3. If there is a design documentation, please leave the link.
+4. If there is a discussion in the mailing thread, please leave the link.
 -->
 
 ### Does this PR introduce any user-facing change?
