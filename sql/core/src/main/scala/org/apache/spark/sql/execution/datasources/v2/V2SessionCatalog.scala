@@ -204,7 +204,7 @@ class V2SessionCatalog(sessionState: SessionState) extends TableCatalog with Sup
     }
   }
 
-  override def createNamespaceMetadata(
+  override def createNamespace(
       namespace: Array[String],
       metadata: util.Map[String, String]): Unit = namespace match {
     case Array(db) if !catalog.databaseExists(db) =>
