@@ -516,11 +516,12 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
 
         val aggregateOperator =
           if (functionsWithDistinct.isEmpty) {
-            aggregate.AggUtils.planAggregateWithoutDistinct(
+            val shit = aggregate.AggUtils.planAggregateWithoutDistinct(
               normalizedGroupingExpressions,
               aggregateExpressions,
               resultExpressions,
               planLater(child))
+            shit
           } else {
             aggregate.AggUtils.planAggregateWithOneDistinct(
               normalizedGroupingExpressions,
