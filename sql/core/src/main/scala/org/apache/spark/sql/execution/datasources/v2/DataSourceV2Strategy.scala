@@ -206,10 +206,10 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
             orCreate = orCreate) :: Nil
       }
 
-    case AppendData(r: DataSourceV2Relation, query, _) =>
-      AppendDataExec(r.table.asWritable, r.options, planLater(query)) :: Nil
+    case AppendData(r: DataSourceV2Relation, query, writeOptions, _) =>
+      AppendDataExec(r.table.asWritable, writeOptions.asOptions, planLater(query)) :: Nil
 
-    case OverwriteByExpression(r: DataSourceV2Relation, deleteExpr, query, _) =>
+    case OverwriteByExpression(r: DataSourceV2Relation, deleteExpr, query, writeOptions, _) =>
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
       val filters = splitConjunctivePredicates(deleteExpr).map {
         filter => DataSourceStrategy.translateFilter(deleteExpr).getOrElse(
@@ -217,10 +217,11 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       }.toArray
 
       OverwriteByExpressionExec(
-        r.table.asWritable, filters, r.options, planLater(query)) :: Nil
+        r.table.asWritable, filters, writeOptions.asOptions, planLater(query)) :: Nil
 
-    case OverwritePartitionsDynamic(r: DataSourceV2Relation, query, _) =>
-      OverwritePartitionsDynamicExec(r.table.asWritable, r.options, planLater(query)) :: Nil
+    case OverwritePartitionsDynamic(r: DataSourceV2Relation, query, writeOptions, _) =>
+      OverwritePartitionsDynamicExec(
+        r.table.asWritable, writeOptions.asOptions, planLater(query)) :: Nil
 
     case DeleteFromTable(r: DataSourceV2Relation, condition) =>
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
