@@ -34,7 +34,6 @@ import org.apache.spark.sql.execution.datasources.{CreateTable, DataSource, Data
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 import org.apache.spark.sql.sources.{BaseRelation, DataSourceRegister}
-import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.sources.v2._
 import org.apache.spark.sql.sources.v2.TableCapability._
 import org.apache.spark.sql.types.StructType
@@ -292,13 +291,14 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
           modeForDSV2 match {
             case SaveMode.Append =>
               runCommand(df.sparkSession, "save") {
-                AppendData.byName(relation, df.logicalPlan)
+                AppendData.byName(relation, df.logicalPlan, extraOptions.toMap)
               }
 
             case SaveMode.Overwrite if table.supportsAny(TRUNCATE, OVERWRITE_BY_FILTER) =>
               // truncate the table
               runCommand(df.sparkSession, "save") {
-                OverwriteByExpression.byName(relation, df.logicalPlan, Literal(true))
+                OverwriteByExpression.byName(
+                  relation, df.logicalPlan, Literal(true), extraOptions.toMap)
               }
 
             case other =>
@@ -386,7 +386,7 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
 
     val command = modeForDSV2 match {
       case SaveMode.Append =>
-        AppendData.byPosition(table, df.logicalPlan)
+        AppendData.byPosition(table, df.logicalPlan, extraOptions.toMap)
 
       case SaveMode.Overwrite =>
         val conf = df.sparkSession.sessionState.conf
@@ -394,9 +394,9 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
           conf.partitionOverwriteMode == PartitionOverwriteMode.DYNAMIC
 
         if (dynamicPartitionOverwrite) {
-          OverwritePartitionsDynamic.byPosition(table, df.logicalPlan)
+          OverwritePartitionsDynamic.byPosition(table, df.logicalPlan, extraOptions.toMap)
         } else {
-          OverwriteByExpression.byPosition(table, df.logicalPlan, Literal(true))
+          OverwriteByExpression.byPosition(table, df.logicalPlan, Literal(true), extraOptions.toMap)
         }
 
       case other =>
