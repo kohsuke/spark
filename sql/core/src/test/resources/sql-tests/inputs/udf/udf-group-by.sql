@@ -28,11 +28,7 @@ SELECT 'foo', MAX(STRUCT(udf(a))) FROM testData WHERE a = 0 GROUP BY 1;
 -- Aggregate with complex GroupBy expressions.
 SELECT udf(a + b), udf(COUNT(b)) FROM testData GROUP BY a + b;
 SELECT udf(a + 2), udf(COUNT(b)) FROM testData GROUP BY a + 1;
-
--- [SPARK-28445] Inconsistency between Scala and Python/Panda udfs when groupby with udf() is used
--- The following query will make Scala UDF work, but Python and Pandas udfs will fail with an AnalysisException.
--- The query should be added after SPARK-28445.
--- SELECT udf(a + 1), udf(COUNT(b)) FROM testData GROUP BY udf(a + 1);
+SELECT udf(a + 1), udf(COUNT(b)) FROM testData GROUP BY udf(a + 1);
 
 -- Aggregate with nulls.
 SELECT SKEWNESS(udf(a)), udf(KURTOSIS(a)), udf(MIN(a)), MAX(udf(a)), udf(AVG(udf(a))), udf(VARIANCE(a)), STDDEV(udf(a)), udf(SUM(a)), udf(COUNT(a))
