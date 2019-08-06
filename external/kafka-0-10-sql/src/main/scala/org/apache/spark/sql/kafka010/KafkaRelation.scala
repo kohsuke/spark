@@ -98,17 +98,16 @@ private[kafka010] class KafkaRelation(
     // Create an RDD that reads from Kafka and get the (key, value) pair as byte arrays.
     val executorKafkaParams =
       KafkaSourceProvider.kafkaParamsForExecutors(specifiedKafkaParams, uniqueGroupId)
-    val rdd = if (includeHeaders) {
-      new KafkaSourceRDD(
-        sqlContext.sparkContext, executorKafkaParams, offsetRanges,
-        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false)
-        .map(KafkaOffsetReader.toInternalRowWithHeaders(_))
-    } else {
-      new KafkaSourceRDD(
-        sqlContext.sparkContext, executorKafkaParams, offsetRanges,
-        pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false)
-        .map(KafkaOffsetReader.toInternalRowWithoutHeaders(_))
+    val toInternalRow = if (includeHeaders) {
+      KafkaOffsetReader.toInternalRowWithHeaders
     }
+    else {
+      KafkaOffsetReader.toInternalRowWithoutHeaders
+    }
+    val rdd = new KafkaSourceRDD(
+      sqlContext.sparkContext, executorKafkaParams, offsetRanges,
+      pollTimeoutMs, failOnDataLoss, reuseKafkaConsumer = false)
+      .map(toInternalRow(_))
     sqlContext.internalCreateDataFrame(rdd.setName("kafka"), schema).rdd
   }
 
