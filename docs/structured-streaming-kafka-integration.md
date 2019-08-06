@@ -462,7 +462,7 @@ The following configurations are optional:
 </tr>
 <tr>
   <td>includeHeaders</td>
-  <td>true or false</td>
+  <td>boolean</td>
   <td>false</td>
   <td>streaming and batch</td>
   <td>Whether to include the Kafka's headers in the row.</td>
@@ -552,10 +552,10 @@ The following configurations are optional:
 </tr>
 <tr>
   <td>includeHeaders</td>
-  <td>string</td>
-  <td>true or false</td>
+  <td>boolean</td>
+  <td>false</td>
   <td>streaming and batch</td>
-  <td>Whether to include the Kafka's headers in the row.</td>
+  <td>Whether to include the Kafka headers in the row.</td>
 </tr>
 </table>
 
