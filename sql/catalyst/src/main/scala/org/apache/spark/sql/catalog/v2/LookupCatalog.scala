@@ -62,6 +62,9 @@ trait LookupCatalog extends Logging {
     try {
       Some(lookupCatalog(SESSION_CATALOG_NAME))
     } catch {
+      case _: CatalogNotFoundException =>
+        logWarning("Session catalog is not defined")
+        None
       case NonFatal(e) =>
         logError("Cannot load v2 session catalog", e)
         None
