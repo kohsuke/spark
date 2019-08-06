@@ -428,11 +428,11 @@ private[kafka010] class KafkaOffsetReader(
 private[kafka010] object KafkaOffsetReader {
   type Record = ConsumerRecord[Array[Byte], Array[Byte]]
 
-  lazy val headersType = ArrayType(StructType(Array(
+  val headersType = ArrayType(StructType(Array(
     StructField("key", StringType),
     StructField("value", BinaryType))))
 
-  lazy val schemaWithoutHeaders = new StructType(Array(
+  val schemaWithoutHeaders = new StructType(Array(
     StructField("key", BinaryType),
     StructField("value", BinaryType),
     StructField("topic", StringType),
@@ -442,7 +442,7 @@ private[kafka010] object KafkaOffsetReader {
     StructField("timestampType", IntegerType)
   ))
 
-  lazy val schemaWithHeaders = {
+  val schemaWithHeaders = {
     new StructType(schemaWithoutHeaders.fields :+ StructField("headers", headersType))
   }
 
@@ -450,13 +450,13 @@ private[kafka010] object KafkaOffsetReader {
     if (includeHeaders) schemaWithHeaders else schemaWithoutHeaders
   }
 
-  lazy val toInternalRowWithoutHeaders: Record => InternalRow =
+  def toInternalRowWithoutHeaders: Record => InternalRow =
     (cr: Record) => InternalRow(
       cr.key, cr.value, UTF8String.fromString(cr.topic), cr.partition, cr.offset,
       DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)), cr.timestampType.id
     )
 
-  lazy val toInternalRowWithHeaders: Record => InternalRow =
+  def toInternalRowWithHeaders: Record => InternalRow =
     (cr: Record) => InternalRow(
       cr.key, cr.value, UTF8String.fromString(cr.topic), cr.partition, cr.offset,
       DateTimeUtils.fromJavaTimestamp(new java.sql.Timestamp(cr.timestamp)), cr.timestampType.id,
@@ -470,10 +470,10 @@ private[kafka010] object KafkaOffsetReader {
       }
     )
 
-  private lazy val toUnsafeRowWithoutHeadersProjector: Record => UnsafeRow =
+  def toUnsafeRowWithoutHeadersProjector: Record => UnsafeRow =
     (cr: Record) => UnsafeProjection.create(schemaWithoutHeaders)(toInternalRowWithoutHeaders(cr))
 
-  private lazy val toUnsafeRowWithHeadersProjector: Record => UnsafeRow =
+  def toUnsafeRowWithHeadersProjector: Record => UnsafeRow =
     (cr: Record) => UnsafeProjection.create(schemaWithHeaders)(toInternalRowWithHeaders(cr))
 
   def toUnsafeRowProjector(includeHeaders: Boolean): Record => UnsafeRow = {
