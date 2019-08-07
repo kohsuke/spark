@@ -22,16 +22,16 @@ import java.util.Locale
 import scala.collection.mutable
 
 import org.apache.spark.sql.{AnalysisException, SaveMode}
-import org.apache.spark.sql.catalog.v2.{CatalogPlugin, Identifier, LookupCatalog, TableCatalog}
+import org.apache.spark.sql.catalog.v2.{Identifier, LookupCatalog, TableCatalog}
 import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.CastSupport
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTableType, CatalogUtils, UnresolvedCatalogRelation}
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogStorageFormat, CatalogTable, CatalogTableAsV2, CatalogTableType, CatalogUtils, UnresolvedCatalogRelation}
 import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelect, CreateV2Table, DropTable, LogicalPlan, ReplaceTable, ReplaceTableAsSelect}
 import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableAddColumnsStatement, AlterTableSetLocationStatement, AlterTableSetPropertiesStatement, AlterTableUnsetPropertiesStatement, AlterViewSetPropertiesStatement, AlterViewUnsetPropertiesStatement, CreateTableAsSelectStatement, CreateTableStatement, DescribeColumnStatement, DescribeTableStatement, DropTableStatement, DropViewStatement, QualifiedColType, ReplaceTableAsSelectStatement, ReplaceTableStatement}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, AlterTableSetLocationCommand, AlterTableSetPropertiesCommand, AlterTableUnsetPropertiesCommand, DescribeColumnCommand, DescribeTableCommand, DropTableCommand}
-import org.apache.spark.sql.execution.datasources.v2.{CatalogTableAsV2, DataSourceV2Relation}
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.v2.TableProvider
 import org.apache.spark.sql.types.{HIVE_TYPE_STRING, HiveStringType, MetadataBuilder, StructField, StructType}
@@ -43,9 +43,6 @@ case class DataSourceResolution(
 
   import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
   import lookup._
-
-  lazy val v2SessionCatalog: CatalogPlugin = lookup.sessionCatalog
-      .getOrElse(throw new AnalysisException("No v2 session catalog implementation is available"))
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case CreateTableStatement(
@@ -68,7 +65,7 @@ case class DataSourceResolution(
         case _ =>
           // the identifier had no catalog and no default catalog is set, but the source is v2.
           // use the v2 session catalog, which delegates to the global v1 session catalog
-          convertCreateTable(v2SessionCatalog.asTableCatalog, identifier, create)
+          convertCreateTable(sessionCatalog.asTableCatalog, identifier, create)
       }
 
     case CreateTableAsSelectStatement(
@@ -91,7 +88,7 @@ case class DataSourceResolution(
         case _ =>
           // the identifier had no catalog and no default catalog is set, but the source is v2.
           // use the v2 session catalog, which delegates to the global v1 session catalog
-          convertCTAS(v2SessionCatalog.asTableCatalog, identifier, create)
+          convertCTAS(sessionCatalog.asTableCatalog, identifier, create)
       }
 
     case DescribeColumnStatement(
@@ -208,7 +205,7 @@ case class DataSourceResolution(
       comment: Option[String],
       ifNotExists: Boolean): CatalogTable = {
 
-    val storage = DataSource.buildStorageFormatFromOptions(options)
+    val storage = CatalogStorageFormat.buildFromOptions(options)
     if (location.isDefined && storage.locationUri.isDefined) {
       throw new AnalysisException(
         "LOCATION and 'path' in OPTIONS are both used to indicate the custom table path, " +

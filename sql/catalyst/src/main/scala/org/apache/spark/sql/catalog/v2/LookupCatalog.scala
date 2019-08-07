@@ -29,10 +29,16 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 @Experimental
 trait LookupCatalog extends Logging {
 
-  import LookupCatalog._
-
   protected def defaultCatalogName: Option[String] = None
   protected def lookupCatalog(name: String): CatalogPlugin
+
+  /**
+   * This catalog is a v2 catalog that delegates to the v1 session catalog. it is used when the
+   * session catalog is responsible for an identifier, but the source requires the v2 catalog API.
+   * This happens when the source implementation extends the v2 TableProvider API and is not listed
+   * in the fallback configuration, spark.sql.sources.write.useV1SourceList
+   */
+  def sessionCatalog: CatalogPlugin
 
   /**
    * Returns the default catalog. When set, this catalog is used for all identifiers that do not
@@ -48,22 +54,6 @@ trait LookupCatalog extends Logging {
     } catch {
       case NonFatal(e) =>
         logError(s"Cannot load default v2 catalog: ${defaultCatalogName.get}", e)
-        None
-    }
-  }
-
-  /**
-   * This catalog is a v2 catalog that delegates to the v1 session catalog. it is used when the
-   * session catalog is responsible for an identifier, but the source requires the v2 catalog API.
-   * This happens when the source implementation extends the v2 TableProvider API and is not listed
-   * in the fallback configuration, spark.sql.sources.write.useV1SourceList
-   */
-  def sessionCatalog: Option[CatalogPlugin] = {
-    try {
-      Some(lookupCatalog(SESSION_CATALOG_NAME))
-    } catch {
-      case NonFatal(e) =>
-        logError("Cannot load v2 session catalog", e)
         None
     }
   }
@@ -136,8 +126,4 @@ trait LookupCatalog extends Logging {
         None
     }
   }
-}
-
-object LookupCatalog {
-  val SESSION_CATALOG_NAME: String = "session"
 }

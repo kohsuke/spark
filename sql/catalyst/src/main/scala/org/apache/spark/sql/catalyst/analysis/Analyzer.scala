@@ -24,7 +24,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalog.v2.{CatalogNotFoundException, CatalogPlugin, LookupCatalog, TableChange}
+import org.apache.spark.sql.catalog.v2.{CatalogNotFoundException, CatalogPlugin, LookupCatalog, TableCatalog, TableChange}
 import org.apache.spark.sql.catalog.v2.expressions.{FieldReference, IdentityTransform}
 import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util.loadTable
 import org.apache.spark.sql.catalyst._
@@ -45,6 +45,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 import org.apache.spark.sql.sources.v2.Table
 import org.apache.spark.sql.types._
+import org.apache.spark.util.Utils
 
 /**
  * A trivial [[Analyzer]] with a dummy [[SessionCatalog]] and [[EmptyFunctionRegistry]].
@@ -110,6 +111,35 @@ class Analyzer(
   }
 
   override protected def defaultCatalogName: Option[String] = conf.defaultV2Catalog
+
+  private lazy val v2SessionCatalog = new V2SessionCatalog(catalog, conf)
+
+  private var cachedSessionCatalog: (String, CatalogPlugin) = _
+
+  override protected def sessionCatalog: CatalogPlugin = {
+    conf.getConf(SQLConf.BUILTIN_CATALOG_EXTENSION_IMPL) match {
+      case Some(implCls) =>
+        if (cachedSessionCatalog != null && cachedSessionCatalog._1 == implCls) {
+          cachedSessionCatalog._2
+        } else {
+          try {
+            val cls = Utils.getContextOrSparkClassLoader.loadClass(implCls)
+            val constructor = cls.getConstructor(classOf[TableCatalog])
+            val res = constructor.newInstance(v2SessionCatalog).asInstanceOf[CatalogPlugin]
+            cachedSessionCatalog = implCls -> res
+            res
+          } catch {
+            case e: ClassNotFoundException =>
+              throw new IllegalArgumentException("Cannot load the catalog extension.", e)
+            case e: NoSuchMethodException =>
+              throw new IllegalArgumentException("The catalog extension implementation " +
+                "does not have a constructor that accepts `TableCatalog`.", e)
+          }
+        }
+
+      case None => v2SessionCatalog
+    }
+  }
 
   override protected def lookupCatalog(name: String): CatalogPlugin =
     throw new CatalogNotFoundException("No catalog lookup function")

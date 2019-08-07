@@ -19,7 +19,7 @@ package org.apache.spark.sql.catalyst.catalog
 
 import java.net.URI
 import java.time.ZoneOffset
-import java.util.Date
+import java.util.{Date, Locale}
 
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -87,6 +87,18 @@ object CatalogStorageFormat {
   /** Empty storage format for default values and copies. */
   val empty = CatalogStorageFormat(locationUri = None, inputFormat = None,
     outputFormat = None, serde = None, compressed = false, properties = Map.empty)
+
+  /**
+   * When creating a data source table, the `path` option has a special meaning: the table location.
+   * This method extracts the `path` option and treat it as table location to build a
+   * [[CatalogStorageFormat]]. Note that, the `path` option is removed from options after this.
+   */
+  def buildFromOptions(options: Map[String, String]): CatalogStorageFormat = {
+    val path = CaseInsensitiveMap(options).get("path")
+    val optionsWithoutPath = options.filterKeys(_.toLowerCase(Locale.ROOT) != "path")
+    CatalogStorageFormat.empty.copy(
+      locationUri = path.map(CatalogUtils.stringToURI), properties = optionsWithoutPath)
+  }
 }
 
 /**

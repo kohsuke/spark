@@ -1341,7 +1341,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     }
 
     val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
-    var storage = DataSource.buildStorageFormatFromOptions(options)
+    var storage = CatalogStorageFormat.buildFromOptions(options)
 
     val path = Option(ctx.path).map(string).getOrElse("")
 

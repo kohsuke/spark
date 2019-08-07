@@ -751,18 +751,6 @@ object DataSource extends Logging {
   }
 
   /**
-   * When creating a data source table, the `path` option has a special meaning: the table location.
-   * This method extracts the `path` option and treat it as table location to build a
-   * [[CatalogStorageFormat]]. Note that, the `path` option is removed from options after this.
-   */
-  def buildStorageFormatFromOptions(options: Map[String, String]): CatalogStorageFormat = {
-    val path = CaseInsensitiveMap(options).get("path")
-    val optionsWithoutPath = options.filterKeys(_.toLowerCase(Locale.ROOT) != "path")
-    CatalogStorageFormat.empty.copy(
-      locationUri = path.map(CatalogUtils.stringToURI), properties = optionsWithoutPath)
-  }
-
-  /**
    * Called before writing into a FileFormat based data source to make sure the
    * supplied schema is not empty.
    * @param schema

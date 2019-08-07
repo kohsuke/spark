@@ -15,23 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.execution.datasources.v2
+package org.apache.spark.sql.catalyst.catalog
 
 import java.util
-import java.util.Locale
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalog.v2.{Identifier, TableCatalog, TableChange}
 import org.apache.spark.sql.catalog.v2.expressions.{BucketTransform, FieldReference, IdentityTransform, LogicalExpressions, Transform}
 import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{NoSuchNamespaceException, NoSuchTableException, TableAlreadyExistsException}
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTableType, CatalogUtils, SessionCatalog}
-import org.apache.spark.sql.execution.datasources.DataSource
-import org.apache.spark.sql.internal.SessionState
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.v2.{Table, TableCapability}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -39,12 +35,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 /**
  * A [[TableCatalog]] that translates calls to the v1 SessionCatalog.
  */
-class V2SessionCatalog(sessionState: SessionState) extends TableCatalog {
-  def this() = {
-    this(SparkSession.active.sessionState)
-  }
-
-  private lazy val catalog: SessionCatalog = sessionState.catalog
+class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf) extends TableCatalog {
 
   private var _name: String = _
 
@@ -85,10 +76,10 @@ class V2SessionCatalog(sessionState: SessionState) extends TableCatalog {
       properties: util.Map[String, String]): Table = {
 
     val (partitionColumns, maybeBucketSpec) = V2SessionCatalog.convertTransforms(partitions)
-    val provider = properties.getOrDefault("provider", sessionState.conf.defaultDataSourceName)
+    val provider = properties.getOrDefault("provider", conf.defaultDataSourceName)
     val tableProperties = properties.asScala
     val location = Option(properties.get("location"))
-    val storage = DataSource.buildStorageFormatFromOptions(tableProperties.toMap)
+    val storage = CatalogStorageFormat.buildFromOptions(tableProperties.toMap)
         .copy(locationUri = location.map(CatalogUtils.stringToURI))
 
     val tableDesc = CatalogTable(
@@ -100,7 +91,7 @@ class V2SessionCatalog(sessionState: SessionState) extends TableCatalog {
       partitionColumnNames = partitionColumns,
       bucketSpec = maybeBucketSpec,
       properties = tableProperties.toMap,
-      tracksPartitionsInCatalog = sessionState.conf.manageFilesourcePartitions,
+      tracksPartitionsInCatalog = conf.manageFilesourcePartitions,
       comment = Option(properties.get("comment")))
 
     try {
@@ -252,4 +243,3 @@ private[sql] object V2SessionCatalog {
     (identityCols, bucketSpec)
   }
 }
-

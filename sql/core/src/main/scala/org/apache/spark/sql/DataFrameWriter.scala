@@ -534,7 +534,7 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
   }
 
   private def createTable(tableIdent: TableIdentifier): Unit = {
-    val storage = DataSource.buildStorageFormatFromOptions(extraOptions.toMap)
+    val storage = CatalogStorageFormat.buildFromOptions(extraOptions.toMap)
     val tableType = if (storage.locationUri.isDefined) {
       CatalogTableType.EXTERNAL
     } else {

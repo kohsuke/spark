@@ -21,12 +21,11 @@ import java.util
 import java.util.Collections
 
 import scala.collection.JavaConverters._
-
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalog.v2.{Catalogs, Identifier, TableCatalog, TableChange}
 import org.apache.spark.sql.catalyst.analysis.{NoSuchTableException, TableAlreadyExistsException}
+import org.apache.spark.sql.catalyst.catalog.V2SessionCatalog
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSQLContext
