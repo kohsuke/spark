@@ -526,6 +526,36 @@ $(document).ready(function () {
     
                 $(sumSelector).DataTable(sumConf);
                 $('#execSummary [data-toggle="tooltip"]').tooltip();
+
+                $("#showAdditionalMetrics").append(
+                    "<div><a id='additionalMetrics'>" +
+                    "<span class='expand-input-rate-arrow arrow-closed' id='arrowtoglle1'></span>" +
+                    "Show Additional Metrics" +
+                    "</a></div>" +
+                    "<div class='container-fluid container-fluid-div' id='toggle-metrics' hidden>" +
+                    "<div><input type='checkbox' class='toggle-vis' id='box-0' data-column='0'>Select All</div>" +
+                    "<div id='on_heap_memory' class='on-heap-memory-checkbox-div'><input type='checkbox' class='toggle-vis' id='box-1' data-column='1'>Off Heap Memory</div>" +
+                    "<div id='off_heap_memory' class='off-heap-memory-checkbox-div'><input type='checkbox' class='toggle-vis' id='box-2' data-column='2'>On Heap Memory</div>" +
+                    "</div>");
+
+                $('#on_heap_memory').attr("data-toggle")
+                $('#off_heap_memory').attr("data-toggle")
+
+                $("#additionalMetrics").click(function() {
+                    $("#arrowtoggle1").toggleClass("arrow-open arrow-closed");
+                    $("#toggle-metrics").toggle();
+                    if (window.localStorage) {
+                        window.localStorage.setItem("arrowtoggle1class", $("#arrowtoggle1").attr('class'));
+                    }
+                });
+
+                if (window.localStorage) {
+                    if (window.localStorage.getItem("arrowtoggle1class") != null &&
+                        window.localStorage.getItem("arrowtoggle1class").includes("arrow-open")) {
+                        $("#arrowtoggle1").toggleClass("arrow-open arrow-closed");
+                        $("#toggle-metrics").toggle();
+            }
+                }
     
             });
         });
