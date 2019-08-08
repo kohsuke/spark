@@ -584,7 +584,7 @@ trait CheckAnalysis extends PredicateHelper {
           // Only certain operators are allowed to host subquery expression containing
           // outer references.
           plan match {
-            case _: Filter | _: Aggregate | _: Project => // Ok
+            case _: Filter | _: Aggregate | _: Project | _: DeleteFromTable => // Ok
             case other => failAnalysis(
               "Correlated scalar sub-queries can only be used in a " +
                 s"Filter/Aggregate/Project: $plan")
