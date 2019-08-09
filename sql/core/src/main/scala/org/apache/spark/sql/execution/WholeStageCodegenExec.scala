@@ -794,9 +794,7 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
       lastChildren,
       append,
       verbose,
-      if (!planLabelMap.isEmpty) "" else s"*($codegenStageId) ",
-      // "",
-      // s"*($codegenStageId) ",
+      if (!planLabelMap.isEmpty) "*" else s"*($codegenStageId) ",
       false,
       maxFields,
       planLabelMap)
