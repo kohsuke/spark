@@ -347,10 +347,7 @@ final class ShuffleBlockFetcherIterator(
   }
 
   private def checkBlockSizes(blockInfos: Seq[(BlockId, Long)]): Unit = {
-    blockInfos.find(_._2 <= 0) match {
-      case Some((blockId, size)) => assertPositiveBlockSize(blockId, size)
-      case None => // do nothing.
-    }
+    blockInfos.foreach { case (blockId, size) => assertPositiveBlockSize(blockId, size) }
   }
 
   /**
@@ -389,8 +386,7 @@ final class ShuffleBlockFetcherIterator(
   private[this] def fetchHostLocalBlocks() {
     logDebug(s"Start fetching host-local blocks: ${hostLocalBlocks.mkString(", ")}")
 
-    val localDirsByExec =
-      blockManager.master.getHostLocalDirs(hostLocalBlocksByExecutor.keySet.toArray).localDirs
+    val localDirsByExec = blockManager.getHostLocalDirs(hostLocalBlocksByExecutor.keySet.toArray)
     for (
       (execId, blocks) <- hostLocalBlocksByExecutor;
       localDirs = localDirsByExec(execId);
