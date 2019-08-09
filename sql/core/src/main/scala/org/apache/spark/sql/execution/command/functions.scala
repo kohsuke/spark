@@ -25,6 +25,7 @@ import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, NoSuchFunctionE
 import org.apache.spark.sql.catalyst.catalog.{CatalogFunction, FunctionResource}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, ExpressionInfo}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.util.Utils
 
 
 /**
@@ -75,9 +76,18 @@ case class CreateFunctionCommand(
   override def run(sparkSession: SparkSession): Seq[Row] = {
     val catalog = sparkSession.sessionState.catalog
     val func = CatalogFunction(FunctionIdentifier(functionName, databaseName), className, resources)
+    // throws Exception if it does not find the resource
+    def checkIfResourceExists = {
+      resources.foreach(
+        resource =>
+          if (!Utils.isFileExists(resource.uri, sparkSession.sparkContext.hadoopConfiguration)) {
+            throw new AnalysisException(s" Could not find the resource ${resource.uri}")
+          }
+      )
+    }
     if (isTemp) {
       // We first load resources and then put the builder in the function registry.
-      catalog.loadFunctionResources(resources)
+      checkIfResourceExists
       catalog.registerFunction(func, overrideIfExists = replace)
     } else {
       // Handles `CREATE OR REPLACE FUNCTION AS ... USING ...`
@@ -88,6 +98,7 @@ case class CreateFunctionCommand(
         // For a permanent, we will store the metadata into underlying external catalog.
         // This function will be loaded into the FunctionRegistry when a query uses it.
         // We do not load it into FunctionRegistry right now.
+        checkIfResourceExists
         catalog.createFunction(func, ignoreIfExists)
       }
     }
