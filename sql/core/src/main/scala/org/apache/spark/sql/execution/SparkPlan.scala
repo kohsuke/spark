@@ -70,7 +70,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   /**
    * ONE line description of this node.
    */
-  override def simpleString(planLabelMap: mutable.LinkedHashMap[TreeNode[_], Int]): String = {
+  override def simpleString(planLabelMap: mutable.LinkedHashMap[QueryPlan[_], Int]): String = {
     s"$nodeName (${operatorIdStr(planLabelMap)})".trim
   }
 
@@ -79,7 +79,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   }
 
   protected def operatorIdStr(
-      planToOperatorID: mutable.LinkedHashMap[TreeNode[_], Int]): String = {
+      planToOperatorID: mutable.LinkedHashMap[QueryPlan[_], Int]): String = {
     planToOperatorID.get(this).map(v => s"$v").getOrElse("unknown")
   }
 
@@ -523,7 +523,7 @@ trait LeafExecNode extends SparkPlan {
   override final def children: Seq[SparkPlan] = Nil
   override def producedAttributes: AttributeSet = outputSet
   override def verboseString(
-      planToOperatorID: mutable.LinkedHashMap[TreeNode[_], Int],
+      planToOperatorID: mutable.LinkedHashMap[QueryPlan[_], Int],
       codegenId: Option[Int]): String = {
     s"""
        |(${operatorIdStr(planToOperatorID)}) $nodeName ${wholestageCodegenIdStr(codegenId)}
@@ -544,7 +544,7 @@ trait UnaryExecNode extends SparkPlan {
 
   override final def children: Seq[SparkPlan] = child :: Nil
   override def verboseString(
-      planToOperatorID : mutable.LinkedHashMap[TreeNode[_], Int],
+      planToOperatorID : mutable.LinkedHashMap[QueryPlan[_], Int],
       codegenId: Option[Int]): String = {
     s"""
        |(${operatorIdStr(planToOperatorID)}) $nodeName ${wholestageCodegenIdStr(codegenId)}
@@ -559,7 +559,7 @@ trait BinaryExecNode extends SparkPlan {
 
   override final def children: Seq[SparkPlan] = Seq(left, right)
   override def verboseString(
-      planToOperatorID: mutable.LinkedHashMap[TreeNode[_], Int],
+      planToOperatorID: mutable.LinkedHashMap[QueryPlan[_], Int],
       codegenId: Option[Int]): String = {
     s"""
        |(${operatorIdStr(planToOperatorID)}) $nodeName ${wholestageCodegenIdStr(codegenId)}

@@ -30,6 +30,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
@@ -545,7 +546,7 @@ case class InputAdapter(child: SparkPlan, isChildColumnar: Boolean)
       prefix: String = "",
       addSuffix: Boolean = false,
       maxFields: Int,
-      planLabelMap: mutable.LinkedHashMap[TreeNode[_], Int]): Unit = {
+      planLabelMap: mutable.LinkedHashMap[QueryPlan[_], Int]): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
@@ -788,7 +789,7 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
       prefix: String = "",
       addSuffix: Boolean = false,
       maxFields: Int,
-      planLabelMap: mutable.LinkedHashMap[TreeNode[_], Int]): Unit = {
+      planLabelMap: mutable.LinkedHashMap[QueryPlan[_], Int]): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
