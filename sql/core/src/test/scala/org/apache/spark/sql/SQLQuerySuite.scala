@@ -3180,6 +3180,20 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     }
 
   }
+
+  test("SPARK-28670 " +
+    "create function should throw AnalysisException if the UDF class is not found") {
+    Seq("", "temporary").foreach(funcType => {
+      val exp = intercept[AnalysisException] {
+        sql(
+          s"""
+             |CREATE ${funcType} FUNCTION udtf_test AS 'org.apache.spark.sql.hive.execution.UDFTest'
+             |USING JAR '/var/invalid/invalid.jar'
+        """.stripMargin)
+      }
+      assert(exp.getMessage.contains("Could not find the resource"))
+    })
+  }
 }
 
 case class Foo(bar: Option[String])
