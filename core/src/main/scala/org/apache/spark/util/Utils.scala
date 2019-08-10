@@ -2908,11 +2908,6 @@ private[spark] object Utils extends Logging {
     val codec = codecFactory.getCodec(path)
     codec == null || codec.isInstanceOf[SplittableCompressionCodec]
   }
-
-  def isFileExists(uri: String, conf: Configuration): Boolean = {
-    val path = new Path(uri)
-    path.getFileSystem(conf).exists(path)
-  }
 }
 
 private[util] object CallerContext extends Logging {
