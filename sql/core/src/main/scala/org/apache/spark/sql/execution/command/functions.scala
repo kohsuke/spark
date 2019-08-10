@@ -19,13 +19,14 @@ package org.apache.spark.sql.execution.command
 
 import java.util.Locale
 
+import org.apache.hadoop.fs.Path
+
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, NoSuchFunctionException}
 import org.apache.spark.sql.catalyst.catalog.{CatalogFunction, FunctionResource}
-import org.apache.spark.sql.catalyst.expressions.{Attribute, ExpressionInfo}
+import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
-import org.apache.spark.util.Utils
 
 
 /**
@@ -74,20 +75,20 @@ case class CreateFunctionCommand(
   }
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
+    // Checks if the given resources exist
+    val hadoopConf = sparkSession.sparkContext.hadoopConfiguration
+    val nonExistentResources = resources.filter { r =>
+      val path = new Path(r.uri)
+      !path.getFileSystem(hadoopConf).exists(path)
+    }
+    if (nonExistentResources.nonEmpty) {
+      throw new AnalysisException(s"Resources not found: ${nonExistentResources.mkString(",")}")
+    }
     val catalog = sparkSession.sessionState.catalog
     val func = CatalogFunction(FunctionIdentifier(functionName, databaseName), className, resources)
-    // throws Exception if it does not find the resource
-    def checkIfResourceExists = {
-      resources.foreach(
-        resource =>
-          if (!Utils.isFileExists(resource.uri, sparkSession.sparkContext.hadoopConfiguration)) {
-            throw new AnalysisException(s" Could not find the resource ${resource.uri}")
-          }
-      )
-    }
     if (isTemp) {
       // We first load resources and then put the builder in the function registry.
-      checkIfResourceExists
+      catalog.loadFunctionResources(resources)
       catalog.registerFunction(func, overrideIfExists = replace)
     } else {
       // Handles `CREATE OR REPLACE FUNCTION AS ... USING ...`
@@ -98,7 +99,6 @@ case class CreateFunctionCommand(
         // For a permanent, we will store the metadata into underlying external catalog.
         // This function will be loaded into the FunctionRegistry when a query uses it.
         // We do not load it into FunctionRegistry right now.
-        checkIfResourceExists
         catalog.createFunction(func, ignoreIfExists)
       }
     }
