@@ -1912,6 +1912,11 @@ object SQLConf {
       .doc("When true, the ArrayExists will follow the three-valued boolean logic.")
       .booleanConf
       .createWithDefault(true)
+
+  val SPARK_SQL_CLI_SHOW_CURRENT_DB = buildConf("spark.sql.cli.show.current.db")
+    .doc("when true, current DB name will be displayed in the cli prompt")
+    .booleanConf
+    .createWithDefault(false)
 }
 
 /**
@@ -2397,6 +2402,8 @@ class SQLConf extends Serializable with Logging {
   def castDatetimeToString: Boolean = getConf(SQLConf.LEGACY_CAST_DATETIME_TO_STRING)
 
   def defaultV2Catalog: Option[String] = getConf(DEFAULT_V2_CATALOG)
+
+  def shouldShowDBName: Boolean = getConf(SQLConf.SPARK_SQL_CLI_SHOW_CURRENT_DB)
 
   /** ********************** SQLConf functionality methods ************ */
 
