@@ -34,6 +34,7 @@ import org.scalatest.time.SpanSugar._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.UI.UI_ENABLED
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.metrics.source.Source
 import org.apache.spark.storage.StorageLevel
@@ -373,7 +374,7 @@ class StreamingContextSuite extends SparkFunSuite with BeforeAndAfter with TimeL
     Thread.sleep(100)
   }
 
-  test ("registering and de-registering of streamingSource") {
+  test("registering and de-registering of streamingSource") {
     val conf = new SparkConf().setMaster(master).setAppName(appName)
     ssc = new StreamingContext(conf, batchDuration)
     assert(ssc.getState() === StreamingContextState.INITIALIZED)
@@ -390,6 +391,29 @@ class StreamingContextSuite extends SparkFunSuite with BeforeAndAfter with TimeL
     val streamingSourceAfterStop = StreamingContextSuite.getStreamingSource(ssc)
     assert(ssc.getState() === StreamingContextState.STOPPED)
     assert(!sourcesAfterStop.contains(streamingSourceAfterStop))
+  }
+
+  test("registering and de-registering of progressListener") {
+    val conf = new SparkConf().setMaster(master).setAppName(appName)
+    conf.set(UI_ENABLED, true)
+
+    ssc = new StreamingContext(conf, batchDuration)
+
+    assert(ssc.sc.ui.isDefined, "Spark UI is not started!")
+    val sparkUI = ssc.sc.ui.get
+
+    addInputStream(ssc).register()
+    ssc.start()
+
+    assert(ssc.scheduler.listenerBus.listeners.contains(ssc.progressListener))
+    assert(ssc.sc.listenerBus.listeners.contains(ssc.progressListener))
+    assert(sparkUI.getStreamingJobProgressListener.get == ssc.progressListener)
+
+    ssc.stop()
+
+    assert(!ssc.scheduler.listenerBus.listeners.contains(ssc.progressListener))
+    assert(!ssc.sc.listenerBus.listeners.contains(ssc.progressListener))
+    assert(sparkUI.getStreamingJobProgressListener.isEmpty)
   }
 
   test("awaitTermination") {
