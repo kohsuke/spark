@@ -42,7 +42,7 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeRef
 import org.apache.spark.sql.catalyst.util.toPrettySQL
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
+import org.apache.spark.sql.internal.SQLConf.{PartitionOverwriteMode, StoreAssignmentPolicy}
 import org.apache.spark.sql.sources.v2.Table
 import org.apache.spark.sql.types._
 
@@ -2556,39 +2556,43 @@ class Analyzer(
              |Data columns: ${query.output.map(c => s"'${c.name}'").mkString(", ")}""".stripMargin)
       }
 
-      val errors = new mutable.ArrayBuffer[String]()
-      val resolved: Seq[NamedExpression] = if (byName) {
-        expected.flatMap { tableAttr =>
-          query.resolveQuoted(tableAttr.name, resolver) match {
-            case Some(queryExpr) =>
+      if (SQLConf.get.storeAssignmentPolicy == StoreAssignmentPolicy.LEGACY) {
+        DDLPreprocessingUtils.castAndRenameQueryOutput(query, expected, SQLConf.get)
+      } else {
+        val errors = new mutable.ArrayBuffer[String]()
+        val resolved: Seq[NamedExpression] = if (byName) {
+          expected.flatMap { tableAttr =>
+            query.resolveQuoted(tableAttr.name, resolver) match {
+              case Some(queryExpr) =>
+                checkField(tableAttr, queryExpr, byName, err => errors += err)
+              case None =>
+                errors += s"Cannot find data for output column '${tableAttr.name}'"
+                None
+            }
+          }
+
+        } else {
+          if (expected.size > query.output.size) {
+            throw new AnalysisException(
+              s"""Cannot write to '$tableName', not enough data columns:
+                 |Table columns: ${expected.map(c => s"'${c.name}'").mkString(", ")}
+                 |Data columns: ${query.output.map(c => s"'${c.name}'").mkString(", ")}"""
+                  .stripMargin)
+          }
+
+          query.output.zip(expected).flatMap {
+            case (queryExpr, tableAttr) =>
               checkField(tableAttr, queryExpr, byName, err => errors += err)
-            case None =>
-              errors += s"Cannot find data for output column '${tableAttr.name}'"
-              None
           }
         }
 
-      } else {
-        if (expected.size > query.output.size) {
+        if (errors.nonEmpty) {
           throw new AnalysisException(
-            s"""Cannot write to '$tableName', not enough data columns:
-               |Table columns: ${expected.map(c => s"'${c.name}'").mkString(", ")}
-               |Data columns: ${query.output.map(c => s"'${c.name}'").mkString(", ")}"""
-                .stripMargin)
+            s"Cannot write incompatible data to table '$tableName':\n- ${errors.mkString("\n- ")}")
         }
 
-        query.output.zip(expected).flatMap {
-          case (queryExpr, tableAttr) =>
-            checkField(tableAttr, queryExpr, byName, err => errors += err)
-        }
+        Project(resolved, query)
       }
-
-      if (errors.nonEmpty) {
-        throw new AnalysisException(
-          s"Cannot write incompatible data to table '$tableName':\n- ${errors.mkString("\n- ")}")
-      }
-
-      Project(resolved, query)
     }
 
     private def checkField(
@@ -3112,6 +3116,39 @@ object UpdateOuterReferences extends Rule[LogicalPlan] {
             // Update the subquery plan to record the OuterReference to point to outer query plan.
             s.withNewPlan(updateOuterReferenceInSubquery(s.plan, outerAliases))
       }
+    }
+  }
+}
+
+object DDLPreprocessingUtils {
+
+  /**
+   * Adjusts the name and data type of the input query output columns, to match the expectation.
+   */
+  def castAndRenameQueryOutput(
+      query: LogicalPlan,
+      expectedOutput: Seq[Attribute],
+      conf: SQLConf): LogicalPlan = {
+    val newChildOutput = expectedOutput.zip(query.output).map {
+      case (expected, actual) =>
+        if (expected.dataType.sameType(actual.dataType) &&
+          expected.name == actual.name &&
+          expected.metadata == actual.metadata) {
+          actual
+        } else {
+          // Renaming is needed for handling the following cases like
+          // 1) Column names/types do not match, e.g., INSERT INTO TABLE tab1 SELECT 1, 2
+          // 2) Target tables have column metadata
+          Alias(
+            Cast(actual, expected.dataType, Option(conf.sessionLocalTimeZone)),
+            expected.name)(explicitMetadata = Option(expected.metadata))
+        }
+    }
+
+    if (newChildOutput == query.output) {
+      query
+    } else {
+      Project(newChildOutput, query)
     }
   }
 }
