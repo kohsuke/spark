@@ -119,9 +119,9 @@ def run_tests(tests_timeout):
     @return a tuple containing the test result code and the result note to post to Github
     """
 
-    test_result_code = subprocess.Popen(['timeout',
-                                         tests_timeout,
-                                         os.path.join(SPARK_HOME, 'dev', 'run-tests')],
+    test_result_code = subprocess.Popen(" ".join(['timeout',
+                                                  tests_timeout,
+                                                  os.path.join(SPARK_HOME, 'dev', 'run-tests')]),
                                         shell=True).wait()
 
     failure_note_by_errcode = {
