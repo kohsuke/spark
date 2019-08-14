@@ -192,7 +192,7 @@ case class AdaptiveSparkPlanExec(
       prefix: String = "",
       addSuffix: Boolean = false,
       maxFields: Int,
-      planToOperatorID: mutable.LinkedHashMap[QueryPlan[_], Int]): Unit = {
+      printNodeId: Boolean): Unit = {
     super.generateTreeString(depth,
       lastChildren,
       append,
@@ -200,7 +200,7 @@ case class AdaptiveSparkPlanExec(
       prefix,
       addSuffix,
       maxFields,
-      planToOperatorID)
+      printNodeId)
     currentPhysicalPlan.generateTreeString(
       depth + 1,
       lastChildren :+ true,
@@ -209,7 +209,7 @@ case class AdaptiveSparkPlanExec(
       "",
       addSuffix = false,
       maxFields,
-      planToOperatorID)
+      printNodeId)
   }
 
   /**

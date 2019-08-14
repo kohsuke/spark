@@ -545,7 +545,7 @@ case class InputAdapter(child: SparkPlan, isChildColumnar: Boolean)
       prefix: String = "",
       addSuffix: Boolean = false,
       maxFields: Int,
-      planLabelMap: mutable.LinkedHashMap[QueryPlan[_], Int]): Unit = {
+      printNodeId: Boolean): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
@@ -554,7 +554,7 @@ case class InputAdapter(child: SparkPlan, isChildColumnar: Boolean)
       prefix = "",
       addSuffix = false,
       maxFields,
-      planLabelMap)
+      printNodeId)
   }
 
   override def needCopyResult: Boolean = false
@@ -788,16 +788,16 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
       prefix: String = "",
       addSuffix: Boolean = false,
       maxFields: Int,
-      planLabelMap: mutable.LinkedHashMap[QueryPlan[_], Int]): Unit = {
+      printNodeId: Boolean): Unit = {
     child.generateTreeString(
       depth,
       lastChildren,
       append,
       verbose,
-      if (!planLabelMap.isEmpty) "*" else s"*($codegenStageId) ",
+      if (printNodeId) "*" else s"*($codegenStageId) ",
       false,
       maxFields,
-      planLabelMap)
+      printNodeId)
   }
 
   override def needStopCheck: Boolean = true
