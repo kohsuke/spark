@@ -261,6 +261,10 @@
       <artifactId>jersey-container-servlet-core</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.glassfish.jersey.inject</groupId>
+      <artifactId>jersey-hk2</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.glassfish.jersey.test-framework.providers</groupId>
       <artifactId>jersey-test-framework-provider-simple</artifactId>
       <scope>test</scope>
