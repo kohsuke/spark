@@ -2412,4 +2412,24 @@ class SQLQuerySuite extends QueryTest with SQLTestUtils with TestHiveSingleton {
       }
     }
   }
+  test("SPARK-28710: Replace permanent function ") {
+    withUserDefinedFunction("customAdd" -> false) {
+      sql(
+        s"""
+           |CREATE FUNCTION customAdd
+           |AS 'org.apache.spark.sql.hive.execution.UDTFStack'
+           |USING JAR '${hiveContext.getHiveFile("SPARK-21101-1.0.jar").toURI}'
+        """.stripMargin)
+      val cnt =
+        sql("SELECT customAdd(2, 'A', 10, date '2015-01-01', 'B', 20, date '2016-01-01')").count()
+      assert(cnt === 2)
+      sql(
+        s"""
+           |CREATE or REPLACE FUNCTION customAdd
+           |AS 'org.apache.spark.examples.UDFAdd'
+           |USING JAR '${hiveContext.getHiveFile("SPARK-287101-1.0.jar").toURI}'
+        """.stripMargin)
+      checkAnswer(sql("SELECT customAdd(1,2,5)"), Row(8.0))
+    }
+  }
 }

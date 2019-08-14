@@ -82,8 +82,11 @@ case class CreateFunctionCommand(
     } else {
       // Handles `CREATE OR REPLACE FUNCTION AS ... USING ...`
       if (replace && catalog.functionExists(func.identifier)) {
-        // alter the function in the metastore
-        catalog.alterFunction(func)
+        // replace the function in the metastore
+        // as of now Hive only alter name, owner, class name, type but not resource URI
+        // So in order to replace function spark needs to delete and create the function
+        catalog.dropFunction(func.identifier, ignoreIfExists)
+        catalog.createFunction(func, ignoreIfExists)
       } else {
         // For a permanent, we will store the metadata into underlying external catalog.
         // This function will be loaded into the FunctionRegistry when a query uses it.
