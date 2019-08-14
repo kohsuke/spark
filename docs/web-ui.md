@@ -111,7 +111,7 @@ including JVM, Spark, and system properties.
   <img src="img/webui-env-tab.png"
        title="Env tab"
        alt="Env tab"
-       width="80%" />
+       width="100%" />
   <!-- Images are downsized intentionally to improve quality on retina displays -->
 </p>
 
@@ -125,7 +125,7 @@ The second part 'Spark Properties' lists the [application properties](configurat
   <img src="img/webui-env-hadoop.png"
        title="Hadoop Properties"
        alt="Hadoop Properties"
-       width="80%" />
+       width="100%" />
   <!-- Images are downsized intentionally to improve quality on retina displays -->
 </p>
 Clicking the 'Hadoop Properties' link displays properties relative to Hadoop and Yarn. Note that properties like
@@ -135,7 +135,7 @@ Clicking the 'Hadoop Properties' link displays properties relative to Hadoop and
   <img src="img/webui-env-sys.png"
        title="System Properties"
        alt="System Properties"
-       width="80%" />
+       width="100%" />
   <!-- Images are downsized intentionally to improve quality on retina displays -->
 </p>
 'System Properties' shows more details about the JVM.
@@ -144,7 +144,7 @@ Clicking the 'Hadoop Properties' link displays properties relative to Hadoop and
   <img src="img/webui-env-class.png"
        title="Classpath Entries"
        alt="Classpath Entries"
-       width="80%" />
+       width="100%" />
   <!-- Images are downsized intentionally to improve quality on retina displays -->
 </p>
 
