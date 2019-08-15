@@ -345,7 +345,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
             msg.toLowerCase(Locale.ROOT).contains(msg2))
         }
 
-        withSQLConf(SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> useV1List) {
+        withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1List) {
           // write path
           Seq("csv", "json", "parquet", "orc").foreach { format =>
             val msg = intercept[AnalysisException] {
@@ -386,8 +386,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
       def errorMessage(format: String): String = {
         s"$format data source does not support null data type."
       }
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1List,
-        SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> useV1List) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1List) {
         withTempDir { dir =>
           val tempDir = new File(dir, "files").getCanonicalPath
 
@@ -474,7 +473,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
 
   test("SPARK-25237 compute correct input metrics in FileScanRDD") {
     // TODO: Test CSV V2 as well after it implements [[SupportsReportStatistics]].
-    withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> "csv") {
+    withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "csv") {
       withTempPath { p =>
         val path = p.getAbsolutePath
         spark.range(1000).repartition(1).write.csv(path)
@@ -498,7 +497,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
 
   test("Do not use cache on overwrite") {
     Seq("", "orc").foreach { useV1SourceReaderList =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1SourceReaderList) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1SourceReaderList) {
         withTempDir { dir =>
           val path = dir.toString
           spark.range(1000).write.mode("overwrite").orc(path)
@@ -514,7 +513,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
 
   test("Do not use cache on append") {
     Seq("", "orc").foreach { useV1SourceReaderList =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1SourceReaderList) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1SourceReaderList) {
         withTempDir { dir =>
           val path = dir.toString
           spark.range(1000).write.mode("append").orc(path)
@@ -530,7 +529,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
 
   test("UDF input_file_name()") {
     Seq("", "orc").foreach { useV1SourceReaderList =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1SourceReaderList) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1SourceReaderList) {
         withTempPath { dir =>
           val path = dir.getCanonicalPath
           spark.range(10).write.orc(path)
@@ -658,7 +657,7 @@ class FileBasedDataSourceSuite extends QueryTest with SharedSQLContext with Befo
 
   test("sizeInBytes should be the total size of all files") {
     Seq("orc", "").foreach { useV1SourceReaderList =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1SourceReaderList) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1SourceReaderList) {
         withTempDir { dir =>
           dir.delete()
           spark.range(1000).write.orc(dir.toString)
