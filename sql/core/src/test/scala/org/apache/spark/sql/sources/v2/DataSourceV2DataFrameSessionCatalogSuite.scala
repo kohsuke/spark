@@ -222,7 +222,6 @@ class TestV2SessionCatalog extends V2SessionCatalog {
   }
 
   def clearTables(): Unit = {
-    assert(!tables.isEmpty, "Tables were empty, maybe didn't use the session catalog code path?")
     tables.keySet().asScala.foreach(super.dropTable)
     tables.clear()
   }
