@@ -31,7 +31,7 @@ import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class V2StreamingScanSupportCheckSuite extends SharedSparkSession {
+class V2ScanSupportCheckSuite extends SharedSparkSession {
   import TableCapability._
 
   private def createStreamingRelation(table: Table, v1Relation: Option[StreamingRelation]) = {
@@ -49,17 +49,17 @@ class V2StreamingScanSupportCheckSuite extends SharedSparkSession {
     val plan3 = createStreamingRelation(CapabilityTable(MICRO_BATCH_READ, CONTINUOUS_READ), None)
     val plan4 = createStreamingRelationV1()
 
-    V2StreamingScanSupportCheck(Union(plan1, plan1))
-    V2StreamingScanSupportCheck(Union(plan2, plan2))
-    V2StreamingScanSupportCheck(Union(plan1, plan3))
-    V2StreamingScanSupportCheck(Union(plan2, plan3))
-    V2StreamingScanSupportCheck(Union(plan1, plan4))
-    V2StreamingScanSupportCheck(Union(plan3, plan4))
+    V2ScanSupportCheck(Union(plan1, plan1))
+    V2ScanSupportCheck(Union(plan2, plan2))
+    V2ScanSupportCheck(Union(plan1, plan3))
+    V2ScanSupportCheck(Union(plan2, plan3))
+    V2ScanSupportCheck(Union(plan1, plan4))
+    V2ScanSupportCheck(Union(plan3, plan4))
   }
 
   test("table without scan capability") {
     val e = intercept[AnalysisException] {
-      V2StreamingScanSupportCheck(createStreamingRelation(CapabilityTable(), None))
+      V2ScanSupportCheck(createStreamingRelation(CapabilityTable(), None))
     }
     assert(e.message.contains("does not support either micro-batch or continuous scan"))
   }
@@ -69,7 +69,7 @@ class V2StreamingScanSupportCheckSuite extends SharedSparkSession {
     val plan2 = createStreamingRelation(CapabilityTable(CONTINUOUS_READ), None)
 
     val e = intercept[AnalysisException] {
-      V2StreamingScanSupportCheck(Union(plan1, plan2))
+      V2ScanSupportCheck(Union(plan1, plan2))
     }
     assert(e.message.contains(
       "The streaming sources in a query do not have a common supported execution mode"))
@@ -79,7 +79,7 @@ class V2StreamingScanSupportCheckSuite extends SharedSparkSession {
     val plan1 = createStreamingRelation(CapabilityTable(CONTINUOUS_READ), None)
     val plan2 = createStreamingRelationV1()
     val e = intercept[AnalysisException] {
-      V2StreamingScanSupportCheck(Union(plan1, plan2))
+      V2ScanSupportCheck(Union(plan1, plan2))
     }
     assert(e.message.contains(
       "The streaming sources in a query do not have a common supported execution mode"))

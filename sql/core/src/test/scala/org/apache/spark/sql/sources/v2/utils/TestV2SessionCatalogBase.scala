@@ -69,8 +69,9 @@ private[v2] trait TestV2SessionCatalogBase[T <: Table] extends V2SessionCatalog 
       schema: StructType,
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
-    val created = super.createTable(ident, schema, partitions, properties)
-    val t = newTable(created.name(), schema, partitions, properties)
+    super.createTable(ident, schema, partitions, properties)
+    import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
+    val t = newTable(ident.quoted, schema, partitions, properties)
     val fullIdent = fullIdentifier(ident)
     tables.put(fullIdent, t)
     t
