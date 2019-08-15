@@ -20,17 +20,20 @@ package org.apache.spark.sql.execution.datasources.v2
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.streaming.{StreamingRelation, StreamingRelationV2}
-import org.apache.spark.sql.sources.v2.TableCapability.{CONTINUOUS_READ, MICRO_BATCH_READ}
+import org.apache.spark.sql.sources.v2.TableCapability.{BATCH_READ, CONTINUOUS_READ, MICRO_BATCH_READ}
 
 /**
  * This rules adds some basic table capability check for streaming scan, without knowing the actual
  * streaming execution mode.
  */
-object V2StreamingScanSupportCheck extends (LogicalPlan => Unit) {
+object V2ScanSupportCheck extends (LogicalPlan => Unit) {
   import DataSourceV2Implicits._
 
   override def apply(plan: LogicalPlan): Unit = {
     plan.foreach {
+      case r: DataSourceV2Relation if !r.table.supports(BATCH_READ) =>
+        throw new AnalysisException(
+          s"Table ${r.table.name()} does not support batch scan.")
       case r: StreamingRelationV2 if !r.table.supportsAny(MICRO_BATCH_READ, CONTINUOUS_READ) =>
         throw new AnalysisException(
           s"Table ${r.table.name()} does not support either micro-batch or continuous scan.")

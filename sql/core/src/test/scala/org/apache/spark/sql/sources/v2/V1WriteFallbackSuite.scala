@@ -118,11 +118,18 @@ private object InMemoryV1Provider {
 
 class InMemoryV1Provider extends TableProvider with DataSourceRegister {
   override def getTable(options: CaseInsensitiveStringMap): Table = {
+    throw new UnsupportedOperationException
+  }
+
+  override def getTable(
+      options: CaseInsensitiveStringMap,
+      schema: StructType,
+      partitions: Array[Transform]): Table = {
     InMemoryV1Provider.tables.getOrElseUpdate(options.get("name"), {
       new InMemoryTableWithV1Fallback(
         "InMemoryTableWithV1Fallback",
-        new StructType().add("a", IntegerType).add("b", StringType),
-        Array(IdentityTransform(FieldReference(Seq("a")))),
+        schema,
+        partitions,
         options.asCaseSensitiveMap()
       )
     })

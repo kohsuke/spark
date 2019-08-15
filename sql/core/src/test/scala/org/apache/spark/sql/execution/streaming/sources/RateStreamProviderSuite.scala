@@ -305,7 +305,7 @@ class RateStreamProviderSuite extends StreamTest {
         .load()
     }
     assert(exception.getMessage.contains(
-      "RateStreamProvider source does not support user-specified schema"))
+      "RateStreamProvider source does not support additional schema/partitions information"))
   }
 
   test("continuous data") {

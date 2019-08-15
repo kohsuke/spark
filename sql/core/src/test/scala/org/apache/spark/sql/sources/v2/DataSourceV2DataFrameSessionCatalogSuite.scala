@@ -134,7 +134,7 @@ private[v2] trait SessionCatalogTest[T <: Table, Catalog <: TestV2SessionCatalog
     spark.sessionState.catalogManager.catalog(name)
   }
 
-  protected val v2Format: String = classOf[InMemoryTableProvider].getName
+  protected val v2Format: String = classOf[AdditionalSchemaInfoV2Source].getName
 
   protected val catalogClassName: String = classOf[InMemoryTableSessionCatalog].getName
 

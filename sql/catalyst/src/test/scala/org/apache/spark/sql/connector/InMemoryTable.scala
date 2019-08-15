@@ -158,6 +158,8 @@ class InMemoryTable(
   override def deleteWhere(filters: Array[Filter]): Unit = dataMap.synchronized {
     dataMap --= InMemoryTable.filtersToKeys(dataMap.keys, partFieldNames, filters)
   }
+
+  def clear(): Unit = dataMap.clear()
 }
 
 object InMemoryTable {

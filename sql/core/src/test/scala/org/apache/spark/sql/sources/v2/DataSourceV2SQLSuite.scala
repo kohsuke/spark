@@ -17,18 +17,20 @@
 
 package org.apache.spark.sql.sources.v2
 
+import java.util
+
 import scala.collection.JavaConverters._
 
-import org.apache.spark.SparkException
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalog.v2.{CatalogPlugin, Identifier, TableCatalog}
+import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalyst.analysis.{CannotReplaceMissingTableException, NoSuchDatabaseException, NoSuchTableException, TableAlreadyExistsException}
 import org.apache.spark.sql.connector.{InMemoryTable, InMemoryTableCatalog, StagingInMemoryTableCatalog}
 import org.apache.spark.sql.execution.datasources.v2.V2SessionCatalog
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.V2_SESSION_CATALOG
 import org.apache.spark.sql.sources.v2.internal.UnresolvedTable
-import org.apache.spark.sql.types.{ArrayType, BooleanType, DoubleType, IntegerType, LongType, MapType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.types.{BooleanType, LongType, StringType, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 class DataSourceV2SQLSuite
@@ -155,7 +157,7 @@ class DataSourceV2SQLSuite
     val testCatalog = catalog("session").asTableCatalog
     val table = testCatalog.loadTable(Identifier.of(Array(), "table_name"))
 
-    assert(table.name == "default.table_name")
+    assert(table.name == "table_name")
     assert(table.partitioning.isEmpty)
     assert(table.properties == Map("provider" -> v2Source).asJava)
     assert(table.schema == new StructType().add("id", LongType).add("data", StringType))
@@ -414,7 +416,7 @@ class DataSourceV2SQLSuite
     val testCatalog = catalog("session").asTableCatalog
     val table = testCatalog.loadTable(Identifier.of(Array(), "table_name"))
 
-    assert(table.name == "default.table_name")
+    assert(table.name == "table_name")
     assert(table.partitioning.isEmpty)
     assert(table.properties == Map("provider" -> v2Source).asJava)
     assert(table.schema == new StructType()
@@ -957,6 +959,24 @@ class DataSourceV2SQLSuite
 /** Used as a V2 DataSource for V2SessionCatalog DDL */
 class FakeV2Provider extends TableProvider {
   override def getTable(options: CaseInsensitiveStringMap): Table = {
-    throw new UnsupportedOperationException("Unnecessary for DDL tests")
+    fakeTable()
+  }
+
+  override def getTable(
+      options: CaseInsensitiveStringMap,
+      schema: StructType,
+      partitions: Array[Transform]): Table = {
+    fakeTable()
+  }
+
+  private def fakeTable(): Table = {
+    val schema = new StructType()
+    val partitioning = Array.empty[Transform]
+    val properties = util.Collections.emptyMap[String, String]
+    new InMemoryTable("fake", schema, partitioning, properties) {
+      override def capabilities: util.Set[TableCapability] = {
+        (super.capabilities.asScala + TableCapability.ACCEPT_ANY_SCHEMA).asJava
+      }
+    }
   }
 }
