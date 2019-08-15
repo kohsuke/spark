@@ -778,7 +778,7 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
 
   test("inputFiles") {
     Seq("csv", "").foreach { useV1List =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> useV1List) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> useV1List) {
         withTempDir { dir =>
           val df = Seq((1, 22)).toDF("a", "b")
 
