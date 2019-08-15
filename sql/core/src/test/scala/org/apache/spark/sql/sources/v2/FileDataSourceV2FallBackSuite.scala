@@ -113,14 +113,14 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
         "ParQuet,bar,foo",
         s"foobar,$dummyParquetReaderV2"
       ).foreach { fallbackReaders =>
-        withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> fallbackReaders) {
+        withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> fallbackReaders) {
           // Reading file should fall back to v1 and succeed.
           checkAnswer(spark.read.format(dummyParquetReaderV2).load(path), df)
           checkAnswer(sql(s"SELECT * FROM parquet.`$path`"), df)
         }
       }
 
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> "foo,bar") {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "foo,bar") {
         // Dummy File reader should fail as DISABLED_V2_FILE_DATA_SOURCE_READERS doesn't include it.
         val exception = intercept[AnalysisException] {
           spark.read.format(dummyParquetReaderV2).load(path).collect()
@@ -135,7 +135,7 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
     withTempPath { file =>
       val path = file.getCanonicalPath
       // Dummy File writer should fail as expected.
-      withSQLConf(SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> "") {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "") {
         val exception = intercept[AnalysisException] {
           df.write.format(dummyParquetWriterV2).save(path)
         }
@@ -154,7 +154,7 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
       "ParQuet,bar,foo",
       s"foobar,$dummyParquetWriterV2"
     ).foreach { fallbackWriters =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> fallbackWriters) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> fallbackWriters) {
         withTempPath { file =>
           val path = file.getCanonicalPath
           // Writes should fall back to v1 and succeed.
@@ -163,7 +163,7 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
         }
       }
     }
-    withSQLConf(SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> "foo,bar") {
+    withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "foo,bar") {
       withTempPath { file =>
         val path = file.getCanonicalPath
         // Dummy File reader should fail as USE_V1_SOURCE_READER_LIST doesn't include it.
@@ -177,8 +177,7 @@ class FileDataSourceV2FallBackSuite extends QueryTest with SharedSparkSession {
 
   test("Fallback Parquet V2 to V1") {
     Seq("parquet", classOf[ParquetDataSourceV2].getCanonicalName).foreach { format =>
-      withSQLConf(SQLConf.USE_V1_SOURCE_READER_LIST.key -> format,
-        SQLConf.USE_V1_SOURCE_WRITER_LIST.key -> format) {
+      withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> format) {
         val commands = ArrayBuffer.empty[(String, LogicalPlan)]
         val errors = ArrayBuffer.empty[(String, Throwable)]
         val listener = new QueryExecutionListener {
