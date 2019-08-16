@@ -113,19 +113,29 @@ class ResolveHiveSerdeTable(session: SparkSession) extends Rule[LogicalPlan] {
 }
 
 class DetermineTableStats(session: SparkSession) extends Rule[LogicalPlan] {
+  private def hiveTableWithStats(relation: HiveTableRelation): HiveTableRelation = {
+    val table = relation.tableMeta
+    val sizeInBytes = if (session.sessionState.conf.fallBackToHdfsForStatsEnabled) {
+      CommandUtils.getSizeInBytesFallBackToHdfs(session, new Path(table.location),
+        session.sessionState.conf.defaultSizeInBytes)
+    } else {
+      session.sessionState.conf.defaultSizeInBytes
+    }
+
+    val withStats = table.copy(stats = Some(CatalogStatistics(sizeInBytes = BigInt(sizeInBytes))))
+    relation.copy(tableMeta = withStats)
+  }
+
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case relation: HiveTableRelation
-        if DDLUtils.isHiveTable(relation.tableMeta) && relation.tableMeta.stats.isEmpty =>
-      val table = relation.tableMeta
-      val sizeInBytes = if (session.sessionState.conf.fallBackToHdfsForStatsEnabled) {
-        CommandUtils.getSizeInBytesFallBackToHdfs(session, new Path(table.location),
-          session.sessionState.conf.defaultSizeInBytes)
-      } else {
-        session.sessionState.conf.defaultSizeInBytes
-      }
+      if DDLUtils.isHiveTable(relation.tableMeta) && relation.tableMeta.stats.isEmpty =>
+      hiveTableWithStats(relation)
 
-      val withStats = table.copy(stats = Some(CatalogStatistics(sizeInBytes = BigInt(sizeInBytes))))
-      relation.copy(tableMeta = withStats)
+    // handles InsertIntoTable specially as the table in InsertIntoTable is not added in its
+    // children, hence not matched directly by previous HiveTableRelation case.
+    case i @ InsertIntoTable(relation: HiveTableRelation, _, _, _, _)
+      if DDLUtils.isHiveTable(relation.tableMeta) && relation.tableMeta.stats.isEmpty =>
+      i.copy(table = hiveTableWithStats(relation))
   }
 }
 
