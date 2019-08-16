@@ -66,15 +66,6 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
 
   protected def sparkContext = sqlContext.sparkContext
 
-  protected def wholestageCodegenIdStr(codegenId: Option[Int]): String = {
-    codegenId.map("[codegen id : " + _ + "]").getOrElse("")
-  }
-
-  protected def operatorIdStr(
-      planToOperatorID: mutable.LinkedHashMap[QueryPlan[_], Int]): String = {
-    planToOperatorID.get(this).map(v => s"$v").getOrElse("unknown")
-  }
-
   // sqlContext will be null when SparkPlan nodes are created without the active sessions.
   val subexpressionEliminationEnabled: Boolean = if (sqlContext != null) {
     sqlContext.conf.subexpressionEliminationEnabled
