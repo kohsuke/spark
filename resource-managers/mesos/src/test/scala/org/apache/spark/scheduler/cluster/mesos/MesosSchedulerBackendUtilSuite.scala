@@ -17,6 +17,7 @@
 
 package org.apache.spark.scheduler.cluster.mesos
 
+import org.apache.mesos.Protos.ContainerInfo.DockerInfo
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.mesos.config
 
@@ -49,5 +50,21 @@ class MesosSchedulerBackendUtilSuite extends SparkFunSuite {
     assert(params.get(1).getValue == "2")
     assert(params.get(2).getKey == "c")
     assert(params.get(2).getValue == "3")
+  }
+
+  test("ContainerInfo respects Docker network configuration") {
+    val networkName = "test"
+    val conf = new SparkConf()
+    conf.set(config.CONTAINERIZER, "docker")
+    conf.set(config.EXECUTOR_DOCKER_IMAGE, "image")
+    conf.set(config.NETWORK_NAME, networkName)
+
+    val containerInfo = MesosSchedulerBackendUtil.buildContainerInfo(conf)
+
+    assert(containerInfo.getDocker.getNetwork == DockerInfo.Network.USER)
+    val params = containerInfo.getDocker.getParametersList
+    assert(params.size() == 1)
+    assert(params.get(0).getKey == "net")
+    assert(params.get(0).getValue == networkName)
   }
 }
