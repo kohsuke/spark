@@ -94,7 +94,7 @@ checkJavaVersion <- function() {
   # javaVersionStr is of the form 1.8.0_92.
   # Extract 8 from it to compare to sparkJavaVersion
   javaVersionNum <- as.integer(strsplit(javaVersionStr, "[.]")[[1L]][2])
-  if (javaVersionNum != sparkJavaVersion) {
+  if (javaVersionNum >= sparkJavaVersion) {
     stop(paste("Java version", sparkJavaVersion, "is required for this package; found version:",
                javaVersionStr))
   }
