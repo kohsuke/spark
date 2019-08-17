@@ -62,10 +62,10 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
     val topic = "topic" + Random.nextInt()
     val data = (1 to 1000).map(i =>
       (i.toString,
-        Array(
+        Seq(
           ("once", i.toString.getBytes(StandardCharsets.UTF_8)),
           ("twice", (i * 2).toString.getBytes(StandardCharsets.UTF_8))
-        ).toSeq
+        )
       )
     )
     testUtils.createTopic(topic, 1)
@@ -105,7 +105,17 @@ class KafkaDataConsumerSuite extends SharedSQLContext with PrivateMethodTester {
           val headers = record.headers().toArray.map(header => (header.key(), header.value())).toSeq
           (value, headers)
         }
-        data === rcvd
+        data zip rcvd foreach { case (expected, actual) =>
+          // value
+          assert(expected._1 === actual._1)
+          // headers
+          expected._2 zip actual._2 foreach { case (l, r) =>
+            // header key
+            assert(l._1 == r._1)
+            // header value
+            assert(l._2 === r._2)
+          }
+        }
       } catch {
         case e: Throwable =>
           error = e
