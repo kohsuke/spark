@@ -1897,12 +1897,35 @@ class SQLQuerySuite extends QueryTest with SQLTestUtils with TestHiveSingleton {
     }
   }
 
+  test("SPARK-28084 check for case insensitive property of partition column name in load command") {
+    withTempDir { dir =>
+      val path = dir.toURI.toString.stripSuffix("/")
+      val dirPath = dir.getAbsoluteFile
+      Files.append("1", new File(dirPath, s"part-r-00001"), StandardCharsets.UTF_8)
+      withTable("part_table") {
+        withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
+          sql(
+            """
+              |CREATE TABLE part_table (c STRING)
+              |PARTITIONED BY (d STRING)
+            """.stripMargin)
+          spark.sql("LOAD DATA LOCAL INPATH "
+            + path +
+            """/part-r-00001 INTO TABLE part_table PARTITION(D ="1")""")
+          checkAnswer(sql("SELECT * FROM part_table"), Seq(Row("1"), Row("1")))
+        }
+      }
+    }
+  }
+
   test("SPARK-17796 Support wildcard character in filename for LOAD DATA LOCAL INPATH") {
     withTempDir { dir =>
       val path = dir.toURI.toString.stripSuffix("/")
       val dirPath = dir.getAbsoluteFile
       for (i <- 1 to 3) {
         Files.write(s"$i", new File(dirPath, s"part-r-0000$i"), StandardCharsets.UTF_8)
+
+        Files.append(s"$i", new File(dirPath, s"part-r-0000$i"), StandardCharsets.UTF_8)
       }
       for (i <- 5 to 7) {
         Files.write(s"$i", new File(dirPath, s"part-s-0000$i"), StandardCharsets.UTF_8)
