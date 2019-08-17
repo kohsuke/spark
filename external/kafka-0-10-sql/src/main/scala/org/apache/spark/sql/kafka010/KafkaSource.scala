@@ -302,12 +302,12 @@ private[kafka010] class KafkaSource(
       new KafkaSourceRDD(
       sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
       reuseKafkaConsumer = true)
-        .map(KafkaOffsetReader.toInternalRowWithHeaders(_))
+        .map(KafkaOffsetReader.toInternalRowWithHeaders)
     } else {
       new KafkaSourceRDD(
         sc, executorKafkaParams, offsetRanges, pollTimeoutMs, failOnDataLoss,
         reuseKafkaConsumer = true)
-        .map(KafkaOffsetReader.toInternalRowWithoutHeaders(_))
+        .map(KafkaOffsetReader.toInternalRowWithoutHeaders)
     }
 
     logInfo("GetBatch generating RDD of offset range: " +
