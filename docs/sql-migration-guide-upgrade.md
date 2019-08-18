@@ -23,6 +23,8 @@ license: |
 {:toc}
 
 ## Upgrading From Spark SQL 2.4 to 3.0
+  - Since Spark 3.0, the permanent function created using resource throws `AnalysisException` if the resource does not exists.
+    
   - Since Spark 3.0, we reversed argument order of the trim function from `TRIM(trimStr, str)` to `TRIM(str, trimStr)` to be compatible with other databases.
 
   - Since Spark 3.0, PySpark requires a Pandas version of 0.23.2 or higher to use Pandas related functionality, such as `toPandas`, `createDataFrame` from Pandas DataFrame, etc.
