@@ -3181,8 +3181,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   }
 
-  test("SPARK-28670: create function should throw AnalysisException if UDF classes not found") {
-    Seq(true, false).foreach(isTemporary => {
+  test("SPARK-28670: create function should throw AnalysisException if UDF class not found") {
+    Seq(true, false).foreach { isTemporary =>
       val exp = intercept[AnalysisException] {
         sql(
           s"""
@@ -3192,7 +3192,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         """.stripMargin)
       }
       assert(exp.getMessage.contains("Resources not found"))
-    })
+    }
   }
 }
 
