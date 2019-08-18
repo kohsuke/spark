@@ -1395,7 +1395,7 @@ class Analyzer(
 
   /**
    * This rule resolve [[RecursiveReference]]s when the anchor term of the corresponding
-   * [[RecursiveRelation]] is resolved (ie. we know the output of the recursive table).
+   * [[RecursiveRelation]] is resolved (ie. we know the output of the recursive relation).
    */
   object ResolveRecursiveReferences extends Rule[LogicalPlan] {
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
