@@ -3137,35 +3137,3 @@ object UpdateOuterReferences extends Rule[LogicalPlan] {
   }
 }
 
-object DDLPreprocessingUtils {
-
-  /**
-   * Adjusts the name and data type of the input query output columns, to match the expectation.
-   */
-  def castAndRenameQueryOutput(
-      query: LogicalPlan,
-      expectedOutput: Seq[Attribute],
-      conf: SQLConf): LogicalPlan = {
-    val newChildOutput = expectedOutput.zip(query.output).map {
-      case (expected, actual) =>
-        if (expected.dataType.sameType(actual.dataType) &&
-          expected.name == actual.name &&
-          expected.metadata == actual.metadata) {
-          actual
-        } else {
-          // Renaming is needed for handling the following cases like
-          // 1) Column names/types do not match, e.g., INSERT INTO TABLE tab1 SELECT 1, 2
-          // 2) Target tables have column metadata
-          Alias(
-            Cast(actual, expected.dataType, Option(conf.sessionLocalTimeZone)),
-            expected.name)(explicitMetadata = Option(expected.metadata))
-        }
-    }
-
-    if (newChildOutput == query.output) {
-      query
-    } else {
-      Project(newChildOutput, query)
-    }
-  }
-}
