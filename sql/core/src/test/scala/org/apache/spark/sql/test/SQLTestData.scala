@@ -91,12 +91,6 @@ private[sql] trait SQLTestData { self =>
     df
   }
 
-  protected lazy val largeDecimals: DataFrame = {
-    spark.sparkContext.parallelize(
-      DecimalData(BigDecimal("1"* 20 + ".123"), BigDecimal("1"* 20 + ".123")) ::
-      DecimalData(BigDecimal("9"* 20 + ".123"), BigDecimal("9"* 20 + ".123")) :: Nil).toDF()
-  }
-
   protected lazy val decimalData: DataFrame = {
     val df = spark.sparkContext.parallelize(
       DecimalData(1, 1) ::
