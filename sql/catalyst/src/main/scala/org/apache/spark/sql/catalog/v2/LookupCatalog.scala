@@ -46,6 +46,12 @@ trait LookupCatalog extends Logging {
     try {
       defaultCatalogName.map(lookupCatalog)
     } catch {
+      case e: CatalogNotFoundException =>
+        logWarning(e.getMessage)
+        None
+      case e: CatalogClassNotFoundException =>
+        logWarning(e.getMessage)
+        None
       case NonFatal(e) =>
         logError(s"Cannot load default v2 catalog: ${defaultCatalogName.get}", e)
         None
@@ -62,8 +68,8 @@ trait LookupCatalog extends Logging {
     try {
       Some(lookupCatalog(SESSION_CATALOG_NAME))
     } catch {
-      case _: CatalogNotFoundException =>
-        logWarning("Session catalog is not defined")
+      case e: CatalogClassNotFoundException =>
+        logWarning(e.getMessage)
         None
       case NonFatal(e) =>
         logError("Cannot load v2 session catalog", e)
