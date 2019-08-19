@@ -18,6 +18,7 @@
 package org.apache.spark.scheduler.cluster.mesos
 
 import org.apache.mesos.Protos.ContainerInfo.DockerInfo
+
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.mesos.config
 
