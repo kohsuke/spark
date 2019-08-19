@@ -85,7 +85,8 @@ public class CatalogLoadingSuite {
         intercept(CatalogClassNotFoundException.class, () -> Catalogs.load("missing", conf));
 
     Assert.assertTrue("Should complain that the class is not found",
-        exc.getMessage().contains("Catalog 'missing' plugin class 'com.example.NoSuchCatalogPlugin' not found"));
+        exc.getMessage().contains(
+            "Catalog 'missing' plugin class 'com.example.NoSuchCatalogPlugin' not found"));
     Assert.assertTrue("Should identify the catalog by name",
         exc.getMessage().contains("missing"));
     Assert.assertTrue("Should identify the missing class",
