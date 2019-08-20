@@ -28,9 +28,9 @@ import org.scalatest.PrivateMethodTester
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.kafka010.KafkaDataConsumer.CacheKey
-import org.apache.spark.sql.test.SharedSQLContext
+import org.apache.spark.sql.test.SharedSparkSession
 
-class FetchedDataPoolSuite extends SharedSQLContext with PrivateMethodTester {
+class FetchedDataPoolSuite extends SharedSparkSession with PrivateMethodTester {
   import FetchedDataPool._
   type Record = ConsumerRecord[Array[Byte], Array[Byte]]
 

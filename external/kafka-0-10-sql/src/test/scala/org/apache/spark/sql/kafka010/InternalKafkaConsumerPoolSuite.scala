@@ -27,9 +27,9 @@ import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.sql.kafka010.KafkaDataConsumer.CacheKey
-import org.apache.spark.sql.test.SharedSQLContext
+import org.apache.spark.sql.test.SharedSparkSession
 
-class InternalKafkaConsumerPoolSuite extends SharedSQLContext {
+class InternalKafkaConsumerPoolSuite extends SharedSparkSession {
 
   test("basic multiple borrows and returns for single key") {
     val pool = InternalKafkaConsumerPool.build
