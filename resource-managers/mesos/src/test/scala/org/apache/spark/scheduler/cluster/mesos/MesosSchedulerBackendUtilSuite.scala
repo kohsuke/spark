@@ -33,7 +33,7 @@ class MesosSchedulerBackendUtilSuite extends SparkFunSuite {
       conf)
     val params = containerInfo.getDocker.getParametersList
 
-    assert(params.size() == 0)
+    assert(params.size() === 0)
   }
 
   test("ContainerInfo parses docker parameters") {
@@ -44,13 +44,13 @@ class MesosSchedulerBackendUtilSuite extends SparkFunSuite {
     val containerInfo = MesosSchedulerBackendUtil.buildContainerInfo(
       conf)
     val params = containerInfo.getDocker.getParametersList
-    assert(params.size() == 3)
-    assert(params.get(0).getKey == "a")
-    assert(params.get(0).getValue == "1")
-    assert(params.get(1).getKey == "b")
-    assert(params.get(1).getValue == "2")
-    assert(params.get(2).getKey == "c")
-    assert(params.get(2).getValue == "3")
+    assert(params.size() === 3)
+    assert(params.get(0).getKey === "a")
+    assert(params.get(0).getValue === "1")
+    assert(params.get(1).getKey === "b")
+    assert(params.get(1).getValue === "2")
+    assert(params.get(2).getKey === "c")
+    assert(params.get(2).getValue === "3")
   }
 
   test("ContainerInfo respects Docker network configuration") {
@@ -62,10 +62,10 @@ class MesosSchedulerBackendUtilSuite extends SparkFunSuite {
 
     val containerInfo = MesosSchedulerBackendUtil.buildContainerInfo(conf)
 
-    assert(containerInfo.getDocker.getNetwork == DockerInfo.Network.USER)
+    assert(containerInfo.getDocker.getNetwork === DockerInfo.Network.USER)
     val params = containerInfo.getDocker.getParametersList
-    assert(params.size() == 1)
-    assert(params.get(0).getKey == "net")
-    assert(params.get(0).getValue == networkName)
+    assert(params.size() === 1)
+    assert(params.get(0).getKey === "net")
+    assert(params.get(0).getValue === networkName)
   }
 }

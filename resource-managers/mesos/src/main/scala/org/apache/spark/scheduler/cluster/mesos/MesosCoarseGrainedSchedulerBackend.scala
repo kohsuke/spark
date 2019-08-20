@@ -270,7 +270,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
         }
       val executable = new File(executorSparkHome, "./bin/spark-class").getPath
       val runScript = s"$prefixEnv $executable " +
-        s"org.apache.spark.executor.CoarseGrainedExecutorBackend"
+        "org.apache.spark.executor.CoarseGrainedExecutorBackend"
 
       command.setValue(buildExecutorCommand(runScript, taskId, numCores, offer))
     } else {
