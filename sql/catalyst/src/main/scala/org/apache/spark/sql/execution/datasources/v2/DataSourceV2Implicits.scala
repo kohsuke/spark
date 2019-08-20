@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.datasources.v2
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.sources.v2.{SupportsRead, SupportsWrite, Table, TableCapability}
+import org.apache.spark.sql.sources.v2.{SupportsDelete, SupportsRead, SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 object DataSourceV2Implicits {
@@ -40,6 +40,15 @@ object DataSourceV2Implicits {
           support
         case _ =>
           throw new AnalysisException(s"Table does not support writes: ${table.name}")
+      }
+    }
+
+    def asDeletable: SupportsDelete = {
+      table match {
+        case support: SupportsDelete =>
+          support
+        case _ =>
+          throw new AnalysisException(s"Table does not support deletes: ${table.name}")
       }
     }
 
