@@ -1,7 +1,7 @@
 ---
 layout: global
-title: SHOW DATABASE
-displayTitle: SHOW DATABASE
+title: SHOW DATABASES
+displayTitle: SHOW DATABASES
 license: |
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -19,4 +19,31 @@ license: |
   limitations under the License.
 ---
 
-**This page is under construction**
+### Description
+Lists the databases that match a optionally supplied string pattern. If no
+pattern is supplied then the command lists all the databases in the system.
+Please note that the usage of SCHEMAS and DATABASES are interchangable
+and mean the same thing.
+
+### Syntax
+{% highlight sql %}
+SHOW {DATABASES|SCHEMAS} [LIKE 'pattern']
+{% endhighlight %}
+
+### Parameters
+##### ***LIKE 'pattern'***:
+A string pattern that is used to match the databases. In pattern, * matches any number of characters.
+
+### Examples
+{% highlight sql %}
+-- Lists all the databases.
+SHOW DATABASES;
+-- Lists databases with name starting with string pattern `test`
+SHOW DATABSES LIKE `test*`;
+-- Lists all databases. Keywords SCHEMAS and DATABASES are interchangeable. 
+SHOW SCHEMAS;
+{% endhighlight %}
+### Related Statements
+- [DESCRIBE DATABASE](sql-ref-syntax-aux-describe-databases.html)
+- [CREATE DATABASE](sql-ref-syntax-ddl-create-database.html)
+- [ALTER DATABASE](sql-ref-syntax-ddl-alter-database.html)
