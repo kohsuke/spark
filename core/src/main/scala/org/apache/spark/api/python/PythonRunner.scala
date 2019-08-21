@@ -106,6 +106,7 @@ private[spark] abstract class BasePythonRunner[IN, OUT](
     val startTime = System.currentTimeMillis
     val env = SparkEnv.get
     val localdir = env.blockManager.diskBlockManager.localDirs.map(f => f.getPath()).mkString(",")
+    conf.getOption("spark.executor.cores").map(envVars.put("OMP_NUM_THREADS", _))
     envVars.put("SPARK_LOCAL_DIRS", localdir) // it's also used in monitor thread
     if (reuseWorker) {
       envVars.put("SPARK_REUSE_WORKER", "1")
