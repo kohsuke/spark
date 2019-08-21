@@ -20,9 +20,9 @@ license: |
 ---
 
 ### Description
-Lists the databases that match a optionally supplied string pattern. If no
+Lists the databases that match an optionally supplied string pattern. If no
 pattern is supplied then the command lists all the databases in the system.
-Please note that the usage of SCHEMAS and DATABASES are interchangable
+Please note that the usage of `SCHEMAS` and `DATABASES` are interchangable
 and mean the same thing.
 
 ### Syntax
@@ -32,14 +32,14 @@ SHOW {DATABASES|SCHEMAS} [LIKE 'pattern']
 
 ### Parameters
 ##### ***LIKE 'pattern'***:
-A string pattern that is used to match the databases. In pattern, * matches any number of characters.
+A string pattern that is used to match the databases. In pattern, `*` matches any number of characters.
 
 ### Examples
 {% highlight sql %}
 -- Lists all the databases.
 SHOW DATABASES;
 -- Lists databases with name starting with string pattern `test`
-SHOW DATABSES LIKE `test*`;
+SHOW DATABSES LIKE 'test*';
 -- Lists all databases. Keywords SCHEMAS and DATABASES are interchangeable. 
 SHOW SCHEMAS;
 {% endhighlight %}
