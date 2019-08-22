@@ -115,7 +115,6 @@ trait SchemaRelationProvider {
  *
  * @since 2.0.0
  */
-@Unstable
 trait StreamSourceProvider {
 
   /**
