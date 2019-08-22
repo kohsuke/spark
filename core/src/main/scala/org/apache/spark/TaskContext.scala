@@ -20,7 +20,7 @@ package org.apache.spark
 import java.io.Serializable
 import java.util.Properties
 
-import org.apache.spark.annotation.{DeveloperApi, Evolving}
+import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.metrics.source.Source
@@ -182,7 +182,6 @@ abstract class TaskContext extends Serializable {
    * about the resource. Please refer to [[org.apache.spark.resource.ResourceInformation]] for
    * specifics.
    */
-  @Evolving
   def resources(): Map[String, ResourceInformation]
 
   @DeveloperApi
