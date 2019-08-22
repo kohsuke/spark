@@ -450,6 +450,10 @@ private[kafka010] object KafkaOffsetReader {
     if (includeHeaders) schemaWithHeaders else schemaWithoutHeaders
   }
 
+  val toUnsafeRowWithoutHeaders = UnsafeProjection.create(schemaWithoutHeaders)
+
+  val toUnsafeRowWithHeaders = UnsafeProjection.create(schemaWithHeaders)
+
   def toInternalRowWithoutHeaders: Record => InternalRow =
     (cr: Record) => InternalRow(
       cr.key, cr.value, UTF8String.fromString(cr.topic), cr.partition, cr.offset,
@@ -471,10 +475,10 @@ private[kafka010] object KafkaOffsetReader {
     )
 
   def toUnsafeRowWithoutHeadersProjector: Record => UnsafeRow =
-    (cr: Record) => UnsafeProjection.create(schemaWithoutHeaders)(toInternalRowWithoutHeaders(cr))
+    (cr: Record) => toUnsafeRowWithoutHeaders(toInternalRowWithoutHeaders(cr))
 
   def toUnsafeRowWithHeadersProjector: Record => UnsafeRow =
-    (cr: Record) => UnsafeProjection.create(schemaWithHeaders)(toInternalRowWithHeaders(cr))
+    (cr: Record) => toUnsafeRowWithHeaders(toInternalRowWithHeaders(cr))
 
   def toUnsafeRowProjector(includeHeaders: Boolean): Record => UnsafeRow = {
     if (includeHeaders) toUnsafeRowWithHeadersProjector else toUnsafeRowWithoutHeadersProjector
