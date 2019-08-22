@@ -103,7 +103,7 @@ private[v2] trait SessionCatalogTest[T <: Table, Catalog <: TestV2SessionCatalog
   override def afterEach(): Unit = {
     super.afterEach()
     catalog("session").asInstanceOf[Catalog].clearTables()
-    spark.conf.set(SQLConf.V2_SESSION_CATALOG.key, classOf[V2SessionCatalog].getName)
+    spark.conf.unset(SQLConf.V2_SESSION_CATALOG.key)
   }
 
   protected def verifyTable(tableName: String, expected: DataFrame): Unit = {
