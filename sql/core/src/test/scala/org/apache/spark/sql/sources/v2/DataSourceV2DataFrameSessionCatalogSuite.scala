@@ -18,14 +18,11 @@
 package org.apache.spark.sql.sources.v2
 
 import java.util
-import java.util.concurrent.ConcurrentHashMap
-
-import scala.collection.JavaConverters._
 
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.sql.{DataFrame, QueryTest, SaveMode}
-import org.apache.spark.sql.catalog.v2.{CatalogPlugin, Identifier}
+import org.apache.spark.sql.catalog.v2.{CatalogPlugin, TableCatalog}
 import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.TableAlreadyExistsException

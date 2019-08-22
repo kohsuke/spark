@@ -25,6 +25,7 @@ import scala.collection.mutable
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.sql.{DataFrame, QueryTest, Row, SparkSession}
+import org.apache.spark.sql.catalog.v2.TableCatalog
 import org.apache.spark.sql.catalog.v2.expressions.{FieldReference, IdentityTransform, Transform}
 import org.apache.spark.sql.sources.{DataSourceRegister, Filter, InsertableRelation}
 import org.apache.spark.sql.sources.v2.utils.TestV2SessionCatalogBase
