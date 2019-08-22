@@ -22,12 +22,13 @@ import scala.util.control.NonFatal
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.util.Utils
 
 /**
  * A thread-safe manager for [[CatalogPlugin]]s. It tracks all the registered catalogs, and allow
  * the caller to look up a catalog by name.
  */
-class CatalogManager(conf: SQLConf) extends Logging {
+class CatalogManager(conf: SQLConf, sessionCatalog: TableCatalog) extends Logging {
 
   private val catalogs = mutable.HashMap.empty[String, CatalogPlugin]
 
@@ -47,9 +48,32 @@ class CatalogManager(conf: SQLConf) extends Logging {
     }
   }
 
+  private def loadV2SessionCatalog(): CatalogPlugin = {
+    val clsName = conf.getConf(SQLConf.V2_SESSION_CATALOG)
+    val cls = Utils.getContextOrSparkClassLoader.loadClass(clsName)
+    if (classOf[CatalogExtension].isAssignableFrom(cls)) {
+      try {
+        val constructor = cls.getConstructor(classOf[TableCatalog])
+        val plugin = constructor.newInstance(sessionCatalog).asInstanceOf[CatalogPlugin]
+        plugin.initialize(
+          CatalogManager.SESSION_CATALOG_NAME,
+          Catalogs.catalogOptions(CatalogManager.SESSION_CATALOG_NAME, conf))
+        plugin
+      } catch {
+        case e: ClassNotFoundException =>
+          throw new IllegalArgumentException("Cannot load the catalog extension.", e)
+        case e: NoSuchMethodException =>
+          throw new IllegalArgumentException("The catalog extension implementation " +
+            "does not have a constructor that accepts a single `TableCatalog` parameter.", e)
+      }
+    } else {
+      Catalogs.load(CatalogManager.SESSION_CATALOG_NAME, conf)
+    }
+  }
+
   def v2SessionCatalog: Option[CatalogPlugin] = {
     try {
-      Some(catalog(CatalogManager.SESSION_CATALOG_NAME))
+      Some(catalogs.getOrElseUpdate(CatalogManager.SESSION_CATALOG_NAME, loadV2SessionCatalog()))
     } catch {
       case NonFatal(e) =>
         logError("Cannot load v2 session catalog", e)

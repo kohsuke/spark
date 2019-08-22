@@ -110,7 +110,7 @@ public class Catalogs {
    * @param conf a SQLConf
    * @return a case insensitive string map of options starting with spark.sql.catalog.(name).
    */
-  private static CaseInsensitiveStringMap catalogOptions(String name, SQLConf conf) {
+  public static CaseInsensitiveStringMap catalogOptions(String name, SQLConf conf) {
     Map<String, String> allConfs = mapAsJavaMapConverter(conf.getAllConfs()).asJava();
     Pattern prefix = Pattern.compile("^spark\\.sql\\.catalog\\." + name + "\\.(.+)");
 
