@@ -620,7 +620,6 @@ class SQLContext private[sql](val sparkSession: SparkSession)
   }
 
   /**
-   * ::  ::
    * Creates a `DataFrame` with a single `LongType` column named `id`, containing elements
    * in an range from `start` to `end` (exclusive) with an step value, with partition number
    * specified.

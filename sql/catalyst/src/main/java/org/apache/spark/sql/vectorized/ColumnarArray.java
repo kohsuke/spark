@@ -16,6 +16,7 @@
  */
 package org.apache.spark.sql.vectorized;
 
+import org.apache.spark.annotation.Evolving;
 import org.apache.spark.sql.catalyst.expressions.SpecializedGettersReader;
 import org.apache.spark.sql.catalyst.expressions.UnsafeArrayData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -27,6 +28,7 @@ import org.apache.spark.unsafe.types.UTF8String;
 /**
  * Array abstraction in {@link ColumnVector}.
  */
+@Evolving
 public final class ColumnarArray extends ArrayData {
   // The data for this array. This array contains elements from
   // data[offset] to data[offset + length).
