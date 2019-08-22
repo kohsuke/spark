@@ -224,8 +224,6 @@ class LinearRegressionModel(JavaModel, JavaPredictionModel, GeneralJavaMLWritabl
 
 class LinearRegressionSummary(JavaWrapper):
     """
-    .. note:: Experimental
-
     Linear regression results evaluated on a dataset.
 
     .. versionadded:: 2.0.0
@@ -431,8 +429,6 @@ class LinearRegressionSummary(JavaWrapper):
 @inherit_doc
 class LinearRegressionTrainingSummary(LinearRegressionSummary):
     """
-    .. note:: Experimental
-
     Linear regression training results. Currently, the training summary ignores the
     training weights except for the objective trace.
 
@@ -1444,8 +1440,6 @@ class AFTSurvivalRegression(JavaEstimator, HasFeaturesCol, HasLabelCol, HasPredi
                             HasFitIntercept, HasMaxIter, HasTol, HasAggregationDepth,
                             JavaMLWritable, JavaMLReadable):
     """
-    .. note:: Experimental
-
     Accelerated Failure Time (AFT) Model Survival Regression
 
     Fit a parametric AFT survival regression model based on the Weibull distribution
@@ -1586,8 +1580,6 @@ class AFTSurvivalRegression(JavaEstimator, HasFeaturesCol, HasLabelCol, HasPredi
 
 class AFTSurvivalRegressionModel(JavaModel, JavaMLWritable, JavaMLReadable):
     """
-    .. note:: Experimental
-
     Model fitted by :class:`AFTSurvivalRegression`.
 
     .. versionadded:: 1.6.0
@@ -1637,8 +1629,6 @@ class GeneralizedLinearRegression(JavaEstimator, HasLabelCol, HasFeaturesCol, Ha
                                   HasFitIntercept, HasMaxIter, HasTol, HasRegParam, HasWeightCol,
                                   HasSolver, JavaMLWritable, JavaMLReadable):
     """
-    .. note:: Experimental
-
     Generalized Linear Regression.
 
     Fit a Generalized Linear Model specified by giving a symbolic description of the linear
@@ -1845,8 +1835,6 @@ class GeneralizedLinearRegression(JavaEstimator, HasLabelCol, HasFeaturesCol, Ha
 class GeneralizedLinearRegressionModel(JavaModel, JavaPredictionModel, JavaMLWritable,
                                        JavaMLReadable, HasTrainingSummary):
     """
-    .. note:: Experimental
-
     Model fitted by :class:`GeneralizedLinearRegression`.
 
     .. versionadded:: 2.0.0
@@ -1900,8 +1888,6 @@ class GeneralizedLinearRegressionModel(JavaModel, JavaPredictionModel, JavaMLWri
 
 class GeneralizedLinearRegressionSummary(JavaWrapper):
     """
-    .. note:: Experimental
-
     Generalized linear regression results evaluated on a dataset.
 
     .. versionadded:: 2.0.0
@@ -2013,8 +1999,6 @@ class GeneralizedLinearRegressionSummary(JavaWrapper):
 @inherit_doc
 class GeneralizedLinearRegressionTrainingSummary(GeneralizedLinearRegressionSummary):
     """
-    .. note:: Experimental
-
     Generalized linear regression training results.
 
     .. versionadded:: 2.0.0
