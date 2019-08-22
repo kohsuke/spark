@@ -587,7 +587,7 @@ class MesosCoarseGrainedSchedulerBackendSuite extends SparkFunSuite
     assert(networkInfos.get(0).getLabels.getLabels(1).getValue == "val2")
   }
 
-  test("scheduler backend doesn't set '--hostname' for executor when virtual network is enabled") {
+  test("SPARK-28778 scheduler backend doesn't set '--hostname' for executor when virtual network is enabled") {
     setBackend()
     val (mem, cpu) = (backend.executorMemory(sc), 4)
     val offer = createOffer("o1", "s1", mem, cpu)

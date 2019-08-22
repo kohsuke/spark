@@ -53,7 +53,7 @@ class MesosSchedulerBackendUtilSuite extends SparkFunSuite {
     assert(params.get(2).getValue === "3")
   }
 
-  test("ContainerInfo respects Docker network configuration") {
+  test("SPARK-28778 ContainerInfo respects Docker network configuration") {
     val networkName = "test"
     val conf = new SparkConf()
     conf.set(config.CONTAINERIZER, "docker")
