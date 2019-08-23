@@ -286,7 +286,7 @@ case class HashAggregateExec(
           .map { case ((aggExpr, inputVars), aggEvalCode) =>
         val args = inputVars.map(_._1) ++ bufferInput.map(_ :: Nil).getOrElse(Nil)
         val doAggVal = ctx.freshName(s"doAggregateVal_${aggExpr.prettyName}")
-        val argList = args.map(v => s"${v.javaType} ${v.variableName}").mkString(", ")
+        val argList = args.map(v => s"${v.javaType.getName} ${v.variableName}").mkString(", ")
         val doAggValFuncName = ctx.addNewFunction(doAggVal,
           s"""
              | private void $doAggVal($argList) throws java.io.IOException {
@@ -1055,7 +1055,7 @@ case class HashAggregateExec(
              |  // common sub-expressions
              |  $effectiveCodes
              |  // evaluate aggregate functions and update aggregation buffers
-             |  ${updateAggValCode.mkString("\n")}
+             |  $updateAggValCode
              |} else {
              |  $updateRowInRegularHashMap
              |}
