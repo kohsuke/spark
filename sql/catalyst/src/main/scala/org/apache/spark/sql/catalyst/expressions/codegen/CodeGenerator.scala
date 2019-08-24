@@ -1620,7 +1620,7 @@ object CodeGenerator extends Logging {
   def getLocalInputVariableValues(
       ctx: CodegenContext,
       expr: Expression,
-      subExprs: Map[Expression, SubExprEliminationState]): Seq[(VariableValue, Expression)] = {
+      subExprs: Map[Expression, SubExprEliminationState]): Map[VariableValue, Expression] = {
     val argMap = mutable.Map[VariableValue, Expression]()
     // Collects local variables only in `argMap`
     val collectLocalVariable = (ev: ExprValue, expr: Expression) => ev match {
@@ -1638,21 +1638,22 @@ object CodeGenerator extends Logging {
           // Since the children possibly have common subexprs, we push them here
           stack.pushAll(e.children)
 
-        case ref: BoundReference
-            if ctx.currentVars != null && ctx.currentVars(ref.ordinal) != null =>
-          val ExprCode(_, isNull, value) = ctx.currentVars(ref.ordinal)
-          collectLocalVariable(value, ref)
-          collectLocalVariable(isNull, ref)
-
         case ref: BoundReference =>
-          argMap += JavaCode.variable(ctx.INPUT_ROW, classOf[InternalRow]) -> ref
+          if (ctx.currentVars != null && ctx.currentVars(ref.ordinal) != null) {
+            val ExprCode(_, isNull, value) = ctx.currentVars(ref.ordinal)
+            collectLocalVariable(value, ref)
+            collectLocalVariable(isNull, ref)
+          } else {
+            val inputVar = JavaCode.variable(ctx.INPUT_ROW, classOf[InternalRow])
+            argMap += inputVar-> ref
+          }
 
         case e =>
           stack.pushAll(e.children)
       }
     }
 
-    argMap.toSeq
+    argMap.toMap
   }
 
   /**
