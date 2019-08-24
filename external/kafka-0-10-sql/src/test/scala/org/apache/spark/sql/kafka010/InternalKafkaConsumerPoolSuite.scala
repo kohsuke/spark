@@ -93,19 +93,7 @@ class InternalKafkaConsumerPoolSuite extends SharedSparkSession {
   }
 
   test("borrow more than soft max capacity from pool which is neither free space nor idle object") {
-    val capacity = 16
-    val newConf = newConfForKafkaPool(Some(capacity), Some(-1), Some(-1))
-
-    withSparkConf(newConf: _*) {
-      val pool = InternalKafkaConsumerPool.build
-
-      val kafkaParams = getTestKafkaParams
-      val topicPartitions = createTopicPartitions(Seq("topic"), capacity)
-      val keys = createCacheKeys(topicPartitions, kafkaParams)
-
-      // while in loop pool doesn't still exceed soft max pool size
-      val keyToPooledObjectPairs = borrowObjectsPerKey(pool, kafkaParams, keys)
-
+    testWithPoolBorrowedSoftMaxCapacity { (pool, kafkaParams, keyToPooledObjectPairs) =>
       val moreTopicPartition = new TopicPartition("topic2", 0)
       val newCacheKey = new CacheKey(moreTopicPartition, kafkaParams)
 
@@ -115,25 +103,11 @@ class InternalKafkaConsumerPoolSuite extends SharedSparkSession {
 
       assertPoolState(pool, numIdle = 0, numActive = keyToPooledObjectPairs.length + 1,
         numTotal = keyToPooledObjectPairs.length + 1)
-
-      pool.close()
     }
   }
 
   test("borrow more than soft max capacity from pool frees up idle objects automatically") {
-    val capacity = 16
-    val newConf = newConfForKafkaPool(Some(capacity), Some(-1), Some(-1))
-
-    withSparkConf(newConf: _*) {
-      val pool = InternalKafkaConsumerPool.build
-
-      val kafkaParams = getTestKafkaParams
-      val topicPartitions = createTopicPartitions(Seq("topic"), capacity)
-      val keys = createCacheKeys(topicPartitions, kafkaParams)
-
-      // borrow objects which makes pool reaching soft capacity
-      val keyToPooledObjectPairs = borrowObjectsPerKey(pool, kafkaParams, keys)
-
+    testWithPoolBorrowedSoftMaxCapacity { (pool, kafkaParams, keyToPooledObjectPairs) =>
       // return 20% of objects to ensure there're some idle objects to free up later
       val numToReturn = (keyToPooledObjectPairs.length * 0.2).toInt
       returnObjects(pool, keyToPooledObjectPairs.take(numToReturn))
@@ -156,8 +130,32 @@ class InternalKafkaConsumerPoolSuite extends SharedSparkSession {
       assert(pool.getNumActive === keyToPooledObjectPairs.length - numToReturn + 1)
       // total objects should be more than number of active + 1 but can't expect exact number
       assert(pool.getTotal > keyToPooledObjectPairs.length - numToReturn + 1)
+    }
+  }
 
-      pool.close()
+
+  private def testWithPoolBorrowedSoftMaxCapacity(
+      testFn: (InternalKafkaConsumerPool,
+        ju.Map[String, Object],
+        Seq[(CacheKey, InternalKafkaConsumer)]) => Unit): Unit = {
+    val capacity = 16
+    val newConf = newConfForKafkaPool(Some(capacity), Some(-1), Some(-1))
+
+    withSparkConf(newConf: _*) {
+      val pool = InternalKafkaConsumerPool.build
+
+      try {
+        val kafkaParams = getTestKafkaParams
+        val topicPartitions = createTopicPartitions(Seq("topic"), capacity)
+        val keys = createCacheKeys(topicPartitions, kafkaParams)
+
+        // borrow objects which makes pool reaching soft capacity
+        val keyToPooledObjectPairs = borrowObjectsPerKey(pool, kafkaParams, keys)
+
+        testFn(pool, kafkaParams, keyToPooledObjectPairs)
+      } finally {
+        pool.close()
+      }
     }
   }
 
