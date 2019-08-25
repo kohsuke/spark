@@ -1049,7 +1049,7 @@ class ALSStorageSuite
       (1, 2, 3.0),
       (1, 0, 2.0)
     ).toDF("user", "item", "rating")
-    val als = new ALS().setMaxIter(1).setRank(1)
+    val als = new ALS().setMaxIter(1).setRank(1).setCheckpointInterval(-1)
     // add listener to check intermediate RDD default storage levels
     val defaultListener = new IntermediateRDDStorageListener
     sc.addSparkListener(defaultListener)
