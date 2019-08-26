@@ -74,8 +74,8 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
       appAttemptId: Option[String],
       inProgress: Boolean,
       codec: Option[String] = None): File = {
-    val ip = if (inProgress) EventLoggingListener.IN_PROGRESS else ""
-    val logUri = EventLoggingListener.getLogPath(testDir.toURI, appId, appAttemptId, codec)
+    val ip = if (inProgress) EventLogFileWriter.IN_PROGRESS else ""
+    val logUri = SingleEventLogFileWriter.getLogPath(testDir.toURI, appId, appAttemptId, codec)
     val logPath = new Path(logUri).toUri.getPath + ip
     new File(logPath)
   }
@@ -161,10 +161,10 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     class TestFsHistoryProvider extends FsHistoryProvider(createTestConf()) {
       var mergeApplicationListingCall = 0
       override protected def mergeApplicationListing(
-          fileStatus: FileStatus,
+          reader: EventLogFileReader,
           lastSeen: Long,
           enableSkipToEnd: Boolean): Unit = {
-        super.mergeApplicationListing(fileStatus, lastSeen, enableSkipToEnd)
+        super.mergeApplicationListing(reader, lastSeen, enableSkipToEnd)
         mergeApplicationListingCall += 1
       }
     }
@@ -199,13 +199,13 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     )
     updateAndCheck(provider) { list =>
       list.size should be (1)
-      provider.getAttempt("app1", None).logPath should endWith(EventLoggingListener.IN_PROGRESS)
+      provider.getAttempt("app1", None).logPath should endWith(EventLogFileWriter.IN_PROGRESS)
     }
 
     logFile1.renameTo(newLogFile("app1", None, inProgress = false))
     updateAndCheck(provider) { list =>
       list.size should be (1)
-      provider.getAttempt("app1", None).logPath should not endWith(EventLoggingListener.IN_PROGRESS)
+      provider.getAttempt("app1", None).logPath should not endWith(EventLogFileWriter.IN_PROGRESS)
     }
   }
 
@@ -1164,18 +1164,18 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     // FileStatus.getLen is more than logInfo fileSize
     var fileStatus = new FileStatus(200, false, 0, 0, 0, path)
     var logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
-      Some("attemptId"), 100)
+      Some("attemptId"), 100, None, false)
     assert(mockedProvider.shouldReloadLog(logInfo, fileStatus))
 
     fileStatus = new FileStatus()
     fileStatus.setPath(path)
     // DFSInputStream.getFileLength is more than logInfo fileSize
     logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
-      Some("attemptId"), 100)
+      Some("attemptId"), 100, None, false)
     assert(mockedProvider.shouldReloadLog(logInfo, fileStatus))
     // DFSInputStream.getFileLength is equal to logInfo fileSize
     logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
-      Some("attemptId"), 200)
+      Some("attemptId"), 200, None, false)
     assert(!mockedProvider.shouldReloadLog(logInfo, fileStatus))
     // in.getWrappedStream returns other than DFSInputStream
     val bin = mock(classOf[BufferedInputStream])
@@ -1256,7 +1256,11 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     val fstream = new FileOutputStream(file)
     val cstream = codec.map(_.compressedOutputStream(fstream)).getOrElse(fstream)
     val bstream = new BufferedOutputStream(cstream)
-    EventLoggingListener.initEventLog(bstream, false, null)
+
+    val metadata = SparkListenerLogStart(org.apache.spark.SPARK_VERSION)
+    val eventJson = JsonProtocol.logStartToJson(metadata)
+    val metadataJson = compact(eventJson) + "\n"
+    bstream.write(metadataJson.getBytes(StandardCharsets.UTF_8))
 
     val writer = new OutputStreamWriter(bstream, StandardCharsets.UTF_8)
     Utils.tryWithSafeFinally {
