@@ -43,7 +43,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.internal.config.UI._
 import org.apache.spark.launcher.SparkLauncher
-import org.apache.spark.scheduler.EventLoggingListener
+import org.apache.spark.scheduler.{EventLogFileReader, EventLogFileWriter, EventLoggingListener}
 import org.apache.spark.util.{CommandLineUtils, ResetSystemProperties, Utils}
 
 trait TestPrematureExit {
@@ -535,7 +535,7 @@ class SparkSubmitSuite
         unusedJar.toString)
       runSparkSubmit(args)
       val listStatus = fileSystem.listStatus(testDirPath)
-      val logData = EventLoggingListener.openEventLog(listStatus.last.getPath, fileSystem)
+      val logData = EventLogFileReader.openEventLog(listStatus.last.getPath, fileSystem)
       Source.fromInputStream(logData).getLines().foreach { line =>
         assert(!line.contains("secret_password"))
       }
