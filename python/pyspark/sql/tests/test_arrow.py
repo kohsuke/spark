@@ -439,7 +439,7 @@ class MaxResultArrowTests(unittest.TestCase):
             cls.spark.stop()
 
     def test_exception_by_max_results(self):
-        with self.assertRaisesRegex(Exception, "is bigger than"):
+        with self.assertRaisesRegexp(Exception, "is bigger than"):
             self.spark.range(0, 10000, 1, 100).toPandas()
 
 
