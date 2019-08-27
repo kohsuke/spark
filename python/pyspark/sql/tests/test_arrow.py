@@ -421,6 +421,9 @@ class ArrowTests(ReusedSQLTestCase):
             run_test(*case)
 
 
+@unittest.skipIf(
+    not have_pandas or not have_pyarrow,
+    pandas_requirement_message or pyarrow_requirement_message)
 class MaxResultArrowTests(unittest.TestCase):
     # These tests are separate as 'spark.driver.maxResultSize' configuration
     # is a static configuration to Spark context.
