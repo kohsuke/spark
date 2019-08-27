@@ -22,7 +22,7 @@ import time
 import unittest
 import warnings
 
-from pyspark.sql import Row
+from pyspark.sql import Row, SparkSession
 from pyspark.sql.functions import udf
 from pyspark.sql.types import *
 from pyspark.testing.sqlutils import ReusedSQLTestCase, have_pandas, have_pyarrow, \
@@ -419,6 +419,28 @@ class ArrowTests(ReusedSQLTestCase):
 
         for case in cases:
             run_test(*case)
+
+
+class MaxResultArrowTests(unittest.TestCase):
+    # These tests are separate as 'spark.driver.maxResultSize' configuration
+    # is a static configuration to Spark context.
+
+    @classmethod
+    def setUpClass(cls):
+        cls.spark = SparkSession.builder \
+            .master("local[4]") \
+            .appName(cls.__name__) \
+            .config("spark.driver.maxResultSize", "10k") \
+            .getOrCreate()
+
+    @classmethod
+    def tearDownClass(cls):
+        if hasattr(cls, "spark"):
+            cls.spark.stop()
+
+    def test_exception_by_max_results(self):
+        with self.assertRaisesRegex(Exception, "is bigger than"):
+            self.spark.range(0, 10000, 1, 100).toPandas()
 
 
 class EncryptionArrowTests(ArrowTests):
