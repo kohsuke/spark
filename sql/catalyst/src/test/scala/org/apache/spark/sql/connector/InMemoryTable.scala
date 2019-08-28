@@ -22,10 +22,10 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.spark.sql.catalog.v2.expressions.{IdentityTransform, Transform}
+import org.apache.spark.sql.catalog.v2.expressions.{Expression, IdentityTransform, LiteralValue, Transform}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.sources.{And, EqualTo, Filter, IsNotNull}
-import org.apache.spark.sql.sources.v2.{SupportsDelete, SupportsRead, SupportsWrite, Table, TableCapability}
+import org.apache.spark.sql.sources.v2.{SupportsDelete, SupportsRead, SupportsUpdate, SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.sources.v2.reader.{Batch, InputPartition, PartitionReader, PartitionReaderFactory, Scan, ScanBuilder}
 import org.apache.spark.sql.sources.v2.writer.{BatchWrite, DataWriter, DataWriterFactory, SupportsDynamicOverwrite, SupportsOverwrite, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.types.StructType
@@ -39,7 +39,7 @@ class InMemoryTable(
     val schema: StructType,
     override val partitioning: Array[Transform],
     override val properties: util.Map[String, String])
-  extends Table with SupportsRead with SupportsWrite with SupportsDelete {
+  extends Table with SupportsRead with SupportsWrite with SupportsDelete with SupportsUpdate {
 
   partitioning.foreach { t =>
     if (!t.isInstanceOf[IdentityTransform]) {
@@ -157,6 +157,41 @@ class InMemoryTable(
 
   override def deleteWhere(filters: Array[Filter]): Unit = dataMap.synchronized {
     dataMap --= InMemoryTable.filtersToKeys(dataMap.keys, partFieldNames, filters)
+  }
+
+
+  // NOTE: this only support updating data with a literal, i.e., it cannot update
+  // a date `d` to `date_add(d, 1)`, which is an function.
+  override def updateWhere(sets: util.Map[String, Expression],
+      filters: Array[Filter]): Unit = dataMap.synchronized {
+    val keys = InMemoryTable.filtersToKeys(dataMap.keys, partFieldNames, filters)
+
+    val newData = keys.map {
+      key =>
+        val newRows = new BufferedRows
+        dataMap.get(key) match {
+          case Some(rows) =>
+            rows.rows.foreach {
+              row =>
+                val values = row.toSeq(schema).toArray
+                sets.asScala.foreach {
+                  kv =>
+                    val newValue = kv._2 match {
+                      case LiteralValue(v, _) => v
+                      case _ =>
+                        throw new RuntimeException("Update values must be literal.")
+                    }
+                    values.update(schema.fieldIndex(kv._1), newValue)
+                }
+                newRows.withRow(InternalRow(values: _*))
+            }
+          case None =>
+        }
+        newRows
+    }.toArray
+
+    dataMap --= keys
+    withData(newData)
   }
 }
 

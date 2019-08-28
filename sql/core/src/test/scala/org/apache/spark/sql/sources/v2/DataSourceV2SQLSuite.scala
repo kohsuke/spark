@@ -1030,6 +1030,210 @@ class DataSourceV2SQLSuite
     }
   }
 
+  test("Update: basic - update all") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      sql(s"UPDATE $t SET name='Robert', age=32")
+
+      checkAnswer(spark.table(t),
+        Seq(Row(1, "Robert", 32, 1),
+          Row(2, "Robert", 32, 2),
+          Row(3, "Robert", 32, 3),
+          Row(4, "Robert", 32, 3)))
+    }
+  }
+
+  test("Update: basic - update with where clause") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      sql(s"UPDATE $t SET name='Robert', age=32 where p=2")
+
+      checkAnswer(spark.table(t),
+        Seq(Row(1, "Herry", 26, 1),
+          Row(2, "Robert", 32, 2),
+          Row(3, "Lisa", 28, 3),
+          Row(4, "Frank", 33, 3)))
+    }
+  }
+
+  test("Update: update the partition key") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      sql(s"UPDATE $t SET p=4 where id=4")
+
+      checkAnswer(spark.table(t),
+        Seq(Row(1, "Herry", 26, 1),
+          Row(2, "Jack", 31, 2),
+          Row(3, "Lisa", 28, 3),
+          Row(4, "Frank", 33, 4)))
+    }
+  }
+
+  test("Update: update with aliased target table") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      sql(s"UPDATE $t AS tbl SET tbl.name='Robert', tbl.age=32 where p=2")
+
+      checkAnswer(spark.table(t),
+        Seq(Row(1, "Herry", 26, 1),
+          Row(2, "Robert", 32, 2),
+          Row(3, "Lisa", 28, 3),
+          Row(4, "Frank", 33, 3)))
+    }
+  }
+
+  test("Update: normalize attribute names") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      sql(s"UPDATE $t AS tbl SET tbl.NAME='Robert', tbl.AGE=32 where P=2")
+
+      checkAnswer(spark.table(t),
+        Seq(Row(1, "Herry", 26, 1),
+          Row(2, "Robert", 32, 2),
+          Row(3, "Lisa", 28, 3),
+          Row(4, "Frank", 33, 3)))
+    }
+  }
+
+  test("Update: update nested field is not allowed") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id int, point struct<x: double, y: double>) USING foo")
+      sql(s"INSERT INTO $t SELECT 1, named_struct('x', 1.0D, 'y', 1.0D)")
+      checkAnswer(spark.table(t), Seq(Row(1, Row(1.0, 1.0))))
+
+      val exc = intercept[AnalysisException] {
+        sql(s"UPDATE $t tbl SET tbl.point.x='2.0D', tbl.point.y='3.0D'")
+      }
+
+      checkAnswer(spark.table(t), Seq(Row(1, Row(1.0, 1.0))))
+      assert(exc.getMessage.contains("Update only support non-nested fields."))
+    }
+  }
+
+  test("Update: fail if the value expression in set clause cannot be converted") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      val exc = intercept[AnalysisException] {
+        sql(s"UPDATE $t tbl SET tbl.p=tbl.p + 1 WHERE id = 3")
+      }
+
+      assert(spark.table(t).filter("id=3").select("p").head().getInt(0) == 3)
+      assert(exc.getMessage.contains("Exec update failed: "))
+    }
+  }
+
+  test("Update: fail if has subquery") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      val exc = intercept[AnalysisException] {
+        sql(s"UPDATE $t SET name='Robert' WHERE id IN (SELECT id FROM $t)")
+      }
+
+      assert(spark.table(t).filter("id=4").select("name").head().getString(0) == "Frank")
+      assert(exc.getMessage.contains("Update by condition with subquery is not supported"))
+    }
+  }
+
+
   private def testCreateAnalysisError(sqlStatement: String, expectedError: String): Unit = {
     val errMsg = intercept[AnalysisException] {
       sql(sqlStatement)
