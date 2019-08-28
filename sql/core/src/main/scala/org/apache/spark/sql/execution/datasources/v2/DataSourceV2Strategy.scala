@@ -26,7 +26,7 @@ import org.apache.spark.sql.{AnalysisException, Strategy}
 import org.apache.spark.sql.catalog.v2.StagingTableCatalog
 import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
-import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowTables}
+import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowTables, UpdateTable}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
@@ -244,6 +244,22 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
               s" cannot translate expression to source filter: $f"))
       }.toArray
       DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
+
+    case UpdateTable(r: DataSourceV2Relation, attrs, values, condition) =>
+      val attrsNames = attrs.map(_.name)
+      // fail if any updated value cannot be converted.
+      val updatedValues = values.map {
+        v => DataSourceStrategy.translateExpression(v).getOrElse(
+          throw new AnalysisException(s"Exec update failed:" +
+              s" cannot translate update set to source expression: $v"))
+      }
+      // fail if any filter cannot be converted. correctness depends on removing all matching data.
+      val filters = splitConjunctivePredicates(condition).map {
+        f => DataSourceStrategy.translateFilter(f).getOrElse(
+          throw new AnalysisException(s"Exec update failed:" +
+              s" cannot translate expression to source filter: $f"))
+      }.toArray
+      UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters)::Nil
 
     case WriteToContinuousDataSource(writer, query) =>
       WriteToContinuousDataSourceExec(writer, planLater(query)) :: Nil

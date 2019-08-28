@@ -1767,6 +1767,57 @@ class DataSourceV2SQLSuite
     }
   }
 
+  test("Update: basic") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
+      sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
+      sql(s"UPDATE $t SET data='d' WHERE id = 2")
+      checkAnswer(spark.table(t), Seq(
+        Row(2, "d", 2), Row(2, "d", 3), Row(3, "c", 3)))
+    }
+  }
+
+  test("Update: alias") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
+      sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
+      sql(s"UPDATE $t tbl SET tbl.data='d' WHERE id = 2")
+      checkAnswer(spark.table(t), Seq(
+        Row(2, "d", 2), Row(2, "d", 3), Row(3, "c", 3)))
+    }
+  }
+
+  test("Update: fail if the value expression in set clause cannot be converted") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
+      sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
+      val exc = intercept[AnalysisException] {
+        sql(s"UPDATE $t tbl SET tbl.id=tbl.id + 1 WHERE id = 3")
+      }
+
+      assert(spark.table(t).filter("id=3").select("data").head().getString(0) == "c")
+      assert(exc.getMessage.contains("Exec update failed: "))
+    }
+  }
+
+  test("Update: fail if has subquery") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
+      sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
+      val exc = intercept[AnalysisException] {
+        sql(s"UPDATE $t SET data='d' WHERE id IN (SELECT id FROM $t)")
+      }
+
+      assert(spark.table(t).filter("id=3").select("data").head().getString(0) == "c")
+      assert(exc.getMessage.contains("Update by condition with subquery is not supported"))
+    }
+  }
+
+
   private def testCreateAnalysisError(sqlStatement: String, expectedError: String): Unit = {
     val errMsg = intercept[AnalysisException] {
       sql(sqlStatement)
