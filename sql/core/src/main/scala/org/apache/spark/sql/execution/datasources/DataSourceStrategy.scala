@@ -422,6 +422,24 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
 }
 
 object DataSourceStrategy {
+
+  /**
+   * Tries to translate a Catalyst [[Expression]] into data source [[Expression]].
+   *
+   * @return a `Some[catalog.v2.expressions.Expression]` if the input [[Expression]]
+   *         is convertible, otherwise a `None`.
+   */
+  protected[sql] def translateExpression(
+      value: Expression): Option[catalog.v2.expressions.Expression] = {
+    // TODO: currently we only support literal. Will add more public expression in future.
+    value match {
+      case l: Literal =>
+        Some(catalog.v2.expressions.LiteralValue(l.value, l.dataType))
+      case _ =>
+        None
+    }
+  }
+
   /**
    * The attribute name of predicate could be different than the one in schema in case of
    * case insensitive, we should change them to match the one in schema, so we do not need to
