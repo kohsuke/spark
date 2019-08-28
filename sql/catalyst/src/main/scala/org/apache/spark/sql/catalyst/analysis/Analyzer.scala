@@ -1775,6 +1775,8 @@ class Analyzer(
         resolveSubQueries(q, q.children)
       case d: DeleteFromTable if d.childrenResolved =>
         resolveSubQueries(d, d.children)
+      case u: UpdateTable if u.childrenResolved =>
+        resolveSubQueries(u, u.children)
     }
   }
 
