@@ -24,9 +24,10 @@ import scala.collection.mutable
 
 import org.apache.spark.sql.{AnalysisException, Strategy}
 import org.apache.spark.sql.catalog.v2.StagingTableCatalog
+import org.apache.spark.sql.catalog.v2.expressions.LogicalExpressions
 import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
-import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowNamespaces, ShowTables}
+import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowNamespaces, ShowTables, UpdateTable}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
@@ -266,6 +267,31 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
               s" cannot translate expression to source filter: $f"))
       }.toArray
       DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
+
+    case UpdateTable(r: DataSourceV2Relation, attrs, values, condition) =>
+      if (condition.exists(SubqueryExpression.hasSubquery)) {
+        throw new AnalysisException(
+            s"Update by condition with subquery is not supported: $condition")
+      }
+      val attrsNames = DataSourceStrategy.normalizeFilters(attrs, r.output).map {
+        case a: AttributeReference => a.name
+        case other =>
+          throw new AnalysisException(s"Update only support non-nested fields. Nested: $other")
+      }
+      // fail if any updated value cannot be converted.
+      val updatedValues = DataSourceStrategy.normalizeFilters(values, r.output).map {
+        v => LogicalExpressions.translateExpression(v).getOrElse(
+          throw new AnalysisException(s"Exec update failed:" +
+              s" cannot translate update set to source expression: $v"))
+      }
+      // fail if any filter cannot be converted. correctness depends on removing all matching data.
+      val filters = DataSourceStrategy.normalizeFilters(condition.toSeq, r.output)
+          .flatMap(splitConjunctivePredicates(_).map {
+            f => DataSourceStrategy.translateFilter(f).getOrElse(
+              throw new AnalysisException(s"Exec update failed:" +
+                  s" cannot translate expression to source filter: $f"))
+          }).toArray
+      UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters) :: Nil
 
     case WriteToContinuousDataSource(writer, query) =>
       WriteToContinuousDataSourceExec(writer, planLater(query)) :: Nil
