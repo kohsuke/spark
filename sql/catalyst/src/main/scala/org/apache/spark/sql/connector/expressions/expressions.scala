@@ -18,6 +18,7 @@
 package org.apache.spark.sql.connector.expressions
 
 import org.apache.spark.sql.catalyst
+import org.apache.spark.sql.catalyst.expressions.{Expression => CatalystExpression, Literal => CatalystLiteral}
 import org.apache.spark.sql.catalyst.parser.CatalystSqlParser
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, IntegerType, StringType}
@@ -57,6 +58,22 @@ private[sql] object LogicalExpressions {
   def days(column: String): DaysTransform = DaysTransform(reference(column))
 
   def hours(column: String): HoursTransform = HoursTransform(reference(column))
+
+  /**
+   * Tries to translate a Catalyst [[CatalystExpression]] into data source [[Expression]].
+   *
+   * @return a `Some(catalyst.expression.Expression)` if the input [[CatalystExpression]]
+   *         is convertible, otherwise a `None`.
+   */
+  private[sql] def translateExpression(value: CatalystExpression): Option[Expression] = {
+    // TODO: currently we only support literal. Will add more public expression in future.
+    value match {
+      case l: CatalystLiteral =>
+        Some(LiteralValue(l.value, l.dataType))
+      case _ =>
+        None
+    }
+  }
 }
 
 /**
