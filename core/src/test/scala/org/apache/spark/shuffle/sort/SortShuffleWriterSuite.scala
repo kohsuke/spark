@@ -49,7 +49,7 @@ class SortShuffleWriterSuite extends SparkFunSuite with SharedSparkContext with 
       when(dependency.serializer).thenReturn(serializer)
       when(dependency.aggregator).thenReturn(None)
       when(dependency.keyOrdering).thenReturn(None)
-      new BaseShuffleHandle(shuffleId, numMaps = numMaps, dependency)
+      new BaseShuffleHandle(shuffleId, dependency)
     }
   }
 
@@ -62,11 +62,10 @@ class SortShuffleWriterSuite extends SparkFunSuite with SharedSparkContext with 
   }
 
   test("write empty iterator") {
-    val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+    val context = MemoryTestingUtils.fakeTaskContext(sc.env, taskAttemptId = 1)
     val writer = new SortShuffleWriter[Int, Int, Int](
       shuffleBlockResolver,
       shuffleHandle,
-      mapId = 1,
       context)
     writer.write(Iterator.empty)
     writer.stop(success = true)
@@ -78,12 +77,11 @@ class SortShuffleWriterSuite extends SparkFunSuite with SharedSparkContext with 
   }
 
   test("write with some records") {
-    val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+    val context = MemoryTestingUtils.fakeTaskContext(sc.env, taskAttemptId = 2)
     val records = List[(Int, Int)]((1, 2), (2, 3), (4, 4), (6, 5))
     val writer = new SortShuffleWriter[Int, Int, Int](
       shuffleBlockResolver,
       shuffleHandle,
-      mapId = 2,
       context)
     writer.write(records.toIterator)
     writer.stop(success = true)
