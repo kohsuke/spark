@@ -55,6 +55,31 @@ object ExecutorLifecycleTestUtils {
       .build()
   }
 
+  def failedExecutorWithRuningSidecar(executorId: Long): Pod = {
+    new PodBuilder(podWithAttachedContainerForId(executorId))
+      .editOrNewStatus()
+        .withPhase("running")
+        .addNewContainerStatus()
+          .withName("spark-kubernetes-executor")
+          .withImage("k8s-spark")
+          .withNewState()
+            .withNewTerminated()
+              .withMessage("Failed")
+              .withExitCode(1)
+              .endTerminated()
+            .endState()
+          .endContainerStatus()
+        .addNewContainerStatus()
+          .withName("spark-executor-sidecar")
+          .withImage("k8s-spark-sidecar")
+          .withNewState()
+            .withPhase("running")
+            .endStatus()
+          .endContainerStatus()
+        .endStatus()
+      .build()
+  }
+
   def pendingExecutor(executorId: Long): Pod = {
     new PodBuilder(podWithAttachedContainerForId(executorId))
       .editOrNewStatus()
