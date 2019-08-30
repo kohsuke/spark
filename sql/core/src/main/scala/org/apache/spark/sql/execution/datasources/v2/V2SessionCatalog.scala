@@ -43,9 +43,7 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf) extends TableCata
 
   def this(sessionState: SessionState) = this(sessionState.catalog, sessionState.conf)
 
-  def this() = {
-    this(SparkSession.active.sessionState)
-  }
+  def this() = this(SparkSession.active.sessionState)
 
   override def name: String = CatalogManager.SESSION_CATALOG_NAME
 
