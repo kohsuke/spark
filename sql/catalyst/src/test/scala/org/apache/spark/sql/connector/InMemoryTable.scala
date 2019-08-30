@@ -160,8 +160,8 @@ class InMemoryTable(
   }
 
 
-  // NOTE: this only support updating partition fields, and it does not check
-  // the set expression.
+  // NOTE: this only support updating data with a literal, i.e., it cannot update
+  // a date `d` to `date_add(d, 1)`, which is an function.
   override def updateWhere(sets: util.Map[String, Expression],
       filters: Array[Filter]): Unit = dataMap.synchronized {
     val keys = InMemoryTable.filtersToKeys(dataMap.keys, partFieldNames, filters)
