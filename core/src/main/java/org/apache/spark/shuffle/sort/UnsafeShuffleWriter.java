@@ -75,7 +75,7 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
   private final Partitioner partitioner;
   private final ShuffleWriteMetricsReporter writeMetrics;
   private final int shuffleId;
-  private final long mapTaskAttemptId;
+  private final long mapId;
   private final TaskContext taskContext;
   private final SparkConf sparkConf;
   private final boolean transferToEnabled;
@@ -133,7 +133,7 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     this.blockManager = blockManager;
     this.shuffleBlockResolver = shuffleBlockResolver;
     this.memoryManager = memoryManager;
-    this.mapTaskAttemptId = taskContext.taskAttemptId();
+    this.mapId = taskContext.taskAttemptId();
     final ShuffleDependency<K, V, V> dep = handle.dependency();
     this.shuffleId = dep.shuffleId();
     this.serializer = dep.serializer().newInstance();
@@ -230,7 +230,7 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
     final SpillInfo[] spills = sorter.closeAndGetSpills();
     sorter = null;
     final long[] partitionLengths;
-    final File output = shuffleBlockResolver.getDataFile(shuffleId, mapTaskAttemptId);
+    final File output = shuffleBlockResolver.getDataFile(shuffleId, mapId);
     final File tmp = Utils.tempFileWith(output);
     try {
       try {
@@ -242,15 +242,13 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
           }
         }
       }
-      shuffleBlockResolver.writeIndexFileAndCommit(
-        shuffleId, mapTaskAttemptId, partitionLengths, tmp);
+      shuffleBlockResolver.writeIndexFileAndCommit(shuffleId, mapId, partitionLengths, tmp);
     } finally {
       if (tmp.exists() && !tmp.delete()) {
         logger.error("Error while deleting temp file {}", tmp.getAbsolutePath());
       }
     }
-    mapStatus = MapStatus$.MODULE$.apply(
-      blockManager.shuffleServerId(), partitionLengths, mapTaskAttemptId);
+    mapStatus = MapStatus$.MODULE$.apply(blockManager.shuffleServerId(), partitionLengths, mapId);
   }
 
   @VisibleForTesting
