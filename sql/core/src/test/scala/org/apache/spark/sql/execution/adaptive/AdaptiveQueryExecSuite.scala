@@ -293,9 +293,6 @@ class AdaptiveQueryExecSuite extends QueryTest with SharedSparkSession {
           "where value >= (SELECT max(a) from testData join testData2 ON key = a) " +
           "and a <= (SELECT (SELECT max(a) from testData join testData2 ON key = a))")
 
-      println(plan)
-      println(adaptivePlan)
-
       val smj = findTopLevelSortMergeJoin(plan)
       assert(smj.size == 1)
       val bhj = findTopLevelBroadcastHashJoin(adaptivePlan)
