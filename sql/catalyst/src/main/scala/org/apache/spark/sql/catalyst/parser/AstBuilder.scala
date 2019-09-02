@@ -348,8 +348,13 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     } else {
       None
     }
+    val predicate = if (ctx.whereClause() != null) {
+      Some(expression(ctx.whereClause().booleanExpression()))
+    } else {
+      None
+    }
 
-    DeleteFromStatement(tableId, tableAlias, expression(ctx.whereClause().booleanExpression()))
+    DeleteFromStatement(tableId, tableAlias, predicate)
   }
 
   /**

@@ -1731,7 +1731,17 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("DeleteFrom: basic") {
+  test("DeleteFrom: basic - delete all") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
+      sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
+      sql(s"DELETE FROM $t")
+      checkAnswer(spark.table(t), Seq())
+    }
+  }
+
+  test("DeleteFrom: basic - delete with where clause") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
@@ -1742,12 +1752,12 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("DeleteFrom: alias") {
+  test("DeleteFrom: delete aliased target table") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
       sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
-      sql(s"DELETE FROM $t tbl WHERE tbl.id = 2")
+      sql(s"DELETE FROM $t AS tbl WHERE tbl.id = 2")
       checkAnswer(spark.table(t), Seq(
         Row(3, "c", 3)))
     }

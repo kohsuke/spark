@@ -52,7 +52,7 @@ object V2WriteSupportCheck extends (LogicalPlan => Unit) {
       }
 
     case DeleteFromTable(_, condition) =>
-      if (SubqueryExpression.hasSubquery(condition)) {
+      if (condition.exists(SubqueryExpression.hasSubquery)) {
         failAnalysis(s"Delete by condition with subquery is not supported: $condition")
       }
 
