@@ -1818,24 +1818,7 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("Update: update with aliased target table - 1") {
-    val t = "testcat.ns1.ns2.tbl"
-    withTable(t) {
-      sql(s"CREATE TABLE $t (id bigint, name string, age int, p int)" +
-          " USING foo" +
-          " PARTITIONED BY (id, p)")
-      sql(s"INSERT INTO $t VALUES (1L, 'Herry', 26, 1)," +
-          s" (2L, 'Jack', 31, 2), (3L, 'Lisa', 28, 3), (4L, 'Frank', 33, 3)")
-      sql(s"UPDATE $t tbl SET tbl.name='Robert', tbl.age=32 where p=2")
-      checkAnswer(spark.table(t),
-        Seq(Row(1, "Herry", 26, 1),
-          Row(2, "Robert", 32, 2),
-          Row(3, "Lisa", 28, 3),
-          Row(4, "Frank", 33, 3)))
-    }
-  }
-
-  test("Update: update with aliased target table - 2") {
+  test("Update: update with aliased target table") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(s"CREATE TABLE $t (id bigint, name string, age int, p int)" +
