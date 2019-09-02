@@ -578,7 +578,7 @@ case class UpdateTable(
     child: LogicalPlan,
     attrs: Seq[Attribute],
     values: Seq[Expression],
-    condition: Expression) extends Command {
+    condition: Option[Expression]) extends Command {
 
   override def children: Seq[LogicalPlan] = child :: Nil
 }

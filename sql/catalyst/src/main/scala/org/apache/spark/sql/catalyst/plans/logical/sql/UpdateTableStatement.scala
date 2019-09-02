@@ -24,4 +24,4 @@ case class UpdateTableStatement(
     tableAlias: Option[String],
     attrs: Seq[Seq[String]],
     values: Seq[Expression],
-    condition: Expression) extends ParsedStatement
+    condition: Option[Expression]) extends ParsedStatement

@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
 import org.apache.spark.sql.sources
+import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.TableCapability
 import org.apache.spark.sql.sources.v2.reader._
 import org.apache.spark.sql.sources.v2.reader.streaming.{ContinuousStream, MicroBatchStream}
@@ -246,6 +247,11 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
 
     case UpdateTable(r: DataSourceV2Relation, attrs, values, condition) =>
+      val nested = attrs.asInstanceOf[Seq[Any]].filterNot(_.isInstanceOf[AttributeReference])
+      if (nested.nonEmpty) {
+        throw new RuntimeException(s"Update only support non-nested fields. Nested: $nested")
+      }
+
       val attrsNames = attrs.map(_.name)
       // fail if any updated value cannot be converted.
       val updatedValues = values.map {
@@ -254,11 +260,12 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
               s" cannot translate update set to source expression: $v"))
       }
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
-      val filters = splitConjunctivePredicates(condition).map {
-        f => DataSourceStrategy.translateFilter(f).getOrElse(
-          throw new AnalysisException(s"Exec update failed:" +
-              s" cannot translate expression to source filter: $f"))
-      }.toArray
+      val filters = condition.map(
+        splitConjunctivePredicates(_).map {
+          f => DataSourceStrategy.translateFilter(f).getOrElse(
+            throw new AnalysisException(s"Exec update failed:" +
+                s" cannot translate expression to source filter: $f"))
+        }.toArray).getOrElse(Array.empty[Filter])
       UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters)::Nil
 
     case WriteToContinuousDataSource(writer, query) =>

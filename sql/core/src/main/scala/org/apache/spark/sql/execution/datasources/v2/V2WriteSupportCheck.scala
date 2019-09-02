@@ -57,7 +57,7 @@ object V2WriteSupportCheck extends (LogicalPlan => Unit) {
       }
 
     case UpdateTable(_, _, _, condition) =>
-      if (SubqueryExpression.hasSubquery(condition)) {
+      if (condition.exists(SubqueryExpression.hasSubquery)) {
         failAnalysis(s"Update by condition with subquery is not supported: $condition")
       }
 

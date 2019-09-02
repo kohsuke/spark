@@ -363,13 +363,18 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val sets = ctx.setClause().assign().asScala.map {
       kv => visitMultipartIdentifier(kv.key) -> expression(kv.value)
     }.toMap
+    val predicate = if (ctx.whereClause() != null) {
+      Some(expression(ctx.whereClause().booleanExpression()))
+    } else {
+      None
+    }
 
     UpdateTableStatement(
       tableId,
       tableAlias,
       sets.keys.toSeq,
       sets.values.toSeq,
-      expression(ctx.whereClause().booleanExpression()))
+      predicate)
   }
 
   /**

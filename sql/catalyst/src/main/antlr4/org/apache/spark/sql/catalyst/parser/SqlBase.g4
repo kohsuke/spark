@@ -215,7 +215,7 @@ statement
     | SET .*?                                                          #setConfiguration
     | RESET                                                            #resetConfiguration
     | DELETE FROM multipartIdentifier tableAlias whereClause           #deleteFromTable
-    | UPDATE multipartIdentifier tableAlias setClause whereClause      #updateTable
+    | UPDATE multipartIdentifier tableAlias setClause (whereClause)?   #updateTable
     | unsupportedHiveNativeCommands .*?                                #failNativeCommand
     ;
 
@@ -480,7 +480,7 @@ setClause
     ;
 
 assign
-    : key=multipartIdentifier EQ value=valueExpression
+    : key=multipartIdentifier EQ value=expression
     ;
 
 whereClause
