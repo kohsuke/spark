@@ -284,7 +284,7 @@ class AdaptiveQueryExecSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  test("Subquery reuse accross all subquery levels") {
+  test("Subquery reuse across all subquery levels") {
     withSQLConf(
       SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true",
       SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key -> "80") {
