@@ -1062,8 +1062,8 @@ class UDFRegistration private[sql] (functionRegistry: FunctionRegistry) extends 
     val identifier = SparkSession.active.sessionState.sqlParser.parseFunctionIdentifier(name)
     if (identifier.database.isDefined) {
       throw new AnalysisException(
-    "Invalid arguments for temp function contains database name "
-      + identifier.database.get)
+        "Invalid arguments for temp function contains database name "
+          + identifier.database.get)
     }
     functionRegistry.createOrReplaceTempFunction(identifier, builder)
   }
