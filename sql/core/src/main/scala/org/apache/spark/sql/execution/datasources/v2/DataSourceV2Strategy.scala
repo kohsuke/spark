@@ -24,9 +24,9 @@ import scala.collection.mutable
 
 import org.apache.spark.sql.{AnalysisException, Strategy}
 import org.apache.spark.sql.catalog.v2.StagingTableCatalog
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{Alias, And, AttributeReference, AttributeSet, Expression, NamedExpression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
-import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowTables, UpdateTable}
+import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Project, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowTables, UpdateTable}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
@@ -246,27 +246,55 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       }.toArray
       DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
 
-    case UpdateTable(r: DataSourceV2Relation, attrs, values, condition) =>
+    case UpdateTable(maybeRelation, attrs, values, condition) =>
       val nested = attrs.asInstanceOf[Seq[Any]].filterNot(_.isInstanceOf[AttributeReference])
       if (nested.nonEmpty) {
-        throw new RuntimeException(s"Update only support non-nested fields. Nested: $nested")
+        throw new AnalysisException(s"Update only support non-nested fields. Nested: $nested")
       }
 
-      val attrsNames = attrs.map(_.name)
+      val (relation, attrsNames, newValues, newCond) = maybeRelation match {
+        case d: DataSourceV2Relation =>
+          (d, attrs.map(_.name), values, condition)
+        case Project(aliasList: Seq[Alias], r: DataSourceV2Relation) =>
+          // given the aliased columns, resolve the original columns.
+          val lookup = aliasList.map {
+            alias => alias.name -> alias.child.asInstanceOf[AttributeReference]
+          }.toMap
+          def replaceAttr(input: Expression): Expression = {
+            input.transformDown {
+              case a: AttributeReference => lookup.getOrElse(a.name, a)
+              case other => other
+            }
+          }
+
+          val newValues = values.map(replaceAttr)
+          val newCond = condition.map(replaceAttr)
+          val attrNames = attrs.map(replaceAttr).asInstanceOf[Seq[AttributeReference]].map(_.name)
+
+          val relationAttrNames = r.output.map(_.name)
+          if (!attrNames.forall(relationAttrNames.contains)) {
+            throw new AnalysisException(s"Exec update failed:" +
+                s" cannot resolve fields ${attrNames.diff(relationAttrNames)}")
+          }
+          (r, attrNames, newValues, newCond)
+        case _ =>
+          throw new AnalysisException(s"Exec update failed: cannot resolve $maybeRelation")
+      }
+
       // fail if any updated value cannot be converted.
-      val updatedValues = values.map {
+      val updatedValues = newValues.map {
         v => DataSourceStrategy.translateExpression(v).getOrElse(
           throw new AnalysisException(s"Exec update failed:" +
               s" cannot translate update set to source expression: $v"))
       }
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
-      val filters = condition.map(
+      val filters = newCond.map(
         splitConjunctivePredicates(_).map {
           f => DataSourceStrategy.translateFilter(f).getOrElse(
             throw new AnalysisException(s"Exec update failed:" +
                 s" cannot translate expression to source filter: $f"))
         }.toArray).getOrElse(Array.empty[Filter])
-      UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters)::Nil
+      UpdateTableExec(relation.table.asUpdatable, attrsNames, updatedValues, filters)::Nil
 
     case WriteToContinuousDataSource(writer, query) =>
       WriteToContinuousDataSourceExec(writer, planLater(query)) :: Nil
@@ -296,5 +324,15 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       ShowTablesExec(r.output, r.catalog, r.namespace, r.pattern) :: Nil
 
     case _ => Nil
+  }
+}
+
+object eliminateProject {
+  def unapply(plan: LogicalPlan): Option[DataSourceV2Relation] = {
+    plan match {
+      case p: DataSourceV2Relation => Some(p)
+      case Project(_, p: DataSourceV2Relation) => Some(p)
+      case _ => None
+    }
   }
 }

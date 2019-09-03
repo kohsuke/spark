@@ -22,6 +22,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
 case class UpdateTableStatement(
     tableName: Seq[String],
     tableAlias: Option[String],
+    colsAliases: Option[Seq[String]],
     attrs: Seq[Seq[String]],
     values: Seq[Expression],
     condition: Option[Expression]) extends ParsedStatement
