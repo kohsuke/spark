@@ -354,21 +354,16 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
 
   override def visitUpdateTable(ctx: UpdateTableContext): LogicalPlan = withOrigin(ctx) {
     val tableId = visitMultipartIdentifier(ctx.multipartIdentifier)
-    val (tableAlias, colsAlias) = if (ctx.tableAlias() != null) {
+    val tableAlias = if (ctx.tableAlias() != null) {
       val ident = ctx.tableAlias().strictIdentifier()
-      val colList = ctx.tableAlias().identifierList()
-      if (ident != null) {
-        val cols = if (colList != null) {
-          Some(visitIdentifierList(colList))
-        } else {
-          None
-        }
-        (Some(ident.getText), cols)
-      } else {
-        (None, None)
+      // We do not allow columns aliases after table alias.
+      val identList = ctx.tableAlias().identifierList()
+      if (identList != null) {
+        throw new ParseException("Columns aliases is not allowed.", identList)
       }
+      if (ident != null) { Some(ident.getText) } else { None }
     } else {
-      (None, None)
+      None
     }
     val (attrs, values) = ctx.setClause().assign().asScala.map {
       kv => visitMultipartIdentifier(kv.key) -> expression(kv.value)
@@ -382,7 +377,6 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     UpdateTableStatement(
       tableId,
       tableAlias,
-      colsAlias,
       attrs,
       values,
       predicate)

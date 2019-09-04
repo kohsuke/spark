@@ -576,7 +576,7 @@ case class DeleteFromTable(
 
 case class UpdateTable(
     child: LogicalPlan,
-    attrs: Seq[Attribute],
+    attrs: Seq[NamedExpression],
     values: Seq[Expression],
     condition: Option[Expression]) extends Command {
 
