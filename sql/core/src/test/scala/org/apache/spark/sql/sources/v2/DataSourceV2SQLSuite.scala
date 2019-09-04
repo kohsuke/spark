@@ -1767,7 +1767,7 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("Update: basic") {
+  test("Update: basic - update all") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(
@@ -1794,7 +1794,7 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("Update: update with where clause") {
+  test("Update: basic - update with where clause") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(

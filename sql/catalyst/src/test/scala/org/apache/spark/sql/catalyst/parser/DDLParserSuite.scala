@@ -776,8 +776,7 @@ class DDLParserSuite extends AnalysisTest {
         None,
         Seq(Seq("t", "a"), Seq("t", "b")),
         Seq(Literal("Robert"), Literal(32)),
-        None
-      ))
+        None))
   }
 
   test("update table: with alias and where clause") {
@@ -792,8 +791,7 @@ class DDLParserSuite extends AnalysisTest {
         Some("t"),
         Seq(Seq("t", "a"), Seq("t", "b")),
         Seq(Literal("Robert"), Literal(32)),
-        Some(EqualTo(UnresolvedAttribute("t.c"), Literal(2)))
-      ))
+        Some(EqualTo(UnresolvedAttribute("t.c"), Literal(2)))))
   }
 
   test("update table: columns aliases is not allowed") {
