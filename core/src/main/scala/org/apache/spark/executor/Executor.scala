@@ -141,21 +141,18 @@ private[spark] class Executor(
     if (pluginNames.nonEmpty) {
       logDebug("Initializing the following executor plugin(s): " +
         s"${pluginNames.mkString(", ")}")
-      val pluginContext = new(ExecutorPluginContext)
-      val pluginSource = new(ExecutorPluginSource)
-      pluginContext.executorPluginMetricRegistry = pluginSource.metricRegistry
+      val pluginSource = new ExecutorPluginSource
+      val pluginContext = new ExecutorPluginContext(pluginSource.metricRegistry, conf, executorId)
+
       // Plugins need to load using a class loader that includes the executor's user classpath
       val pluginList: Seq[ExecutorPlugin] =
         Utils.withContextClassLoader(replClassLoader) {
           val plugins = Utils.loadExtensions(
             classOf[ExecutorPlugin], pluginNames, conf)
           plugins.foreach { plugin =>
-            plugin.init(pluginContext) match {
-              case 0 => logDebug(s"Successfully called the init method for executor plugin " +
+            plugin.init(pluginContext)
+            logDebug(s"Successfully loaded the executor plugin " +
                            plugin.getClass().getCanonicalName())
-              case returnVal => logWarning(s"Return code $returnVal from the init method for " +
-                           "executor plugin " + plugin.getClass().getCanonicalName())
-            }
           }
           plugins
         }

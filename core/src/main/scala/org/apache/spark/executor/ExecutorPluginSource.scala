@@ -22,7 +22,7 @@ import com.codahale.metrics.MetricRegistry
 import org.apache.spark.metrics.source.Source
 
 private[spark]
-class ExecutorPluginSource() extends Source {
+class ExecutorPluginSource extends Source {
 
   override val metricRegistry = new MetricRegistry()
 

@@ -40,23 +40,16 @@ public interface ExecutorPlugin {
    * Initialize the executor plugin.
    *
    * <p>Each executor will, during its initialization, invoke this method on each
-   * plugin provided in the spark.executor.plugins configuration.</p>
+   * plugin provided in the spark.executor.plugins configuration. The Spark executor
+   * will wait on the completion of the execution of the init method.</p>
    *
    * <p>Plugins should create threads in their implementation of this method for
    * any polling, blocking, or intensive computation.</p>
    *
-   * <p>The user-supplied init method for this class is initialized passing
-   * executorPluginContext, which contains an handle to the metric registry of the
-   * executorPlugin. This allows to add custom metrics (gauges, counters, etc).</p>
-   *
-   * <p>The Spark executor code will wait on the completion of the execution of the init method.
-   * The init method supplied by the user is expected to return an integer status value.
-   * The return value 0 is used to signal that the initialization was successful,
-   * any other return value triggers a warning message, the default return value is -1, as
-   * it may help identifying anomalous situations (possibly a mistake in the user
-   * implementation of the init method).</p>
+   * @param pluginContext The user-supplied init method for this class is initialized
+   *                      passing an instance of the ExecutorPluginContext.
    */
-  default int init(ExecutorPluginContext pluginContext) { return -1; }
+  default void init(ExecutorPluginContext pluginContext) {}
 
   /**
    * Clean up and terminate this plugin.

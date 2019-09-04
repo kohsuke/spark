@@ -19,14 +19,36 @@ package org.apache.spark;
 
 import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.annotation.DeveloperApi;
+import org.apache.spark.annotation.Private;
 
 /**
- * This class encapsulates the input for the ExecutorPlugin interface. It provides a
- * layer of indirection to ease future extensions of executor plugins, without breaking the API.
+ * This class encapsulates the input parameters for the init
+ * method of the ExecutorPlugin interface.
  */
 @DeveloperApi
 public class ExecutorPluginContext {
 
-  public MetricRegistry executorPluginMetricRegistry;
+  MetricRegistry metricRegistry;
+  SparkConf sparkConf;
+  String executorId;
+
+  @Private
+  public ExecutorPluginContext(MetricRegistry registry, SparkConf conf, String id) {
+      metricRegistry = registry;
+      sparkConf = conf;
+      executorId = id;
+  }
+
+  public MetricRegistry getMetricRegistry() {
+      return metricRegistry;
+  }
+
+  public SparkConf getSparkConf() {
+      return sparkConf;
+  }
+
+  public String getExecutorId() {
+      return executorId;
+  }
 
 }
