@@ -24,7 +24,7 @@ import scala.collection.mutable
 
 import org.apache.spark.sql.{AnalysisException, Strategy}
 import org.apache.spark.sql.catalog.v2.StagingTableCatalog
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, NamedExpression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowTables, UpdateTable}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
@@ -251,8 +251,8 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       if (nested.nonEmpty) {
         throw new AnalysisException(s"Update only support non-nested fields. Nested: $nested")
       }
-
-      val attrsNames = attrs.map(_.name)
+      val attrsNames = DataSourceStrategy.normalizeFilters(attrs, r.output)
+          .asInstanceOf[Seq[NamedExpression]].map(_.name)
       // fail if any updated value cannot be converted.
       val updatedValues = values.map {
         v => DataSourceStrategy.translateExpression(v).getOrElse(
@@ -260,12 +260,12 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
               s" cannot translate update set to source expression: $v"))
       }
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
-      val filters = condition.map(
-        splitConjunctivePredicates(_).map {
-          f => DataSourceStrategy.translateFilter(f).getOrElse(
-            throw new AnalysisException(s"Exec update failed:" +
-                s" cannot translate expression to source filter: $f"))
-        }.toArray).getOrElse(Array.empty[Filter])
+      val filters = DataSourceStrategy.normalizeFilters(condition.toSeq, r.output)
+          .flatMap(splitConjunctivePredicates(_).map {
+            f => DataSourceStrategy.translateFilter(f).getOrElse(
+              throw new AnalysisException(s"Exec update failed:" +
+                  s" cannot translate expression to source filter: $f"))
+          }).toArray
       UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters)::Nil
 
     case WriteToContinuousDataSource(writer, query) =>

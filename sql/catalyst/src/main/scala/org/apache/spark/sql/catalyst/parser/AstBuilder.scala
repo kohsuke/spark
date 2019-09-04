@@ -357,9 +357,9 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val tableAlias = if (ctx.tableAlias() != null) {
       val ident = ctx.tableAlias().strictIdentifier()
       // We do not allow columns aliases after table alias.
-      val identList = ctx.tableAlias().identifierList()
-      if (identList != null) {
-        throw new ParseException("Columns aliases is not allowed.", identList)
+      if (ctx.tableAlias().identifierList() != null) {
+        throw new ParseException("Columns aliases is not allowed in UPDATE.",
+          ctx.tableAlias().identifierList())
       }
       if (ident != null) { Some(ident.getText) } else { None }
     } else {

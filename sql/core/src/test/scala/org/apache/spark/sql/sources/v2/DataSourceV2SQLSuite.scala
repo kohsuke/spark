@@ -1774,17 +1774,17 @@ class DataSourceV2SQLSuite
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       sql(s"UPDATE $t SET name='Robert', age=32")
 
@@ -1801,17 +1801,17 @@ class DataSourceV2SQLSuite
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       sql(s"UPDATE $t SET name='Robert', age=32 where p=2")
 
@@ -1828,17 +1828,17 @@ class DataSourceV2SQLSuite
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       sql(s"UPDATE $t SET p=4 where id=4")
 
@@ -1855,17 +1855,17 @@ class DataSourceV2SQLSuite
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       sql(s"UPDATE $t AS tbl SET tbl.name='Robert', tbl.age=32 where p=2")
 
@@ -1877,22 +1877,49 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("Update: columns aliases is not allowed.") {
+  test("Update: normalize attribute names") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
+         """.stripMargin)
+      sql(s"UPDATE $t AS tbl SET tbl.NAME='Robert', tbl.AGE=32 where P=2")
+
+      checkAnswer(spark.table(t),
+        Seq(Row(1, "Herry", 26, 1),
+          Row(2, "Robert", 32, 2),
+          Row(3, "Lisa", 28, 3),
+          Row(4, "Frank", 33, 3)))
+    }
+  }
+
+  test("Update: columns aliases is not allowed") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(
+        s"""
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
+         """.stripMargin)
+      sql(
+        s"""
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       val exc = intercept[ParseException] {
         sql(s"UPDATE $t AS tbl(a,b,c,d) SET b='Robert', c=32 where d=2")
@@ -1903,11 +1930,11 @@ class DataSourceV2SQLSuite
           Row(2, "Jack", 31, 2),
           Row(3, "Lisa", 28, 3),
           Row(4, "Frank", 33, 3)))
-      assert(exc.getMessage.contains("Columns aliases is not allowed."))
+      assert(exc.getMessage.contains("Columns aliases is not allowed in UPDATE."))
     }
   }
 
-  test("Update: update nested field") {
+  test("Update: update nested field is not allowed") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(s"CREATE TABLE $t (id int, point struct<x: double, y: double>) USING foo")
@@ -1928,17 +1955,17 @@ class DataSourceV2SQLSuite
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       val exc = intercept[AnalysisException] {
         sql(s"UPDATE $t tbl SET tbl.p=tbl.p + 1 WHERE id = 3")
@@ -1954,17 +1981,17 @@ class DataSourceV2SQLSuite
     withTable(t) {
       sql(
         s"""
-           | CREATE TABLE $t (id bigint, name string, age int, p int)
-           | USING foo
-           | PARTITIONED BY (id, p)
+           |CREATE TABLE $t (id bigint, name string, age int, p int)
+           |USING foo
+           |PARTITIONED BY (id, p)
          """.stripMargin)
       sql(
         s"""
-           | INSERT INTO $t
-           | VALUES (1L, 'Herry', 26, 1),
-           | (2L, 'Jack', 31, 2),
-           | (3L, 'Lisa', 28, 3),
-           | (4L, 'Frank', 33, 3)
+           |INSERT INTO $t
+           |VALUES (1L, 'Herry', 26, 1),
+           |(2L, 'Jack', 31, 2),
+           |(3L, 'Lisa', 28, 3),
+           |(4L, 'Frank', 33, 3)
          """.stripMargin)
       val exc = intercept[AnalysisException] {
         sql(s"UPDATE $t SET name='Robert' WHERE id IN (SELECT id FROM $t)")
