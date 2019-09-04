@@ -21,10 +21,11 @@ import java.util.Locale
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalog.v2.expressions.{ApplyTransform, BucketTransform, DaysTransform, FieldReference, HoursTransform, IdentityTransform, LiteralValue, MonthsTransform, Transform, YearsTransform}
-import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableAddColumnsStatement, AlterTableAlterColumnStatement, AlterTableDropColumnsStatement, AlterTableRenameColumnStatement, AlterTableSetLocationStatement, AlterTableSetPropertiesStatement, AlterTableUnsetPropertiesStatement, AlterViewSetPropertiesStatement, AlterViewUnsetPropertiesStatement, CreateTableAsSelectStatement, CreateTableStatement, DescribeColumnStatement, DescribeTableStatement, DropTableStatement, DropViewStatement, InsertIntoStatement, QualifiedColType, ReplaceTableAsSelectStatement, ReplaceTableStatement, ShowTablesStatement}
+import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableAddColumnsStatement, AlterTableAlterColumnStatement, AlterTableDropColumnsStatement, AlterTableRenameColumnStatement, AlterTableSetLocationStatement, AlterTableSetPropertiesStatement, AlterTableUnsetPropertiesStatement, AlterViewSetPropertiesStatement, AlterViewUnsetPropertiesStatement, CreateTableAsSelectStatement, CreateTableStatement, DescribeColumnStatement, DescribeTableStatement, DropTableStatement, DropViewStatement, InsertIntoStatement, QualifiedColType, ReplaceTableAsSelectStatement, ReplaceTableStatement, ShowTablesStatement, UpdateTableStatement}
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructType, TimestampType}
 import org.apache.spark.unsafe.types.UTF8String
 
@@ -762,6 +763,37 @@ class DDLParserSuite extends AnalysisTest {
     }
 
     assert(exc.getMessage.contains("INSERT INTO ... IF NOT EXISTS"))
+  }
+
+  test("update table: basic") {
+    parseCompare(
+      """
+        |UPDATE testcat.ns1.ns2.tbl
+        |SET t.a='Robert', t.b=32
+      """.stripMargin,
+      UpdateTableStatement(
+        Seq("testcat", "ns1", "ns2", "tbl"),
+        None,
+        Seq(Seq("t", "a"), Seq("t", "b")),
+        Seq(Literal("Robert"), Literal(32)),
+        None
+      ))
+  }
+
+  test("update table: with alias and where clause") {
+    parseCompare(
+      """
+        |UPDATE testcat.ns1.ns2.tbl AS t
+        |SET t.a='Robert', t.b=32
+        |WHERE t.c=2
+      """.stripMargin,
+      UpdateTableStatement(
+        Seq("testcat", "ns1", "ns2", "tbl"),
+        Some("t"),
+        Seq(Seq("t", "a"), Seq("t", "b")),
+        Seq(Literal("Robert"), Literal(32)),
+        Some(EqualTo(UnresolvedAttribute("t.c"), Literal(2)))
+      ))
   }
 
   test("update table: columns aliases is not allowed") {

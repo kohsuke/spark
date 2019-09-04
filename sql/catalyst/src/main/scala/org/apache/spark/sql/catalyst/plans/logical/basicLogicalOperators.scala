@@ -574,9 +574,15 @@ case class DeleteFromTable(
   override def children: Seq[LogicalPlan] = child :: Nil
 }
 
+/**
+ * Update the data of table that specified with the condition with the given updated values.
+ * NOTE: Considering nested fields, we let the type of `attrs` to be `Seq[Expression]` becuase
+ * nested fields may be resolved to objects of type like `GetStructField`. However, currently
+ * we only support top-level fields, in which case `attrs` is actually of type `Seq[Attribute]`.
+ */
 case class UpdateTable(
     child: LogicalPlan,
-    attrs: Seq[NamedExpression],
+    attrs: Seq[Expression],
     values: Seq[Expression],
     condition: Option[Expression]) extends Command {
 

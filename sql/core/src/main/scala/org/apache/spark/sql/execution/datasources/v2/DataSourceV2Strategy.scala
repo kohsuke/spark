@@ -24,14 +24,13 @@ import scala.collection.mutable
 
 import org.apache.spark.sql.{AnalysisException, Strategy}
 import org.apache.spark.sql.catalog.v2.StagingTableCatalog
-import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, NamedExpression, PredicateHelper, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowTables, UpdateTable}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
 import org.apache.spark.sql.sources
-import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.v2.TableCapability
 import org.apache.spark.sql.sources.v2.reader._
 import org.apache.spark.sql.sources.v2.reader.streaming.{ContinuousStream, MicroBatchStream}
@@ -247,12 +246,12 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
 
     case UpdateTable(r: DataSourceV2Relation, attrs, values, condition) =>
-      val nested = attrs.asInstanceOf[Seq[Any]].filterNot(_.isInstanceOf[AttributeReference])
+      val nested = attrs.filterNot(_.isInstanceOf[AttributeReference])
       if (nested.nonEmpty) {
         throw new AnalysisException(s"Update only support non-nested fields. Nested: $nested")
       }
       val attrsNames = DataSourceStrategy.normalizeAttrNames(attrs, r.output)
-          .asInstanceOf[Seq[NamedExpression]].map(_.name)
+          .asInstanceOf[Seq[AttributeReference]].map(_.name)
       // fail if any updated value cannot be converted.
       val updatedValues = DataSourceStrategy.normalizeAttrNames(values, r.output).map {
         v => DataSourceStrategy.translateExpression(v).getOrElse(
