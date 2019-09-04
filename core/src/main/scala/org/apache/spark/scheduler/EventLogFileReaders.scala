@@ -81,7 +81,7 @@ abstract class EventLogFileReader(
 
   /**
    * This method compresses the files passed in, and writes the compressed data out into the
-   * [[ZipOutputStream]] passed in. Each file is written as a new [[ZipEntry]] with its name being
+   * ZipOutputStream passed in. Each file is written as a new ZipEntry with its name being
    * the name of the file being compressed.
    */
   def zipEventLogFiles(zipStream: ZipOutputStream): Unit
