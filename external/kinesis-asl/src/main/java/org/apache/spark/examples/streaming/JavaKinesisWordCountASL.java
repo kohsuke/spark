@@ -137,16 +137,16 @@ public final class JavaKinesisWordCountASL { // needs to be public for access fr
     List<JavaDStream<byte[]>> streamsList = new ArrayList<>(numStreams);
     for (int i = 0; i < numStreams; i++) {
       streamsList.add(JavaDStream.fromDStream(
-          KinesisInputDStream.builder().
-              streamingContext(jssc).
-              checkpointAppName(kinesisAppName).
-              streamName(streamName).
-              endpointUrl(endpointUrl).
-              regionName(regionName).
-              initialPosition(new KinesisInitialPositions.Latest()).
-              checkpointInterval(kinesisCheckpointInterval).
-              storageLevel(StorageLevel.MEMORY_AND_DISK_2()).
-              build(),
+          KinesisInputDStream.builder()
+              .streamingContext(jssc)
+              .checkpointAppName(kinesisAppName)
+              .streamName(streamName)
+              .endpointUrl(endpointUrl)
+              .regionName(regionName)
+              .initialPosition(new KinesisInitialPositions.Latest())
+              .checkpointInterval(kinesisCheckpointInterval)
+              .storageLevel(StorageLevel.MEMORY_AND_DISK_2())
+              .build(),
           ClassTag$.MODULE$.apply(byte[].class)
       ));
     }
