@@ -250,10 +250,6 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
         throw new AnalysisException(
             s"Update by condition with subquery is not supported: $condition")
       }
-      val nested = attrs.filterNot(_.isInstanceOf[AttributeReference])
-      if (nested.nonEmpty) {
-        throw new AnalysisException(s"Update only support non-nested fields. Nested: $nested")
-      }
       val attrsNames = DataSourceStrategy.normalizeAttrNames(attrs, r.output).map {
         case a: AttributeReference => a.name
         case other =>
