@@ -1752,12 +1752,23 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("DeleteFrom: delete aliased target table") {
+  test("DeleteFrom: delete from aliased target table") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
       sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
       sql(s"DELETE FROM $t AS tbl WHERE tbl.id = 2")
+      checkAnswer(spark.table(t), Seq(
+        Row(3, "c", 3)))
+    }
+  }
+
+  test("DeleteFrom: normalize attribute names") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id bigint, data string, p int) USING foo PARTITIONED BY (id, p)")
+      sql(s"INSERT INTO $t VALUES (2L, 'a', 2), (2L, 'b', 3), (3L, 'c', 3)")
+      sql(s"DELETE FROM $t AS tbl WHERE tbl.ID = 2")
       checkAnswer(spark.table(t), Seq(
         Row(3, "c", 3)))
     }
