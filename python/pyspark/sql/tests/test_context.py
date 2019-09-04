@@ -66,7 +66,7 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
         tmpPath = tempfile.mkdtemp()
         shutil.rmtree(tmpPath)
         df.write.saveAsTable("savedJsonTable", "json", "append", path=tmpPath)
-        actual = self.spark.createExternalTable("externalJsonTable", tmpPath, "json")
+        actual = self.spark.createTable("externalJsonTable", tmpPath, "json")
         self.assertEqual(sorted(df.collect()),
                          sorted(self.spark.sql("SELECT * FROM savedJsonTable").collect()))
         self.assertEqual(sorted(df.collect()),
@@ -76,9 +76,9 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
 
         df.write.saveAsTable("savedJsonTable", "json", "overwrite", path=tmpPath)
         schema = StructType([StructField("value", StringType(), True)])
-        actual = self.spark.createExternalTable("externalJsonTable", source="json",
-                                                schema=schema, path=tmpPath,
-                                                noUse="this options will not be used")
+        actual = self.spark.createTable("externalJsonTable", source="json",
+                                        schema=schema, path=tmpPath,
+                                        noUse="this options will not be used")
         self.assertEqual(sorted(df.collect()),
                          sorted(self.spark.sql("SELECT * FROM savedJsonTable").collect()))
         self.assertEqual(sorted(df.select("value").collect()),
@@ -91,7 +91,7 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
                                                    "org.apache.spark.sql.parquet")
         self.spark.sql("SET spark.sql.sources.default=org.apache.spark.sql.json")
         df.write.saveAsTable("savedJsonTable", path=tmpPath, mode="overwrite")
-        actual = self.spark.createExternalTable("externalJsonTable", path=tmpPath)
+        actual = self.spark.createTable("externalJsonTable", path=tmpPath)
         self.assertEqual(sorted(df.collect()),
                          sorted(self.spark.sql("SELECT * FROM savedJsonTable").collect()))
         self.assertEqual(sorted(df.collect()),
