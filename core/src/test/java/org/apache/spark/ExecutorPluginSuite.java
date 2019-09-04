@@ -108,8 +108,9 @@ public class ExecutorPluginSuite {
   }
 
   public static class TestExecutorPlugin implements ExecutorPlugin {
-    public void init() {
+    public int init(ExecutorPluginContext pluginContext) {
       ExecutorPluginSuite.numSuccessfulPlugins++;
+      return 0;
     }
 
     public void shutdown() {
@@ -118,8 +119,9 @@ public class ExecutorPluginSuite {
   }
 
   public static class TestSecondPlugin implements ExecutorPlugin {
-    public void init() {
+    public int init(ExecutorPluginContext pluginContext) {
       ExecutorPluginSuite.numSuccessfulPlugins++;
+      return 0;
     }
 
     public void shutdown() {
@@ -128,8 +130,9 @@ public class ExecutorPluginSuite {
   }
 
   public static class TestBadShutdownPlugin implements ExecutorPlugin {
-    public void init() {
+    public int init(ExecutorPluginContext pluginContext) {
       ExecutorPluginSuite.numSuccessfulPlugins++;
+      return 0;
     }
 
     public void shutdown() {

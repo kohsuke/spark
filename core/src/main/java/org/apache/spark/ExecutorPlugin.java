@@ -17,7 +17,6 @@
 
 package org.apache.spark;
 
-import com.codahale.metrics.MetricRegistry;
 import org.apache.spark.annotation.DeveloperApi;
 
 /**
@@ -45,19 +44,19 @@ public interface ExecutorPlugin {
    *
    * <p>Plugins should create threads in their implementation of this method for
    * any polling, blocking, or intensive computation.</p>
+   *
+   * <p>The user-supplied init method for this class is initialized passing
+   * executorPluginContext, which contains an handle to the metric registry of the
+   * executorPlugin. This allows to add custom metrics (gauges, counters, etc).</p>
+   *
+   * <p>The Spark executor code will wait on the completion of the execution of the init method.
+   * The init method supplied by the user is expected to return an integer status value.
+   * The return value 0 is used to signal that the initialization was successful,
+   * any other return value triggers a warning message, the default return value is -1, as
+   * it may help identifying anomalous situations (possibly a mistake in the user
+   * implementation of the init method).</p>
    */
-  default void init() {}
-
-  /**
-   * Initialize the executor plugins used to extend the Spark/Dropwizard metrics system.
-   *
-   * <p>Each executor will, during its initialization, invoke this method on each
-   * plugin provided in the spark.executor.metrics.plugins configuration.</p>
-   *
-   * <p>Plugins should register the data sources using the Dropwizard/codahale API</p>
-   *
-   */
-  default void init(MetricRegistry sourceMetricsRegistry) {}
+  default int init(ExecutorPluginContext pluginContext) { return -1; }
 
   /**
    * Clean up and terminate this plugin.

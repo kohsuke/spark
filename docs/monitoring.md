@@ -1043,8 +1043,9 @@ when running in local mode.
   - sourceCodeSize (histogram)
 
 - namespace=executorPlugin
-  - This allows to introduce metrics defined by user-supplied code, using the executor plugin infrastructure.
-  It is configured using `spark.executor.metrics.plugins`
+  - Optional namespace. The metrics in this mnamespace are defined by user-supplied code, when 
+  configured by using the Spark executor plugin infrastructure.
+  See also the configuration parameter `spark.executor.plugins`
 
 ### Source = JVM Source 
 Notes: 
