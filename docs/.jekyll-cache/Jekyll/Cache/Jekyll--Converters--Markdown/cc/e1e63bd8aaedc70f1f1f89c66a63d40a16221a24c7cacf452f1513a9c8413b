@@ -1,0 +1,50 @@
+I"<p>Spark SQL supports operating on a variety of data sources through the DataFrame interface.
+A DataFrame can be operated on using relational transformations and can also be used to create a temporary view.
+Registering a DataFrame as a temporary view allows you to run SQL queries over its data. This section
+describes the general methods for loading and saving data using the Spark Data Sources and then
+goes into specific options that are available for the built-in data sources.</p>
+
+<ul>
+  <li><a href="sql-data-sources-load-save-functions.html">Generic Load/Save Functions</a>
+    <ul>
+      <li><a href="sql-data-sources-load-save-functions.html#manually-specifying-options">Manually Specifying Options</a></li>
+      <li><a href="sql-data-sources-load-save-functions.html#run-sql-on-files-directly">Run SQL on files directly</a></li>
+      <li><a href="sql-data-sources-load-save-functions.html#save-modes">Save Modes</a></li>
+      <li><a href="sql-data-sources-load-save-functions.html#saving-to-persistent-tables">Saving to Persistent Tables</a></li>
+      <li><a href="sql-data-sources-load-save-functions.html#bucketing-sorting-and-partitioning">Bucketing, Sorting and Partitioning</a></li>
+    </ul>
+  </li>
+  <li><a href="sql-data-sources-parquet.html">Parquet Files</a>
+    <ul>
+      <li><a href="sql-data-sources-parquet.html#loading-data-programmatically">Loading Data Programmatically</a></li>
+      <li><a href="sql-data-sources-parquet.html#partition-discovery">Partition Discovery</a></li>
+      <li><a href="sql-data-sources-parquet.html#schema-merging">Schema Merging</a></li>
+      <li><a href="sql-data-sources-parquet.html#hive-metastore-parquet-table-conversion">Hive metastore Parquet table conversion</a></li>
+      <li><a href="sql-data-sources-parquet.html#configuration">Configuration</a></li>
+    </ul>
+  </li>
+  <li><a href="sql-data-sources-orc.html">ORC Files</a></li>
+  <li><a href="sql-data-sources-json.html">JSON Files</a></li>
+  <li><a href="sql-data-sources-hive-tables.html">Hive Tables</a>
+    <ul>
+      <li><a href="sql-data-sources-hive-tables.html#specifying-storage-format-for-hive-tables">Specifying storage format for Hive tables</a></li>
+      <li><a href="sql-data-sources-hive-tables.html#interacting-with-different-versions-of-hive-metastore">Interacting with Different Versions of Hive Metastore</a></li>
+    </ul>
+  </li>
+  <li><a href="sql-data-sources-jdbc.html">JDBC To Other Databases</a></li>
+  <li><a href="sql-data-sources-avro.html">Avro Files</a>
+    <ul>
+      <li><a href="sql-data-sources-avro.html#deploying">Deploying</a></li>
+      <li><a href="sql-data-sources-avro.html#load-and-save-functions">Load and Save Functions</a></li>
+      <li><a href="sql-data-sources-avro.html#to_avro-and-from_avro">to_avro() and from_avro()</a></li>
+      <li><a href="sql-data-sources-avro.html#data-source-option">Data Source Option</a></li>
+      <li><a href="sql-data-sources-avro.html#configuration">Configuration</a></li>
+      <li><a href="sql-data-sources-avro.html#compatibility-with-databricks-spark-avro">Compatibility with Databricks spark-avro</a></li>
+      <li><a href="sql-data-sources-avro.html#supported-types-for-avro---spark-sql-conversion">Supported types for Avro -&gt; Spark SQL conversion</a></li>
+      <li><a href="sql-data-sources-avro.html#supported-types-for-spark-sql---avro-conversion">Supported types for Spark SQL -&gt; Avro conversion</a></li>
+    </ul>
+  </li>
+  <li><a href="sql-data-sources-binaryFile.html">Whole Binary Files</a></li>
+  <li><a href="sql-data-sources-troubleshooting.html">Troubleshooting</a></li>
+</ul>
+:ET

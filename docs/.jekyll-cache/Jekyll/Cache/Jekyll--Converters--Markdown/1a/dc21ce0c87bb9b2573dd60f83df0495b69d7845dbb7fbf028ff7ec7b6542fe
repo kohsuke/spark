@@ -1,0 +1,7 @@
+I"ã<p><a href="https://kafka.apache.org/">Apache Kafka</a> is publish-subscribe messaging rethought as a distributed, partitioned, 
+replicated commit log service.  Please read the <a href="https://kafka.apache.org/documentation.html">Kafka documentation</a> 
+thoroughly before starting an integration using Spark.</p>
+
+<p>At the moment, Spark requires Kafka 0.10 and higher. See 
+<a href="streaming-kafka-0-10-integration.html">Kafka 0.10 integration documentation</a> for details.</p>
+:ET

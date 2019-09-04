@@ -1,0 +1,42 @@
+I"ò<p>Since Spark 3.0, Spark supports binary file data source,
+which reads binary files and converts each file into a single record that contains the raw content
+and metadata of the file.
+It produces a DataFrame with the following columns and possibly partition columns:</p>
+<ul>
+  <li><code>path</code>: StringType</li>
+  <li><code>modificationTime</code>: TimestampType</li>
+  <li><code>length</code>: LongType</li>
+  <li><code>content</code>: BinaryType</li>
+</ul>
+
+<p>To read whole binary files, you need to specify the data source <code>format</code> as <code>binaryFile</code>.
+To load files with paths matching a given glob pattern while keeping the behavior of partition discovery,
+you can use the general data source option <code>pathGlobFilter</code>.
+For example, the following code reads all PNG files from the input directory:</p>
+
+<div class="codetabs">
+<div data-lang="scala">
+
+    <figure class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="nv">spark</span><span class="o">.</span><span class="py">read</span><span class="o">.</span><span class="py">format</span><span class="o">(</span><span class="s">"binaryFile"</span><span class="o">).</span><span class="py">option</span><span class="o">(</span><span class="s">"pathGlobFilter"</span><span class="o">,</span> <span class="s">"*.png"</span><span class="o">).</span><span class="py">load</span><span class="o">(</span><span class="s">"/path/to/data"</span><span class="o">)</span></code></pre></figure>
+
+  </div>
+
+<div data-lang="java">
+
+    <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="n">spark</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">format</span><span class="o">(</span><span class="s">"binaryFile"</span><span class="o">).</span><span class="na">option</span><span class="o">(</span><span class="s">"pathGlobFilter"</span><span class="o">,</span> <span class="s">"*.png"</span><span class="o">).</span><span class="na">load</span><span class="o">(</span><span class="s">"/path/to/data"</span><span class="o">);</span></code></pre></figure>
+
+  </div>
+<div data-lang="python">
+
+    <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="nb">format</span><span class="p">(</span><span class="s">"binaryFile"</span><span class="p">)</span><span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s">"pathGlobFilter"</span><span class="p">,</span> <span class="s">"*.png"</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s">"/path/to/data"</span><span class="p">)</span></code></pre></figure>
+
+  </div>
+<div data-lang="r">
+
+    <figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">read.df</span><span class="p">(</span><span class="s2">"/path/to/data"</span><span class="p">,</span><span class="w"> </span><span class="n">source</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"binaryFile"</span><span class="p">,</span><span class="w"> </span><span class="n">pathGlobFilter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"*.png"</span><span class="p">)</span></code></pre></figure>
+
+  </div>
+</div>
+
+<p>Binary file data source does not support writing a DataFrame back to the original files.</p>
+:ET

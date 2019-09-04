@@ -1,0 +1,147 @@
+I"&<ul id="markdown-toc">
+  <li><a href="#caching-data-in-memory" id="markdown-toc-caching-data-in-memory">Caching Data In Memory</a></li>
+  <li><a href="#other-configuration-options" id="markdown-toc-other-configuration-options">Other Configuration Options</a></li>
+  <li><a href="#join-strategy-hints-for-sql-queries" id="markdown-toc-join-strategy-hints-for-sql-queries">Join Strategy Hints for SQL Queries</a></li>
+</ul>
+
+<p>For some workloads, it is possible to improve performance by either caching data in memory, or by
+turning on some experimental options.</p>
+
+<h2 id="caching-data-in-memory">Caching Data In Memory</h2>
+
+<p>Spark SQL can cache tables using an in-memory columnar format by calling <code>spark.catalog.cacheTable("tableName")</code> or <code>dataFrame.cache()</code>.
+Then Spark SQL will scan only required columns and will automatically tune compression to minimize
+memory usage and GC pressure. You can call <code>spark.catalog.uncacheTable("tableName")</code> to remove the table from memory.</p>
+
+<p>Configuration of in-memory caching can be done using the <code>setConf</code> method on <code>SparkSession</code> or by running
+<code>SET key=value</code> commands using SQL.</p>
+
+<table class="table">
+<tr><th>Property Name</th><th>Default</th><th>Meaning</th></tr>
+<tr>
+  <td><code>spark.sql.inMemoryColumnarStorage.compressed</code></td>
+  <td>true</td>
+  <td>
+    When set to true Spark SQL will automatically select a compression codec for each column based
+    on statistics of the data.
+  </td>
+</tr>
+<tr>
+  <td><code>spark.sql.inMemoryColumnarStorage.batchSize</code></td>
+  <td>10000</td>
+  <td>
+    Controls the size of batches for columnar caching. Larger batch sizes can improve memory utilization
+    and compression, but risk OOMs when caching data.
+  </td>
+</tr>
+
+</table>
+
+<h2 id="other-configuration-options">Other Configuration Options</h2>
+
+<p>The following options can also be used to tune the performance of query execution. It is possible
+that these options will be deprecated in future release as more optimizations are performed automatically.</p>
+
+<table class="table">
+  <tr><th>Property Name</th><th>Default</th><th>Meaning</th></tr>
+  <tr>
+    <td><code>spark.sql.files.maxPartitionBytes</code></td>
+    <td>134217728 (128 MB)</td>
+    <td>
+      The maximum number of bytes to pack into a single partition when reading files.
+    </td>
+  </tr>
+  <tr>
+    <td><code>spark.sql.files.openCostInBytes</code></td>
+    <td>4194304 (4 MB)</td>
+    <td>
+      The estimated cost to open a file, measured by the number of bytes could be scanned in the same
+      time. This is used when putting multiple files into a partition. It is better to over-estimated,
+      then the partitions with small files will be faster than partitions with bigger files (which is
+      scheduled first).
+    </td>
+  </tr>
+  <tr>
+    <td><code>spark.sql.broadcastTimeout</code></td>
+    <td>300</td>
+    <td>
+    <p>
+      Timeout in seconds for the broadcast wait time in broadcast joins
+    </p>
+    </td>
+  </tr>
+  <tr>
+    <td><code>spark.sql.autoBroadcastJoinThreshold</code></td>
+    <td>10485760 (10 MB)</td>
+    <td>
+      Configures the maximum size in bytes for a table that will be broadcast to all worker nodes when
+      performing a join. By setting this value to -1 broadcasting can be disabled. Note that currently
+      statistics are only supported for Hive Metastore tables where the command
+      <code>ANALYZE TABLE &lt;tableName&gt; COMPUTE STATISTICS noscan</code> has been run.
+    </td>
+  </tr>
+  <tr>
+    <td><code>spark.sql.shuffle.partitions</code></td>
+    <td>200</td>
+    <td>
+      Configures the number of partitions to use when shuffling data for joins or aggregations.
+    </td>
+  </tr>
+</table>
+
+<h2 id="join-strategy-hints-for-sql-queries">Join Strategy Hints for SQL Queries</h2>
+
+<p>The join strategy hints, namely <code>BROADCAST</code>, <code>MERGE</code>, <code>SHUFFLE_HASH</code> and <code>SHUFFLE_REPLICATE_NL</code>,
+instruct Spark to use the hinted strategy on each specified relation when joining them with another
+relation. For example, when the <code>BROADCAST</code> hint is used on table &#8216;t1&#8217;, broadcast join (either
+broadcast hash join or broadcast nested loop join depending on whether there is any equi-join key)
+with &#8216;t1&#8217; as the build side will be prioritized by Spark even if the size of table &#8216;t1&#8217; suggested
+by the statistics is above the configuration <code>spark.sql.autoBroadcastJoinThreshold</code>.</p>
+
+<p>When different join strategy hints are specified on both sides of a join, Spark prioritizes the
+<code>BROADCAST</code> hint over the <code>MERGE</code> hint over the <code>SHUFFLE_HASH</code> hint over the <code>SHUFFLE_REPLICATE_NL</code>
+hint. When both sides are specified with the <code>BROADCAST</code> hint or the <code>SHUFFLE_HASH</code> hint, Spark will
+pick the build side based on the join type and the sizes of the relations.</p>
+
+<p>Note that there is no guarantee that Spark will choose the join strategy specified in the hint since
+a specific strategy may not support all join types.</p>
+
+<div class="codetabs">
+
+<div data-lang="scala">
+
+    <figure class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="k">import</span> <span class="nn">org.apache.spark.sql.functions.broadcast</span>
+<span class="nf">broadcast</span><span class="o">(</span><span class="nv">spark</span><span class="o">.</span><span class="py">table</span><span class="o">(</span><span class="s">"src"</span><span class="o">)).</span><span class="py">join</span><span class="o">(</span><span class="nv">spark</span><span class="o">.</span><span class="py">table</span><span class="o">(</span><span class="s">"records"</span><span class="o">),</span> <span class="s">"key"</span><span class="o">).</span><span class="py">show</span><span class="o">()</span></code></pre></figure>
+
+  </div>
+
+<div data-lang="java">
+
+    <figure class="highlight"><pre><code class="language-java" data-lang="java"><span class="kn">import</span> <span class="nn">static</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">spark</span><span class="o">.</span><span class="na">sql</span><span class="o">.</span><span class="na">functions</span><span class="o">.</span><span class="na">broadcast</span><span class="o">;</span>
+<span class="n">broadcast</span><span class="o">(</span><span class="n">spark</span><span class="o">.</span><span class="na">table</span><span class="o">(</span><span class="s">"src"</span><span class="o">)).</span><span class="na">join</span><span class="o">(</span><span class="n">spark</span><span class="o">.</span><span class="na">table</span><span class="o">(</span><span class="s">"records"</span><span class="o">),</span> <span class="s">"key"</span><span class="o">).</span><span class="na">show</span><span class="o">();</span></code></pre></figure>
+
+  </div>
+
+<div data-lang="python">
+
+    <figure class="highlight"><pre><code class="language-python" data-lang="python"><span class="kn">from</span> <span class="nn">pyspark.sql.functions</span> <span class="kn">import</span> <span class="n">broadcast</span>
+<span class="n">broadcast</span><span class="p">(</span><span class="n">spark</span><span class="o">.</span><span class="n">table</span><span class="p">(</span><span class="s">"src"</span><span class="p">))</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">spark</span><span class="o">.</span><span class="n">table</span><span class="p">(</span><span class="s">"records"</span><span class="p">),</span> <span class="s">"key"</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span></code></pre></figure>
+
+  </div>
+
+<div data-lang="r">
+
+    <figure class="highlight"><pre><code class="language-r" data-lang="r"><span class="n">src</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">sql</span><span class="p">(</span><span class="s2">"SELECT * FROM src"</span><span class="p">)</span><span class="w">
+</span><span class="n">records</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">sql</span><span class="p">(</span><span class="s2">"SELECT * FROM records"</span><span class="p">)</span><span class="w">
+</span><span class="n">head</span><span class="p">(</span><span class="n">join</span><span class="p">(</span><span class="n">broadcast</span><span class="p">(</span><span class="n">src</span><span class="p">),</span><span class="w"> </span><span class="n">records</span><span class="p">,</span><span class="w"> </span><span class="n">src</span><span class="o">$</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">records</span><span class="o">$</span><span class="n">key</span><span class="p">))</span></code></pre></figure>
+
+  </div>
+
+<div data-lang="sql">
+
+    <figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">-- We accept BROADCAST, BROADCASTJOIN and MAPJOIN for broadcast hint</span>
+<span class="k">SELECT</span> <span class="cm">/*+ BROADCAST(r) */</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">records</span> <span class="n">r</span> <span class="k">JOIN</span> <span class="n">src</span> <span class="n">s</span> <span class="k">ON</span> <span class="n">r</span><span class="p">.</span><span class="k">key</span> <span class="o">=</span> <span class="n">s</span><span class="p">.</span><span class="k">key</span></code></pre></figure>
+
+  </div>
+</div>
+:ET

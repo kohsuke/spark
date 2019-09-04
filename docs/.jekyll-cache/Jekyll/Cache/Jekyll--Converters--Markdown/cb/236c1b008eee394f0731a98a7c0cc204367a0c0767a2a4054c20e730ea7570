@@ -1,0 +1,91 @@
+I"<7<h3 id="description">Description</h3>
+<p>ALTER TABLE statement changes the structure or properties of a table.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">--Rename a table</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="p">[</span><span class="n">old_db_name</span><span class="p">.]</span><span class="n">old_table_name</span> <span class="k">RENAME</span> <span class="k">TO</span> <span class="p">[</span><span class="n">new_db_name</span><span class="p">.]</span><span class="n">new_table_name</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table</span> <span class="n">PARTITION</span> <span class="n">spec1</span> <span class="k">RENAME</span> <span class="k">TO</span> <span class="n">PARTITION</span> <span class="n">spec2</span>
+
+<span class="c1">--Add columns to an existing table</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="k">ADD</span> <span class="n">COLUMNS</span> <span class="p">(</span><span class="n">col_spec</span><span class="p">[,</span> <span class="n">col_spec</span> <span class="p">...])</span>
+
+<span class="c1">--Drop columns of an existing table</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="k">DROP</span> <span class="p">[</span><span class="k">COLUMN</span><span class="p">]</span> <span class="k">column_name</span>
+
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="err">{</span> <span class="k">ADD</span> <span class="p">[</span><span class="n">IF</span> <span class="k">NOT</span> <span class="k">EXISTS</span><span class="p">]</span> <span class="o">|</span> <span class="k">DROP</span> <span class="p">[</span><span class="n">IF</span> <span class="k">EXISTS</span><span class="p">]</span> <span class="err">}</span> <span class="n">PARTITION</span> <span class="p">(</span><span class="n">partition_spec</span><span class="p">)</span> <span class="p">[</span><span class="n">PURGE</span><span class="p">]</span>
+
+<span class="c1">--Change a column definition of an existing table</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table</span> <span class="p">[</span><span class="n">PARTITION</span> <span class="n">partition_spec</span><span class="p">]</span> <span class="n">CHANGE</span> <span class="p">[</span><span class="k">COLUMN</span><span class="p">]</span> <span class="n">column_old_name</span> <span class="n">column_new_name</span> <span class="n">column_dataType</span> <span class="p">[</span><span class="k">COMMENT</span> <span class="n">column_comment</span><span class="p">]</span> <span class="p">[</span><span class="k">FIRST</span> <span class="o">|</span> <span class="k">AFTER</span> <span class="k">column_name</span><span class="p">];</span>
+
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="k">REPLACE</span> <span class="n">COLUMNS</span> <span class="p">(</span><span class="n">col_spec</span><span class="p">[,</span> <span class="n">col_spec</span> <span class="p">...])</span>
+
+<span class="c1">--RECOVER PARTITIONS clause scans the table data directory to find any new partition directories</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="n">RECOVER</span> <span class="n">PARTITIONS</span>
+
+<span class="c1">--Drop one or more properties of an existing table</span>
+<span class="k">ALTER</span> <span class="p">(</span><span class="k">TABLE</span><span class="p">)</span> <span class="k">table_name</span> <span class="n">UNSET</span> <span class="n">TBLPROPERTIES</span> <span class="p">[</span><span class="n">IF</span> <span class="k">EXISTS</span><span class="p">]</span> <span class="p">(</span><span class="n">key1</span><span class="p">,</span> <span class="n">key2</span><span class="p">,</span> <span class="p">...)</span>
+
+<span class="c1">--Set the SerDe or the SerDe properties of a table or partition</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="p">[</span><span class="n">PARTITION</span> <span class="n">spec</span><span class="p">]</span> <span class="k">SET</span> <span class="n">SERDE</span> <span class="n">serde_name</span> <span class="p">[</span><span class="k">WITH</span> <span class="n">SERDEPROPERTIES</span> <span class="n">props</span><span class="p">];</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="p">[</span><span class="n">PARTITION</span> <span class="n">spec</span><span class="p">]</span> <span class="k">SET</span> <span class="n">SERDEPROPERTIES</span> <span class="n">serde_properties</span><span class="p">;</span>
+
+<span class="c1">--Set the properties of an existing table or view. If a particular property was already set, this overrides the old value with the new one.</span>
+<span class="k">ALTER</span> <span class="p">[</span><span class="k">TABLE</span><span class="p">]</span> <span class="k">table_name</span> <span class="p">[</span><span class="n">PARTITION</span> <span class="p">(</span><span class="n">partition_spec</span><span class="p">)]</span> <span class="k">SET</span> <span class="n">TBLPROPERTIES</span> <span class="p">(</span><span class="n">key1</span><span class="o">=</span><span class="n">val1</span><span class="p">,</span> <span class="n">key2</span><span class="o">=</span><span class="n">val2</span><span class="p">,</span> <span class="p">...)</span>
+
+<span class="c1">--To change the file format of data to be in, for a table or partition:</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="p">[</span><span class="n">PARTITION</span> <span class="p">(</span><span class="n">partition_spec</span><span class="p">)]</span>
+  <span class="k">SET</span> <span class="err">{</span> <span class="n">FILEFORMAT</span> <span class="n">file_format</span>
+  <span class="o">|</span> <span class="k">LOCATION</span> <span class="s1">'hdfs_path_of_directory'</span> <span class="err">}</span>
+
+<span class="n">new_name</span> <span class="p">::</span><span class="o">=</span> <span class="p">[</span><span class="n">new_database</span><span class="p">.]</span><span class="n">new_table_name</span>
+
+<span class="n">col_spec</span> <span class="p">::</span><span class="o">=</span> <span class="n">col_name</span> <span class="n">type_name</span>  <span class="k">COMMENT</span> <span class="s1">'column-comment'</span> <span class="p">[</span><span class="n">kudu_attributes</span><span class="p">]</span>
+
+<span class="n">kudu_attributes</span> <span class="p">::</span><span class="o">=</span> <span class="err">{</span> <span class="p">[</span><span class="k">NOT</span><span class="p">]</span> <span class="k">NULL</span> <span class="o">|</span> <span class="k">ENCODING</span> <span class="n">codec</span> <span class="o">|</span> <span class="n">COMPRESSION</span> <span class="n">algorithm</span> <span class="o">|</span>
+  <span class="k">DEFAULT</span> <span class="n">constant</span> <span class="o">|</span> <span class="n">BLOCK_SIZE</span> <span class="n">number</span> <span class="err">}</span>
+
+<span class="n">partition_spec</span> <span class="p">::</span><span class="o">=</span> <span class="n">partition_col</span><span class="o">=</span><span class="n">constant_value</span>
+
+<span class="n">table_properties</span> <span class="p">::</span><span class="o">=</span> <span class="s1">'name'</span><span class="o">=</span><span class="s1">'value'</span><span class="p">[,</span> <span class="s1">'name'</span><span class="o">=</span><span class="s1">'value'</span> <span class="p">...]</span>
+
+<span class="n">serde_properties</span> <span class="p">::</span><span class="o">=</span> <span class="s1">'name'</span><span class="o">=</span><span class="s1">'value'</span><span class="p">[,</span> <span class="s1">'name'</span><span class="o">=</span><span class="s1">'value'</span> <span class="p">...]</span>
+
+<span class="n">file_format</span> <span class="p">::</span><span class="o">=</span> <span class="err">{</span> <span class="n">PARQUET</span> <span class="o">|</span> <span class="n">TEXTFILE</span> <span class="o">|</span> <span class="n">RCFILE</span> <span class="o">|</span> <span class="n">SEQUENCEFILE</span> <span class="o">|</span> <span class="n">AVRO</span> <span class="err">}</span></code></pre></figure>
+
+<h3 id="examples">Examples</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">-- add new column to a table</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">t1</span> <span class="k">ADD</span> <span class="n">columns</span> <span class="p">(</span><span class="n">s</span> <span class="n">string</span><span class="p">,</span> <span class="n">t</span> <span class="nb">timestamp</span><span class="p">);</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">srcpart</span> <span class="k">ADD</span> <span class="n">partition</span> <span class="p">(</span><span class="n">ds</span><span class="o">=</span><span class="s1">'2008-04-08'</span><span class="p">,</span> <span class="n">hr</span><span class="o">=</span><span class="s1">'11'</span><span class="p">);</span> 
+
+<span class="c1">--Drop a column</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">p2</span> <span class="k">DROP</span> <span class="k">column</span> <span class="n">x</span><span class="p">;</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">tab1</span> <span class="k">DROP</span> <span class="n">PARTITION</span> <span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="s1">'300'</span><span class="p">)</span>
+
+<span class="c1">--change the fileformat</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">loc_orc</span> <span class="k">SET</span> <span class="n">fileformat</span> <span class="n">orc</span><span class="p">;</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">p1</span> <span class="n">partition</span> <span class="p">(</span><span class="k">month</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="k">day</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="k">SET</span> <span class="n">fileformat</span> <span class="n">parquet</span><span class="p">;</span>
+
+<span class="c1">-- set Properties</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">test_tab</span> <span class="k">SET</span> <span class="n">SERDE</span> <span class="s1">'org.apache.hadoop.hive.serde2.columnar.LazyBinaryColumnarSerDe'</span><span class="p">;</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">dbx</span><span class="p">.</span><span class="n">tab1</span> <span class="k">SET</span> <span class="n">TBLPROPERTIES</span> <span class="p">(</span><span class="s1">'winner'</span> <span class="o">=</span> <span class="s1">'loser'</span><span class="p">)</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">dbx</span><span class="p">.</span><span class="n">tab1</span> <span class="n">PARTITION</span> <span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="s1">'1'</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="s1">'2'</span><span class="p">)</span> <span class="k">SET</span> <span class="k">LOCATION</span> <span class="s1">'/path/to/part/ways'</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">dbx</span><span class="p">.</span><span class="n">tab1</span> <span class="k">SET</span> <span class="n">SERDE</span> <span class="s1">'org.apache.madoop'</span> <span class="k">WITH</span> <span class="n">SERDEPROPERTIES</span> <span class="p">(</span><span class="s1">'k'</span> <span class="o">=</span> <span class="s1">'v'</span><span class="p">,</span> <span class="s1">'kay'</span> <span class="o">=</span> <span class="s1">'vee'</span><span class="p">)</span>
+
+<span class="c1">--drop property</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">dbx</span><span class="p">.</span><span class="n">tab1</span> <span class="n">UNSET</span> <span class="n">TBLPROPERTIES</span> <span class="p">(</span><span class="s1">'winner'</span><span class="p">)</span>
+
+<span class="c1">--rename partition</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">dbx</span><span class="p">.</span><span class="n">tab1</span> <span class="n">PARTITION</span> <span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="s1">'1'</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="s1">'q'</span><span class="p">)</span> <span class="k">RENAME</span> <span class="k">TO</span> <span class="n">PARTITION</span> <span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="s1">'100'</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="s1">'p'</span><span class="p">)</span>
+
+<span class="c1">--change Column</span>
+<span class="k">ALTER</span> <span class="k">TABLE</span> <span class="n">dbx</span><span class="p">.</span><span class="n">tab1</span> <span class="n">CHANGE</span> <span class="k">COLUMN</span> <span class="n">col1</span> <span class="n">col1</span> <span class="nb">INT</span> <span class="k">COMMENT</span> <span class="s1">'this is col1'</span></code></pre></figure>
+
+<h3 id="related-statements">Related Statements</h3>
+<ul>
+  <li><a href="sql-ref-syntax-ddl-create-table.html">CREATE TABLE</a></li>
+  <li><a href="sql-ref-syntax-ddl-drop-table.html">DROP TABLE</a></li>
+</ul>
+
+:ET

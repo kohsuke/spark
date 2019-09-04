@@ -1,0 +1,26 @@
+I"H<h3 id="description">Description</h3>
+<p>TRUNCATE TABLE statement is used removes all rows from a table or partition(s). The table must not be a temporary table, an external table, or a view. 
+User can specify partial partition_spec for truncating multiple partitions at once, omitting partition_spec will truncate all partitions in the table.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">TRUNCATE</span> <span class="k">TABLE</span> <span class="k">table_name</span> <span class="p">[</span><span class="n">PARTITION</span> <span class="n">partition_spec</span><span class="p">];</span>
+ 
+<span class="n">partition_spec</span><span class="p">:</span>
+  <span class="p">:</span> <span class="p">(</span><span class="n">partition_column</span> <span class="o">=</span> <span class="n">partition_col_value</span><span class="p">,</span> <span class="n">partition_column</span> <span class="o">=</span> <span class="n">partition_col_value</span><span class="p">,</span> <span class="p">...)</span></code></pre></figure>
+
+<h3 id="examples">Examples</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">-- Removes all rows from the table in the partion specified</span>
+<span class="k">TRUNCATE</span> <span class="k">TABLE</span> <span class="n">partition_date2_1</span> <span class="n">partition</span><span class="p">(</span><span class="n">dt</span><span class="o">=</span><span class="nb">date</span> <span class="s1">'2000-01-01'</span><span class="p">,</span> <span class="n">region</span><span class="o">=</span><span class="mi">2</span><span class="p">);</span>
+
+<span class="c1">-- Removes all rows from the table from all partitions</span>
+<span class="k">TRUNCATE</span> <span class="k">TABLE</span> <span class="n">num_result</span><span class="p">;</span></code></pre></figure>
+
+<h3 id="related-statements">Related Statements</h3>
+<ul>
+  <li><a href="sql-ref-syntax-ddl-drop-table.html">DROP TABLE</a></li>
+  <li><a href="sql-ref-syntax-ddl-alter-tabley.html">ALTER TABLE</a></li>
+</ul>
+
+:ET

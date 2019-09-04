@@ -1,0 +1,24 @@
+I"o<h3 id="description">Description</h3>
+<p>A view is a virtual table based on the result set of base query. The base query
+can involve joins, expressions, reordered columns, column aliases, and other SQL
+features that can make a query hard to understand or maintain.
+Because a view is purely a logical construct (an alias for a query) with no physical
+data behind it.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">CREATE</span> <span class="p">[</span><span class="k">OR</span> <span class="k">REPLACE</span><span class="p">]</span> <span class="p">[[</span><span class="k">GLOBAL</span><span class="p">]</span> <span class="k">TEMPORARY</span><span class="p">]</span> <span class="k">VIEW</span> <span class="p">[</span><span class="n">IF</span> <span class="k">NOT</span> <span class="k">EXISTS</span><span class="p">]</span> <span class="p">[</span><span class="n">db_name</span><span class="p">.]</span><span class="n">view_name</span>
+    <span class="p">[(</span><span class="k">column_name</span> <span class="p">[</span><span class="k">COMMENT</span> <span class="n">column_comment</span><span class="p">],</span> <span class="p">...)</span> <span class="p">]</span>
+    <span class="n">create_view_clauses</span>
+    
+    <span class="k">AS</span> <span class="k">SELECT</span> <span class="p">...;</span>
+    
+    <span class="n">create_view_clauses</span> <span class="p">(</span><span class="k">order</span> <span class="k">insensitive</span><span class="p">):</span>
+        <span class="p">[</span><span class="k">COMMENT</span> <span class="n">view_comment</span><span class="p">]</span>
+        <span class="p">[</span><span class="n">TBLPROPERTIES</span> <span class="p">(</span><span class="n">property_name</span> <span class="o">=</span> <span class="n">property_value</span><span class="p">,</span> <span class="p">...)]</span></code></pre></figure>
+
+<h3 id="example">Example</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">CREATE</span> <span class="k">VIEW</span> <span class="n">IF</span> <span class="k">NOT</span> <span class="k">EXISTS</span> <span class="n">v1</span> <span class="k">AS</span> <span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">t1</span><span class="p">;</span>
+<span class="k">CREATE</span> <span class="k">VIEW</span> <span class="n">v1</span> <span class="p">(</span><span class="n">c1</span> <span class="k">COMMENT</span> <span class="s1">'comment for c1'</span><span class="p">,</span> <span class="n">c2</span><span class="p">)</span> <span class="k">COMMENT</span> <span class="s1">'comment for v1'</span> <span class="n">TBLPROPERTIES</span> <span class="p">(</span><span class="n">key1</span><span class="o">=</span><span class="n">value1</span><span class="p">,</span> <span class="n">key2</span><span class="o">=</span><span class="n">value2</span><span class="p">)</span> <span class="k">AS</span> <span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">t1</span><span class="p">;</span></code></pre></figure>
+:ET

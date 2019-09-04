@@ -1,0 +1,11 @@
+I"Ï<p>There is specially handling for not-a-number (NaN) when dealing with <code>float</code> or <code>double</code> types that
+does not exactly match standard floating point semantics.
+Specifically:</p>
+
+<ul>
+  <li>NaN = NaN returns true.</li>
+  <li>In aggregations, all NaN values are grouped together.</li>
+  <li>NaN is treated as a normal value in join keys.</li>
+  <li>NaN values go last when in ascending order, larger than any other numeric value.</li>
+</ul>
+:ET

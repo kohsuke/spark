@@ -1,0 +1,57 @@
+I"<h2 id="building-sparkr-on-windows">Building SparkR on Windows</h2>
+
+<p>To build SparkR on Windows, the following steps are required</p>
+
+<ol>
+  <li>
+    <p>Install R (&gt;= 3.1) and <a href="https://cloud.r-project.org/bin/windows/Rtools/">Rtools</a>. Make sure to
+include Rtools and R in <code class="highlighter-rouge">PATH</code>. Note that support for R prior to version 3.4 is deprecated as of Spark 3.0.0.</p>
+  </li>
+  <li>
+    <p>Install
+<a href="https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">JDK8</a> and set
+<code class="highlighter-rouge">JAVA_HOME</code> in the system environment variables.</p>
+  </li>
+  <li>
+    <p>Download and install <a href="https://maven.apache.org/download.html">Maven</a>. Also include the <code class="highlighter-rouge">bin</code>
+directory in Maven in <code class="highlighter-rouge">PATH</code>.</p>
+  </li>
+  <li>
+    <p>Set <code class="highlighter-rouge">MAVEN_OPTS</code> as described in <a href="https://spark.apache.org/docs/latest/building-spark.html">Building Spark</a>.</p>
+  </li>
+  <li>
+    <p>Open a command shell (<code class="highlighter-rouge">cmd</code>) in the Spark directory and build Spark with <a href="https://spark.apache.org/docs/latest/building-spark.html#buildmvn">Maven</a> and include the <code class="highlighter-rouge">-Psparkr</code> profile to build the R package. For example to use the default Hadoop versions you can run</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code> mvn.cmd <span class="nt">-DskipTests</span> <span class="nt">-Psparkr</span> package
+</code></pre></div>    </div>
+
+    <p><code class="highlighter-rouge">.\build\mvn</code> is a shell script so <code class="highlighter-rouge">mvn.cmd</code> should be used directly on Windows.</p>
+  </li>
+</ol>
+
+<h2 id="unit-tests">Unit tests</h2>
+
+<p>To run the SparkR unit tests on Windows, the following steps are required —assuming you are in the Spark root directory and do not have Apache Hadoop installed already:</p>
+
+<ol>
+  <li>
+    <p>Create a folder to download Hadoop related files for Windows. For example, <code class="highlighter-rouge">cd ..</code> and <code class="highlighter-rouge">mkdir hadoop</code>.</p>
+  </li>
+  <li>
+    <p>Download the relevant Hadoop bin package from <a href="https://github.com/steveloughran/winutils">steveloughran/winutils</a>. While these are not official ASF artifacts, they are built from the ASF release git hashes by a Hadoop PMC member on a dedicated Windows VM. For further reading, consult <a href="https://wiki.apache.org/hadoop/WindowsProblems">Windows Problems on the Hadoop wiki</a>.</p>
+  </li>
+  <li>
+    <p>Install the files into <code class="highlighter-rouge">hadoop\bin</code>; make sure that <code class="highlighter-rouge">winutils.exe</code> and <code class="highlighter-rouge">hadoop.dll</code> are present.</p>
+  </li>
+  <li>
+    <p>Set the environment variable <code class="highlighter-rouge">HADOOP_HOME</code> to the full path to the newly created <code class="highlighter-rouge">hadoop</code> directory.</p>
+  </li>
+  <li>
+    <p>Run unit tests for SparkR by running the command below. You need to install the needed packages following the instructions under <a href="https://spark.apache.org/docs/latest/building-spark.html#running-r-tests">Running R Tests</a> first:</p>
+
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> .\bin\spark-submit2.cmd --conf spark.hadoop.fs.defaultFS="file:///" R\pkg\tests\run-all.R
+</code></pre></div>    </div>
+  </li>
+</ol>
+
+:ET

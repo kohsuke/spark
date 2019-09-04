@@ -1,0 +1,17 @@
+I"Ä<h3 id="description">Description</h3>
+<p>Reset all SQLConf properties to the default values. After RESET command, executing SET command will output empty.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">RESET</span></code></pre></figure>
+
+<h3 id="examples">Examples</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">-- Reset all SQLConf properties to the default values.</span>
+<span class="k">RESET</span><span class="p">;</span></code></pre></figure>
+
+<h3 id="related-statements">Related statements.</h3>
+<ul>
+  <li><a href="sql-ref-syntax-aux-conf-mgmt-set.html">SET</a></li>
+</ul>
+:ET

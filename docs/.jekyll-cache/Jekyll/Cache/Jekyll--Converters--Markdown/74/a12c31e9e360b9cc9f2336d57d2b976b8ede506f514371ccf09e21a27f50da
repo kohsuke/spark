@@ -1,0 +1,241 @@
+I"C<p>Apache Spark provides a suite of web user interfaces (UIs) that you can use
+to monitor the status and resource consumption of your Spark cluster.</p>
+
+<p><strong>Table of Contents</strong></p>
+
+<ul id="markdown-toc">
+  <li><a href="#jobs-tab" id="markdown-toc-jobs-tab">Jobs Tab</a>    <ul>
+      <li><a href="#jobs-detail" id="markdown-toc-jobs-detail">Jobs detail</a></li>
+    </ul>
+  </li>
+  <li><a href="#stages-tab" id="markdown-toc-stages-tab">Stages Tab</a></li>
+  <li><a href="#storage-tab" id="markdown-toc-storage-tab">Storage Tab</a></li>
+  <li><a href="#environment-tab" id="markdown-toc-environment-tab">Environment Tab</a></li>
+  <li><a href="#executors-tab" id="markdown-toc-executors-tab">Executors Tab</a></li>
+  <li><a href="#sql-tab" id="markdown-toc-sql-tab">SQL Tab</a></li>
+  <li><a href="#streaming-tab" id="markdown-toc-streaming-tab">Streaming Tab</a></li>
+</ul>
+
+<h2 id="jobs-tab">Jobs Tab</h2>
+<p>The Jobs tab displays a summary page of all jobs in the Spark application and a details page
+for each job. The summary page shows high-level information, such as the status, duration, and
+progress of all jobs and the overall event timeline. When you click on a job on the summary
+page, you see the details page for that job. The details page further shows the event timeline,
+DAG visualization, and all stages of the job.</p>
+
+<p>The information that is displayed in this section is</p>
+<ul>
+  <li>User: Current Spark user</li>
+  <li>Total uptime: Time since Spark application started</li>
+  <li>Scheduling mode: See <a href="job-scheduling.html#configuring-pool-properties">job scheduling</a></li>
+  <li>Number of jobs per status: Active, Completed, Failed</li>
+</ul>
+
+<p style="text-align: center;">
+  <img src="img/AllJobsPageDetail1.png" title="Basic info" alt="Basic info" width="20%" />
+</p>
+
+<ul>
+  <li>Event timeline: Displays in chronological order the events related to the executors (added, removed) and the jobs</li>
+</ul>
+
+<p style="text-align: center;">
+  <img src="img/AllJobsPageDetail2.png" title="Event timeline" alt="Event timeline" />
+</p>
+
+<ul>
+  <li>Details of jobs grouped by status: Displays detailed information of the jobs including Job ID, description (with a link to detailed job page), submitted time, duration, stages summary and tasks progress bar</li>
+</ul>
+
+<p style="text-align: center;">
+  <img src="img/AllJobsPageDetail3.png" title="Details of jobs grouped by status" alt="Details of jobs grouped by status" />
+</p>
+
+<p>When you click on a specific job, you can see the detailed information of this job.</p>
+
+<h3 id="jobs-detail">Jobs detail</h3>
+
+<p>This page displays the details of a specific job identified by its job ID.</p>
+<ul>
+  <li>Job Status: (running, succeeded, failed)</li>
+  <li>Number of stages per status (active, pending, completed, skipped, failed)</li>
+  <li>Associated SQL Query: Link to the sql tab for this job</li>
+  <li>Event timeline: Displays in chronological order the events related to the executors (added, removed) and the stages of the job</li>
+</ul>
+
+<p style="text-align: center;">
+  <img src="img/JobPageDetail1.png" title="Event timeline" alt="Event timeline" />
+</p>
+
+<ul>
+  <li>DAG visualization: Visual representation of the directed acyclic graph of this job where vertices represent the RDDs or DataFrames and the edges represent an operation to be applied on RDD.</li>
+</ul>
+
+<p style="text-align: center;">
+  <img src="img/JobPageDetail2.png" title="DAG" alt="DAG" width="40%" />
+</p>
+
+<ul>
+  <li>List of stages (grouped by state active, pending, completed, skipped, and failed)
+    <ul>
+      <li>Stage ID</li>
+      <li>Description of the stage</li>
+      <li>Submitted timestamp</li>
+      <li>Duration of the stage</li>
+      <li>Tasks progress bar</li>
+      <li>Input: Bytes read from storage in this stage</li>
+      <li>Output: Bytes written in storage in this stage</li>
+      <li>Shuffle read: Total shuffle bytes and records read, includes both data read locally and data read from remote executors</li>
+      <li>Shuffle write: Bytes and records written to disk in order to be read by a shuffle in a future stage</li>
+    </ul>
+  </li>
+</ul>
+
+<p style="text-align: center;">
+  <img src="img/JobPageDetail3.png" title="DAG" alt="DAG" />
+</p>
+
+<h2 id="stages-tab">Stages Tab</h2>
+<p>The Stages tab displays a summary page that shows the current state of all stages of all jobs in
+the Spark application, and, when you click on a stage, a details page for that stage. The details
+page shows the event timeline, DAG visualization, and all tasks for the stage.</p>
+
+<h2 id="storage-tab">Storage Tab</h2>
+<p>The Storage tab displays the persisted RDDs and DataFrames, if any, in the application. The summary
+page shows the storage levels, sizes and partitions of all RDDs, and the details page shows the
+sizes and using executors for all partitions in an RDD or DataFrame.</p>
+
+<figure class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="n">scala</span><span class="o">&gt;</span> <span class="k">import</span> <span class="nn">org.apache.spark.storage.StorageLevel._</span>
+<span class="k">import</span> <span class="nn">org.apache.spark.storage.StorageLevel._</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="nv">rdd</span> <span class="k">=</span> <span class="nv">sc</span><span class="o">.</span><span class="py">range</span><span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="mi">100</span><span class="o">,</span> <span class="mi">1</span><span class="o">,</span> <span class="mi">5</span><span class="o">).</span><span class="py">setName</span><span class="o">(</span><span class="s">"rdd"</span><span class="o">)</span>
+<span class="n">rdd</span><span class="k">:</span> <span class="kt">org.apache.spark.rdd.RDD</span><span class="o">[</span><span class="kt">Long</span><span class="o">]</span> <span class="k">=</span> <span class="n">rdd</span> <span class="nc">MapPartitionsRDD</span><span class="o">[</span><span class="err">1</span><span class="o">]</span> <span class="n">at</span> <span class="n">range</span> <span class="n">at</span> <span class="o">&lt;</span><span class="n">console</span><span class="k">&gt;:</span><span class="mi">27</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">rdd</span><span class="o">.</span><span class="py">persist</span><span class="o">(</span><span class="nc">MEMORY_ONLY_SER</span><span class="o">)</span>
+<span class="n">res0</span><span class="k">:</span> <span class="kt">rdd.</span><span class="k">type</span> <span class="o">=</span> <span class="n">rdd</span> <span class="nc">MapPartitionsRDD</span><span class="o">[</span><span class="err">1</span><span class="o">]</span> <span class="n">at</span> <span class="n">range</span> <span class="n">at</span> <span class="o">&lt;</span><span class="n">console</span><span class="k">&gt;:</span><span class="mi">27</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">rdd</span><span class="o">.</span><span class="py">count</span>
+<span class="n">res1</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">100</span>                                                                
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="nv">df</span> <span class="k">=</span> <span class="nc">Seq</span><span class="o">((</span><span class="mi">1</span><span class="o">,</span> <span class="s">"andy"</span><span class="o">),</span> <span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="s">"bob"</span><span class="o">),</span> <span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="s">"andy"</span><span class="o">)).</span><span class="py">toDF</span><span class="o">(</span><span class="s">"count"</span><span class="o">,</span> <span class="s">"name"</span><span class="o">)</span>
+<span class="n">df</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">count:</span> <span class="kt">int</span>, <span class="kt">name:</span> <span class="kt">string</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">df</span><span class="o">.</span><span class="py">persist</span><span class="o">(</span><span class="nc">DISK_ONLY</span><span class="o">)</span>
+<span class="n">res2</span><span class="k">:</span> <span class="kt">df.</span><span class="k">type</span> <span class="o">=</span> <span class="o">[</span><span class="kt">count:</span> <span class="kt">int</span>, <span class="kt">name:</span> <span class="kt">string</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">df</span><span class="o">.</span><span class="py">count</span>
+<span class="n">res3</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">3</span></code></pre></figure>
+
+<p style="text-align: center;">
+  <img src="img/webui-storage-tab.png" title="Storage tab" alt="Storage tab" width="100%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+
+<p>After running the above example, we can find two RDDs listed in the Storage tab. Basic information like
+storage level, number of partitions and memory overhead are provided. Note that the newly persisted RDDs
+or DataFrames are not shown in the tab before they are materialized. To monitor a specific RDD or DataFrame,
+make sure an action operation has been triggered.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-storage-detail.png" title="Storage detail" alt="Storage detail" width="100%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+
+<p>You can click the RDD name &#8216;rdd&#8217; for obtaining the details of data persistence, such as the data
+distribution on the cluster.</p>
+
+<h2 id="environment-tab">Environment Tab</h2>
+<p>The Environment tab displays the values for the different environment and configuration variables,
+including JVM, Spark, and system properties.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-env-tab.png" title="Env tab" alt="Env tab" width="100%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+
+<p>This environment page has five parts. It is a useful place to check whether your properties have
+been set correctly.
+The first part &#8216;Runtime Information&#8217; simply contains the <a href="configuration.html#runtime-environment">runtime properties</a>
+like versions of Java and Scala.
+The second part &#8216;Spark Properties&#8217; lists the <a href="configuration.html#application-properties">application properties</a> like
+<a href="configuration.html#application-properties">&#8216;spark.app.name&#8217;</a> and &#8216;spark.driver.memory&#8217;.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-env-hadoop.png" title="Hadoop Properties" alt="Hadoop Properties" width="100%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+<p>Clicking the &#8216;Hadoop Properties&#8217; link displays properties relative to Hadoop and YARN. Note that properties like
+<a href="configuration.html#execution-behavior">&#8216;spark.hadoop.*&#8217;</a> are shown not in this part but in &#8216;Spark Properties&#8217;.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-env-sys.png" title="System Properties" alt="System Properties" width="100%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+<p>&#8216;System Properties&#8217; shows more details about the JVM.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-env-class.png" title="Classpath Entries" alt="Classpath Entries" width="100%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+
+<p>The last part &#8216;Classpath Entries&#8217; lists the classes loaded from different sources, which is very useful
+to resolve class conflicts.</p>
+
+<h2 id="executors-tab">Executors Tab</h2>
+<p>The Executors tab displays summary information about the executors that were created for the
+application, including memory and disk usage and task and shuffle information. The Storage Memory
+column shows the amount of memory used and reserved for caching data.</p>
+
+<h2 id="sql-tab">SQL Tab</h2>
+<p>If the application executes Spark SQL queries, the SQL tab displays information, such as the duration,
+jobs, and physical and logical plans for the queries. Here we include a basic example to illustrate
+this tab:</p>
+
+<figure class="highlight"><pre><code class="language-scala" data-lang="scala"><span class="n">scala</span><span class="o">&gt;</span> <span class="k">val</span> <span class="nv">df</span> <span class="k">=</span> <span class="nc">Seq</span><span class="o">((</span><span class="mi">1</span><span class="o">,</span> <span class="s">"andy"</span><span class="o">),</span> <span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="s">"bob"</span><span class="o">),</span> <span class="o">(</span><span class="mi">2</span><span class="o">,</span> <span class="s">"andy"</span><span class="o">)).</span><span class="py">toDF</span><span class="o">(</span><span class="s">"count"</span><span class="o">,</span> <span class="s">"name"</span><span class="o">)</span>
+<span class="n">df</span><span class="k">:</span> <span class="kt">org.apache.spark.sql.DataFrame</span> <span class="o">=</span> <span class="o">[</span><span class="kt">count:</span> <span class="kt">int</span>, <span class="kt">name:</span> <span class="kt">string</span><span class="o">]</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">df</span><span class="o">.</span><span class="py">count</span>
+<span class="n">res0</span><span class="k">:</span> <span class="kt">Long</span> <span class="o">=</span> <span class="mi">3</span>                                                                  
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">df</span><span class="o">.</span><span class="py">createGlobalTempView</span><span class="o">(</span><span class="s">"df"</span><span class="o">)</span>
+
+<span class="n">scala</span><span class="o">&gt;</span> <span class="nv">spark</span><span class="o">.</span><span class="py">sql</span><span class="o">(</span><span class="s">"select name,sum(count) from global_temp.df group by name"</span><span class="o">).</span><span class="py">show</span>
+<span class="o">+----+----------+</span>
+<span class="o">|</span><span class="n">name</span><span class="o">|</span><span class="nf">sum</span><span class="o">(</span><span class="n">count</span><span class="o">)|</span>
+<span class="o">+----+----------+</span>
+<span class="o">|</span><span class="n">andy</span><span class="o">|</span>         <span class="mi">3</span><span class="o">|</span>
+<span class="o">|</span> <span class="n">bob</span><span class="o">|</span>         <span class="mi">2</span><span class="o">|</span>
+<span class="o">+----+----------+</span></code></pre></figure>
+
+<p style="text-align: center;">
+  <img src="img/webui-sql-tab.png" title="SQL tab" alt="SQL tab" width="80%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+
+<p>Now the above three dataframe/SQL operators are shown in the list. If we click the
+&#8216;show at &lt;console&gt;: 24&#8217; link of the last query, we will see the DAG of the job.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-sql-dag.png" title="SQL DAG" alt="SQL DAG" width="50%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+
+<p>We can see that details information of each stage. The first block &#8216;WholeStageCodegen&#8217;<br />
+compile multiple operator (&#8216;LocalTableScan&#8217; and &#8216;HashAggregate&#8217;) together into a single Java
+function to improve performance, and metrics like number of rows and spill size are listed in
+the block. The second block &#8216;Exchange&#8217; shows the metrics on the shuffle exchange, including
+number of written shuffle records, total data size, etc.</p>
+
+<p style="text-align: center;">
+  <img src="img/webui-sql-plan.png" title="logical plans and the physical plan" alt="logical plans and the physical plan" width="80%" />
+  <!-- Images are downsized intentionally to improve quality on retina displays -->
+</p>
+<p>Clicking the &#8216;Details&#8217; link on the bottom displays the logical plans and the physical plan, which
+illustrate how Spark parses, analyzes, optimizes and performs the query.</p>
+
+<h2 id="streaming-tab">Streaming Tab</h2>
+<p>The web UI includes a Streaming tab if the application uses Spark streaming. This tab displays
+scheduling delay and processing time for each micro-batch in the data stream, which can be useful
+for troubleshooting the streaming application.</p>
+
+:ET

@@ -1,0 +1,85 @@
+I"*!<h1 id="sparkr-cran-release">SparkR CRAN Release</h1>
+
+<p>To release SparkR as a package to CRAN, we would use the <code class="highlighter-rouge">devtools</code> package. Please work with the
+<code class="highlighter-rouge">dev@spark.apache.org</code> community and R package maintainer on this.</p>
+
+<h3 id="release">Release</h3>
+
+<p>First, check that the <code class="highlighter-rouge">Version:</code> field in the <code class="highlighter-rouge">pkg/DESCRIPTION</code> file is updated. Also, check for stale files not under source control.</p>
+
+<p>Note that while <code class="highlighter-rouge">run-tests.sh</code> runs <code class="highlighter-rouge">check-cran.sh</code> (which runs <code class="highlighter-rouge">R CMD check</code>), it is doing so with <code class="highlighter-rouge">--no-manual --no-vignettes</code>, which skips a few vignettes or PDF checks - therefore it will be preferred to run <code class="highlighter-rouge">R CMD check</code> on the source package built manually before uploading a release. Also note that for CRAN checks for pdf vignettes to success, <code class="highlighter-rouge">qpdf</code> tool must be there (to install it, eg. <code class="highlighter-rouge">yum -q -y install qpdf</code>).</p>
+
+<p>To upload a release, we would need to update the <code class="highlighter-rouge">cran-comments.md</code>. This should generally contain the results from running the <code class="highlighter-rouge">check-cran.sh</code> script along with comments on status of all <code class="highlighter-rouge">WARNING</code> (should not be any) or <code class="highlighter-rouge">NOTE</code>. As a part of <code class="highlighter-rouge">check-cran.sh</code> and the release process, the vignettes is build - make sure <code class="highlighter-rouge">SPARK_HOME</code> is set and Spark jars are accessible.</p>
+
+<p>Once everything is in place, run in R under the <code class="highlighter-rouge">SPARK_HOME/R</code> directory:</p>
+
+<div class="language-R highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">paths</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">();</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">(</span><span class="nf">c</span><span class="p">(</span><span class="s2">"lib"</span><span class="p">,</span><span class="w"> </span><span class="n">paths</span><span class="p">));</span><span class="w"> </span><span class="n">Sys.setenv</span><span class="p">(</span><span class="n">SPARK_HOME</span><span class="o">=</span><span class="n">tools</span><span class="o">::</span><span class="n">file_path_as_absolute</span><span class="p">(</span><span class="s2">".."</span><span class="p">));</span><span class="w"> </span><span class="n">devtools</span><span class="o">::</span><span class="n">release</span><span class="p">();</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<p>For more information please refer to http://r-pkgs.had.co.nz/release.html#release-check</p>
+
+<h3 id="testing-build-package-manually">Testing: build package manually</h3>
+
+<p>To build package manually such as to inspect the resulting <code class="highlighter-rouge">.tar.gz</code> file content, we would also use the <code class="highlighter-rouge">devtools</code> package.</p>
+
+<p>Source package is what get released to CRAN. CRAN would then build platform-specific binary packages from the source package.</p>
+
+<h4 id="build-source-package">Build source package</h4>
+
+<p>To build source package locally without releasing to CRAN, run in R under the <code class="highlighter-rouge">SPARK_HOME/R</code> directory:</p>
+
+<div class="language-R highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">paths</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">();</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">(</span><span class="nf">c</span><span class="p">(</span><span class="s2">"lib"</span><span class="p">,</span><span class="w"> </span><span class="n">paths</span><span class="p">));</span><span class="w"> </span><span class="n">Sys.setenv</span><span class="p">(</span><span class="n">SPARK_HOME</span><span class="o">=</span><span class="n">tools</span><span class="o">::</span><span class="n">file_path_as_absolute</span><span class="p">(</span><span class="s2">".."</span><span class="p">));</span><span class="w"> </span><span class="n">devtools</span><span class="o">::</span><span class="n">build</span><span class="p">(</span><span class="s2">"pkg"</span><span class="p">);</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<p>(http://r-pkgs.had.co.nz/vignettes.html#vignette-workflow-2)</p>
+
+<p>Similarly, the source package is also created by <code class="highlighter-rouge">check-cran.sh</code> with <code class="highlighter-rouge">R CMD build pkg</code>.</p>
+
+<p>For example, this should be the content of the source package:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DESCRIPTION	R		inst		tests
+NAMESPACE	build		man		vignettes
+
+inst/doc/
+sparkr-vignettes.html
+sparkr-vignettes.Rmd
+sparkr-vignettes.Rman
+
+build/
+vignette.rds
+
+man/
+ <span class="k">*</span>.Rd files...
+
+vignettes/
+sparkr-vignettes.Rmd
+</code></pre></div></div>
+
+<h4 id="test-source-package">Test source package</h4>
+
+<p>To install, run this:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>R CMD INSTALL SparkR_2.1.0.tar.gz
+</code></pre></div></div>
+
+<p>With “2.1.0” replaced with the version of SparkR.</p>
+
+<p>This command installs SparkR to the default libPaths. Once that is done, you should be able to start R and run:</p>
+
+<div class="language-R highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">library</span><span class="p">(</span><span class="n">SparkR</span><span class="p">)</span><span class="w">
+</span><span class="n">vignette</span><span class="p">(</span><span class="s2">"sparkr-vignettes"</span><span class="p">,</span><span class="w"> </span><span class="n">package</span><span class="o">=</span><span class="s2">"SparkR"</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<h4 id="build-binary-package">Build binary package</h4>
+
+<p>To build binary package locally, run in R under the <code class="highlighter-rouge">SPARK_HOME/R</code> directory:</p>
+
+<div class="language-R highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">paths</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">();</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">(</span><span class="nf">c</span><span class="p">(</span><span class="s2">"lib"</span><span class="p">,</span><span class="w"> </span><span class="n">paths</span><span class="p">));</span><span class="w"> </span><span class="n">Sys.setenv</span><span class="p">(</span><span class="n">SPARK_HOME</span><span class="o">=</span><span class="n">tools</span><span class="o">::</span><span class="n">file_path_as_absolute</span><span class="p">(</span><span class="s2">".."</span><span class="p">));</span><span class="w"> </span><span class="n">devtools</span><span class="o">::</span><span class="n">build</span><span class="p">(</span><span class="s2">"pkg"</span><span class="p">,</span><span class="w"> </span><span class="n">binary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">);</span><span class="w"> </span><span class="n">.libPaths</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<p>For example, this should be the content of the binary package:</p>
+
+<div class="language-sh highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DESCRIPTION	Meta		R		html		tests
+INDEX		NAMESPACE	<span class="nb">help		</span>profile		worker
+</code></pre></div></div>
+:ET

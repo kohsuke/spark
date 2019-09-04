@@ -1,0 +1,256 @@
+I"�9<h1 id="delegation-token-handling-in-spark">Delegation Token Handling In Spark</h1>
+
+<p>This document aims to explain and demystify delegation tokens as they are used by Spark, since
+this topic is generally a huge source of confusion.</p>
+
+<h2 id="what-are-delegation-tokens-and-why-use-them">What are delegation tokens and why use them?</h2>
+
+<p>Delegation tokens (DTs from now on) are authentication tokens used by some services to replace
+Kerberos service tokens. Many services in the Hadoop ecosystem have support for DTs, since they
+have some very desirable advantages over Kerberos tokens:</p>
+
+<ul>
+  <li>No need to distribute Kerberos credentials</li>
+</ul>
+
+<p>In a distributed application, distributing Kerberos credentials is tricky. Not all users have
+keytabs, and when they do, it’s generally frowned upon to distribute them over the network as
+part of application data.</p>
+
+<p>DTs allow for a single place (e.g. the Spark driver) to require Kerberos credentials. That entity
+can then distribute the DTs to other parts of the distributed application (e.g. Spark executors),
+so they can authenticate to services.</p>
+
+<ul>
+  <li>A single token per service is used for authentication</li>
+</ul>
+
+<p>If Kerberos authentication were used, each client connection to a server would require a trip
+to the KDC and generation of a service ticket. In a distributed system, the number of service
+tickets can balloon pretty quickly when you think about the number of client processes (e.g. Spark
+executors) vs. the number of service processes (e.g. HDFS DataNodes). That generates unnecessary
+extra load on the KDC, and may even run into usage limits set up by the KDC admin.</p>
+
+<ul>
+  <li>DTs are only used for authentication</li>
+</ul>
+
+<p>DTs, unlike TGTs, can only be used to authenticate to the specific service for which they were
+issued. You cannot use an existing DT to create new DTs or to create DTs for a different service.</p>
+
+<p>So in short, DTs are <em>not</em> Kerberos tokens. They are used by many services to replace Kerberos
+authentication, or even other forms of authentication, although there is nothing (aside from
+maybe implementation details) that ties them to Kerberos or any other authentication mechanism.</p>
+
+<h2 id="lifecycle-of-dts">Lifecycle of DTs</h2>
+
+<p>DTs, unlike Kerberos tokens, are service-specific. There is no centralized location you contact
+to create a DT for a service. So, the first step needed to get a DT is being able to authenticate
+to the service in question. In the Hadoop ecosystem, that is generally done using Kerberos.</p>
+
+<p>This requires Kerberos credentials to be available somewhere for the application to use. The user
+is generally responsible for providing those credentials, which is most commonly done by logging
+in to the KDC (e.g. using “kinit”). That generates a (Kerberos) “token cache” containing a TGT
+(ticket granting ticket), which can then be used to request service tickets.</p>
+
+<p>There are other ways of obtaining TGTs, but, ultimately, you need a TGT to bootstrap the process.</p>
+
+<p>Once a TGT is available, the target service’s client library can then be used to authenticate
+to the service using the Kerberos credentials, and request the creation of a delegation token.
+This token can now be sent to other processes and used to authenticate to different daemons
+belonging to that service.</p>
+
+<p>And thus the first drawback of DTs becomes apparent: you need service-specific logic to create and
+use them.</p>
+
+<p>Spark implements a (somewhat) pluggable, internal DT creation API. Support for new services can be
+added by implementing a <code class="highlighter-rouge">HadoopDelegationTokenProvider</code> that is then called by Spark when generating
+delegation tokens for an application. Spark makes the DTs available to code by stashing them in the
+<code class="highlighter-rouge">UserGroupInformation</code> credentials, and it’s up to the DT provider and the respective client library
+to agree on how to use those tokens.</p>
+
+<p>Once they are created, the semantics of how DTs operate are also service-specific. But, in general,
+they try to follow the semantics of Kerberos tokens:</p>
+
+<ul>
+  <li>A “renewable period (equivalent to TGT’s “lifetime”) which is for how long the DT is valid
+before it requires renewal.</li>
+  <li>A “max lifetime” (equivalent to TGT’s “renewable life”) which is for how long the DT can be
+renewed.</li>
+</ul>
+
+<p>Once the token reaches its “max lifetime”, a new one needs to be created by contacting the
+appropriate service, restarting the above process.</p>
+
+<h2 id="dt-renewal-renewers-and-yarn">DT Renewal, Renewers, and YARN</h2>
+
+<p>This is the most confusing part of DT handling, and part of it is because much of the system was
+designed with MapReduce, and later YARN, in mind.</p>
+
+<p>As seen above, DTs need to be renewed periodically until they finally expire for good. An example of
+this is the default configuration of HDFS services: delegation tokens are valid for up to 7 days,
+and need to be renewed every 24 hours. If 24 hours pass without the token being renewed, the token
+cannot be used anymore. And the token cannot be renewed anymore after 7 days.</p>
+
+<p>This raises the question: who renews tokens? And for a long time the answer was YARN.</p>
+
+<p>When YARN applications are submitted, a set of DTs is also submitted with them. YARN takes care
+of distributing these tokens to containers (using conventions set by the <code class="highlighter-rouge">UserGroupInformation</code>
+API) and, also, keeping them renewed while the app is running. These tokens are used not just
+by the application; they are also used by YARN itself to implement features like log collection
+and aggregation.</p>
+
+<p>But this has a few caveats.</p>
+
+<ol>
+  <li>Who renews the tokens?</li>
+</ol>
+
+<p>This is handled mostly transparently by the Hadoop libraries in the case of YARN. Some services have
+the concept of a token “renewer”. This “renewer” is the name of the principal that is allowed to
+renew the DT. When submitting to YARN, that will be the principal that the YARN service is running
+as, which means that the client application needs to know that information.</p>
+
+<p>For other resource managers, the renewer mostly does not matter, since there is no service that
+is doing the renewal. Except that it sometimes leaks into library code, such as in SPARK-20328.</p>
+
+<ol>
+  <li>What tokens are renewed?</li>
+</ol>
+
+<p>This is probably the biggest caveat.</p>
+
+<p>As discussed in the previous section, DTs are service-specific, and require service-specific
+libraries for creation <em>and</em> renewal. This means that for YARN to be able to renew application
+tokens, YARN needs:</p>
+
+<ul>
+  <li>The client libraries for all the services the application is using</li>
+  <li>Information about how to connect to the services the application is using</li>
+  <li>Permissions to connect to those services</li>
+</ul>
+
+<p>In reality, though, most of the time YARN has access to a single HDFS cluster, and that will be
+the extent of its DT renewal features. Any other tokens sent to YARN will be distributed to
+containers, but will not be renewed.</p>
+
+<p>This means that those tokens will expire way before their max lifetime, unless some other code
+takes care of renewing them.</p>
+
+<p>Also, not all client libraries even implement token renewal. To use the example of a service
+supported by Spark, the <code class="highlighter-rouge">renew()</code> method of HBase tokens is a no-op. So the only way to “renew” an
+HBase token is to create a new one.</p>
+
+<ol>
+  <li>What happens when tokens expire for good?</li>
+</ol>
+
+<p>The final caveat is that DTs have a maximum life, regardless of renewal. And after that deadline
+is met, you need to create new tokens to be able to connect to the services. That means you need
+the ability to connect to the service without a delegation token, which requires some form of
+authentication aside from DTs.</p>
+
+<p>This is especially important for long-running applications that run unsupervised. They must be
+able to keep on going without having someone logging into a terminal and typing a password every
+few days.</p>
+
+<h2 id="dt-renewal-in-spark">DT Renewal in Spark</h2>
+
+<p>Because of the issues explained above, Spark implements a different way of doing renewal. Spark’s
+solution is a compromise: it targets the lowest common denominator, which is services like HBase
+that do not support actual token renewal.</p>
+
+<p>In Spark, DT “renewal” is enabled by giving the application a Kerberos keytab. A keytab is
+basically your Kerberos password written into a plain text file, which is why it’s so sensitive:
+if anyone is able to get hold of that keytab file, they’ll be able to authenticate to any service
+as that user, for as long as the credentials stored in the keytab remain valid in the KDC.</p>
+
+<p>By having the keytab, Spark can indefinitely maintain a valid Kerberos TGT.</p>
+
+<p>With Kerberos credentials available, Spark will create new DTs for the configured services as old
+ones expire. So Spark doesn’t renew tokens as explained in the previous section: it will create new
+tokens at every renewal interval instead, and distribute those tokens to executors.</p>
+
+<p>This also has another advantage on top of supporting services like HBase: it removes the dependency
+on an external renewal service (like YARN). That way, Spark’s renewal feature can be used with
+resource managers that are not DT-aware, such as Mesos or Kubernetes, as long as the application
+has access to a keytab.</p>
+
+<h2 id="dts-and-proxy-users">DTs and Proxy Users</h2>
+
+<p>“Proxy users” is Hadoop-speak for impersonation. It allows user A to impersonate user B when
+connecting to a service, if that service allows it.</p>
+
+<p>Spark allows impersonation when submitting applications, so that the whole application runs as
+user B in the above example.</p>
+
+<p>Spark does not allow token renewal when impersonation is on. Impersonation was added in Spark
+as a means for services (like Hive or Oozie) to start Spark applications on behalf of users.
+That means that those services would provide the Spark launcher code with privileged credentials
+and, potentially, user code that will run when the application starts. The user code is not
+necessarily under control of the service.</p>
+
+<p>In that situation, the service credentials should never be made available to the Spark application,
+since that would be tantamount to giving your service credentials to unprivileged users.</p>
+
+<p>The above also implies that running impersonated applications in client mode can be a security
+concern, since arbitrary user code would have access to the same local content as the privileged
+user. But unlike token renewal, Spark does not prevent that configuration from running.</p>
+
+<p>When impersonating, the Spark launcher will create DTs for the “proxy” user. In the example
+used above, that means that when code authenticates to a service using the DTs, the authenticated
+user will be “B”, not “A”.</p>
+
+<p>Note that “proxy user” is a very Hadoop-specific concept. It does not apply to OS users (which
+is why the client-mode case is an issue) and to services that do not authenticate using Hadoop’s
+<code class="highlighter-rouge">UserGroupInformation</code> system. It is generally used in the context of YARN - since an application
+submitted as a proxy user will run as that particular user in the YARN cluster, obeying any
+Hadoop-to-local-OS-user mapping configured for the service. But the overall support should work
+for connecting to other services even when YARN is not being used.</p>
+
+<p>Also, if writing a new DT provider in Spark, be aware that providers need to explicitly handle
+impersonation. If a service does not support impersonation, the provider should either error out or
+not generate tokens, depending on what makes more sense in the context.</p>
+
+<h2 id="externally-generated-dts">Externally Generated DTs</h2>
+
+<p>Spark uses the <code class="highlighter-rouge">UserGroupInformation</code> API to manage the Hadoop credentials. That means that Spark
+inherits the feature of loading DTs automatically from a file. The Hadoop classes will load the
+token cache pointed at by the <code class="highlighter-rouge">HADOOP_TOKEN_FILE_LOCATION</code> environment variable, when it’s defined.</p>
+
+<p>In this situation, Spark will not create DTs for the services that already have tokens in the
+cache. It may try to get delegation tokens for other services if Kerberos credentials are also
+provided.</p>
+
+<p>This feature is mostly used by services that start Spark on behalf of users. Regular users do not
+generally use this feature, given it would require them to figure out how to get those tokens
+outside of Spark.</p>
+
+<h2 id="limitations-of-dt-support-in-spark">Limitations of DT support in Spark</h2>
+
+<p>There are certain limitations to bear in mind when talking about DTs in Spark.</p>
+
+<p>The first one is that not all DTs actually expose their renewal period. This is generally a
+service configuration that is not generally exposed to clients. For this reason, certain DT
+providers cannot provide a renewal period to the Spark code, thus requiring that the service’s
+configuration is in some way synchronized with another one that does provide that information.</p>
+
+<p>The HDFS service, which is generally available when DTs are needed in the first place, provides
+that information, so in general it’s a good idea for all services using DTs to use the same
+configuration as HDFS for the renewal period.</p>
+
+<p>The second one is that Spark doesn’t always know what delegation tokens will be needed. For
+example, when submitting an application in cluster mode without a keytab, the launcher needs
+to create DTs without knowing what the application code will actually be doing. This means that
+Spark will try to get as many delegation tokens as is possible based on the configuration
+available. That means that if an HBase configuration is available to the launcher but the app
+doesn’t actually use HBase, a DT will still be generated. The user would have to explicitly
+opt out of generating HBase tokens in that case.</p>
+
+<p>The third one is that it’s hard to create DTs “as needed”. Without being able to authenticate
+to specific services, Spark cannot create DTs, which means that applications submitted in cluster
+mode like the above need DTs to be created up front, instead of on demand.</p>
+
+<p>The advantage, though, is that user code does not need to worry about DTs, since Spark will handle
+them transparently when the proper configuration is available.</p>
+:ET

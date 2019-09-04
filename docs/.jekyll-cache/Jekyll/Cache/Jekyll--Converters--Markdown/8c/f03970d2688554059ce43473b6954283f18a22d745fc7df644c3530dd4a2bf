@@ -1,0 +1,82 @@
+I"<ul id="markdown-toc">
+  <li><a href="#running-the-thrift-jdbcodbc-server" id="markdown-toc-running-the-thrift-jdbcodbc-server">Running the Thrift JDBC/ODBC server</a></li>
+  <li><a href="#running-the-spark-sql-cli" id="markdown-toc-running-the-spark-sql-cli">Running the Spark SQL CLI</a></li>
+</ul>
+
+<p>Spark SQL can also act as a distributed query engine using its JDBC/ODBC or command-line interface.
+In this mode, end-users or applications can interact with Spark SQL directly to run SQL queries,
+without the need to write any code.</p>
+
+<h2 id="running-the-thrift-jdbcodbc-server">Running the Thrift JDBC/ODBC server</h2>
+
+<p>The Thrift JDBC/ODBC server implemented here corresponds to the <a href="https://cwiki.apache.org/confluence/display/Hive/Setting+Up+HiveServer2"><code>HiveServer2</code></a>
+in Hive 1.2.1. You can test the JDBC server with the beeline script that comes with either Spark or Hive 1.2.1.</p>
+
+<p>To start the JDBC/ODBC server, run the following in the Spark directory:</p>
+
+<pre><code>./sbin/start-thriftserver.sh
+</code></pre>
+
+<p>This script accepts all <code>bin/spark-submit</code> command line options, plus a <code>--hiveconf</code> option to
+specify Hive properties. You may run <code>./sbin/start-thriftserver.sh --help</code> for a complete list of
+all available options. By default, the server listens on localhost:10000. You may override this
+behaviour via either environment variables, i.e.:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash"><span class="nb">export </span><span class="nv">HIVE_SERVER2_THRIFT_PORT</span><span class="o">=</span>&lt;listening-port&gt;
+<span class="nb">export </span><span class="nv">HIVE_SERVER2_THRIFT_BIND_HOST</span><span class="o">=</span>&lt;listening-host&gt;
+./sbin/start-thriftserver.sh <span class="se">\</span>
+  <span class="nt">--master</span> &lt;master-uri&gt; <span class="se">\</span>
+  ...</code></pre></figure>
+
+<p>or system properties:</p>
+
+<figure class="highlight"><pre><code class="language-bash" data-lang="bash">./sbin/start-thriftserver.sh <span class="se">\</span>
+  <span class="nt">--hiveconf</span> hive.server2.thrift.port<span class="o">=</span>&lt;listening-port&gt; <span class="se">\</span>
+  <span class="nt">--hiveconf</span> hive.server2.thrift.bind.host<span class="o">=</span>&lt;listening-host&gt; <span class="se">\</span>
+  <span class="nt">--master</span> &lt;master-uri&gt;
+  ...</code></pre></figure>
+
+<p>Now you can use beeline to test the Thrift JDBC/ODBC server:</p>
+
+<pre><code>./bin/beeline
+</code></pre>
+
+<p>Connect to the JDBC/ODBC server in beeline with:</p>
+
+<pre><code>beeline&gt; !connect jdbc:hive2://localhost:10000
+</code></pre>
+
+<p>Beeline will ask you for a username and password. In non-secure mode, simply enter the username on
+your machine and a blank password. For secure mode, please follow the instructions given in the
+<a href="https://cwiki.apache.org/confluence/display/Hive/HiveServer2+Clients">beeline documentation</a>.</p>
+
+<p>Configuration of Hive is done by placing your <code>hive-site.xml</code>, <code>core-site.xml</code> and <code>hdfs-site.xml</code> files in <code>conf/</code>.</p>
+
+<p>You may also use the beeline script that comes with Hive.</p>
+
+<p>Thrift JDBC server also supports sending thrift RPC messages over HTTP transport.
+Use the following setting to enable HTTP mode as system property or in <code>hive-site.xml</code> file in <code>conf/</code>:</p>
+
+<pre><code>hive.server2.transport.mode - Set this to value: http
+hive.server2.thrift.http.port - HTTP port number to listen on; default is 10001
+hive.server2.http.endpoint - HTTP endpoint; default is cliservice
+</code></pre>
+
+<p>To test, use beeline to connect to the JDBC/ODBC server in http mode with:</p>
+
+<pre><code>beeline&gt; !connect jdbc:hive2://&lt;host&gt;:&lt;port&gt;/&lt;database&gt;?hive.server2.transport.mode=http;hive.server2.thrift.http.path=&lt;http_endpoint&gt;
+</code></pre>
+
+<h2 id="running-the-spark-sql-cli">Running the Spark SQL CLI</h2>
+
+<p>The Spark SQL CLI is a convenient tool to run the Hive metastore service in local mode and execute
+queries input from the command line. Note that the Spark SQL CLI cannot talk to the Thrift JDBC server.</p>
+
+<p>To start the Spark SQL CLI, run the following in the Spark directory:</p>
+
+<pre><code>./bin/spark-sql
+</code></pre>
+
+<p>Configuration of Hive is done by placing your <code>hive-site.xml</code>, <code>core-site.xml</code> and <code>hdfs-site.xml</code> files in <code>conf/</code>.
+You may run <code>./bin/spark-sql --help</code> for a complete list of all available options.</p>
+:ET

@@ -1,0 +1,247 @@
+I"15<h1 id="running-the-kubernetes-integration-tests">Running the Kubernetes Integration Tests</h1>
+
+<p>Note that the integration test framework is currently being heavily revised and
+is subject to change. Note that currently the integration tests only run with Java 8.</p>
+
+<p>The simplest way to run the integration tests is to install and run Minikube, then run the following from this
+directory:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./dev/dev-run-integration-tests.sh
+</code></pre></div></div>
+
+<p>The minimum tested version of Minikube is 0.23.0. The kube-dns addon must be enabled. Minikube should
+run with a minimum of 4 CPUs and 6G of memory:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>minikube start --cpus 4 --memory 6144
+</code></pre></div></div>
+
+<p>You can download Minikube <a href="https://github.com/kubernetes/minikube/releases">here</a>.</p>
+
+<h1 id="integration-test-customization">Integration test customization</h1>
+
+<p>Configuration of the integration test runtime is done through passing different arguments to the test script. 
+The main useful options are outlined below.</p>
+
+<h2 id="using-a-different-backend">Using a different backend</h2>
+
+<p>The integration test backend i.e. the K8S cluster used for testing is controlled by the <code class="highlighter-rouge">--deploy-mode</code> option.  By 
+default this is set to <code class="highlighter-rouge">minikube</code>, the available backends are their prerequisites are as follows.</p>
+
+<h3 id="minikube"><code class="highlighter-rouge">minikube</code></h3>
+
+<p>Uses the local <code class="highlighter-rouge">minikube</code> cluster, this requires that <code class="highlighter-rouge">minikube</code> 0.23.0 or greater be installed and that it be allocated 
+at least 4 CPUs and 6GB memory (some users have reported success with as few as 3 CPUs and 4GB memory).  The tests will 
+check if <code class="highlighter-rouge">minikube</code> is started and abort early if it isn’t currently running.</p>
+
+<h3 id="docker-for-desktop"><code class="highlighter-rouge">docker-for-desktop</code></h3>
+
+<p>Since July 2018 Docker for Desktop provide an optional Kubernetes cluster that can be enabled as described in this 
+<a href="https://blog.docker.com/2018/07/kubernetes-is-now-available-in-docker-desktop-stable-channel/">blog post</a>.  Assuming 
+this is enabled using this backend will auto-configure itself from the <code class="highlighter-rouge">docker-for-desktop</code> context that Docker creates 
+in your <code class="highlighter-rouge">~/.kube/config</code> file. If your config file is in a different location you should set the <code class="highlighter-rouge">KUBECONFIG</code> 
+environment variable appropriately.</p>
+
+<h3 id="cloud"><code class="highlighter-rouge">cloud</code></h3>
+
+<p>The cloud backend configures the tests to use an arbitrary Kubernetes cluster running in the cloud or otherwise.</p>
+
+<p>The <code class="highlighter-rouge">cloud</code> backend auto-configures the cluster to use from your K8S config file, this is assumed to be <code class="highlighter-rouge">~/.kube/config</code>
+unless the <code class="highlighter-rouge">KUBECONFIG</code> environment variable is set to override this location.  By default this will use whatever your 
+current context is in the config file, to use an alternative context from your config file you can specify the 
+<code class="highlighter-rouge">--context &lt;context&gt;</code> flag with the desired context.</p>
+
+<p>You can optionally use a different K8S master URL than the one your K8S config file specified, this should be supplied 
+via the <code class="highlighter-rouge">--spark-master &lt;master-url&gt;</code> flag.</p>
+
+<h2 id="re-using-docker-images">Re-using Docker Images</h2>
+
+<p>By default, the test framework will build new Docker images on every test execution. A unique image tag is generated,
+and it is written to file at <code class="highlighter-rouge">target/imageTag.txt</code>. To reuse the images built in a previous run, or to use a Docker 
+image tag that you have built by other means already, pass the tag to the test script:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./dev/dev-run-integration-tests.sh --image-tag &lt;tag&gt;
+</code></pre></div></div>
+
+<p>where if you still want to use images that were built before by the test framework:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./dev/dev-run-integration-tests.sh --image-tag $(cat target/imageTag.txt)
+</code></pre></div></div>
+
+<h3 id="customising-the-image-names">Customising the Image Names</h3>
+
+<p>If your image names do not follow the standard Spark naming convention - <code class="highlighter-rouge">spark</code>, <code class="highlighter-rouge">spark-py</code> and <code class="highlighter-rouge">spark-r</code> - then you can customise the names using several options.</p>
+
+<p>If you use the same basic pattern but a different prefix for the name e.g. <code class="highlighter-rouge">apache-spark</code> you can just set <code class="highlighter-rouge">--base-image-name &lt;base-name&gt;</code> e.g.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./dev/dev-run-integration-tests.sh --base-image-name apache-spark
+</code></pre></div></div>
+
+<p>Alternatively if you use completely custom names then you can set each individually via the <code class="highlighter-rouge">--jvm-image-name &lt;name&gt;</code>, <code class="highlighter-rouge">--python-image-name &lt;name&gt;</code> and <code class="highlighter-rouge">--r-image-name &lt;name&gt;</code> arguments e.g.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>./dev/dev-run-integration-tests.sh --jvm-image-name jvm-spark --python-image-name pyspark --r-image-name sparkr
+</code></pre></div></div>
+
+<h2 id="spark-distribution-under-test">Spark Distribution Under Test</h2>
+
+<p>The Spark code to test is handed to the integration test system via a tarball. Here is the option that is used to 
+specify the tarball:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">--spark-tgz &lt;path-to-tgz&gt;</code> - set <code class="highlighter-rouge">&lt;path-to-tgz&gt;</code> to point to a tarball containing the Spark distribution to test.</li>
+</ul>
+
+<p>This Tarball should be created by first running <code class="highlighter-rouge">dev/make-distribution.sh</code> passing the <code class="highlighter-rouge">--tgz</code> flag and <code class="highlighter-rouge">-Pkubernetes</code> 
+as one of the options to ensure that Kubernetes support is included in the distribution.  For more details on building a
+runnable distribution please see the 
+<a href="https://spark.apache.org/docs/latest/building-spark.html#building-a-runnable-distribution">Building Spark</a> 
+documentation.</p>
+
+<p><strong>TODO:</strong> Don’t require the packaging of the built Spark artifacts into this tarball, just read them out of the current 
+tree.</p>
+
+<h2 id="customizing-the-namespace-and-service-account">Customizing the Namespace and Service Account</h2>
+
+<p>If no namespace is specified then a temporary namespace will be created and deleted during the test run.  Similarly if 
+no service account is specified then the <code class="highlighter-rouge">default</code> service account for the namespace will be used.</p>
+
+<p>Using the <code class="highlighter-rouge">--namespace &lt;namespace&gt;</code> flag sets <code class="highlighter-rouge">&lt;namespace&gt;</code> to the namespace in which the tests should be run.  If this 
+is supplied then the tests assume this namespace exists in the K8S cluster and will not attempt to create it.<br />
+Additionally this namespace must have an appropriately authorized service account which can be customised via the 
+<code class="highlighter-rouge">--service-account</code> flag.</p>
+
+<p>The <code class="highlighter-rouge">--service-account &lt;service account name&gt;</code> flag sets <code class="highlighter-rouge">&lt;service account name&gt;</code> to the name of the Kubernetes service 
+account to use in the namespace specified by the <code class="highlighter-rouge">--namespace</code> flag. The service account is expected to have permissions
+to get, list, watch, and create pods. For clusters with RBAC turned on, it’s important that the right permissions are 
+granted to the service account in the namespace through an appropriate role and role binding. A reference RBAC 
+configuration is provided in <code class="highlighter-rouge">dev/spark-rbac.yaml</code>.</p>
+
+<h1 id="running-the-test-directly">Running the Test Directly</h1>
+
+<p>If you prefer to run just the integration tests directly, then you can customise the behaviour via passing system 
+properties to Maven.  For example:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>mvn integration-test -am -pl :spark-kubernetes-integration-tests_2.12 \
+                        -Pkubernetes -Pkubernetes-integration-tests \ 
+                        -Phadoop-2.7 -Dhadoop.version=2.7.4 \
+                        -Dspark.kubernetes.test.sparkTgz=spark-3.0.0-SNAPSHOT-bin-example.tgz \
+                        -Dspark.kubernetes.test.imageTag=sometag \
+                        -Dspark.kubernetes.test.imageRepo=docker.io/somerepo \
+                        -Dspark.kubernetes.test.namespace=spark-int-tests \
+                        -Dspark.kubernetes.test.deployMode=docker-for-desktop \
+                        -Dtest.include.tags=k8s
+</code></pre></div></div>
+
+<h2 id="available-maven-properties">Available Maven Properties</h2>
+
+<p>The following are the available Maven properties that can be passed.  For the most part these correspond to flags passed 
+to the wrapper scripts and using the wrapper scripts will simply set these appropriately behind the scenes.</p>
+
+<table>
+  <tr>
+    <th>Property</th>
+    <th>Description</th>
+    <th>Default</th>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.sparkTgz</code></td>
+    <td>
+      A runnable Spark distribution to test.
+    </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.unpackSparkDir</code></td>
+    <td>
+      The directory where the runnable Spark distribution will be unpacked.
+    </td>
+    <td><code>${project.build.directory}/spark-dist-unpacked</code></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.deployMode</code></td>
+    <td>
+      The integration test backend to use.  Acceptable values are <code>minikube</code>, 
+      <code>docker-for-desktop</code> and <code>cloud</code>.
+    <td><code>minikube</code></td>
+  &lt;/tr&gt;
+  <tr>
+    <td><code>spark.kubernetes.test.kubeConfigContext</code></td>
+    <td>
+      When using the <code>cloud</code> backend specifies the context from the users K8S config file that should be used
+      as the target cluster for integration testing.  If not set and using the <code>cloud</code> backend then your 
+      current context will be used.
+    </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.master</code></td>
+    <td>
+      When using the <code>cloud-url</code> backend must be specified to indicate the K8S master URL to communicate 
+      with.
+    </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.imageTag</code></td>
+    <td>
+      A specific image tag to use, when set assumes images with those tags are already built and available in the 
+      specified image repository.  When set to <code>N/A</code> (the default) fresh images will be built.
+    </td>
+    <td><code>N/A</code>
+  &lt;/tr&gt;
+  <tr>
+    <td><code>spark.kubernetes.test.imageTagFile</code></td>
+    <td>
+      A file containing the image tag to use, if no specific image tag is set then fresh images will be built with a 
+      generated tag and that tag written to this file.
+    </td>
+    <td><code>${project.build.directory}/imageTag.txt</code></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.imageRepo</code></td>
+    <td>
+      The Docker image repository that contains the images to be used if a specific image tag is set or to which the 
+      images will be pushed to if fresh images are being built.
+    </td>
+    <td><code>docker.io/kubespark</code></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.jvmImage</code></td>
+    <td>
+      The image name for the JVM based Spark image to test
+    </td>
+    <td><code>spark</code></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.pythonImage</code></td>
+    <td>
+      The image name for the Python based Spark image to test
+    </td>
+    <td><code>spark-py</code></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.rImage</code></td>
+    <td>
+      The image name for the R based Spark image to test
+    </td>
+    <td><code>spark-r</code></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.namespace</code></td>
+    <td>
+      A specific Kubernetes namespace to run the tests in.  If specified then the tests assume that this namespace 
+      already exists. When not specified a temporary namespace for the tests will be created and deleted as part of the
+      test run.
+    </td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>spark.kubernetes.test.serviceAccountName</code></td>
+    <td>
+      A specific Kubernetes service account to use for running the tests.  If not specified then the namespaces default
+      service account will be used and that must have sufficient permissions or the tests will fail.
+    </td>
+    <td></td>
+  </tr>
+&lt;/table&gt;
+</td></tr></td></tr></table>
+:ET

@@ -1,0 +1,55 @@
+I"<h3 id="description">Description</h3>
+<p>Views are based on result-set of complex base <code>SQL</code> queries that are hard to
+maintain or understand. <code>CREATE VIEW</code> constructs a virtual table that has no
+physical data therefore other operations like <code>ALTER VIEW</code> and <code>DROP VIEW</code> 
+only change metadata.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">CREATE</span> <span class="p">[</span><span class="k">OR</span> <span class="k">REPLACE</span><span class="p">]</span> <span class="p">[[</span><span class="k">GLOBAL</span><span class="p">]</span> <span class="k">TEMPORARY</span><span class="p">]</span> <span class="k">VIEW</span> <span class="p">[</span><span class="n">IF</span> <span class="k">NOT</span> <span class="k">EXISTS</span><span class="p">]</span> <span class="p">[</span><span class="n">db_name</span><span class="p">.]</span><span class="n">view_name</span>
+    <span class="p">[(</span><span class="k">column_name</span> <span class="p">[</span><span class="k">COMMENT</span> <span class="n">column_comment</span><span class="p">],</span> <span class="p">...)</span> <span class="p">]</span>
+    <span class="n">create_view_clauses</span>
+    <span class="k">AS</span> <span class="k">SELECT</span> <span class="p">...;</span>
+    
+    <span class="n">create_view_clauses</span> <span class="p">(</span><span class="k">order</span> <span class="k">insensitive</span><span class="p">):</span>
+        <span class="p">[</span><span class="k">COMMENT</span> <span class="n">view_comment</span><span class="p">]</span>
+        <span class="p">[</span><span class="n">TBLPROPERTIES</span> <span class="p">(</span><span class="n">property_name</span> <span class="o">=</span> <span class="n">property_value</span><span class="p">,</span> <span class="p">...)]</span></code></pre></figure>
+
+<h3 id="examples">Examples</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">-- Create a global temporary view `subscribed_movies` if it does not exist.
+</span>
+<span class="k">CREATE</span> <span class="k">GLOBAL</span> <span class="k">TEMPORARY</span> <span class="k">VIEW</span> <span class="n">IF</span> <span class="k">NOT</span> <span class="k">EXISTS</span> <span class="n">subscribed_movies</span> 
+    <span class="k">AS</span> <span class="k">SELECT</span> <span class="n">mo</span><span class="p">.</span><span class="n">member_id</span><span class="p">,</span> <span class="n">mb</span><span class="p">.</span><span class="n">full_name</span><span class="p">,</span> <span class="n">mo</span><span class="p">.</span><span class="n">movie_title</span>
+     <span class="k">FROM</span> <span class="n">movies</span> <span class="k">AS</span> <span class="n">mo</span> <span class="k">INNER</span> <span class="k">JOIN</span> <span class="n">members</span> <span class="k">AS</span> <span class="n">mb</span> 
+     <span class="k">ON</span> <span class="n">mo</span><span class="p">.</span><span class="n">member_id</span> <span class="o">=</span> <span class="n">mb</span><span class="p">.</span><span class="n">id</span><span class="p">;</span>
+<span class="c1">-- Create or replace view for `experienced_employee` with comments.
+</span>
+<span class="k">CREATE</span> <span class="k">OR</span> <span class="k">REPLACE</span> <span class="k">VIEW</span> <span class="n">experienced_employee</span> 
+    <span class="p">(</span><span class="n">ID</span> <span class="k">COMMENT</span> <span class="s1">'Unique identification number'</span><span class="p">,</span> <span class="n">Name</span><span class="p">)</span> 
+    <span class="k">COMMENT</span> <span class="s1">'View for experienced employees'</span> 
+    <span class="k">AS</span> <span class="k">SELECT</span> <span class="n">id</span><span class="p">,</span> <span class="n">name</span> <span class="k">FROM</span> <span class="n">all_employee</span> 
+        <span class="k">WHERE</span> <span class="n">working_years</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">;</span></code></pre></figure>
+
+<h3 id="parameters">Parameters</h3>
+<h4 id="or-replace">OR REPLACE</h4>
+<p>If a view of same name already exists, it will be replaced.</p>
+<h4 id="global-temporary">[GLOBAL] TEMPORARY</h4>
+<p>TEMPORARY views are session-scoped and will be dropped when session ends 
+because it skips persisting the definition in the underlying metastore, if any.
+GLOBAL TEMPORARY views are tied to a system preserved temporary database <code>global_temp</code>.</p>
+<h4 id="if-not-exists">IF NOT EXISTS</h4>
+<p>Creates a view if it does not exists.</p>
+<h4 id="comment">COMMENT</h4>
+<p>View-level and column-level comments can be specified in CREATE VIEW statement.</p>
+<h4 id="tblproperties">TBLPROPERTIES</h4>
+<p>Metadata key-value pairs.</p>
+<h4 id="as-select">AS SELECT</h4>
+<p>A <a href="sql-ref-syntax-qry-select.md">SELECT</a> statement that constructs the view from base tables or other views.</p>
+
+<h3 id="related-statements">Related Statements</h3>
+<ul>
+  <li><a href="sql-ref-syntax-ddl-alter-view.md">ALTER VIEW</a></li>
+  <li><a href="sql-ref-syntax-ddl-drop-view.md">DROP VIEW</a></li>
+</ul>
+:ET

@@ -1,0 +1,184 @@
+I"d!<ul id="markdown-toc">
+  <li><a href="#deploying-in-existing-hive-warehouses" id="markdown-toc-deploying-in-existing-hive-warehouses">Deploying in Existing Hive Warehouses</a></li>
+  <li><a href="#supported-hive-features" id="markdown-toc-supported-hive-features">Supported Hive Features</a></li>
+  <li><a href="#unsupported-hive-functionality" id="markdown-toc-unsupported-hive-functionality">Unsupported Hive Functionality</a></li>
+  <li><a href="#incompatible-hive-udf" id="markdown-toc-incompatible-hive-udf">Incompatible Hive UDF</a></li>
+</ul>
+
+<p>Spark SQL is designed to be compatible with the Hive Metastore, SerDes and UDFs.
+Currently, Hive SerDes and UDFs are based on Hive 1.2.1,
+and Spark SQL can be connected to different versions of Hive Metastore
+(from 0.12.0 to 2.3.6 and 3.0.0 to 3.1.1. Also see <a href="sql-data-sources-hive-tables.html#interacting-with-different-versions-of-hive-metastore">Interacting with Different Versions of Hive Metastore</a>).</p>
+
+<h4 id="deploying-in-existing-hive-warehouses">Deploying in Existing Hive Warehouses</h4>
+
+<p>The Spark SQL Thrift JDBC server is designed to be &#8220;out of the box&#8221; compatible with existing Hive
+installations. You do not need to modify your existing Hive Metastore or change the data placement
+or partitioning of your tables.</p>
+
+<h3 id="supported-hive-features">Supported Hive Features</h3>
+
+<p>Spark SQL supports the vast majority of Hive features, such as:</p>
+
+<ul>
+  <li>Hive query statements, including:
+    <ul>
+      <li><code>SELECT</code></li>
+      <li><code>GROUP BY</code></li>
+      <li><code>ORDER BY</code></li>
+      <li><code>CLUSTER BY</code></li>
+      <li><code>SORT BY</code></li>
+    </ul>
+  </li>
+  <li>All Hive operators, including:
+    <ul>
+      <li>Relational operators (<code>=</code>, <code>⇔</code>, <code>==</code>, <code>&lt;&gt;</code>, <code>&lt;</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;=</code>, etc)</li>
+      <li>Arithmetic operators (<code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, etc)</li>
+      <li>Logical operators (<code>AND</code>, <code>&amp;&amp;</code>, <code>OR</code>, <code>||</code>, etc)</li>
+      <li>Complex type constructors</li>
+      <li>Mathematical functions (<code>sign</code>, <code>ln</code>, <code>cos</code>, etc)</li>
+      <li>String functions (<code>instr</code>, <code>length</code>, <code>printf</code>, etc)</li>
+    </ul>
+  </li>
+  <li>User defined functions (UDF)</li>
+  <li>User defined aggregation functions (UDAF)</li>
+  <li>User defined serialization formats (SerDes)</li>
+  <li>Window functions</li>
+  <li>Joins
+    <ul>
+      <li><code>JOIN</code></li>
+      <li><code>{LEFT|RIGHT|FULL} OUTER JOIN</code></li>
+      <li><code>LEFT SEMI JOIN</code></li>
+      <li><code>CROSS JOIN</code></li>
+    </ul>
+  </li>
+  <li>Unions</li>
+  <li>Sub-queries
+    <ul>
+      <li><code>SELECT col FROM ( SELECT a + b AS col from t1) t2</code></li>
+    </ul>
+  </li>
+  <li>Sampling</li>
+  <li>Explain</li>
+  <li>Partitioned tables including dynamic partition insertion</li>
+  <li>View
+    <ul>
+      <li>
+        <p>If column aliases are not specified in view definition queries, both Spark and Hive will
+generate alias names, but in different ways. In order for Spark to be able to read views created
+by Hive, users should explicitly specify column aliases in view definition queries. As an
+example, Spark cannot read <code>v1</code> created as below by Hive.</p>
+
+        <pre><code>CREATE VIEW v1 AS SELECT * FROM (SELECT c + 1 FROM (SELECT 1 c) t1) t2;
+</code></pre>
+
+        <p>Instead, you should create <code>v1</code> as below with column aliases explicitly specified.</p>
+
+        <pre><code>CREATE VIEW v1 AS SELECT * FROM (SELECT c + 1 AS inc_c FROM (SELECT 1 c) t1) t2;
+</code></pre>
+      </li>
+    </ul>
+  </li>
+  <li>All Hive DDL Functions, including:
+    <ul>
+      <li><code>CREATE TABLE</code></li>
+      <li><code>CREATE TABLE AS SELECT</code></li>
+      <li><code>ALTER TABLE</code></li>
+    </ul>
+  </li>
+  <li>Most Hive Data types, including:
+    <ul>
+      <li><code>TINYINT</code></li>
+      <li><code>SMALLINT</code></li>
+      <li><code>INT</code></li>
+      <li><code>BIGINT</code></li>
+      <li><code>BOOLEAN</code></li>
+      <li><code>FLOAT</code></li>
+      <li><code>DOUBLE</code></li>
+      <li><code>STRING</code></li>
+      <li><code>BINARY</code></li>
+      <li><code>TIMESTAMP</code></li>
+      <li><code>DATE</code></li>
+      <li><code>ARRAY&lt;&gt;</code></li>
+      <li><code>MAP&lt;&gt;</code></li>
+      <li><code>STRUCT&lt;&gt;</code></li>
+    </ul>
+  </li>
+</ul>
+
+<h3 id="unsupported-hive-functionality">Unsupported Hive Functionality</h3>
+
+<p>Below is a list of Hive features that we don&#8217;t support yet. Most of these features are rarely used
+in Hive deployments.</p>
+
+<p><strong>Major Hive Features</strong></p>
+
+<ul>
+  <li>Tables with buckets: bucket is the hash partitioning within a Hive table partition. Spark SQL
+doesn&#8217;t support buckets yet.</li>
+</ul>
+
+<p><strong>Esoteric Hive Features</strong></p>
+
+<ul>
+  <li><code>UNION</code> type</li>
+  <li>Unique join</li>
+  <li>Column statistics collecting: Spark SQL does not piggyback scans to collect column statistics at
+the moment and only supports populating the sizeInBytes field of the hive metastore.</li>
+</ul>
+
+<p><strong>Hive Input/Output Formats</strong></p>
+
+<ul>
+  <li>File format for CLI: For results showing back to the CLI, Spark SQL only supports TextOutputFormat.</li>
+  <li>Hadoop archive</li>
+</ul>
+
+<p><strong>Hive Optimizations</strong></p>
+
+<p>A handful of Hive optimizations are not yet included in Spark. Some of these (such as indexes) are
+less important due to Spark SQL&#8217;s in-memory computational model. Others are slotted for future
+releases of Spark SQL.</p>
+
+<ul>
+  <li>Block-level bitmap indexes and virtual columns (used to build indexes)</li>
+  <li>Automatically determine the number of reducers for joins and groupbys: Currently, in Spark SQL, you
+need to control the degree of parallelism post-shuffle using &#8220;<code>SET spark.sql.shuffle.partitions=[num_tasks];</code>&#8221;.</li>
+  <li>Meta-data only query: For queries that can be answered by using only metadata, Spark SQL still
+launches tasks to compute the result.</li>
+  <li>Skew data flag: Spark SQL does not follow the skew data flags in Hive.</li>
+  <li><code>STREAMTABLE</code> hint in join: Spark SQL does not follow the <code>STREAMTABLE</code> hint.</li>
+  <li>Merge multiple small files for query results: if the result output contains multiple small files,
+Hive can optionally merge the small files into fewer large files to avoid overflowing the HDFS
+metadata. Spark SQL does not support that.</li>
+</ul>
+
+<p><strong>Hive UDF/UDTF/UDAF</strong></p>
+
+<p>Not all the APIs of the Hive UDF/UDTF/UDAF are supported by Spark SQL. Below are the unsupported APIs:</p>
+
+<ul>
+  <li><code>getRequiredJars</code> and <code>getRequiredFiles</code> (<code>UDF</code> and <code>GenericUDF</code>) are functions to automatically
+include additional resources required by this UDF.</li>
+  <li><code>initialize(StructObjectInspector)</code> in <code>GenericUDTF</code> is not supported yet. Spark SQL currently uses
+a deprecated interface <code>initialize(ObjectInspector[])</code> only.</li>
+  <li><code>configure</code> (<code>GenericUDF</code>, <code>GenericUDTF</code>, and <code>GenericUDAFEvaluator</code>) is a function to initialize
+functions with <code>MapredContext</code>, which is inapplicable to Spark.</li>
+  <li><code>close</code> (<code>GenericUDF</code> and <code>GenericUDAFEvaluator</code>) is a function to release associated resources.
+Spark SQL does not call this function when tasks finish.</li>
+  <li><code>reset</code> (<code>GenericUDAFEvaluator</code>) is a function to re-initialize aggregation for reusing the same aggregation.
+Spark SQL currently does not support the reuse of aggregation.</li>
+  <li><code>getWindowingEvaluator</code> (<code>GenericUDAFEvaluator</code>) is a function to optimize aggregation by evaluating
+an aggregate over a fixed window.</li>
+</ul>
+
+<h3 id="incompatible-hive-udf">Incompatible Hive UDF</h3>
+
+<p>Below are the scenarios in which Hive and Spark generate different results:</p>
+
+<ul>
+  <li><code>SQRT(n)</code> If n &lt; 0, Hive returns null, Spark SQL returns NaN.</li>
+  <li><code>ACOS(n)</code> If n &lt; -1 or n &gt; 1, Hive returns null, Spark SQL returns NaN.</li>
+  <li><code>ASIN(n)</code> If n &lt; -1 or n &gt; 1, Hive returns null, Spark SQL returns NaN.</li>
+</ul>
+:ET

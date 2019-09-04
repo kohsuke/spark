@@ -1,0 +1,187 @@
+I"D,<p>MLlib is Spark&#8217;s machine learning (ML) library.
+Its goal is to make practical machine learning scalable and easy.
+At a high level, it provides tools such as:</p>
+
+<ul>
+  <li>ML Algorithms: common learning algorithms such as classification, regression, clustering, and collaborative filtering</li>
+  <li>Featurization: feature extraction, transformation, dimensionality reduction, and selection</li>
+  <li>Pipelines: tools for constructing, evaluating, and tuning ML Pipelines</li>
+  <li>Persistence: saving and load algorithms, models, and Pipelines</li>
+  <li>Utilities: linear algebra, statistics, data handling, etc.</li>
+</ul>
+
+<h1 id="announcement-dataframe-based-api-is-primary-api">Announcement: DataFrame-based API is primary API</h1>
+
+<p><strong>The MLlib RDD-based API is now in maintenance mode.</strong></p>
+
+<p>As of Spark 2.0, the <a href="rdd-programming-guide.html#resilient-distributed-datasets-rdds">RDD</a>-based APIs in the <code>spark.mllib</code> package have entered maintenance mode.
+The primary Machine Learning API for Spark is now the <a href="sql-programming-guide.html">DataFrame</a>-based API in the <code>spark.ml</code> package.</p>
+
+<p><em>What are the implications?</em></p>
+
+<ul>
+  <li>MLlib will still support the RDD-based API in <code>spark.mllib</code> with bug fixes.</li>
+  <li>MLlib will not add new features to the RDD-based API.</li>
+  <li>In the Spark 2.x releases, MLlib will add features to the DataFrames-based API to reach feature parity with the RDD-based API.</li>
+  <li>After reaching feature parity (roughly estimated for Spark 2.3), the RDD-based API will be deprecated.</li>
+  <li>The RDD-based API is expected to be removed in Spark 3.0.</li>
+</ul>
+
+<p><em>Why is MLlib switching to the DataFrame-based API?</em></p>
+
+<ul>
+  <li>DataFrames provide a more user-friendly API than RDDs.  The many benefits of DataFrames include Spark Datasources, SQL/DataFrame queries, Tungsten and Catalyst optimizations, and uniform APIs across languages.</li>
+  <li>The DataFrame-based API for MLlib provides a uniform API across ML algorithms and across multiple languages.</li>
+  <li>DataFrames facilitate practical ML Pipelines, particularly feature transformations.  See the <a href="ml-pipeline.html">Pipelines guide</a> for details.</li>
+</ul>
+
+<p><em>What is &#8220;Spark ML&#8221;?</em></p>
+
+<ul>
+  <li>&#8220;Spark ML&#8221; is not an official name but occasionally used to refer to the MLlib DataFrame-based API.
+This is majorly due to the <code>org.apache.spark.ml</code> Scala package name used by the DataFrame-based API, 
+and the &#8220;Spark ML Pipelines&#8221; term we used initially to emphasize the pipeline concept.</li>
+</ul>
+
+<p><em>Is MLlib deprecated?</em></p>
+
+<ul>
+  <li>No. MLlib includes both the RDD-based API and the DataFrame-based API.
+The RDD-based API is now in maintenance mode.
+But neither API is deprecated, nor MLlib as a whole.</li>
+</ul>
+
+<h1 id="dependencies">Dependencies</h1>
+
+<p>MLlib uses the linear algebra package <a href="http://www.scalanlp.org/">Breeze</a>, which depends on
+<a href="https://github.com/fommil/netlib-java">netlib-java</a> for optimised numerical processing.
+If native libraries<sup id="fnref:1"><a href="#fn:1" class="footnote">1</a></sup> are not available at runtime, you will see a warning message and a pure JVM
+implementation will be used instead.</p>
+
+<p>Due to licensing issues with runtime proprietary binaries, we do not include <code>netlib-java</code>&#8217;s native
+proxies by default.
+To configure <code>netlib-java</code> / Breeze to use system optimised binaries, include
+<code>com.github.fommil.netlib:all:1.1.2</code> (or build Spark with <code>-Pnetlib-lgpl</code>) as a dependency of your
+project and read the <a href="https://github.com/fommil/netlib-java">netlib-java</a> documentation for your
+platform&#8217;s additional installation instructions.</p>
+
+<p>The most popular native BLAS such as <a href="https://software.intel.com/en-us/mkl">Intel MKL</a>, <a href="http://www.openblas.net">OpenBLAS</a>, can use multiple threads in a single operation, which can conflict with Spark&#8217;s execution model.</p>
+
+<p>Configuring these BLAS implementations to use a single thread for operations may actually improve performance (see <a href="https://issues.apache.org/jira/browse/SPARK-21305">SPARK-21305</a>). It is usually optimal to match this to the number of cores each Spark task is configured to use, which is 1 by default and typically left at 1.</p>
+
+<p>Please refer to resources like the following to understand how to configure the number of threads these BLAS implementations use: <a href="https://software.intel.com/en-us/articles/recommended-settings-for-calling-intel-mkl-routines-from-multi-threaded-applications">Intel MKL</a> and <a href="https://github.com/xianyi/OpenBLAS/wiki/faq#multi-threaded">OpenBLAS</a>.</p>
+
+<p>To use MLlib in Python, you will need <a href="http://www.numpy.org">NumPy</a> version 1.4 or newer.</p>
+
+<h1 id="highlights-in-23">Highlights in 2.3</h1>
+
+<p>The list below highlights some of the new features and enhancements added to MLlib in the <code>2.3</code>
+release of Spark:</p>
+
+<ul>
+  <li>Built-in support for reading images into a <code>DataFrame</code> was added
+(<a href="https://issues.apache.org/jira/browse/SPARK-21866">SPARK-21866</a>).</li>
+  <li><a href="ml-features.html#onehotencoderestimator"><code>OneHotEncoderEstimator</code></a> was added, and should be
+used instead of the existing <code>OneHotEncoder</code> transformer. The new estimator supports
+transforming multiple columns.</li>
+  <li>Multiple column support was also added to <code>QuantileDiscretizer</code> and <code>Bucketizer</code>
+(<a href="https://issues.apache.org/jira/browse/SPARK-22397">SPARK-22397</a> and
+<a href="https://issues.apache.org/jira/browse/SPARK-20542">SPARK-20542</a>)</li>
+  <li>A new <a href="ml-features.html#featurehasher"><code>FeatureHasher</code></a> transformer was added
+ (<a href="https://issues.apache.org/jira/browse/SPARK-13969">SPARK-13969</a>).</li>
+  <li>Added support for evaluating multiple models in parallel when performing cross-validation using
+<a href="ml-tuning.html"><code>TrainValidationSplit</code> or <code>CrossValidator</code></a>
+(<a href="https://issues.apache.org/jira/browse/SPARK-19357">SPARK-19357</a>).</li>
+  <li>Improved support for custom pipeline components in Python (see
+<a href="https://issues.apache.org/jira/browse/SPARK-21633">SPARK-21633</a> and 
+<a href="https://issues.apache.org/jira/browse/SPARK-21542">SPARK-21542</a>).</li>
+  <li><code>DataFrame</code> functions for descriptive summary statistics over vector columns
+(<a href="https://issues.apache.org/jira/browse/SPARK-19634">SPARK-19634</a>).</li>
+  <li>Robust linear regression with Huber loss
+(<a href="https://issues.apache.org/jira/browse/SPARK-3181">SPARK-3181</a>).</li>
+</ul>
+
+<h1 id="migration-guide">Migration guide</h1>
+
+<p>MLlib is under active development.
+The APIs marked <code>Experimental</code>/<code>DeveloperApi</code> may change in future releases,
+and the migration guide below will explain all changes between releases.</p>
+
+<h2 id="from-24-to-30">From 2.4 to 3.0</h2>
+
+<h3 id="breaking-changes">Breaking changes</h3>
+
+<ul>
+  <li><code>OneHotEncoder</code> which is deprecated in 2.3, is removed in 3.0 and <code>OneHotEncoderEstimator</code> is now renamed to <code>OneHotEncoder</code>.</li>
+</ul>
+
+<h3 id="changes-of-behavior">Changes of behavior</h3>
+
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/SPARK-11215">SPARK-11215</a>:
+ In Spark 2.4 and previous versions, when specifying <code>frequencyDesc</code> or <code>frequencyAsc</code> as
+ <code>stringOrderType</code> param in <code>StringIndexer</code>, in case of equal frequency, the order of
+ strings is undefined. Since Spark 3.0, the strings with equal frequency are further
+ sorted by alphabet. And since Spark 3.0, <code>StringIndexer</code> supports encoding multiple
+ columns.</li>
+</ul>
+
+<h2 id="from-22-to-23">From 2.2 to 2.3</h2>
+
+<h3 id="breaking-changes-1">Breaking changes</h3>
+
+<ul>
+  <li>The class and trait hierarchy for logistic regression model summaries was changed to be cleaner
+and better accommodate the addition of the multi-class summary. This is a breaking change for user
+code that casts a <code>LogisticRegressionTrainingSummary</code> to a
+<code>BinaryLogisticRegressionTrainingSummary</code>. Users should instead use the <code>model.binarySummary</code>
+method. See <a href="https://issues.apache.org/jira/browse/SPARK-17139">SPARK-17139</a> for more detail 
+(<em>note</em> this is an <code>Experimental</code> API). This <em>does not</em> affect the Python <code>summary</code> method, which
+will still work correctly for both multinomial and binary cases.</li>
+</ul>
+
+<h3 id="deprecations-and-changes-of-behavior">Deprecations and changes of behavior</h3>
+
+<p><strong>Deprecations</strong></p>
+
+<ul>
+  <li><code>OneHotEncoder</code> has been deprecated and will be removed in <code>3.0</code>. It has been replaced by the
+new <a href="ml-features.html#onehotencoderestimator"><code>OneHotEncoderEstimator</code></a>
+(see <a href="https://issues.apache.org/jira/browse/SPARK-13030">SPARK-13030</a>). <strong>Note</strong> that
+<code>OneHotEncoderEstimator</code> will be renamed to <code>OneHotEncoder</code> in <code>3.0</code> (but
+<code>OneHotEncoderEstimator</code> will be kept as an alias).</li>
+</ul>
+
+<p><strong>Changes of behavior</strong></p>
+
+<ul>
+  <li><a href="https://issues.apache.org/jira/browse/SPARK-21027">SPARK-21027</a>:
+ The default parallelism used in <code>OneVsRest</code> is now set to 1 (i.e. serial). In <code>2.2</code> and
+ earlier versions, the level of parallelism was set to the default threadpool size in Scala.</li>
+  <li><a href="https://issues.apache.org/jira/browse/SPARK-22156">SPARK-22156</a>:
+ The learning rate update for <code>Word2Vec</code> was incorrect when <code>numIterations</code> was set greater than
+ <code>1</code>. This will cause training results to be different between <code>2.3</code> and earlier versions.</li>
+  <li><a href="https://issues.apache.org/jira/browse/SPARK-21681">SPARK-21681</a>:
+ Fixed an edge case bug in multinomial logistic regression that resulted in incorrect coefficients
+ when some features had zero variance.</li>
+  <li><a href="https://issues.apache.org/jira/browse/SPARK-16957">SPARK-16957</a>:
+ Tree algorithms now use mid-points for split values. This may change results from model training.</li>
+  <li><a href="https://issues.apache.org/jira/browse/SPARK-14657">SPARK-14657</a>:
+ Fixed an issue where the features generated by <code>RFormula</code> without an intercept were inconsistent
+ with the output in R. This may change results from model training in this scenario.</li>
+</ul>
+
+<h2 id="previous-spark-versions">Previous Spark versions</h2>
+
+<p>Earlier migration guides are archived <a href="ml-migration-guides.html">on this page</a>.</p>
+
+<hr />
+<div class="footnotes">
+  <ol>
+    <li id="fn:1">
+      <p>To learn more about the benefits and background of system optimised natives, you may wish to
+watch Sam Halliday&#8217;s ScalaX talk on <a href="http://fommil.github.io/scalax14/#/">High Performance Linear Algebra in Scala</a>.&#160;<a href="#fnref:1" class="reversefootnote">&#8617;</a></p>
+    </li>
+  </ol>
+</div>
+:ET

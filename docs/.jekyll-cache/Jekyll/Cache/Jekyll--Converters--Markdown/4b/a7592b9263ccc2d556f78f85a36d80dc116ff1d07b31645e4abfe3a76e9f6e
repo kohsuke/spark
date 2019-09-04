@@ -1,0 +1,208 @@
+I"iA<div class="codetabs">
+
+<div data-lang="scala">
+    <p>Spark SQL can automatically infer the schema of a JSON dataset and load it as a <code>Dataset[Row]</code>.
+This conversion can be done using <code>SparkSession.read.json()</code> on either a <code>Dataset[String]</code>,
+or a JSON file.</p>
+
+    <p>Note that the file that is offered as <em>a json file</em> is not a typical JSON file. Each
+line must contain a separate, self-contained valid JSON object. For more information, please see
+<a href="http://jsonlines.org/">JSON Lines text format, also called newline-delimited JSON</a>.</p>
+
+    <p>For a regular multi-line JSON file, set the <code>multiLine</code> option to <code>true</code>.</p>
+
+    <div class="highlight"><pre><span></span><span class="c1">// Primitive types (Int, String, etc) and Product types (case classes) encoders are</span>
+<span class="c1">// supported by importing this when creating a Dataset.</span>
+<span class="k">import</span> <span class="nn">spark.implicits._</span>
+
+<span class="c1">// A JSON dataset is pointed to by path.</span>
+<span class="c1">// The path can be either a single text file or a directory storing text files</span>
+<span class="k">val</span> <span class="n">path</span> <span class="k">=</span> <span class="s">&quot;examples/src/main/resources/people.json&quot;</span>
+<span class="k">val</span> <span class="n">peopleDF</span> <span class="k">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="o">(</span><span class="n">path</span><span class="o">)</span>
+
+<span class="c1">// The inferred schema can be visualized using the printSchema() method</span>
+<span class="n">peopleDF</span><span class="o">.</span><span class="n">printSchema</span><span class="o">()</span>
+<span class="c1">// root</span>
+<span class="c1">//  |-- age: long (nullable = true)</span>
+<span class="c1">//  |-- name: string (nullable = true)</span>
+
+<span class="c1">// Creates a temporary view using the DataFrame</span>
+<span class="n">peopleDF</span><span class="o">.</span><span class="n">createOrReplaceTempView</span><span class="o">(</span><span class="s">&quot;people&quot;</span><span class="o">)</span>
+
+<span class="c1">// SQL statements can be run by using the sql methods provided by spark</span>
+<span class="k">val</span> <span class="n">teenagerNamesDF</span> <span class="k">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">sql</span><span class="o">(</span><span class="s">&quot;SELECT name FROM people WHERE age BETWEEN 13 AND 19&quot;</span><span class="o">)</span>
+<span class="n">teenagerNamesDF</span><span class="o">.</span><span class="n">show</span><span class="o">()</span>
+<span class="c1">// +------+</span>
+<span class="c1">// |  name|</span>
+<span class="c1">// +------+</span>
+<span class="c1">// |Justin|</span>
+<span class="c1">// +------+</span>
+
+<span class="c1">// Alternatively, a DataFrame can be created for a JSON dataset represented by</span>
+<span class="c1">// a Dataset[String] storing one JSON object per string</span>
+<span class="k">val</span> <span class="n">otherPeopleDataset</span> <span class="k">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataset</span><span class="o">(</span>
+  <span class="s">&quot;&quot;&quot;{&quot;name&quot;:&quot;Yin&quot;,&quot;address&quot;:{&quot;city&quot;:&quot;Columbus&quot;,&quot;state&quot;:&quot;Ohio&quot;}}&quot;&quot;&quot;</span> <span class="o">::</span> <span class="nc">Nil</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">otherPeople</span> <span class="k">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="o">(</span><span class="n">otherPeopleDataset</span><span class="o">)</span>
+<span class="n">otherPeople</span><span class="o">.</span><span class="n">show</span><span class="o">()</span>
+<span class="c1">// +---------------+----+</span>
+<span class="c1">// |        address|name|</span>
+<span class="c1">// +---------------+----+</span>
+<span class="c1">// |[Columbus,Ohio]| Yin|</span>
+<span class="c1">// +---------------+----+</span>
+</pre></div>
+    <div><small>Find full example code at "examples/src/main/scala/org/apache/spark/examples/sql/SQLDataSourceExample.scala" in the Spark repo.</small></div>
+  </div>
+
+<div data-lang="java">
+    <p>Spark SQL can automatically infer the schema of a JSON dataset and load it as a <code>Dataset&lt;Row&gt;</code>.
+This conversion can be done using <code>SparkSession.read().json()</code> on either a <code>Dataset&lt;String&gt;</code>,
+or a JSON file.</p>
+
+    <p>Note that the file that is offered as <em>a json file</em> is not a typical JSON file. Each
+line must contain a separate, self-contained valid JSON object. For more information, please see
+<a href="http://jsonlines.org/">JSON Lines text format, also called newline-delimited JSON</a>.</p>
+
+    <p>For a regular multi-line JSON file, set the <code>multiLine</code> option to <code>true</code>.</p>
+
+    <div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">org.apache.spark.sql.Dataset</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.spark.sql.Row</span><span class="o">;</span>
+
+<span class="c1">// A JSON dataset is pointed to by path.</span>
+<span class="c1">// The path can be either a single text file or a directory storing text files</span>
+<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">people</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">json</span><span class="o">(</span><span class="s">&quot;examples/src/main/resources/people.json&quot;</span><span class="o">);</span>
+
+<span class="c1">// The inferred schema can be visualized using the printSchema() method</span>
+<span class="n">people</span><span class="o">.</span><span class="na">printSchema</span><span class="o">();</span>
+<span class="c1">// root</span>
+<span class="c1">//  |-- age: long (nullable = true)</span>
+<span class="c1">//  |-- name: string (nullable = true)</span>
+
+<span class="c1">// Creates a temporary view using the DataFrame</span>
+<span class="n">people</span><span class="o">.</span><span class="na">createOrReplaceTempView</span><span class="o">(</span><span class="s">&quot;people&quot;</span><span class="o">);</span>
+
+<span class="c1">// SQL statements can be run by using the sql methods provided by spark</span>
+<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">namesDF</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="na">sql</span><span class="o">(</span><span class="s">&quot;SELECT name FROM people WHERE age BETWEEN 13 AND 19&quot;</span><span class="o">);</span>
+<span class="n">namesDF</span><span class="o">.</span><span class="na">show</span><span class="o">();</span>
+<span class="c1">// +------+</span>
+<span class="c1">// |  name|</span>
+<span class="c1">// +------+</span>
+<span class="c1">// |Justin|</span>
+<span class="c1">// +------+</span>
+
+<span class="c1">// Alternatively, a DataFrame can be created for a JSON dataset represented by</span>
+<span class="c1">// a Dataset&lt;String&gt; storing one JSON object per string.</span>
+<span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">jsonData</span> <span class="o">=</span> <span class="n">Arrays</span><span class="o">.</span><span class="na">asList</span><span class="o">(</span>
+        <span class="s">&quot;{\&quot;name\&quot;:\&quot;Yin\&quot;,\&quot;address\&quot;:{\&quot;city\&quot;:\&quot;Columbus\&quot;,\&quot;state\&quot;:\&quot;Ohio\&quot;}}&quot;</span><span class="o">);</span>
+<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">anotherPeopleDataset</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="na">createDataset</span><span class="o">(</span><span class="n">jsonData</span><span class="o">,</span> <span class="n">Encoders</span><span class="o">.</span><span class="na">STRING</span><span class="o">());</span>
+<span class="n">Dataset</span><span class="o">&lt;</span><span class="n">Row</span><span class="o">&gt;</span> <span class="n">anotherPeople</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">json</span><span class="o">(</span><span class="n">anotherPeopleDataset</span><span class="o">);</span>
+<span class="n">anotherPeople</span><span class="o">.</span><span class="na">show</span><span class="o">();</span>
+<span class="c1">// +---------------+----+</span>
+<span class="c1">// |        address|name|</span>
+<span class="c1">// +---------------+----+</span>
+<span class="c1">// |[Columbus,Ohio]| Yin|</span>
+<span class="c1">// +---------------+----+</span>
+</pre></div>
+    <div><small>Find full example code at "examples/src/main/java/org/apache/spark/examples/sql/JavaSQLDataSourceExample.java" in the Spark repo.</small></div>
+  </div>
+
+<div data-lang="python">
+    <p>Spark SQL can automatically infer the schema of a JSON dataset and load it as a DataFrame.
+This conversion can be done using <code>SparkSession.read.json</code> on a JSON file.</p>
+
+    <p>Note that the file that is offered as <em>a json file</em> is not a typical JSON file. Each
+line must contain a separate, self-contained valid JSON object. For more information, please see
+<a href="http://jsonlines.org/">JSON Lines text format, also called newline-delimited JSON</a>.</p>
+
+    <p>For a regular multi-line JSON file, set the <code>multiLine</code> parameter to <code>True</code>.</p>
+
+    <div class="highlight"><pre><span></span><span class="c1"># spark is from the previous example.</span>
+<span class="n">sc</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">sparkContext</span>
+
+<span class="c1"># A JSON dataset is pointed to by path.</span>
+<span class="c1"># The path can be either a single text file or a directory storing text files</span>
+<span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;examples/src/main/resources/people.json&quot;</span>
+<span class="n">peopleDF</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+<span class="c1"># The inferred schema can be visualized using the printSchema() method</span>
+<span class="n">peopleDF</span><span class="o">.</span><span class="n">printSchema</span><span class="p">()</span>
+<span class="c1"># root</span>
+<span class="c1">#  |-- age: long (nullable = true)</span>
+<span class="c1">#  |-- name: string (nullable = true)</span>
+
+<span class="c1"># Creates a temporary view using the DataFrame</span>
+<span class="n">peopleDF</span><span class="o">.</span><span class="n">createOrReplaceTempView</span><span class="p">(</span><span class="s2">&quot;people&quot;</span><span class="p">)</span>
+
+<span class="c1"># SQL statements can be run by using the sql methods provided by spark</span>
+<span class="n">teenagerNamesDF</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">sql</span><span class="p">(</span><span class="s2">&quot;SELECT name FROM people WHERE age BETWEEN 13 AND 19&quot;</span><span class="p">)</span>
+<span class="n">teenagerNamesDF</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="c1"># +------+</span>
+<span class="c1"># |  name|</span>
+<span class="c1"># +------+</span>
+<span class="c1"># |Justin|</span>
+<span class="c1"># +------+</span>
+
+<span class="c1"># Alternatively, a DataFrame can be created for a JSON dataset represented by</span>
+<span class="c1"># an RDD[String] storing one JSON object per string</span>
+<span class="n">jsonStrings</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;{&quot;name&quot;:&quot;Yin&quot;,&quot;address&quot;:{&quot;city&quot;:&quot;Columbus&quot;,&quot;state&quot;:&quot;Ohio&quot;}}&#39;</span><span class="p">]</span>
+<span class="n">otherPeopleRDD</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">parallelize</span><span class="p">(</span><span class="n">jsonStrings</span><span class="p">)</span>
+<span class="n">otherPeople</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">json</span><span class="p">(</span><span class="n">otherPeopleRDD</span><span class="p">)</span>
+<span class="n">otherPeople</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="c1"># +---------------+----+</span>
+<span class="c1"># |        address|name|</span>
+<span class="c1"># +---------------+----+</span>
+<span class="c1"># |[Columbus,Ohio]| Yin|</span>
+<span class="c1"># +---------------+----+</span>
+</pre></div>
+    <div><small>Find full example code at "examples/src/main/python/sql/datasource.py" in the Spark repo.</small></div>
+  </div>
+
+<div data-lang="r">
+    <p>Spark SQL can automatically infer the schema of a JSON dataset and load it as a DataFrame. using
+the <code>read.json()</code> function, which loads data from a directory of JSON files where each line of the
+files is a JSON object.</p>
+
+    <p>Note that the file that is offered as <em>a json file</em> is not a typical JSON file. Each
+line must contain a separate, self-contained valid JSON object. For more information, please see
+<a href="http://jsonlines.org/">JSON Lines text format, also called newline-delimited JSON</a>.</p>
+
+    <p>For a regular multi-line JSON file, set a named parameter <code>multiLine</code> to <code>TRUE</code>.</p>
+
+    <div class="highlight"><pre><span></span><span class="c1"># A JSON dataset is pointed to by path.</span>
+<span class="c1"># The path can be either a single text file or a directory storing text files.</span>
+path <span class="o">&lt;-</span> <span class="s">&quot;examples/src/main/resources/people.json&quot;</span>
+<span class="c1"># Create a DataFrame from the file(s) pointed to by path</span>
+people <span class="o">&lt;-</span> read.json<span class="p">(</span>path<span class="p">)</span>
+
+<span class="c1"># The inferred schema can be visualized using the printSchema() method.</span>
+printSchema<span class="p">(</span>people<span class="p">)</span>
+<span class="c1">## root</span>
+<span class="c1">##  |-- age: long (nullable = true)</span>
+<span class="c1">##  |-- name: string (nullable = true)</span>
+
+<span class="c1"># Register this DataFrame as a table.</span>
+createOrReplaceTempView<span class="p">(</span>people<span class="p">,</span> <span class="s">&quot;people&quot;</span><span class="p">)</span>
+
+<span class="c1"># SQL statements can be run by using the sql methods.</span>
+teenagers <span class="o">&lt;-</span> sql<span class="p">(</span><span class="s">&quot;SELECT name FROM people WHERE age &gt;= 13 AND age &lt;= 19&quot;</span><span class="p">)</span>
+<span class="kp">head</span><span class="p">(</span>teenagers<span class="p">)</span>
+<span class="c1">##     name</span>
+<span class="c1">## 1 Justin</span>
+</pre></div>
+    <div><small>Find full example code at "examples/src/main/r/RSparkSQLExample.R" in the Spark repo.</small></div>
+
+  </div>
+
+<div data-lang="sql">
+
+    <figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">CREATE</span> <span class="k">TEMPORARY</span> <span class="k">VIEW</span> <span class="n">jsonTable</span>
+<span class="k">USING</span> <span class="n">org</span><span class="p">.</span><span class="n">apache</span><span class="p">.</span><span class="n">spark</span><span class="p">.</span><span class="k">sql</span><span class="p">.</span><span class="n">json</span>
+<span class="k">OPTIONS</span> <span class="p">(</span>
+  <span class="n">path</span> <span class="nv">"examples/src/main/resources/people.json"</span>
+<span class="p">)</span>
+
+<span class="k">SELECT</span> <span class="o">*</span> <span class="k">FROM</span> <span class="n">jsonTable</span></code></pre></figure>
+
+  </div>
+
+</div>
+:ET

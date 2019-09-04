@@ -1,0 +1,41 @@
+I"T	<h3 id="description">Description</h3>
+<p>The SET command sets a property, returns the value of an existing property or returns all SQLConf properties with value and meaning.</p>
+
+<h3 id="syntax">Syntax</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="k">SET</span><span class="p">;</span>
+<span class="k">SET</span> <span class="p">[</span><span class="o">-</span><span class="n">v</span><span class="p">];</span>
+<span class="k">SET</span> <span class="n">property_key</span><span class="p">[</span><span class="o">=</span><span class="n">property_value</span><span class="p">];</span></code></pre></figure>
+
+<h3 id="parameters">Parameters</h3>
+<ul>
+  <li>
+    <h5 id="-v"><strong><em>-v</em></strong>:</h5>
+    <p>Outputs the key, value and meaning of existing SQLConf properties.</p>
+  </li>
+  <li>
+    <h5 id="property_key"><strong><em>property_key</em></strong>:</h5>
+    <p>Returns the value of specified property key.</p>
+  </li>
+  <li>
+    <h5 id="property_keyproperty_value"><strong><em>property_key=property_value</em></strong>:</h5>
+    <p>Sets the value of specified property key.</p>
+  </li>
+</ul>
+
+<h3 id="examples">Examples</h3>
+
+<figure class="highlight"><pre><code class="language-sql" data-lang="sql"><span class="c1">-- Set a property.</span>
+<span class="k">SET</span>  <span class="n">spark</span><span class="p">.</span><span class="k">sql</span><span class="p">.</span><span class="k">variable</span><span class="p">.</span><span class="n">substitute</span><span class="o">=</span><span class="k">false</span><span class="p">;</span>
+<span class="c1">-- List all SQLConf properties with value and meaning.</span>
+<span class="k">SET</span> <span class="o">-</span><span class="n">v</span><span class="p">;</span>
+<span class="c1">-- List all SQLConf properties with value for current session.</span>
+<span class="k">SET</span><span class="p">;</span>
+<span class="c1">-- List the value of specified property key.</span>
+<span class="k">SET</span>  <span class="n">spark</span><span class="p">.</span><span class="k">sql</span><span class="p">.</span><span class="k">variable</span><span class="p">.</span><span class="n">substitute</span><span class="p">;</span></code></pre></figure>
+
+<h3 id="related-statements">Related statements.</h3>
+<ul>
+  <li><a href="sql-ref-syntax-aux-conf-mgmt-reset.html">RESET</a></li>
+</ul>
+:ET
