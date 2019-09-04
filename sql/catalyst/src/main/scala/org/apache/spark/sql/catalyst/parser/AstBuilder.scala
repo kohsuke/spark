@@ -361,7 +361,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
         throw new ParseException("Columns aliases is not allowed in UPDATE.",
           ctx.tableAlias().identifierList())
       }
-      if (ident != null) { Some(ident.getText) } else { None }
+      if (ident != null) Some(ident.getText) else None
     } else {
       None
     }

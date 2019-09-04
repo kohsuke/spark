@@ -246,12 +246,19 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
 
     case UpdateTable(r: DataSourceV2Relation, attrs, values, condition) =>
+      if (condition.exists(SubqueryExpression.hasSubquery)) {
+        throw new AnalysisException(
+            s"Update by condition with subquery is not supported: $condition")
+      }
       val nested = attrs.filterNot(_.isInstanceOf[AttributeReference])
       if (nested.nonEmpty) {
         throw new AnalysisException(s"Update only support non-nested fields. Nested: $nested")
       }
-      val attrsNames = DataSourceStrategy.normalizeAttrNames(attrs, r.output)
-          .asInstanceOf[Seq[AttributeReference]].map(_.name)
+      val attrsNames = DataSourceStrategy.normalizeAttrNames(attrs, r.output).map {
+        case a: AttributeReference => a.name
+        case other =>
+          throw new AnalysisException(s"Update only support non-nested fields. Nested: $other")
+      }
       // fail if any updated value cannot be converted.
       val updatedValues = DataSourceStrategy.normalizeAttrNames(values, r.output).map {
         v => DataSourceStrategy.translateExpression(v).getOrElse(

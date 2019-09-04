@@ -173,8 +173,7 @@ class InMemoryTable(
           case Some(rows) =>
             rows.rows.foreach {
               row =>
-                val values = mutable.Buffer[Any]()
-                row.toSeq(schema).copyToBuffer(values)
+                val values = row.toSeq(schema).toArray
                 sets.asScala.foreach {
                   kv =>
                     val newValue = kv._2 match {

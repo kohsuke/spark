@@ -19,7 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions.{Literal, SubqueryExpression}
-import org.apache.spark.sql.catalyst.plans.logical.{AppendData, DeleteFromTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, UpdateTable}
+import org.apache.spark.sql.catalyst.plans.logical.{AppendData, DeleteFromTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic}
 import org.apache.spark.sql.sources.v2.TableCapability._
 import org.apache.spark.sql.types.BooleanType
 
@@ -54,11 +54,6 @@ object V2WriteSupportCheck extends (LogicalPlan => Unit) {
     case DeleteFromTable(_, condition) =>
       if (SubqueryExpression.hasSubquery(condition)) {
         failAnalysis(s"Delete by condition with subquery is not supported: $condition")
-      }
-
-    case UpdateTable(_, _, _, condition) =>
-      if (condition.exists(SubqueryExpression.hasSubquery)) {
-        failAnalysis(s"Update by condition with subquery is not supported: $condition")
       }
 
     case _ => // OK
