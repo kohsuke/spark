@@ -764,6 +764,19 @@ class DDLParserSuite extends AnalysisTest {
     assert(exc.getMessage.contains("INSERT INTO ... IF NOT EXISTS"))
   }
 
+  test("update table: columns aliases is not allowed") {
+    val exc = intercept[ParseException] {
+      parsePlan(
+        """
+          |UPDATE testcat.ns1.ns2.tbl AS t(a,b,c,d)
+          |SET b='Robert', c=32
+          |WHERE d=2
+        """.stripMargin)
+    }
+
+    assert(exc.getMessage.contains("Columns aliases is not allowed in UPDATE."))
+  }
+
   test("show tables") {
     comparePlans(
       parsePlan("SHOW TABLES"),

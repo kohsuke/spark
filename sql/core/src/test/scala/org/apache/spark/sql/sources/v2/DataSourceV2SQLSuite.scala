@@ -20,11 +20,9 @@ package org.apache.spark.sql.sources.v2
 import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkException
-
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalog.v2.{CatalogPlugin, Identifier, TableCatalog}
 import org.apache.spark.sql.catalyst.analysis.{CannotReplaceMissingTableException, NoSuchDatabaseException, NoSuchTableException, TableAlreadyExistsException}
-import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.connector.{InMemoryTable, InMemoryTableCatalog, StagingInMemoryTableCatalog}
 import org.apache.spark.sql.execution.datasources.v2.V2SessionCatalog
 import org.apache.spark.sql.internal.SQLConf
@@ -1901,36 +1899,6 @@ class DataSourceV2SQLSuite
           Row(2, "Robert", 32, 2),
           Row(3, "Lisa", 28, 3),
           Row(4, "Frank", 33, 3)))
-    }
-  }
-
-  test("Update: columns aliases is not allowed") {
-    val t = "testcat.ns1.ns2.tbl"
-    withTable(t) {
-      sql(
-        s"""
-           |CREATE TABLE $t (id bigint, name string, age int, p int)
-           |USING foo
-           |PARTITIONED BY (id, p)
-         """.stripMargin)
-      sql(
-        s"""
-           |INSERT INTO $t
-           |VALUES (1L, 'Herry', 26, 1),
-           |(2L, 'Jack', 31, 2),
-           |(3L, 'Lisa', 28, 3),
-           |(4L, 'Frank', 33, 3)
-         """.stripMargin)
-      val exc = intercept[ParseException] {
-        sql(s"UPDATE $t AS tbl(a,b,c,d) SET b='Robert', c=32 where d=2")
-      }
-
-      checkAnswer(spark.table(t),
-        Seq(Row(1, "Herry", 26, 1),
-          Row(2, "Jack", 31, 2),
-          Row(3, "Lisa", 28, 3),
-          Row(4, "Frank", 33, 3)))
-      assert(exc.getMessage.contains("Columns aliases is not allowed in UPDATE."))
     }
   }
 

@@ -123,7 +123,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       val scanBuilder = relation.newScanBuilder()
 
       val (withSubquery, withoutSubquery) = filters.partition(SubqueryExpression.hasSubquery)
-      val normalizedFilters = DataSourceStrategy.normalizeFilters(
+      val normalizedFilters = DataSourceStrategy.normalizeAttrNames(
         withoutSubquery, relation.output)
 
       // `pushedFilters` will be pushed down and evaluated in the underlying data sources.
@@ -251,16 +251,16 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       if (nested.nonEmpty) {
         throw new AnalysisException(s"Update only support non-nested fields. Nested: $nested")
       }
-      val attrsNames = DataSourceStrategy.normalizeFilters(attrs, r.output)
+      val attrsNames = DataSourceStrategy.normalizeAttrNames(attrs, r.output)
           .asInstanceOf[Seq[NamedExpression]].map(_.name)
       // fail if any updated value cannot be converted.
-      val updatedValues = values.map {
+      val updatedValues = DataSourceStrategy.normalizeAttrNames(values, r.output).map {
         v => DataSourceStrategy.translateExpression(v).getOrElse(
           throw new AnalysisException(s"Exec update failed:" +
               s" cannot translate update set to source expression: $v"))
       }
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
-      val filters = DataSourceStrategy.normalizeFilters(condition.toSeq, r.output)
+      val filters = DataSourceStrategy.normalizeAttrNames(condition.toSeq, r.output)
           .flatMap(splitConjunctivePredicates(_).map {
             f => DataSourceStrategy.translateFilter(f).getOrElse(
               throw new AnalysisException(s"Exec update failed:" +

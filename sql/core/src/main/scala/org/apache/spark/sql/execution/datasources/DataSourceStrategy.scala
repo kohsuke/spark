@@ -445,7 +445,7 @@ object DataSourceStrategy {
    * case insensitive, we should change them to match the one in schema, so we do not need to
    * worry about case sensitivity anymore.
    */
-  protected[sql] def normalizeFilters(
+  protected[sql] def normalizeAttrNames(
       filters: Seq[Expression],
       attributes: Seq[AttributeReference]): Seq[Expression] = {
     filters.map { e =>
