@@ -122,7 +122,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       val scanBuilder = relation.newScanBuilder()
 
       val (withSubquery, withoutSubquery) = filters.partition(SubqueryExpression.hasSubquery)
-      val normalizedFilters = DataSourceStrategy.normalizeAttrNames(
+      val normalizedFilters = DataSourceStrategy.normalizeFilters(
         withoutSubquery, relation.output)
 
       // `pushedFilters` will be pushed down and evaluated in the underlying data sources.
@@ -250,25 +250,25 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
         throw new AnalysisException(
             s"Update by condition with subquery is not supported: $condition")
       }
-      val attrsNames = DataSourceStrategy.normalizeAttrNames(attrs, r.output).map {
+      val attrsNames = DataSourceStrategy.normalizeFilters(attrs, r.output).map {
         case a: AttributeReference => a.name
         case other =>
           throw new AnalysisException(s"Update only support non-nested fields. Nested: $other")
       }
       // fail if any updated value cannot be converted.
-      val updatedValues = DataSourceStrategy.normalizeAttrNames(values, r.output).map {
+      val updatedValues = DataSourceStrategy.normalizeFilters(values, r.output).map {
         v => DataSourceStrategy.translateExpression(v).getOrElse(
           throw new AnalysisException(s"Exec update failed:" +
               s" cannot translate update set to source expression: $v"))
       }
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
-      val filters = DataSourceStrategy.normalizeAttrNames(condition.toSeq, r.output)
+      val filters = DataSourceStrategy.normalizeFilters(condition.toSeq, r.output)
           .flatMap(splitConjunctivePredicates(_).map {
             f => DataSourceStrategy.translateFilter(f).getOrElse(
               throw new AnalysisException(s"Exec update failed:" +
                   s" cannot translate expression to source filter: $f"))
           }).toArray
-      UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters)::Nil
+      UpdateTableExec(r.table.asUpdatable, attrsNames, updatedValues, filters) :: Nil
 
     case WriteToContinuousDataSource(writer, query) =>
       WriteToContinuousDataSourceExec(writer, planLater(query)) :: Nil

@@ -19,6 +19,7 @@ package org.apache.spark.sql.sources.v2;
 
 import java.util.Map;
 
+import org.apache.spark.annotation.Experimental;
 import org.apache.spark.sql.catalog.v2.expressions.Expression;
 import org.apache.spark.sql.sources.Filter;
 
@@ -27,6 +28,7 @@ import org.apache.spark.sql.sources.Filter;
  * interface to provide the ability to update data that matches filter expressions
  * with the given sets.
  */
+@Experimental
 public interface SupportsUpdate {
 
   /**
@@ -43,7 +45,8 @@ public interface SupportsUpdate {
    * To reject a delete implementations should throw {@link IllegalArgumentException} with a clear
    * error message that identifies which expression was rejected.
    *
-   * @param sets the updated values for fields. The value can be a literal, or a simple expression
+   * @param sets the fields to be updated and the corresponding updated values in form of
+   *             key-value pairs in a map. The value can be a literal, or a simple expression
    *             like {{{ originalValue + 1 }}}.
    * @param filters filter expressions, used to select rows to delete when all expressions match
    * @throws IllegalArgumentException If the update is rejected due to required effort

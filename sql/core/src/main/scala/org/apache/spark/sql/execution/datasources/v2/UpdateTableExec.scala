@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources.v2
 
 import scala.collection.JavaConverters._
 
+import org.apache.spark.SparkException
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalog.v2.expressions.Expression
 import org.apache.spark.sql.catalyst.InternalRow
@@ -35,7 +36,13 @@ case class UpdateTableExec(
     condition: Array[Filter]) extends LeafExecNode {
 
   override protected def doExecute(): RDD[InternalRow] = {
-    table.updateWhere(attrs.zip(values).toMap.asJava, condition)
+    try {
+      table.updateWhere(attrs.zip(values).toMap.asJava, condition)
+    } catch {
+      case e: IllegalArgumentException =>
+        throw new SparkException(s"Update table failed: ${e.getMessage}", e)
+    }
+
     sparkContext.emptyRDD
   }
 
