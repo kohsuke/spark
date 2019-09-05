@@ -217,6 +217,7 @@ class ShuffleBlockFetcherIteratorSuite extends SparkFunSuite with PrivateMethodT
 
     assert(iterator.hasNext, s"iterator should have 1 element")
     val (_, inputStream) = iterator.next()
+    verify(transfer, times(1)).fetchBlocks(any(), any(), any(), any(), any(), any())
     verifyBufferRelease(mockBuf, inputStream)
     assert(!iterator.hasNext, s"iterator should have only 1 element")
   }
