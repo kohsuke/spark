@@ -597,24 +597,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
-  private[history] def shouldReloadLog(info: LogInfo, entry: FileStatus): Boolean = {
-    var result = info.fileSize < entry.getLen
-    if (!result && info.logPath.endsWith(EventLogFileWriter.IN_PROGRESS)) {
-      try {
-        result = Utils.tryWithResource(fs.open(entry.getPath)) { in =>
-          in.getWrappedStream match {
-            case dfsIn: DFSInputStream => info.fileSize < dfsIn.getFileLength
-            case _ => false
-          }
-        }
-      } catch {
-        case e: Exception =>
-          logDebug(s"Failed to check the length for the file : ${info.logPath}", e)
-      }
-    }
-    result
-  }
-
   private def cleanAppData(appId: String, attemptId: Option[String], logPath: String): Unit = {
     try {
       val app = load(appId)
