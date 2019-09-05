@@ -1161,29 +1161,45 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     when(mockedFs.open(path)).thenReturn(in)
     when(in.getWrappedStream).thenReturn(dfsIn)
     when(dfsIn.getFileLength).thenReturn(200)
+
     // FileStatus.getLen is more than logInfo fileSize
     var fileStatus = new FileStatus(200, false, 0, 0, 0, path)
+    when(mockedFs.getFileStatus(path)).thenReturn(fileStatus)
     var logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
       Some("attemptId"), 100, None, false)
-    assert(mockedProvider.shouldReloadLog(logInfo, fileStatus))
+    var reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    assert(reader.isDefined)
+    assert(mockedProvider.shouldReloadLog(logInfo, reader.get))
 
     fileStatus = new FileStatus()
     fileStatus.setPath(path)
+    when(mockedFs.getFileStatus(path)).thenReturn(fileStatus)
     // DFSInputStream.getFileLength is more than logInfo fileSize
     logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
       Some("attemptId"), 100, None, false)
-    assert(mockedProvider.shouldReloadLog(logInfo, fileStatus))
+    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    assert(reader.isDefined)
+    assert(mockedProvider.shouldReloadLog(logInfo, reader.get))
+
     // DFSInputStream.getFileLength is equal to logInfo fileSize
     logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
       Some("attemptId"), 200, None, false)
-    assert(!mockedProvider.shouldReloadLog(logInfo, fileStatus))
+    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    assert(reader.isDefined)
+    assert(!mockedProvider.shouldReloadLog(logInfo, reader.get))
+
     // in.getWrappedStream returns other than DFSInputStream
     val bin = mock(classOf[BufferedInputStream])
     when(in.getWrappedStream).thenReturn(bin)
-    assert(!mockedProvider.shouldReloadLog(logInfo, fileStatus))
+    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    assert(reader.isDefined)
+    assert(!mockedProvider.shouldReloadLog(logInfo, reader.get))
+
     // fs.open throws exception
     when(mockedFs.open(path)).thenThrow(new IOException("Throwing intentionally"))
-    assert(!mockedProvider.shouldReloadLog(logInfo, fileStatus))
+    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    assert(reader.isDefined)
+    assert(!mockedProvider.shouldReloadLog(logInfo, reader.get))
   }
 
   test("log cleaner with the maximum number of log files") {
