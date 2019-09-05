@@ -27,7 +27,7 @@ except ImportError:
 
 import py4j
 
-from pyspark import HiveContext, Row
+from pyspark.sql import Row, SparkSession
 from pyspark.sql.types import *
 from pyspark.sql.window import Window
 from pyspark.testing.utils import ReusedPySparkTestCase
@@ -41,14 +41,13 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
         cls.tempdir = tempfile.NamedTemporaryFile(delete=False)
         cls.hive_available = True
         try:
-            cls.sc._jvm.org.apache.hadoop.hive.conf.HiveConf()
+            cls.spark = SparkSession.builder.enableHiveSupport().getOrCreate()
         except py4j.protocol.Py4JError:
             cls.hive_available = False
         except TypeError:
             cls.hive_available = False
         os.unlink(cls.tempdir.name)
         if cls.hive_available:
-            cls.spark = HiveContext._createForTesting(cls.sc)
             cls.testData = [Row(key=i, value=str(i)) for i in range(100)]
             cls.df = cls.sc.parallelize(cls.testData).toDF()
 
