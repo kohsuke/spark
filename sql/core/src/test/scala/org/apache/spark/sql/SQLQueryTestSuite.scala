@@ -307,7 +307,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
         // PostgreSQL enabled cartesian product by default.
         localSparkSession.conf.set(SQLConf.CROSS_JOINS_ENABLED.key, true)
         localSparkSession.conf.set(SQLConf.ANSI_SQL_PARSER.key, true)
-        localSparkSession.conf.set(SQLConf.PREFER_INTEGRAL_DIVISION.key, true)
+        localSparkSession.conf.set(SQLConf.DIALECT.key, SQLConf.Dialect.POSTGRESQL.toString)
       case _ =>
     }
 
