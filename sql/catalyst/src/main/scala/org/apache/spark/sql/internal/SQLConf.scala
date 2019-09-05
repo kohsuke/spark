@@ -1554,7 +1554,10 @@ object SQLConf {
     buildConf("spark.sql.dialect")
       .doc("The specific features of the SQL language to be adopted, which are available when " +
         "accessing the given database. Currently, Spark supports two database dialects, `Spark` " +
-        "and `PostgreSQL`.")
+        "and `PostgreSQL`. With `PostgreSQL` dialect, Spark will: " +
+        "1. perform integral division with the / operator if both sides are integral types; " +
+        "2. accept \"true\", \"yes\", \"1\", \"false\", \"no\", \"0\", and unique prefixes as " +
+        "input and trim input for the boolean data type.")
       .stringConf
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(Dialect.values.map(_.toString))
