@@ -202,6 +202,13 @@ class EquivalentExpressions {
     equivalenceMap.values.map(_.toSeq).toSeq
   }
 
+  def getStructurallyEquivalentExprs(ctx: CodegenContext, e: Expression): Seq[Seq[Expression]] = {
+    val parameterizedExpr = parameterizedBoundReferences(ctx, e)
+
+    val key = StructuralExpr(parameterizedExpr)
+    structEquivalenceMap.get(key).map(_.values.map(_.toSeq).toSeq).getOrElse(Seq.empty)
+  }
+
   /**
    * Returns all the structurally equivalent sets of expressions.
    */
