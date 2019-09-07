@@ -1027,7 +1027,7 @@ class HiveDDLSuite
   }
 
   test("create view with specified schema") {
-    withView("view1") {
+    withView("view1") { no user-defined schema
       sql("CREATE VIEW view1 (col1, col2) AS SELECT 1, 2")
       checkAnswer(
         sql("SELECT * FROM view1"),
@@ -1042,11 +1042,11 @@ class HiveDDLSuite
 
       assert(sql("DESC tbl").collect().containsSlice(
         Seq(
-          Row("a", "int", null),
-          Row("b", "int", null),
+          Row("a", "int", "NULL"),
+          Row("b", "int", "NULL"),
           Row("# Partition Information", "", ""),
           Row("# col_name", "data_type", "comment"),
-          Row("b", "int", null)
+          Row("b", "int", "NULL")
         )
       ))
     }
@@ -1617,7 +1617,7 @@ class HiveDDLSuite
 
           val desc = sql("DESC FORMATTED t1").collect().toSeq
 
-          assert(desc.contains(Row("id", "bigint", null)))
+          assert(desc.contains(Row("id", "bigint", "NULL")))
         }
       }
     }
@@ -2435,7 +2435,7 @@ class HiveDDLSuite
         .select("data_type")
       // check if the last access time doesnt have the default date of year
       // 1970 as its a wrong access time
-      assert(!(desc.first.toString.contains("1970")))
+      assert((desc.first.toString.contains("UNKNOWN")))
     }
   }
 
