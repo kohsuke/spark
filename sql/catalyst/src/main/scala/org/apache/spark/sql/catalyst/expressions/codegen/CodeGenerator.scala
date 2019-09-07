@@ -828,10 +828,11 @@ class CodegenContext {
     if (INPUT_ROW == null || currentVars != null) {
       expressions.mkString("\n")
     } else {
+      val structuralSubExpressionsArgs = subExprEliminationParameters.map("int" -> _.parameter)
       splitExpressions(
         expressions,
         funcName,
-        ("InternalRow", INPUT_ROW) +: extraArguments,
+        ("InternalRow", INPUT_ROW) +: (extraArguments ++ structuralSubExpressionsArgs),
         returnType,
         makeSplitFunction,
         foldFunctions)
