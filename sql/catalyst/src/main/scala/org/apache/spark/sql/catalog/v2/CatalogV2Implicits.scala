@@ -84,8 +84,10 @@ object CatalogV2Implicits {
     }
   }
 
-  implicit class MultipartIdentifierHelper(namespace: Seq[String]) {
-    def quoted: String = namespace.map(quote).mkString(".")
+  implicit class MultipartIdentifierHelper(parts: Seq[String]) {
+    def quoted: String = parts.map(quote).mkString(".")
+
+    def asIdentifier: Identifier = Identifier.of(parts.init.toArray, parts.last)
   }
 
   private def quote(part: String): String = {
