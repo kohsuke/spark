@@ -1042,8 +1042,8 @@ when running in local mode.
   - hiveClientCalls.count
   - sourceCodeSize (histogram)
 
-- namespace=executorPlugin
-  - Optional namespace. The metrics in this namespace are defined by user-supplied code, when 
+- namespace=<Executor Plugin Class Name>
+  - Optional namespace(s). The metrics in this namespace are defined by user-supplied code, when 
   configured by using the Spark executor plugin infrastructure.
   See also the configuration parameter `spark.executor.plugins`
 

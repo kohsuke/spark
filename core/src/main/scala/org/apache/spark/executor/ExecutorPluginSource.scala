@@ -22,9 +22,9 @@ import com.codahale.metrics.MetricRegistry
 import org.apache.spark.metrics.source.Source
 
 private[spark]
-class ExecutorPluginSource extends Source {
+class ExecutorPluginSource(name: String) extends Source {
 
   override val metricRegistry = new MetricRegistry()
 
-  override val sourceName = "executorPlugin"
+  override val sourceName = name
 }
