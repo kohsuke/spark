@@ -163,6 +163,7 @@ private[hive] object SparkSQLCLIDriver extends Logging {
 
     val cli = new SparkSQLCLIDriver
     cli.setHiveVariables(oproc.getHiveVariables)
+    SessionState.get().getConf.setClassLoader(SparkSQLEnv.sqlContext.sharedState.jarClassLoader)
 
     // TODO work around for set the log output to console, because the HiveContext
     // will set the output into an invalid buffer.
