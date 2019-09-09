@@ -61,7 +61,7 @@ object ExecutorPodsSnapshot extends Logging {
         case "pending" =>
           PodPending(pod)
         case "running" =>
-          // TODO: upcoming Kubernenetes feature will make this code redundant
+          // TODO(SPARK-29023): Kubernenetes 1.17 sidecar container feature will make this code redundant
           // https://github.com/kubernetes/enhancements/issues/753
           // Checking executor container status is not terminated
           // Pod status can still be running if sidecar container status is running
