@@ -139,20 +139,18 @@ private[spark] class Executor(
   private val executorPlugins: Seq[ExecutorPlugin] = {
     val pluginNames = conf.get(EXECUTOR_PLUGINS)
     if (pluginNames.nonEmpty) {
-      logDebug("Initializing the following executor plugin(s): " +
-        s"${pluginNames.mkString(", ")}")
+      logDebug(s"Initializing the following plugins: ${pluginNames.mkString(", ")}")
       val pluginSource = new ExecutorPluginSource
-      val pluginContext = new ExecutorPluginContext(pluginSource.metricRegistry, conf, executorId)
+      val pluginContext = new ExecutorPluginContext(pluginSource.metricRegistry, conf,
+        executorId, executorHostname, isLocal)
 
       // Plugins need to load using a class loader that includes the executor's user classpath
       val pluginList: Seq[ExecutorPlugin] =
         Utils.withContextClassLoader(replClassLoader) {
-          val plugins = Utils.loadExtensions(
-            classOf[ExecutorPlugin], pluginNames, conf)
+          val plugins = Utils.loadExtensions(classOf[ExecutorPlugin], pluginNames, conf)
           plugins.foreach { plugin =>
             plugin.init(pluginContext)
-            logDebug(s"Successfully loaded the executor plugin " +
-                           plugin.getClass().getCanonicalName())
+            logDebug("Successfully loaded plugin " + plugin.getClass().getCanonicalName())
           }
           plugins
         }
@@ -160,7 +158,7 @@ private[spark] class Executor(
       if (pluginSource.metricRegistry.getNames.size() > 0) {
         env.metricsSystem.registerSource(pluginSource)
       }
-      logDebug("Finished initializing executor plugins")
+      logDebug("Finished initializing plugins")
       pluginList
     } else {
       Nil

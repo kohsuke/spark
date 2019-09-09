@@ -1575,6 +1575,9 @@ object MimaExcludes {
       ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("org.apache.spark.ml.param.shared.HasLoss.org$apache$spark$ml$param$shared$HasLoss$_setter_$loss_="),
       ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("org.apache.spark.ml.param.shared.HasLoss.getLoss"),
       ProblemFilters.exclude[InheritedNewAbstractMethodProblem]("org.apache.spark.ml.param.shared.HasLoss.loss")
+    ) ++ Seq(
+      // [SPARK-28091[CORE] Extend Spark metrics system with user-defined metrics using executor plugins
+      ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ExecutorPlugin.init")
     )
   }
 

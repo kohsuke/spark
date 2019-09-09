@@ -22,33 +22,25 @@ import org.apache.spark.annotation.DeveloperApi;
 import org.apache.spark.annotation.Private;
 
 /**
- * This class encapsulates the input parameters for the init
- * method of the ExecutorPlugin interface.
+ * Encapsulates information about the executor when initializing {@link ExecutorPlugin} instances.
  */
 @DeveloperApi
 public class ExecutorPluginContext {
 
-  MetricRegistry metricRegistry;
-  SparkConf sparkConf;
-  String executorId;
+  public final MetricRegistry metricRegistry;
+  public final SparkConf sparkConf;
+  public final String executorId;
+  public final String executorHostName;
+  public final Boolean isLocal;
 
   @Private
-  public ExecutorPluginContext(MetricRegistry registry, SparkConf conf, String id) {
+  public ExecutorPluginContext(MetricRegistry registry, SparkConf conf,
+                               String id, String hostName, Boolean local) {
       metricRegistry = registry;
       sparkConf = conf;
       executorId = id;
-  }
-
-  public MetricRegistry getMetricRegistry() {
-      return metricRegistry;
-  }
-
-  public SparkConf getSparkConf() {
-      return sparkConf;
-  }
-
-  public String getExecutorId() {
-      return executorId;
+      executorHostName = hostName;
+      isLocal = local;
   }
 
 }

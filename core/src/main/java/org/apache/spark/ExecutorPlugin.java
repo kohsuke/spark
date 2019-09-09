@@ -46,8 +46,7 @@ public interface ExecutorPlugin {
    * <p>Plugins should create threads in their implementation of this method for
    * any polling, blocking, or intensive computation.</p>
    *
-   * @param pluginContext The user-supplied init method for this class is initialized
-   *                      passing an instance of the ExecutorPluginContext.
+   * @param pluginContext Context information for the executor where the plugin is running.
    */
   default void init(ExecutorPluginContext pluginContext) {}
 
