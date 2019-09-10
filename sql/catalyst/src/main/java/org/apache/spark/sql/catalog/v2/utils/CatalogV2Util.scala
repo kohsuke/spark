@@ -21,11 +21,14 @@ import java.util
 import java.util.Collections
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalog.v2.{CatalogPlugin, Identifier, NamespaceChange, TableChange}
 import org.apache.spark.sql.catalog.v2.TableChange.{AddColumn, DeleteColumn, RemoveProperty, RenameColumn, SetProperty, UpdateColumnComment, UpdateColumnType}
 import org.apache.spark.sql.catalyst.analysis.{NoSuchDatabaseException, NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.sources.v2.Table
+import org.apache.spark.sql.sources.v2.internal.V1Table
 import org.apache.spark.sql.types.{ArrayType, MapType, StructField, StructType}
 
 object CatalogV2Util {
@@ -214,12 +217,52 @@ object CatalogV2Util {
     new StructType(newFields)
   }
 
-  def loadTable(catalog: CatalogPlugin, ident: Identifier): Option[Table] =
+  def loadV2Table(catalog: CatalogPlugin, ident: Identifier): Option[Table] =
     try {
-      Option(catalog.asTableCatalog.loadTable(ident))
+      Option(catalog.asTableCatalog.loadTable(ident)).filterNot(_.isInstanceOf[V1Table])
     } catch {
       case _: NoSuchTableException => None
       case _: NoSuchDatabaseException => None
       case _: NoSuchNamespaceException => None
     }
+
+  def convertTableProperties(
+      properties: Map[String, String],
+      options: Map[String, String],
+      location: Option[String],
+      comment: Option[String],
+      provider: String): Map[String, String] = {
+    if (options.contains("path") && location.isDefined) {
+      throw new AnalysisException(
+        "LOCATION and 'path' in OPTIONS are both used to indicate the custom table path, " +
+            "you can only specify one of them.")
+    }
+
+    if ((options.contains("comment") || properties.contains("comment"))
+        && comment.isDefined) {
+      throw new AnalysisException(
+        "COMMENT and option/property 'comment' are both used to set the table comment, you can " +
+            "only specify one of them.")
+    }
+
+    if (options.contains("provider") || properties.contains("provider")) {
+      throw new AnalysisException(
+        "USING and option/property 'provider' are both used to set the provider implementation, " +
+            "you can only specify one of them.")
+    }
+
+    val filteredOptions = options.filterKeys(_ != "path")
+
+    // create table properties from TBLPROPERTIES and OPTIONS clauses
+    val tableProperties = new mutable.HashMap[String, String]()
+    tableProperties ++= properties
+    tableProperties ++= filteredOptions
+
+    // convert USING, LOCATION, and COMMENT clauses to table properties
+    tableProperties += ("provider" -> provider)
+    comment.map(text => tableProperties += ("comment" -> text))
+    location.orElse(options.get("path")).map(loc => tableProperties += ("location" -> loc))
+
+    tableProperties.toMap
+  }
 }

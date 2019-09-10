@@ -562,7 +562,7 @@ class DataSourceV2SQLSuite
   }
 
   test("DropTable: if exists") {
-    intercept[NoSuchTableException] {
+    intercept[AnalysisException] {
       sql(s"DROP TABLE testcat.db.notbl")
     }
     sql(s"DROP TABLE IF EXISTS testcat.db.notbl")
@@ -601,10 +601,10 @@ class DataSourceV2SQLSuite
   test("Relation: view text") {
     val t1 = "testcat.ns1.ns2.tbl"
     withTable(t1) {
-      withView("view1") { v1: String =>
+      withView("view1") {
         sql(s"CREATE TABLE $t1 USING foo AS SELECT id, data FROM source")
-        sql(s"CREATE VIEW $v1 AS SELECT * from $t1")
-        checkAnswer(sql(s"TABLE $v1"), spark.table("source"))
+        sql(s"CREATE VIEW view1 AS SELECT * from $t1")
+        checkAnswer(sql(s"TABLE view1"), spark.table("source"))
       }
     }
   }
@@ -781,12 +781,9 @@ class DataSourceV2SQLSuite
 
   test("ShowNamespaces: default v2 catalog is not set") {
     spark.sql("CREATE TABLE testcat.ns.table (id bigint) USING foo")
-
-    val exception = intercept[AnalysisException] {
-      sql("SHOW NAMESPACES")
-    }
-
-    assert(exception.getMessage.contains("No default v2 catalog is set"))
+    // SHOW NAMESPACES should display the databases of the session catalog if default v2 catalog
+    // is not set.
+    checkAnswer(sql("SHOW NAMESPACES"), Row("default"))
   }
 
   test("ShowNamespaces: default v2 catalog doesn't support namespace") {

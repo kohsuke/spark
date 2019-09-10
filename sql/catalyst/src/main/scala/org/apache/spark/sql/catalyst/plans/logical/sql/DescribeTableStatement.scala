@@ -17,9 +17,20 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.sql
 
+import org.apache.spark.sql.catalog.v2.{Identifier, TableCatalog}
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
+import org.apache.spark.sql.catalyst.plans.logical.{DescribeTable, LogicalPlan}
+import org.apache.spark.sql.sources.v2.Table
 
 case class DescribeTableStatement(
     tableName: Seq[String],
     partitionSpec: TablePartitionSpec,
-    isExtended: Boolean) extends ParsedStatement
+    isExtended: Boolean) extends StatementRequiringCatalogAndTable {
+
+  override def withCatalogAndTable(
+      catalog: TableCatalog,
+      ident: Identifier,
+      table: Table): LogicalPlan = {
+    DescribeTable(table, isExtended)
+  }
+}

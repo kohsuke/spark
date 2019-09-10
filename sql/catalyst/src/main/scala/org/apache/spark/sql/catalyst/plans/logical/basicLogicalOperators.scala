@@ -23,12 +23,12 @@ import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalyst.AliasIdentifier
 import org.apache.spark.sql.catalyst.analysis.{MultiInstanceRelation, NamedRelation}
 import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable}
-import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.util.truncatedString
+import org.apache.spark.sql.sources.v2.Table
 import org.apache.spark.sql.types._
 import org.apache.spark.util.random.RandomSampler
 
@@ -571,10 +571,7 @@ case class ShowNamespaces(
     AttributeReference("namespace", StringType, nullable = false)())
 }
 
-case class DescribeTable(table: NamedRelation, isExtended: Boolean) extends Command {
-
-  override def children: Seq[LogicalPlan] = Seq(table)
-
+case class DescribeTable(table: Table, isExtended: Boolean) extends Command {
   override val output = DescribeTableSchema.describeTableAttributes()
 }
 
@@ -599,10 +596,8 @@ case class DropTable(
 case class AlterTable(
     catalog: TableCatalog,
     ident: Identifier,
-    table: NamedRelation,
+    table: Table,
     changes: Seq[TableChange]) extends Command {
-
-  override def children: Seq[LogicalPlan] = Seq(table)
 
   override lazy val resolved: Boolean = childrenResolved && {
     changes.forall {

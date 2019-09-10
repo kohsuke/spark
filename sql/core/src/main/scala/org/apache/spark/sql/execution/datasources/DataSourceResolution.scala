@@ -17,15 +17,13 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import scala.collection.mutable
-
 import org.apache.spark.sql.{AnalysisException, SaveMode}
-import org.apache.spark.sql.catalog.v2.{CatalogManager, Identifier, LookupCatalog, SupportsNamespaces, TableCatalog}
+import org.apache.spark.sql.catalog.v2.{CatalogManager, LookupCatalog}
 import org.apache.spark.sql.catalog.v2.expressions.Transform
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{CastSupport, UnresolvedRelation}
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTableType, CatalogUtils, UnresolvedCatalogRelation}
-import org.apache.spark.sql.catalyst.plans.logical.{CreateTableAsSelect, CreateV2Table, DeleteFromTable, DropTable, Filter, LogicalPlan, ReplaceTable, ReplaceTableAsSelect, ShowNamespaces, ShowTables, SubqueryAlias}
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTableType, CatalogUtils}
+import org.apache.spark.sql.catalyst.plans.logical.{DeleteFromTable, LogicalPlan, ShowTables, SubqueryAlias}
 import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableAddColumnsStatement, AlterTableSetLocationStatement, AlterTableSetPropertiesStatement, AlterTableUnsetPropertiesStatement, AlterViewSetPropertiesStatement, AlterViewUnsetPropertiesStatement, CreateTableAsSelectStatement, CreateTableStatement, DeleteFromStatement, DescribeColumnStatement, DescribeTableStatement, DropTableStatement, DropViewStatement, QualifiedColType, ReplaceTableAsSelectStatement, ReplaceTableStatement, ShowNamespacesStatement, ShowTablesStatement}
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, AlterTableSetLocationCommand, AlterTableSetPropertiesCommand, AlterTableUnsetPropertiesCommand, DescribeColumnCommand, DescribeTableCommand, DropTableCommand, ShowDatabasesCommand, ShowTablesCommand}
@@ -41,50 +39,36 @@ case class DataSourceResolution(
   import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
-    case CreateTableStatement(
+    case c @ CreateTableStatement(
         AsTableIdentifier(table), schema, partitionCols, bucketSpec, properties,
-        V1Provider(provider), options, location, comment, ifNotExists) =>
-      // the source is v1, the identifier has no catalog, and there is no default v2 catalog
-      val tableDesc = buildCatalogTable(table, schema, partitionCols, bucketSpec, properties,
-        provider, options, location, comment, ifNotExists)
-      val mode = if (ifNotExists) SaveMode.Ignore else SaveMode.ErrorIfExists
+        provider, options, location, comment, ifNotExists) =>
+      provider match {
+        case V1Provider(_) =>
+          // the source is v1, the identifier has no catalog, and there is no default v2 catalog
+          val tableDesc = buildCatalogTable(table, schema, partitionCols, bucketSpec, properties,
+            provider, options, location, comment, ifNotExists)
+          val mode = if (ifNotExists) SaveMode.Ignore else SaveMode.ErrorIfExists
 
-      CreateTable(tableDesc, mode, None)
+          CreateTable(tableDesc, mode, None)
 
-    case create: CreateTableStatement =>
-      // the provider was not a v1 source or a v2 catalog is the default, convert to a v2 plan
-      val CatalogObjectIdentifier(maybeCatalog, identifier) = create.tableName
-      maybeCatalog match {
-        case Some(catalog) =>
-          // the identifier had a catalog, or there is a default v2 catalog
-          convertCreateTable(catalog.asTableCatalog, identifier, create)
         case _ =>
-          // the identifier had no catalog and no default catalog is set, but the source is v2.
-          // use the v2 session catalog, which delegates to the global v1 session catalog
-          convertCreateTable(sessionCatalog.asTableCatalog, identifier, create)
+          c.withCatalog(sessionCatalog, c.tableName)
       }
 
-    case CreateTableAsSelectStatement(
+    case c @ CreateTableAsSelectStatement(
         AsTableIdentifier(table), query, partitionCols, bucketSpec, properties,
-        V1Provider(provider), options, location, comment, ifNotExists) =>
-      // the source is v1, the identifier has no catalog, and there is no default v2 catalog
-      val tableDesc = buildCatalogTable(table, new StructType, partitionCols, bucketSpec,
-        properties, provider, options, location, comment, ifNotExists)
-      val mode = if (ifNotExists) SaveMode.Ignore else SaveMode.ErrorIfExists
+        provider, options, location, comment, ifNotExists) =>
+      provider match {
+        case V1Provider(_) =>
+          // the source is v1, the identifier has no catalog, and there is no default v2 catalog
+          val tableDesc = buildCatalogTable(table, new StructType, partitionCols, bucketSpec,
+            properties, provider, options, location, comment, ifNotExists)
+          val mode = if (ifNotExists) SaveMode.Ignore else SaveMode.ErrorIfExists
 
-      CreateTable(tableDesc, mode, Some(query))
+          CreateTable(tableDesc, mode, Some(query))
 
-    case create: CreateTableAsSelectStatement =>
-      // the provider was not a v1 source or a v2 catalog is the default, convert to a v2 plan
-      val CatalogObjectIdentifier(maybeCatalog, identifier) = create.tableName
-      maybeCatalog match {
-        case Some(catalog) =>
-          // the identifier had a catalog, or there is a default v2 catalog
-          convertCTAS(catalog.asTableCatalog, identifier, create)
         case _ =>
-          // the identifier had no catalog and no default catalog is set, but the source is v2.
-          // use the v2 session catalog, which delegates to the global v1 session catalog
-          convertCTAS(sessionCatalog.asTableCatalog, identifier, create)
+          c.withCatalog(sessionCatalog, c.tableName)
       }
 
     case DescribeColumnStatement(
@@ -95,38 +79,30 @@ case class DataSourceResolution(
         CatalogObjectIdentifier(Some(catalog), ident), colName, isExtended) =>
       throw new AnalysisException("Describing columns is not supported for v2 tables.")
 
-    case DescribeTableStatement(
-        AsTableIdentifier(tableName), partitionSpec, isExtended) =>
+    case DescribeTableStatement(AsTableIdentifier(tableName), partitionSpec, isExtended) =>
       DescribeTableCommand(tableName, partitionSpec, isExtended)
 
-    case ReplaceTableStatement(
-        AsTableIdentifier(table), schema, partitionCols, bucketSpec, properties,
-        V1Provider(provider), options, location, comment, orCreate) =>
-        throw new AnalysisException(
-          s"Replacing tables is not supported using the legacy / v1 Spark external catalog" +
-            s" API. Write provider name: $provider, identifier: $table.")
+    case r @ ReplaceTableStatement(AsTableIdentifier(table), _, _, _, _, _, _, _, _, _) =>
+      r.provider match {
+        case V1Provider(_) =>
+          throw new AnalysisException(
+            s"Replacing tables is not supported using the legacy / v1 Spark external catalog" +
+              s" API. Write provider name: ${r.provider}, identifier: $table.")
 
-    case ReplaceTableAsSelectStatement(
-        AsTableIdentifier(table), query, partitionCols, bucketSpec, properties,
-        V1Provider(provider), options, location, comment, orCreate) =>
-      throw new AnalysisException(
-        s"Replacing tables is not supported using the legacy / v1 Spark external catalog" +
-          s" API. Write provider name: $provider, identifier: $table.")
+        case _ =>
+          r.withCatalog(sessionCatalog, r.tableName)
+      }
 
-    case replace: ReplaceTableStatement =>
-      // the provider was not a v1 source, convert to a v2 plan
-      val CatalogObjectIdentifier(maybeCatalog, identifier) = replace.tableName
-      val catalog = maybeCatalog.getOrElse(sessionCatalog).asTableCatalog
-      convertReplaceTable(catalog, identifier, replace)
+    case r @ ReplaceTableAsSelectStatement(AsTableIdentifier(table), _, _, _, _, _, _, _, _, _) =>
+      r.provider match {
+        case V1Provider(_) =>
+          throw new AnalysisException(
+            s"Replacing tables is not supported using the legacy / v1 Spark external catalog" +
+              s" API. Write provider name: ${r.provider}, identifier: $table.")
 
-    case rtas: ReplaceTableAsSelectStatement =>
-      // the provider was not a v1 source, convert to a v2 plan
-      val CatalogObjectIdentifier(maybeCatalog, identifier) = rtas.tableName
-      val catalog = maybeCatalog.getOrElse(sessionCatalog).asTableCatalog
-      convertRTAS(catalog, identifier, rtas)
-
-    case DropTableStatement(CatalogObjectIdentifier(Some(catalog), ident), ifExists, _) =>
-      DropTable(catalog.asTableCatalog, ident, ifExists)
+        case _ =>
+          r.withCatalog(sessionCatalog, r.tableName)
+      }
 
     case DropTableStatement(AsTableIdentifier(tableName), ifExists, purge) =>
       DropTableCommand(tableName, ifExists, isView = false, purge)
@@ -164,28 +140,12 @@ case class DataSourceResolution(
         s"Delete from tables is not supported using the legacy / v1 Spark external catalog" +
             s" API. Identifier: $table.")
 
-    case delete: DeleteFromStatement =>
-      val relation = UnresolvedRelation(delete.tableName)
-      val aliased = delete.tableAlias.map(SubqueryAlias(_, relation)).getOrElse(relation)
-      DeleteFromTable(aliased, delete.condition)
+    case ShowNamespacesStatement(None, pattern) if defaultCatalog.isEmpty =>
+      ShowDatabasesCommand(pattern)
 
-    case ShowNamespacesStatement(None, pattern) =>
-      defaultCatalog match {
-        case Some(catalog) =>
-          ShowNamespaces(catalog.asNamespaceCatalog, None, pattern)
-        case None =>
-          throw new AnalysisException("No default v2 catalog is set.")
-      }
-
-    case ShowNamespacesStatement(Some(namespace), pattern) =>
-      val CatalogNamespace(maybeCatalog, ns) = namespace
-      maybeCatalog match {
-        case Some(catalog) =>
-          ShowNamespaces(catalog.asNamespaceCatalog, Some(ns), pattern)
-        case None =>
-          throw new AnalysisException(
-            s"No v2 catalog is available for ${namespace.quoted}")
-      }
+    case ShowNamespacesStatement(Some(CatalogAndRestNameParts(None, namespace)), _) =>
+      throw new AnalysisException(
+        s"No v2 catalog is available for ${namespace.quoted}")
 
     case ShowTablesStatement(None, pattern) =>
       defaultCatalog match {
@@ -259,120 +219,6 @@ case class DataSourceResolution(
       bucketSpec = bucketSpec,
       properties = properties,
       comment = comment)
-  }
-
-  private def convertCTAS(
-      catalog: TableCatalog,
-      identifier: Identifier,
-      ctas: CreateTableAsSelectStatement): CreateTableAsSelect = {
-    // convert the bucket spec and add it as a transform
-    val partitioning = ctas.partitioning ++ ctas.bucketSpec.map(_.asTransform)
-    val properties = convertTableProperties(
-      ctas.properties, ctas.options, ctas.location, ctas.comment, ctas.provider)
-
-    CreateTableAsSelect(
-      catalog,
-      identifier,
-      partitioning,
-      ctas.asSelect,
-      properties,
-      writeOptions = ctas.options.filterKeys(_ != "path"),
-      ignoreIfExists = ctas.ifNotExists)
-  }
-
-  private def convertCreateTable(
-      catalog: TableCatalog,
-      identifier: Identifier,
-      create: CreateTableStatement): CreateV2Table = {
-    // convert the bucket spec and add it as a transform
-    val partitioning = create.partitioning ++ create.bucketSpec.map(_.asTransform)
-    val properties = convertTableProperties(
-      create.properties, create.options, create.location, create.comment, create.provider)
-
-    CreateV2Table(
-      catalog,
-      identifier,
-      create.tableSchema,
-      partitioning,
-      properties,
-      ignoreIfExists = create.ifNotExists)
-  }
-
-  private def convertRTAS(
-      catalog: TableCatalog,
-      identifier: Identifier,
-      rtas: ReplaceTableAsSelectStatement): ReplaceTableAsSelect = {
-    // convert the bucket spec and add it as a transform
-    val partitioning = rtas.partitioning ++ rtas.bucketSpec.map(_.asTransform)
-    val properties = convertTableProperties(
-      rtas.properties, rtas.options, rtas.location, rtas.comment, rtas.provider)
-
-    ReplaceTableAsSelect(
-      catalog,
-      identifier,
-      partitioning,
-      rtas.asSelect,
-      properties,
-      writeOptions = rtas.options.filterKeys(_ != "path"),
-      orCreate = rtas.orCreate)
-  }
-
-  private def convertReplaceTable(
-      catalog: TableCatalog,
-      identifier: Identifier,
-      replace: ReplaceTableStatement): ReplaceTable = {
-    // convert the bucket spec and add it as a transform
-    val partitioning = replace.partitioning ++ replace.bucketSpec.map(_.asTransform)
-    val properties = convertTableProperties(
-      replace.properties, replace.options, replace.location, replace.comment, replace.provider)
-
-    ReplaceTable(
-      catalog,
-      identifier,
-      replace.tableSchema,
-      partitioning,
-      properties,
-      orCreate = replace.orCreate)
-  }
-
-  private def convertTableProperties(
-      properties: Map[String, String],
-      options: Map[String, String],
-      location: Option[String],
-      comment: Option[String],
-      provider: String): Map[String, String] = {
-    if (options.contains("path") && location.isDefined) {
-      throw new AnalysisException(
-        "LOCATION and 'path' in OPTIONS are both used to indicate the custom table path, " +
-            "you can only specify one of them.")
-    }
-
-    if ((options.contains("comment") || properties.contains("comment"))
-        && comment.isDefined) {
-      throw new AnalysisException(
-        "COMMENT and option/property 'comment' are both used to set the table comment, you can " +
-            "only specify one of them.")
-    }
-
-    if (options.contains("provider") || properties.contains("provider")) {
-      throw new AnalysisException(
-        "USING and option/property 'provider' are both used to set the provider implementation, " +
-            "you can only specify one of them.")
-    }
-
-    val filteredOptions = options.filterKeys(_ != "path")
-
-    // create table properties from TBLPROPERTIES and OPTIONS clauses
-    val tableProperties = new mutable.HashMap[String, String]()
-    tableProperties ++= properties
-    tableProperties ++= filteredOptions
-
-    // convert USING, LOCATION, and COMMENT clauses to table properties
-    tableProperties += ("provider" -> provider)
-    comment.map(text => tableProperties += ("comment" -> text))
-    location.orElse(options.get("path")).map(loc => tableProperties += ("location" -> loc))
-
-    tableProperties.toMap
   }
 
   private def convertToStructField(col: QualifiedColType): StructField = {

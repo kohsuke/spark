@@ -17,11 +17,23 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.sql
 
-import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalog.v2.{Identifier, TableCatalog}
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.plans.logical.{DeleteFromTable, LogicalPlan, SubqueryAlias}
+import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
+import org.apache.spark.sql.sources.v2.Table
 
 case class DeleteFromStatement(
     tableName: Seq[String],
     tableAlias: Option[String],
-    condition: Expression)
-    extends ParsedStatement
+    condition: Expression) extends StatementRequiringCatalogAndTable {
+
+  override def withCatalogAndTable(
+      catalog: TableCatalog,
+      ident: Identifier,
+      table: Table): LogicalPlan = {
+    val relation = DataSourceV2Relation.create(table)
+    val aliased = tableAlias.map(SubqueryAlias(_, relation)).getOrElse(relation)
+    DeleteFromTable(aliased, condition)
+  }
+}

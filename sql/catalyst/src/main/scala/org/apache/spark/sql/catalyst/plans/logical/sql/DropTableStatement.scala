@@ -17,8 +17,9 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.sql
 
+import org.apache.spark.sql.catalog.v2.CatalogPlugin
 import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{DropTable, LogicalPlan}
 
 /**
  * A DROP TABLE statement, as parsed from SQL.
@@ -26,9 +27,16 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 case class DropTableStatement(
     tableName: Seq[String],
     ifExists: Boolean,
-    purge: Boolean) extends ParsedStatement {
+    purge: Boolean) extends StatementRequiringCatalog {
+  import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
 
   override def output: Seq[Attribute] = Seq.empty
 
   override def children: Seq[LogicalPlan] = Seq.empty
+
+  override def nameParts: Seq[String] = tableName
+
+  override def withCatalog(catalog: CatalogPlugin, restNameParts: Seq[String]): LogicalPlan = {
+    DropTable(catalog.asTableCatalog, restNameParts.toIdentifier, ifExists)
+  }
 }

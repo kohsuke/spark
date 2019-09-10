@@ -23,16 +23,15 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalog.v2.{CatalogManager, Identifier, NamespaceChange, SupportsNamespaces, TableCatalog, TableChange}
-import org.apache.spark.sql.catalog.v2.NamespaceChange.{RemoveProperty, SetProperty}
-import org.apache.spark.sql.catalog.v2.expressions.{BucketTransform, FieldReference, IdentityTransform, LogicalExpressions, Transform}
+import org.apache.spark.sql.catalog.v2.NamespaceChange.RemoveProperty
+import org.apache.spark.sql.catalog.v2.expressions.{BucketTransform, FieldReference, IdentityTransform, Transform}
 import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{NamespaceAlreadyExistsException, NoSuchNamespaceException, NoSuchTableException, TableAlreadyExistsException}
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogDatabase, CatalogTable, CatalogTableType, CatalogUtils, SessionCatalog}
 import org.apache.spark.sql.execution.datasources.DataSource
-import org.apache.spark.sql.internal.{SessionState, SQLConf}
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.v2.Table
 import org.apache.spark.sql.sources.v2.internal.V1Table
 import org.apache.spark.sql.types.StructType
@@ -68,6 +67,10 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
     } catch {
       case _: NoSuchTableException =>
         throw new NoSuchTableException(ident)
+    }
+
+    if (catalogTable.tableType == CatalogTableType.VIEW) {
+      throw new NoSuchTableException(ident)
     }
 
     V1Table(catalogTable)

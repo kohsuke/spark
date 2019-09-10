@@ -17,8 +17,21 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.sql
 
+import org.apache.spark.sql.catalog.v2.CatalogPlugin
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ShowNamespaces}
+
 /**
  * A SHOW NAMESPACES statement, as parsed from SQL.
  */
-case class ShowNamespacesStatement(namespace: Option[Seq[String]], pattern: Option[String])
-  extends ParsedStatement
+case class ShowNamespacesStatement(
+    namespace: Option[Seq[String]],
+    pattern: Option[String]) extends StatementRequiringCatalog {
+  import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
+
+  override def nameParts: Seq[String] = namespace.getOrElse(Nil)
+
+  override def withCatalog(catalog: CatalogPlugin, restNameParts: Seq[String]): LogicalPlan = {
+    val ns = if (restNameParts.isEmpty) None else Some(restNameParts)
+    ShowNamespaces(catalog.asNamespaceCatalog, ns, pattern)
+  }
+}

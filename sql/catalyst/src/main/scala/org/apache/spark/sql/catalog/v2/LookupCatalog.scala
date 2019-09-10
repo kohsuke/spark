@@ -99,6 +99,21 @@ trait LookupCatalog extends Logging {
     }
   }
 
+  object CatalogAndRestNameParts {
+    def unapply(nameParts: Seq[String]): Some[(Option[CatalogPlugin], Seq[String])] = {
+      if (nameParts.isEmpty) {
+        Some((defaultCatalog, Nil))
+      } else {
+        try {
+          Some((Some(catalogManager.catalog(nameParts.head)), nameParts.tail))
+        } catch {
+          case _: CatalogNotFoundException =>
+            Some((defaultCatalog, nameParts))
+        }
+      }
+    }
+  }
+
   /**
    * Extract legacy table identifier from a multi-part identifier.
    *

@@ -17,8 +17,10 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.sql
 
+import org.apache.spark.sql.catalog.v2.{CatalogPlugin, Identifier, TableCatalog}
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.sources.v2.Table
 
 /**
  * A logical plan node that contains exactly what was parsed from SQL.
@@ -34,7 +36,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
  * Parsed logical plans are located in Catalyst so that as much SQL parsing logic as possible is be
  * kept in a [[org.apache.spark.sql.catalyst.parser.AbstractSqlParser]].
  */
-private[sql] abstract class ParsedStatement extends LogicalPlan {
+abstract class ParsedStatement extends LogicalPlan {
   // Redact properties and options when parsed nodes are used by generic methods like toString
   override def productIterator: Iterator[Any] = super.productIterator.map {
     case mapArg: Map[_, _] => conf.redactOptions(mapArg)
@@ -46,4 +48,30 @@ private[sql] abstract class ParsedStatement extends LogicalPlan {
   override def children: Seq[LogicalPlan] = Seq.empty
 
   final override lazy val resolved = false
+}
+
+/**
+ * A special [[ParsedStatement]] which needs to look up the catalog to further resolve itself.
+ */
+abstract class StatementRequiringCatalog extends ParsedStatement {
+  def nameParts: Seq[String]
+
+  // TODO: this method should be called with session catalog as well. However, for now we still
+  //       need to fallback to v1 command in some cases. The `StatementRequiringCatalog` will
+  //       remain unchanged if session catalog is picked, and wait for other analyzer rules to
+  //       convert it to v1 command.
+  def withCatalog(catalog: CatalogPlugin, restNameParts: Seq[String]): LogicalPlan
+}
+
+/**
+ * A special [[ParsedStatement]] which needs to look up the catalog and table to further resolve
+ * itself.
+ */
+abstract class StatementRequiringCatalogAndTable extends ParsedStatement {
+  def tableName: Seq[String]
+
+  // This method will not be called with `V1Table`. Extra analyzer rules are needed to resolve
+  // `StatementRequiringCatalogAndTable` with `V1Table`. For example, the `DESC TABLE` has
+  // different output for v1 and v2 tables.
+  def withCatalogAndTable(catalog: TableCatalog, ident: Identifier, table: Table): LogicalPlan
 }

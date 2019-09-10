@@ -92,6 +92,10 @@ object CatalogV2Implicits {
     }
   }
 
+  implicit class NamePartsHelper(nameParts: Seq[String]) {
+    def toIdentifier: Identifier = Identifier.of(nameParts.init.toArray, nameParts.last)
+  }
+
   implicit class MultipartIdentifierHelper(namespace: Seq[String]) {
     def quoted: String = namespace.map(quote).mkString(".")
   }

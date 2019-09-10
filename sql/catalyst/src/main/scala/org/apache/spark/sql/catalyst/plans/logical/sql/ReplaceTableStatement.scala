@@ -17,10 +17,12 @@
 
 package org.apache.spark.sql.catalyst.plans.logical.sql
 
+import org.apache.spark.sql.catalog.v2.CatalogPlugin
+import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
 import org.apache.spark.sql.catalog.v2.expressions.Transform
+import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
-import org.apache.spark.sql.catalyst.expressions.Attribute
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, ReplaceTable, ReplaceTableAsSelect}
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -39,7 +41,21 @@ case class ReplaceTableStatement(
     options: Map[String, String],
     location: Option[String],
     comment: Option[String],
-    orCreate: Boolean) extends ParsedStatement
+    orCreate: Boolean) extends StatementRequiringCatalog {
+
+  override def nameParts: Seq[String] = tableName
+
+  override def withCatalog(catalog: CatalogPlugin, restNameParts: Seq[String]): LogicalPlan = {
+    ReplaceTable(
+      catalog.asTableCatalog,
+      restNameParts.toIdentifier,
+      tableSchema,
+      // convert the bucket spec and add it as a transform
+      partitioning ++ bucketSpec.map(_.asTransform),
+      CatalogV2Util.convertTableProperties(properties, options, location, comment, provider),
+      orCreate)
+  }
+}
 
 /**
  * A REPLACE TABLE AS SELECT command, as parsed from SQL.
@@ -54,7 +70,21 @@ case class ReplaceTableAsSelectStatement(
     options: Map[String, String],
     location: Option[String],
     comment: Option[String],
-    orCreate: Boolean) extends ParsedStatement {
+    orCreate: Boolean) extends StatementRequiringCatalog {
 
   override def children: Seq[LogicalPlan] = Seq(asSelect)
+
+  override def nameParts: Seq[String] = tableName
+
+  override def withCatalog(catalog: CatalogPlugin, restNameParts: Seq[String]): LogicalPlan = {
+    ReplaceTableAsSelect(
+      catalog.asTableCatalog,
+      restNameParts.toIdentifier,
+      // convert the bucket spec and add it as a transform
+      partitioning ++ bucketSpec.map(_.asTransform),
+      asSelect,
+      CatalogV2Util.convertTableProperties(properties, options, location, comment, provider),
+      writeOptions = options.filterKeys(_ != "path"),
+      orCreate = orCreate)
+  }
 }

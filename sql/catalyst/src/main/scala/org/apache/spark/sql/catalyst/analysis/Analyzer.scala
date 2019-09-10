@@ -44,7 +44,6 @@ import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.{PartitionOverwriteMode, StoreAssignmentPolicy}
 import org.apache.spark.sql.sources.v2.Table
-import org.apache.spark.sql.sources.v2.internal.V1Table
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -193,10 +192,8 @@ class Analyzer(
       new SubstituteUnresolvedOrdinals(conf)),
     Batch("Resolution", fixedPoint,
       ResolveTableValuedFunctions ::
-      ResolveAlterTable ::
-      ResolveDescribeTable ::
       ResolveInsertInto ::
-      ResolveTables ::
+      ResolveCatalogAndTable ::
       ResolveRelations ::
       ResolveReferences ::
       ResolveCreateNamedStruct ::
@@ -665,14 +662,26 @@ class Analyzer(
    *
    * [[ResolveRelations]] still resolves v1 tables.
    */
-  object ResolveTables extends Rule[LogicalPlan] {
+  object ResolveCatalogAndTable extends Rule[LogicalPlan] {
+    import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
+    import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util._
+
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case u: UnresolvedRelation =>
-        val v2TableOpt = lookupV2Relation(u.multipartIdentifier) match {
-          case scala.Left((_, _, tableOpt)) => tableOpt
-          case scala.Right(tableOpt) => tableOpt
+      case s: StatementRequiringCatalog =>
+        val CatalogAndRestNameParts(maybeCatalog, restNameParts) = s.nameParts
+        if (maybeCatalog.isDefined) {
+          s.withCatalog(maybeCatalog.get, restNameParts)
+        } else {
+          s
         }
-        v2TableOpt.map(DataSourceV2Relation.create).getOrElse(u)
+
+      case s: StatementRequiringCatalogAndTable =>
+        val CatalogAndRestNameParts(maybeCatalog, restNameParts) = s.tableName
+        val ident = restNameParts.toIdentifier
+        val tableCatalog = maybeCatalog.getOrElse(catalogManager.v2SessionCatalog).asTableCatalog
+        loadV2Table(tableCatalog, ident).map { table =>
+          s.withCatalogAndTable(tableCatalog, ident, table)
+        }.getOrElse(s)
     }
   }
 
@@ -742,15 +751,49 @@ class Analyzer(
       case _ => plan
     }
 
+    private def tryResolveV2Relation(u: UnresolvedRelation): Option[DataSourceV2Relation] = {
+      import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
+      import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util._
+
+      u.multipartIdentifier match {
+        // temporary views take precedence over catalog table names
+        case AsTemporaryViewIdentifier(ident) if catalog.isTemporaryTable(ident) =>
+          None
+
+        case nameParts =>
+          assert(nameParts.nonEmpty)
+          val CatalogAndRestNameParts(maybeCatalog, restNameParts) = nameParts
+          if (restNameParts.isEmpty) {
+            None
+          } else {
+            loadV2Table(
+              maybeCatalog.getOrElse(catalogManager.v2SessionCatalog),
+              restNameParts.toIdentifier
+            ).map(DataSourceV2Relation.create)
+          }
+      }
+    }
+
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case i @ InsertIntoTable(u @ UnresolvedRelation(AsTableIdentifier(ident)), _, child, _, _)
-          if child.resolved =>
-        EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
-          case v: View =>
-            u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
-          case other => i.copy(table = other)
+      case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
+        tryResolveV2Relation(u).map(v2Relation => i.copy(table = v2Relation)).getOrElse {
+          if (u.multipartIdentifier.length <= 2) {
+            val ident = u.multipartIdentifier match {
+              case Seq(tbl) => TableIdentifier(tbl)
+              case Seq(db, tbl) => TableIdentifier(tbl, Some(db))
+            }
+            EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
+              case v: View => u.failAnalysis(
+                s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
+              case other => InsertIntoTable(
+                other, i.partitionSpec, i.query, i.overwrite, i.ifPartitionNotExists)
+            }
+          } else {
+            i
+          }
         }
-      case u: UnresolvedRelation => resolveRelation(u)
+
+      case u: UnresolvedRelation => tryResolveV2Relation(u).getOrElse(resolveRelation(u))
     }
 
     // Look up the table with the given name from catalog. The database we used is decided by the
@@ -787,41 +830,30 @@ class Analyzer(
 
   object ResolveInsertInto extends Rule[LogicalPlan] {
     override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
-      case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
-        lookupV2Relation(u.multipartIdentifier) match {
-          case scala.Left((_, _, Some(v2Table: Table))) =>
-            resolveV2Insert(i, v2Table)
-          case scala.Right(Some(v2Table: Table)) =>
-            resolveV2Insert(i, v2Table)
-          case _ =>
-            InsertIntoTable(i.table, i.partitionSpec, i.query, i.overwrite, i.ifPartitionNotExists)
+      case i @ InsertIntoStatement(r: DataSourceV2Relation, _, _, _, _) if i.query.resolved =>
+        val relation = DataSourceV2Relation.create(r.table)
+        // ifPartitionNotExists is append with validation, but validation is not supported
+        if (i.ifPartitionNotExists) {
+          throw new AnalysisException(
+            s"Cannot write, IF NOT EXISTS is not supported for table: ${relation.table.name}")
         }
-    }
 
-    private def resolveV2Insert(i: InsertIntoStatement, table: Table): LogicalPlan = {
-      val relation = DataSourceV2Relation.create(table)
-      // ifPartitionNotExists is append with validation, but validation is not supported
-      if (i.ifPartitionNotExists) {
-        throw new AnalysisException(
-          s"Cannot write, IF NOT EXISTS is not supported for table: ${relation.table.name}")
-      }
+        val partCols = partitionColumnNames(relation.table)
+        validatePartitionSpec(partCols, i.partitionSpec)
 
-      val partCols = partitionColumnNames(relation.table)
-      validatePartitionSpec(partCols, i.partitionSpec)
+        val staticPartitions = i.partitionSpec.filter(_._2.isDefined).mapValues(_.get)
+        val query = addStaticPartitionColumns(relation, i.query, staticPartitions)
+        val dynamicPartitionOverwrite = partCols.size > staticPartitions.size &&
+          conf.partitionOverwriteMode == PartitionOverwriteMode.DYNAMIC
 
-      val staticPartitions = i.partitionSpec.filter(_._2.isDefined).mapValues(_.get)
-      val query = addStaticPartitionColumns(relation, i.query, staticPartitions)
-      val dynamicPartitionOverwrite = partCols.size > staticPartitions.size &&
-        conf.partitionOverwriteMode == PartitionOverwriteMode.DYNAMIC
-
-      if (!i.overwrite) {
-        AppendData.byPosition(relation, query)
-      } else if (dynamicPartitionOverwrite) {
-        OverwritePartitionsDynamic.byPosition(relation, query)
-      } else {
-        OverwriteByExpression.byPosition(
-          relation, query, staticDeleteExpression(relation, staticPartitions))
-      }
+        if (!i.overwrite) {
+          AppendData.byPosition(relation, query)
+        } else if (dynamicPartitionOverwrite) {
+          OverwritePartitionsDynamic.byPosition(relation, query)
+        } else {
+          OverwriteByExpression.byPosition(
+            relation, query, staticDeleteExpression(relation, staticPartitions))
+        }
     }
 
     private def partitionColumnNames(table: Table): Seq[String] = {
@@ -913,95 +945,6 @@ class Analyzer(
           }
         }.reduce(And)
       }
-    }
-  }
-
-  /**
-   * Resolve ALTER TABLE statements that use a DSv2 catalog.
-   *
-   * This rule converts unresolved ALTER TABLE statements to v2 when a v2 catalog is responsible
-   * for the table identifier. A v2 catalog is responsible for an identifier when the identifier
-   * has a catalog specified, like prod_catalog.db.table, or when a default v2 catalog is set and
-   * the table identifier does not include a catalog.
-   */
-  object ResolveAlterTable extends Rule[LogicalPlan] {
-    import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
-    override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
-      case alter @ AlterTableAddColumnsStatement(tableName, cols) =>
-        val changes = cols.map { col =>
-          TableChange.addColumn(col.name.toArray, col.dataType, true, col.comment.orNull)
-        }
-        resolveV2Alter(tableName, changes).getOrElse(alter)
-
-      case alter @ AlterTableAlterColumnStatement(tableName, colName, dataType, comment) =>
-        val typeChange = dataType.map { newDataType =>
-          TableChange.updateColumnType(colName.toArray, newDataType, true)
-        }
-
-        val commentChange = comment.map { newComment =>
-          TableChange.updateColumnComment(colName.toArray, newComment)
-        }
-
-        resolveV2Alter(tableName, typeChange.toSeq ++ commentChange.toSeq).getOrElse(alter)
-
-      case alter @ AlterTableRenameColumnStatement(tableName, col, newName) =>
-        val changes = Seq(TableChange.renameColumn(col.toArray, newName))
-        resolveV2Alter(tableName, changes).getOrElse(alter)
-
-      case alter @ AlterTableDropColumnsStatement(tableName, cols) =>
-        val changes = cols.map(col => TableChange.deleteColumn(col.toArray))
-        resolveV2Alter(tableName, changes).getOrElse(alter)
-
-      case alter @ AlterTableSetPropertiesStatement(tableName, props) =>
-        val changes = props.map { case (key, value) =>
-          TableChange.setProperty(key, value)
-        }
-
-        resolveV2Alter(tableName, changes.toSeq).getOrElse(alter)
-
-      case alter @ AlterTableUnsetPropertiesStatement(tableName, keys, _) =>
-        resolveV2Alter(tableName, keys.map(key => TableChange.removeProperty(key))).getOrElse(alter)
-
-      case alter @ AlterTableSetLocationStatement(tableName, newLoc) =>
-        resolveV2Alter(tableName, Seq(TableChange.setProperty("location", newLoc))).getOrElse(alter)
-    }
-
-    private def resolveV2Alter(
-        tableName: Seq[String],
-        changes: Seq[TableChange]): Option[AlterTable] = {
-      lookupV2Relation(tableName) match {
-        case scala.Left((v2Catalog, ident, tableOpt)) =>
-          Some(AlterTable(
-            v2Catalog.asTableCatalog,
-            ident,
-            tableOpt.map(DataSourceV2Relation.create).getOrElse(UnresolvedRelation(tableName)),
-            changes
-          ))
-        case scala.Right(tableOpt) =>
-          tableOpt.map { table =>
-            AlterTable(
-              sessionCatalog.asTableCatalog,
-              Identifier.of(tableName.init.toArray, tableName.last),
-              DataSourceV2Relation.create(table),
-              changes
-            )
-          }
-      }
-    }
-  }
-  /**
-   * Resolve DESCRIBE TABLE statements that use a DSv2 catalog.
-   *
-   * This rule converts unresolved DESCRIBE TABLE statements to v2 when a v2 catalog is responsible
-   * for the table identifier. A v2 catalog is responsible for an identifier when the identifier
-   * has a catalog specified, like prod_catalog.db.table, or when a default v2 catalog is set and
-   * the table identifier does not include a catalog.
-   */
-  object ResolveDescribeTable extends Rule[LogicalPlan] {
-    override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
-      case describe @ DescribeTableStatement(
-          CatalogObjectIdentifier(Some(v2Catalog), ident), _, isExtended) =>
-        DescribeTable(UnresolvedRelation(describe.tableName), isExtended)
     }
   }
 
@@ -2835,39 +2778,6 @@ class Analyzer(
 
         case UpCast(child, dataType, _) => Cast(child, dataType.asNullable)
       }
-    }
-  }
-
-  /**
-   * Performs the lookup of DataSourceV2 Tables. The order of resolution is:
-   *   1. Check if this relation is a temporary table
-   *   2. Check if it has a catalog identifier. Here we try to load the table. If we find the table,
-   *      we can return the table. The result returned by an explicit catalog will be returned on
-   *      the Left projection of the Either.
-   *   3. Try resolving the relation using the V2SessionCatalog if that is defined. If the
-   *      V2SessionCatalog returns a V1 table definition (UnresolvedTable), then we return a `None`
-   *      on the right side so that we can fallback to the V1 code paths.
-   * The basic idea is, if a value is returned on the Left, it means a v2 catalog is defined and
-   * must be used to resolve the table. If a value is returned on the right, then we can try
-   * creating a V2 relation if a V2 Table is defined. If it isn't defined, then we should defer
-   * to V1 code paths.
-   */
-  private def lookupV2Relation(
-      identifier: Seq[String]
-      ): Either[(CatalogPlugin, Identifier, Option[Table]), Option[Table]] = {
-    import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util._
-
-    identifier match {
-      case AsTemporaryViewIdentifier(ti) if catalog.isTemporaryTable(ti) =>
-        scala.Right(None)
-      case CatalogObjectIdentifier(Some(v2Catalog), ident) =>
-        scala.Left((v2Catalog, ident, loadTable(v2Catalog, ident)))
-      case CatalogObjectIdentifier(None, ident) =>
-        loadTable(catalogManager.v2SessionCatalog, ident) match {
-          case Some(_: V1Table) => scala.Right(None)
-          case other => scala.Right(other)
-        }
-      case _ => scala.Right(None)
     }
   }
 }
