@@ -48,6 +48,8 @@ private[spark] class AppStatusListener(
     appStatusSource: Option[AppStatusSource] = None,
     lastUpdateTime: Option[Long] = None) extends SparkListener with Logging {
 
+  import LiveEntityHelpers._
+
   private var sparkVersion = SPARK_VERSION
   private var appInfo: v1.ApplicationInfo = null
   private var appSummary = new AppSummary(0, 0)
@@ -222,11 +224,10 @@ private[spark] class AppStatusListener(
       }
       // Remove all RDD partitions that reference the removed executor
       liveRDDs.values.foreach { rdd =>
-        rdd.getPartitions.values
-          .filter(_.executors.contains(event.executorId))
-          .foreach { partition =>
+        rdd.getPartitions().foreach { case (idx, partition) =>
+          if (partition != null && partition.executors.contains(event.executorId)) {
             if (partition.executors.length == 1) {
-              rdd.removePartition(partition.blockName)
+              rdd.removePartition(idx)
               rdd.memoryUsed = addDeltaToValue(rdd.memoryUsed, partition.memoryUsed * -1)
               rdd.diskUsed = addDeltaToValue(rdd.diskUsed, partition.diskUsed * -1)
             } else {
@@ -235,13 +236,14 @@ private[spark] class AppStatusListener(
               rdd.diskUsed = addDeltaToValue(rdd.diskUsed,
                 (partition.diskUsed / partition.executors.length) * -1)
               partition.update(partition.executors
-                .filter(!_.equals(event.executorId)), rdd.storageLevel,
+                .filter(!_.equals(event.executorId)),
                 addDeltaToValue(partition.memoryUsed,
                   (partition.memoryUsed / partition.executors.length) * -1),
                 addDeltaToValue(partition.diskUsed,
                   (partition.diskUsed / partition.executors.length) * -1))
             }
           }
+        }
         update(rdd, now)
       }
       if (isExecutorActiveForLiveStages(exec)) {
@@ -782,35 +784,14 @@ private[spark] class AppStatusListener(
   override def onUnpersistRDD(event: SparkListenerUnpersistRDD): Unit = {
     liveRDDs.remove(event.rddId).foreach { liveRDD =>
       val storageLevel = liveRDD.info.storageLevel
-
-      // Use RDD partition info to update executor block info.
-      liveRDD.getPartitions().foreach { case (_, part) =>
-        part.executors.foreach { executorId =>
-          liveExecutors.get(executorId).foreach { exec =>
-            exec.rddBlocks = exec.rddBlocks - 1
-          }
-        }
-      }
-
       val now = System.nanoTime()
 
-      // Use RDD distribution to update executor memory and disk usage info.
-      liveRDD.getDistributions().foreach { case (executorId, rddDist) =>
-        liveExecutors.get(executorId).foreach { exec =>
-          if (exec.hasMemoryInfo) {
-            if (storageLevel.useOffHeap) {
-              exec.usedOffHeap = addDeltaToValue(exec.usedOffHeap, -rddDist.offHeapUsed)
-            } else {
-              exec.usedOnHeap = addDeltaToValue(exec.usedOnHeap, -rddDist.onHeapUsed)
-            }
-          }
-          exec.memoryUsed = addDeltaToValue(exec.memoryUsed, -rddDist.memoryUsed)
-          exec.diskUsed = addDeltaToValue(exec.diskUsed, -rddDist.diskUsed)
+      liveExecutors.values.foreach { exec =>
+        if (exec.cleanupRDD(event.rddId, storageLevel.useOffHeap)) {
           maybeUpdate(exec, now)
         }
       }
     }
-
     kvstore.delete(classOf[RDDStorageInfoWrapper], event.rddId)
   }
 
@@ -902,76 +883,35 @@ private[spark] class AppStatusListener(
       .sortBy(_.stageId)
   }
 
-  /**
-   * Apply a delta to a value, but ensure that it doesn't go negative.
-   */
-  private def addDeltaToValue(old: Long, delta: Long): Long = math.max(0, old + delta)
-
   private def updateRDDBlock(event: SparkListenerBlockUpdated, block: RDDBlockId): Unit = {
     val now = System.nanoTime()
     val executorId = event.blockUpdatedInfo.blockManagerId.executorId
 
-    // Whether values are being added to or removed from the existing accounting.
-    val storageLevel = event.blockUpdatedInfo.storageLevel
-    val diskDelta = event.blockUpdatedInfo.diskSize * (if (storageLevel.useDisk) 1 else -1)
-    val memoryDelta = event.blockUpdatedInfo.memSize * (if (storageLevel.useMemory) 1 else -1)
-
-    val updatedStorageLevel = if (storageLevel.isValid) {
-      Some(storageLevel.description)
-    } else {
-      None
-    }
-
-    // We need information about the executor to update some memory accounting values in the
-    // RDD info, so read that beforehand.
-    val maybeExec = liveExecutors.get(executorId)
-    var rddBlocksDelta = 0
-
-    // Update the executor stats first, since they are used to calculate the free memory
-    // on tracked RDD distributions.
-    maybeExec.foreach { exec =>
-      updateExecutorMemoryDiskInfo(exec, storageLevel, memoryDelta, diskDelta)
-    }
-
-    // Update the block entry in the RDD info, keeping track of the deltas above so that we
-    // can update the executor information too.
     liveRDDs.get(block.rddId).foreach { rdd =>
-      if (updatedStorageLevel.isDefined) {
-        rdd.setStorageLevel(updatedStorageLevel.get)
-      }
+      val isBlockCached = event.blockUpdatedInfo.storageLevel.isValid
+      var diskDelta = event.blockUpdatedInfo.diskSize
+      var memoryDelta = event.blockUpdatedInfo.memSize
 
-      val partition = rdd.partition(block.name)
-
-      val executors = if (updatedStorageLevel.isDefined) {
-        val current = partition.executors
-        if (current.contains(executorId)) {
-          current
+      liveExecutors.get(executorId).foreach { exec =>
+        val oldBlock = if (isBlockCached) {
+          exec.addBlock(block, event.blockUpdatedInfo.diskSize, event.blockUpdatedInfo.memSize,
+            rdd.info.storageLevel.useOffHeap)
         } else {
-          rddBlocksDelta = 1
-          current :+ executorId
+          exec.removeBlock(block, rdd.info.storageLevel.useOffHeap)
         }
-      } else {
-        rddBlocksDelta = -1
-        partition.executors.filter(_ != executorId)
-      }
 
-      // Only update the partition if it's still stored in some executor, otherwise get rid of it.
-      if (executors.nonEmpty) {
-        partition.update(executors, rdd.storageLevel,
-          addDeltaToValue(partition.memoryUsed, memoryDelta),
-          addDeltaToValue(partition.diskUsed, diskDelta))
-      } else {
-        rdd.removePartition(block.name)
-      }
+        if (oldBlock != null) {
+          diskDelta -= oldBlock.diskSize
+          memoryDelta -= oldBlock.memSize
+        }
 
-      maybeExec.foreach { exec =>
-        if (exec.rddBlocks + rddBlocksDelta > 0) {
+        if (exec.hasRDDData(block.rddId)) {
           val dist = rdd.distribution(exec)
           dist.memoryUsed = addDeltaToValue(dist.memoryUsed, memoryDelta)
           dist.diskUsed = addDeltaToValue(dist.diskUsed, diskDelta)
 
           if (exec.hasMemoryInfo) {
-            if (storageLevel.useOffHeap) {
+            if (rdd.info.storageLevel.useOffHeap) {
               dist.offHeapUsed = addDeltaToValue(dist.offHeapUsed, memoryDelta)
             } else {
               dist.onHeapUsed = addDeltaToValue(dist.onHeapUsed, memoryDelta)
@@ -991,17 +931,35 @@ private[spark] class AppStatusListener(
             }
           }
         }
+
+        maybeUpdate(exec, now)
+      }
+
+      val partition = rdd.partition(block, isBlockCached)
+
+      val executors = if (isBlockCached) {
+        val current = partition.executors
+        if (current.contains(executorId)) {
+          current
+        } else {
+          current :+ executorId
+        }
+      } else {
+        partition.executors.filter(_ != executorId)
+      }
+
+      // Only update the partition if it's still stored in some executor, otherwise get rid of it.
+      if (executors.nonEmpty) {
+        partition.update(executors,
+          addDeltaToValue(partition.memoryUsed, memoryDelta),
+          addDeltaToValue(partition.diskUsed, diskDelta))
+      } else {
+        rdd.removePartition(block.splitIndex)
       }
 
       rdd.memoryUsed = addDeltaToValue(rdd.memoryUsed, memoryDelta)
       rdd.diskUsed = addDeltaToValue(rdd.diskUsed, diskDelta)
       update(rdd, now)
-    }
-
-    // Finish updating the executor now that we know the delta in the number of blocks.
-    maybeExec.foreach { exec =>
-      exec.rddBlocks += rddBlocksDelta
-      maybeUpdate(exec, now)
     }
   }
 

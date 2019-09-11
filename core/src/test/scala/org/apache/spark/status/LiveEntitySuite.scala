@@ -19,6 +19,7 @@ package org.apache.spark.status
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.status.api.v1.RDDPartitionInfo
+import org.apache.spark.storage.{RDDBlockId, StorageLevel}
 
 class LiveEntitySuite extends SparkFunSuite {
 
@@ -52,6 +53,61 @@ class LiveEntitySuite extends SparkFunSuite {
     assert(!seq.exists(_.blockName == items(5).blockName))
   }
 
+  test("rdd tracking in live executor") {
+    val exec = new LiveExecutor("1", 0L)
+    exec.totalOnHeap = 42L
+
+    assert(!exec.hasRDDData(1))
+
+    exec.addBlock(RDDBlockId(1, 1), 1L, 1L, false)
+    assert(exec.hasRDDData(1))
+    assert(exec.diskUsed === 1)
+    assert(exec.memoryUsed === 1)
+    assert(exec.usedOnHeap === 1)
+    assert(exec.usedOffHeap === 0)
+
+    exec.addBlock(RDDBlockId(1, 2), 2L, 2L, false)
+    assert(exec.hasRDDData(1))
+    assert(exec.diskUsed === 3)
+    assert(exec.memoryUsed === 3)
+    assert(exec.usedOnHeap === 3)
+    assert(exec.usedOffHeap === 0)
+
+    val old2 = exec.removeBlock(RDDBlockId(1, 2), false)
+    assert(old2 != null)
+    assert(old2.diskSize === 2)
+    assert(old2.memSize === 2)
+    assert(exec.hasRDDData(1))
+    assert(exec.diskUsed === 1)
+    assert(exec.memoryUsed === 1)
+    assert(exec.usedOnHeap === 1)
+    assert(exec.usedOffHeap === 0)
+
+    val old1 = exec.addBlock(RDDBlockId(1, 1), 3L, 3L, false)
+    assert(exec.hasRDDData(1))
+    assert(old1 != null)
+    assert(old1.diskSize === 1)
+    assert(old1.memSize === 1)
+    assert(exec.diskUsed === 3)
+    assert(exec.memoryUsed === 3)
+    assert(exec.usedOnHeap === 3)
+    assert(exec.usedOffHeap === 0)
+
+    exec.addBlock(RDDBlockId(2, 1), 0L, 4L, true)
+    assert(exec.hasRDDData(2))
+    assert(exec.diskUsed === 3)
+    assert(exec.memoryUsed === 7)
+    assert(exec.usedOnHeap === 3)
+    assert(exec.usedOffHeap === 4)
+
+    exec.removeBlock(RDDBlockId(1, 1), false)
+    assert(exec.cleanupRDD(2, true))
+    assert(!exec.hasRDDData(1))
+    assert(!exec.hasRDDData(2))
+    assert(exec.diskUsed === 0)
+    assert(exec.memoryUsed === 0)
+  }
+
   private def checkSize(seq: Seq[_], expected: Int): Unit = {
     assert(seq.length === expected)
     var count = 0
@@ -60,8 +116,8 @@ class LiveEntitySuite extends SparkFunSuite {
   }
 
   private def newPartition(i: Int): LiveRDDPartition = {
-    val part = new LiveRDDPartition(i.toString)
-    part.update(Seq(i.toString), i.toString, i, i)
+    val part = new LiveRDDPartition(i.toString, StorageLevel.NONE)
+    part.update(Seq(i.toString), i, i)
     part
   }
 

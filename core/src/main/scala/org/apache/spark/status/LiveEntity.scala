@@ -30,10 +30,10 @@ import org.apache.spark.executor.{ExecutorMetrics, TaskMetrics}
 import org.apache.spark.resource.ResourceInformation
 import org.apache.spark.scheduler.{AccumulableInfo, StageInfo, TaskInfo}
 import org.apache.spark.status.api.v1
-import org.apache.spark.storage.RDDInfo
+import org.apache.spark.storage.{RDDBlockId, RDDInfo, StorageLevel}
 import org.apache.spark.ui.SparkUI
 import org.apache.spark.util.AccumulatorContext
-import org.apache.spark.util.collection.OpenHashSet
+import org.apache.spark.util.collection.{OpenHashMap, OpenHashSet}
 
 /**
  * A mutable representation of a live entity in Spark (jobs, stages, tasks, et al). Every live
@@ -229,7 +229,16 @@ private class LiveTask(
 
 }
 
+private class LiveRDDBlock(val diskSize: Long, val memSize: Long)
+
+private class RDDBlockTracker {
+  val blocks = new OpenHashMap[Int, LiveRDDBlock]()
+  var count = 0
+}
+
 private class LiveExecutor(val executorId: String, _addTime: Long) extends LiveEntity {
+
+  import LiveEntityHelpers._
 
   var hostPort: String = null
   var host: String = null
@@ -269,12 +278,124 @@ private class LiveExecutor(val executorId: String, _addTime: Long) extends LiveE
   var usedOnHeap = 0L
   var usedOffHeap = 0L
 
+  // RDD block info. Keeps track of which blocks are stored in this executor, to help with RDD usage
+  // accounting. This uses nested maps to make it easier to remove information when RDDs are
+  // unpersisted. First level key is the RDD id, second is the split index.
+  //
+  // This is a var so that we can "clear" it and restart with a new map when it becomes empty,
+  // to save some memory.
+  private var rddBlockUsage = new OpenHashMap[Int, RDDBlockTracker]()
+  private var trackedRDDCount = 0
+
   def hasMemoryInfo: Boolean = totalOnHeap >= 0L
 
   // peak values for executor level metrics
   val peakExecutorMetrics = new ExecutorMetrics()
 
   def hostname: String = if (host != null) host else hostPort.split(":")(0)
+
+  /**
+   * Add or update a block's information, updating internal accounting.
+   *
+   * @return The old block information (may be null).
+   */
+  def addBlock(
+      block: RDDBlockId,
+      diskSize: Long,
+      memSize: Long,
+      useOffHeap: Boolean): LiveRDDBlock = {
+    val tracker = Option(rddBlockUsage(block.rddId)).getOrElse {
+      val _tracker = new RDDBlockTracker()
+      rddBlockUsage.update(block.rddId, _tracker)
+      trackedRDDCount += 1
+      _tracker
+    }
+
+    diskUsed = addDeltaToValue(diskUsed, diskSize)
+    updateMemory(memSize, useOffHeap)
+
+    val oldBlock = tracker.blocks(block.splitIndex)
+    if (oldBlock != null) {
+      diskUsed = addDeltaToValue(diskUsed, -oldBlock.diskSize)
+      updateMemory(-oldBlock.memSize, useOffHeap)
+    } else {
+      rddBlocks += 1
+      tracker.count += 1
+    }
+
+    tracker.blocks.update(block.splitIndex, new LiveRDDBlock(diskSize, memSize))
+    oldBlock
+  }
+
+  /**
+   * Remove a block's information, updating internal accounting.
+   *
+   * @return The old block information (may be null).
+   */
+  def removeBlock(block: RDDBlockId, useOffHeap: Boolean): LiveRDDBlock = {
+    val tracker = rddBlockUsage(block.rddId)
+    if (tracker != null) {
+      val blockInfo = tracker.blocks(block.splitIndex)
+      if (blockInfo != null) {
+        rddBlocks -= 1
+        diskUsed = addDeltaToValue(diskUsed, -blockInfo.diskSize)
+        updateMemory(-blockInfo.memSize, useOffHeap)
+        if (tracker.count == 1) {
+          removeRDD(block.rddId)
+        } else {
+          tracker.count -= 1
+          tracker.blocks.update(block.splitIndex, null)
+        }
+      }
+      blockInfo
+    } else {
+      null
+    }
+  }
+
+  /**
+   * Remove tracking info for an RDD, and update internal accounting.
+   *
+   * @return Whether the RDD was being tracked.
+   */
+  def cleanupRDD(rddId: Int, useOffHeap: Boolean): Boolean = {
+    val tracker = rddBlockUsage(rddId)
+    if (tracker != null) {
+      tracker.blocks.foreach { case (_, block) =>
+        if (block != null) {
+          rddBlocks -= 1
+          diskUsed = addDeltaToValue(diskUsed, -block.diskSize)
+          updateMemory(-block.memSize, useOffHeap)
+        }
+      }
+      removeRDD(rddId)
+      true
+    } else {
+      false
+    }
+  }
+
+  def hasRDDData(rddId: Int): Boolean = rddBlockUsage(rddId) != null
+
+  private def removeRDD(rddId: Int): Unit = {
+    trackedRDDCount -= 1
+    if (trackedRDDCount > 0) {
+      rddBlockUsage.update(rddId, null)
+    } else {
+      rddBlockUsage = new OpenHashMap()
+    }
+  }
+
+  private def updateMemory(delta: Long, useOffHeap: Boolean): Unit = {
+    memoryUsed = addDeltaToValue(memoryUsed, delta)
+    if (hasMemoryInfo) {
+      if (useOffHeap) {
+        usedOffHeap = addDeltaToValue(usedOffHeap, delta)
+      } else {
+        usedOnHeap = addDeltaToValue(usedOnHeap, delta)
+      }
+    }
+  }
 
   override protected def doUpdate(): Any = {
     val memoryMetrics = if (totalOnHeap >= 0) {
@@ -458,7 +579,7 @@ private class LiveStage extends LiveEntity {
 
 }
 
-private class LiveRDDPartition(val blockName: String) {
+private class LiveRDDPartition(val blockName: String, val rddLevel: StorageLevel) {
 
   import LiveEntityHelpers._
 
@@ -476,12 +597,13 @@ private class LiveRDDPartition(val blockName: String) {
 
   def update(
       executors: Seq[String],
-      storageLevel: String,
       memoryUsed: Long,
       diskUsed: Long): Unit = {
+    val level = StorageLevel(diskUsed > 0, memoryUsed > 0, rddLevel.useOffHeap,
+      rddLevel.deserialized, executors.size)
     value = new v1.RDDPartitionInfo(
       blockName,
-      weakIntern(storageLevel),
+      weakIntern(level.description),
       memoryUsed,
       diskUsed,
       executors)
@@ -524,30 +646,35 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
 
   import LiveEntityHelpers._
 
-  var storageLevel: String = weakIntern(info.storageLevel.description)
+  private val storageLevel = weakIntern(info.storageLevel.description)
   var memoryUsed = 0L
   var diskUsed = 0L
 
-  private val partitions = new HashMap[String, LiveRDDPartition]()
+  private val partitions = new OpenHashMap[Int, LiveRDDPartition]()
   private val partitionSeq = new RDDPartitionSeq()
+  private var partitionCount = 0
 
   private val distributions = new HashMap[String, LiveRDDDistribution]()
 
-  def setStorageLevel(level: String): Unit = {
-    this.storageLevel = weakIntern(level)
-  }
-
-  def partition(blockName: String): LiveRDDPartition = {
-    partitions.getOrElseUpdate(blockName, {
-      val part = new LiveRDDPartition(blockName)
-      part.update(Nil, storageLevel, 0L, 0L)
+  def partition(block: RDDBlockId, createIfMissing: Boolean): LiveRDDPartition = {
+    var part = partitions(block.splitIndex)
+    if (part == null && createIfMissing) {
+      part = new LiveRDDPartition(block.toString, info.storageLevel)
+      part.update(Nil, 0L, 0L)
+      partitions.update(block.splitIndex, part)
       partitionSeq.addPartition(part)
-      part
-    })
+      partitionCount += 1
+    }
+    part
   }
 
-  def removePartition(blockName: String): Unit = {
-    partitions.remove(blockName).foreach(partitionSeq.removePartition)
+  def removePartition(splitIndex: Int): Unit = {
+    val part = partitions(splitIndex)
+    if (part != null) {
+      partitions.update(splitIndex, null)
+      partitionSeq.removePartition(part)
+      partitionCount -= 1
+    }
   }
 
   def distribution(exec: LiveExecutor): LiveRDDDistribution = {
@@ -562,7 +689,7 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
     distributions.get(exec.executorId)
   }
 
-  def getPartitions(): scala.collection.Map[String, LiveRDDPartition] = partitions
+  def getPartitions(): Iterable[(Int, LiveRDDPartition)] = partitions
 
   def getDistributions(): scala.collection.Map[String, LiveRDDDistribution] = distributions
 
@@ -577,7 +704,7 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
       info.id,
       info.name,
       info.numPartitions,
-      partitions.size,
+      partitionCount,
       storageLevel,
       memoryUsed,
       diskUsed,
@@ -697,6 +824,11 @@ private object LiveEntityHelpers {
   def subtractMetrics(m1: v1.TaskMetrics, m2: v1.TaskMetrics): v1.TaskMetrics = {
     addMetrics(m1, m2, -1)
   }
+
+  /**
+   * Apply a delta to a value, but ensure that it doesn't go negative.
+   */
+  def addDeltaToValue(old: Long, delta: Long): Long = math.max(0, old + delta)
 
   private def addMetrics(m1: v1.TaskMetrics, m2: v1.TaskMetrics, mult: Int): v1.TaskMetrics = {
     createMetrics(

@@ -42,6 +42,8 @@ class AppStatusListenerSuite extends SparkFunSuite with BeforeAndAfter {
     .set(LIVE_ENTITY_UPDATE_PERIOD, 0L)
     .set(ASYNC_TRACKING_ENABLED, false)
 
+  private val twoReplicaMemAndDiskLevel = StorageLevel(true, true, false, true, 2)
+
   private var time: Long = _
   private var testDir: File = _
   private var store: ElementTrackingStore = _
@@ -763,6 +765,7 @@ class AppStatusListenerSuite extends SparkFunSuite with BeforeAndAfter {
       assert(part.memoryUsed === rdd1b1.memSize * 2)
       assert(part.diskUsed === rdd1b1.diskSize * 2)
       assert(part.executors === Seq(bm1.executorId, bm2.executorId))
+      assert(part.storageLevel === twoReplicaMemAndDiskLevel.description)
     }
 
     check[ExecutorSummaryWrapper](bm2.executorId) { exec =>
@@ -800,9 +803,27 @@ class AppStatusListenerSuite extends SparkFunSuite with BeforeAndAfter {
       assert(exec.info.diskUsed === rdd1b1.diskSize + rdd1b2.diskSize)
     }
 
+    // Evict block 1 from memory in bm 1.
+    listener.onBlockUpdated(SparkListenerBlockUpdated(
+      BlockUpdatedInfo(bm1, rdd1b1.blockId, StorageLevel.DISK_ONLY, 0L, rdd1b1.diskSize)))
+
+    check[RDDStorageInfoWrapper](rdd1b1.rddId) { wrapper =>
+      assert(wrapper.info.numCachedPartitions === 2L)
+      assert(wrapper.info.memoryUsed === rdd1b1.memSize + rdd1b2.memSize)
+      assert(wrapper.info.diskUsed === 2 * rdd1b1.diskSize + rdd1b2.diskSize)
+      assert(wrapper.info.dataDistribution.get.size === 2L)
+      assert(wrapper.info.partitions.get.size === 2L)
+    }
+
+    check[ExecutorSummaryWrapper](bm1.executorId) { exec =>
+      assert(exec.info.rddBlocks === 2L)
+      assert(exec.info.memoryUsed === rdd1b2.memSize)
+      assert(exec.info.diskUsed === rdd1b1.diskSize + rdd1b2.diskSize)
+    }
+
     // Remove block 1 from bm 1.
     listener.onBlockUpdated(SparkListenerBlockUpdated(
-      BlockUpdatedInfo(bm1, rdd1b1.blockId, StorageLevel.NONE, rdd1b1.memSize, rdd1b1.diskSize)))
+      BlockUpdatedInfo(bm1, rdd1b1.blockId, StorageLevel.NONE, 0L, 0L)))
 
     check[RDDStorageInfoWrapper](rdd1b1.rddId) { wrapper =>
       assert(wrapper.info.numCachedPartitions === 2L)
@@ -831,7 +852,7 @@ class AppStatusListenerSuite extends SparkFunSuite with BeforeAndAfter {
 
     // Remove block 1 from bm 2. This should leave only block 2's info in the store.
     listener.onBlockUpdated(SparkListenerBlockUpdated(
-      BlockUpdatedInfo(bm2, rdd1b1.blockId, StorageLevel.NONE, rdd1b1.memSize, rdd1b1.diskSize)))
+      BlockUpdatedInfo(bm2, rdd1b1.blockId, StorageLevel.NONE, 0L, 0L)))
 
     check[RDDStorageInfoWrapper](rdd1b1.rddId) { wrapper =>
       assert(wrapper.info.numCachedPartitions === 1L)
@@ -1571,7 +1592,7 @@ class AppStatusListenerSuite extends SparkFunSuite with BeforeAndAfter {
       assert(dist.memoryRemaining === maxMemory - dist.memoryUsed)
 
       val part1 = wrapper.info.partitions.get.find(_.blockName === rdd1b1.blockId.name).get
-      assert(part1.storageLevel === level.description)
+      assert(part1.storageLevel === twoReplicaMemAndDiskLevel.description)
       assert(part1.memoryUsed === 2 * rdd1b1.memSize)
       assert(part1.diskUsed === 2 * rdd1b1.diskSize)
       assert(part1.executors === Seq(bm1.executorId, bm2.executorId))
