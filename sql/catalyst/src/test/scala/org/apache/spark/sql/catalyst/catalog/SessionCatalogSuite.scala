@@ -599,42 +599,6 @@ abstract class SessionCatalogSuite extends AnalysisTest {
     }
   }
 
-  test("lookup table relation") {
-    withBasicCatalog { catalog =>
-      val tempTable1 = Range(1, 10, 1, 10)
-      val metastoreTable1 = catalog.externalCatalog.getTable("db2", "tbl1")
-      catalog.createTempView("tbl1", tempTable1, overrideIfExists = false)
-      catalog.setCurrentDatabase("db2")
-      // If we explicitly specify the database, we'll look up the relation in that database
-      assert(catalog.lookupRelation(TableIdentifier("tbl1", Some("db2"))).children.head
-        .asInstanceOf[UnresolvedCatalogRelation].tableMeta == metastoreTable1)
-      // Otherwise, we'll first look up a temporary table with the same name
-      assert(catalog.lookupRelation(TableIdentifier("tbl1"))
-        == SubqueryAlias("tbl1", tempTable1))
-      // Then, if that does not exist, look up the relation in the current database
-      catalog.dropTable(TableIdentifier("tbl1"), ignoreIfNotExists = false, purge = false)
-      assert(catalog.lookupRelation(TableIdentifier("tbl1")).children.head
-        .asInstanceOf[UnresolvedCatalogRelation].tableMeta == metastoreTable1)
-    }
-  }
-
-  test("look up view relation") {
-    withBasicCatalog { catalog =>
-      val metadata = catalog.externalCatalog.getTable("db3", "view1")
-      catalog.setCurrentDatabase("default")
-      // Look up a view.
-      assert(metadata.viewText.isDefined)
-      val view = View(desc = metadata, output = metadata.schema.toAttributes,
-        child = CatalystSqlParser.parsePlan(metadata.viewText.get))
-      comparePlans(catalog.lookupRelation(TableIdentifier("view1", Some("db3"))),
-        SubqueryAlias("view1", "db3", view))
-      // Look up a view using current database of the session catalog.
-      catalog.setCurrentDatabase("db3")
-      comparePlans(catalog.lookupRelation(TableIdentifier("view1")),
-        SubqueryAlias("view1", "db3", view))
-    }
-  }
-
   test("table exists") {
     withBasicCatalog { catalog =>
       assert(catalog.tableExists(TableIdentifier("tbl1", Some("db2"))))

@@ -955,23 +955,6 @@ class SQLQuerySuite extends QueryTest with SQLTestUtils with TestHiveSingleton {
     }
   }
 
-  test("sanity test for SPARK-6618") {
-    val threads: Seq[Thread] = (1 to 10).map { i =>
-      new Thread("test-thread-" + i) {
-        override def run(): Unit = {
-          val tableName = s"SPARK_6618_table_$i"
-          sql(s"CREATE TABLE $tableName (col1 string)")
-          sessionState.catalog.lookupRelation(TableIdentifier(tableName))
-          table(tableName)
-          tables()
-          sql(s"DROP TABLE $tableName")
-        }
-      }
-    }
-    threads.foreach(_.start())
-    threads.foreach(_.join(10000))
-  }
-
   test("SPARK-5203 union with different decimal precision") {
     Seq.empty[(java.math.BigDecimal, java.math.BigDecimal)]
       .toDF("d1", "d2")

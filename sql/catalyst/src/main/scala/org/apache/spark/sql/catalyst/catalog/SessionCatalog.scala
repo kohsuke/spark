@@ -718,49 +718,41 @@ class SessionCatalog(
     }
   }
 
-  /**
-   * Return a [[LogicalPlan]] that represents the given table or view.
-   *
-   * If a database is specified in `name`, this will return the table/view from that database.
-   * If no database is specified, this will first attempt to return a temporary view with
-   * the same name, then, if that does not exist, return the table/view from the current database.
-   *
-   * Note that, the global temp view database is also valid here, this will return the global temp
-   * view matching the given name.
-   *
-   * If the relation is a view, we generate a [[View]] operator from the view description, and
-   * wrap the logical plan in a [[SubqueryAlias]] which will track the name of the view.
-   * [[SubqueryAlias]] will also keep track of the name and database(optional) of the table/view
-   *
-   * @param name The name of the table/view that we look up.
-   */
-  def lookupRelation(name: TableIdentifier): LogicalPlan = {
-    synchronized {
-      val db = formatDatabaseName(name.database.getOrElse(currentDb))
-      val table = formatTableName(name.table)
-      if (db == globalTempViewManager.database) {
-        globalTempViewManager.get(table).map { viewDef =>
-          SubqueryAlias(table, db, viewDef)
-        }.getOrElse(throw new NoSuchTableException(db, table))
-      } else if (name.database.isDefined || !tempViews.contains(table)) {
-        val metadata = externalCatalog.getTable(db, table)
-        if (metadata.tableType == CatalogTableType.VIEW) {
-          val viewText = metadata.viewText.getOrElse(sys.error("Invalid view without text."))
-          logDebug(s"'$viewText' will be used for the view($table).")
-          // The relation is a view, so we wrap the relation by:
-          // 1. Add a [[View]] operator over the relation to keep track of the view desc;
-          // 2. Wrap the logical plan in a [[SubqueryAlias]] which tracks the name of the view.
-          val child = View(
-            desc = metadata,
-            output = metadata.schema.toAttributes,
-            child = parser.parsePlan(viewText))
-          SubqueryAlias(table, db, child)
-        } else {
-          SubqueryAlias(table, db, UnresolvedCatalogRelation(metadata))
-        }
-      } else {
-        SubqueryAlias(table, tempViews(table))
+  def lookupTempView(table: String): Option[SubqueryAlias] = {
+    val formattedTable = formatTableName(table)
+    getTempView(formattedTable).map { view =>
+      SubqueryAlias(formattedTable, view)
+    }
+  }
+
+  def lookupGlobalTempView(db: String, table: String): Option[SubqueryAlias] = {
+    val formattedDB = formatDatabaseName(db)
+    val formattedTable = formatTableName(table)
+    if (formattedDB == globalTempViewManager.database) {
+      getGlobalTempView(formattedTable).map { view =>
+        SubqueryAlias(formattedTable, formattedDB, view)
       }
+    } else {
+      None
+    }
+  }
+
+  def createV1Relation(metadata: CatalogTable): LogicalPlan = {
+    val db = formatDatabaseName(metadata.identifier.database.get)
+    val table = formatTableName(metadata.identifier.table)
+    if (metadata.tableType == CatalogTableType.VIEW) {
+      val viewText = metadata.viewText.getOrElse(sys.error("Invalid view without text."))
+      logDebug(s"'$viewText' will be used for the view($table).")
+      // The relation is a view, so we wrap the relation by:
+      // 1. Add a [[View]] operator over the relation to keep track of the view desc;
+      // 2. Wrap the logical plan in a [[SubqueryAlias]] which tracks the name of the view.
+      val child = View(
+        desc = metadata,
+        output = metadata.schema.toAttributes,
+        child = parser.parsePlan(viewText))
+      SubqueryAlias(table, db, child)
+    } else {
+      SubqueryAlias(table, db, UnresolvedCatalogRelation(metadata))
     }
   }
 

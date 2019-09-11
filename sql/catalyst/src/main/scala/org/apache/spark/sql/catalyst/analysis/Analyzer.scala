@@ -672,15 +672,6 @@ class Analyzer(
    */
   object ResolveTables extends Rule[LogicalPlan] {
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case u: UnresolvedRelation =>
-        lookupV2Relation(u.multipartIdentifier)
-          .getOrElse(u)
-
-      case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
-        lookupV2Relation(u.multipartIdentifier)
-          .map(v2Relation => i.copy(table = v2Relation))
-          .getOrElse(i)
-
       case u: UnresolvedV2Relation =>
         CatalogV2Util.loadTable(u.catalog, u.tableName).map { table =>
           DataSourceV2Relation.create(table)
@@ -692,6 +683,7 @@ class Analyzer(
    * Replaces [[UnresolvedRelation]]s with concrete relations from the catalog.
    */
   object ResolveRelations extends Rule[LogicalPlan] {
+    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 
     // If the unresolved relation is running directly on files, we just return the original
     // UnresolvedRelation, the plan will get resolved later. Else we look up the table from catalog
@@ -720,13 +712,9 @@ class Analyzer(
     // Note this is compatible with the views defined by older versions of Spark(before 2.2), which
     // have empty defaultDatabase and all the relations in viewText have database part defined.
     def resolveRelation(plan: LogicalPlan): LogicalPlan = plan match {
-      case u @ UnresolvedRelation(AsTemporaryViewIdentifier(ident))
-        if v1SessionCatalog.isTemporaryTable(ident) =>
-        resolveRelation(lookupTableFromCatalog(ident, u, AnalysisContext.get.defaultDatabase))
-
-      case u @ UnresolvedRelation(AsTableIdentifier(ident)) if !isRunningDirectlyOnFiles(ident) =>
+      case u: UnresolvedRelation =>
         val defaultDatabase = AnalysisContext.get.defaultDatabase
-        val foundRelation = lookupTableFromCatalog(ident, u, defaultDatabase)
+        val foundRelation = lookupTableFromCatalog(u, defaultDatabase)
         if (foundRelation != u) {
           resolveRelation(foundRelation)
         } else {
@@ -755,46 +743,61 @@ class Analyzer(
     }
 
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
-      case i @ InsertIntoStatement(u @ UnresolvedRelation(AsTableIdentifier(ident)), _, child, _, _)
-          if child.resolved =>
-        EliminateSubqueryAliases(lookupTableFromCatalog(ident, u)) match {
+      case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
+        EliminateSubqueryAliases(lookupTableFromCatalog(u)) match {
           case v: View =>
             u.failAnalysis(s"Inserting into a view is not allowed. View: ${v.desc.identifier}.")
           case other => i.copy(table = other)
         }
+
       case u: UnresolvedRelation => resolveRelation(u)
     }
 
-    // Look up the table with the given name from catalog. The database we used is decided by the
-    // precedence:
-    // 1. Use the database part of the table identifier, if it is defined;
-    // 2. Use defaultDatabase, if it is defined(In this case, no temporary objects can be used,
-    //    and the default database is only used to look up a view);
-    // 3. Use the currentDb of the SessionCatalog.
+    // Look up the table with the given name from catalog. If `defaultDatabase` is defined, we
+    // expand the table name with `defaultDatabase`. Then we follow this rule to look up the table:
+    //  1. If the table name has only 1 part:
+    //     - Try resolve the table name to a temp view. If not found, expand the table name with
+    //       current namespace and look up the table from current catalog.
+    //  2. If the table name has more than 1 parts:
+    //     - If the table name has 2 parts and the first name part is equal to the global temp view
+    //       database name, resolve the table name to a global temp view.
+    //     - If the first name part matches a registered v2 catalog, look up the table from that
+    //       catalog.
+    //     - Otherwise, look up the table from the current catalog.
     private def lookupTableFromCatalog(
-        tableIdentifier: TableIdentifier,
         u: UnresolvedRelation,
         defaultDatabase: Option[String] = None): LogicalPlan = {
-      val tableIdentWithDb = tableIdentifier.copy(
-        database = tableIdentifier.database.orElse(defaultDatabase))
-      try {
-        v1SessionCatalog.lookupRelation(tableIdentWithDb)
-      } catch {
-        case _: NoSuchTableException | _: NoSuchDatabaseException =>
-          u
+      val nameParts = u.multipartIdentifier
+      assert(nameParts.nonEmpty)
+      val expandedNameParts = defaultDatabase.toSeq ++ nameParts
+      if (expandedNameParts.length == 1) {
+        val tblName = expandedNameParts.head
+        v1SessionCatalog.lookupTempView(tblName).orElse {
+          val tableName = catalogManager.currentNamespace ++ expandedNameParts
+          loadTable(catalogManager.currentCatalog.asTableCatalog, tableName)
+        }.getOrElse(u)
+      } else {
+        val maybeGlobalTempView = if (expandedNameParts.length == 2) {
+          v1SessionCatalog.lookupGlobalTempView(expandedNameParts.head, expandedNameParts.last)
+        } else {
+          None
+        }
+        maybeGlobalTempView.orElse {
+          val CatalogAndIdentifierParts(resolvedCatalog, restNameParts) = expandedNameParts
+          loadTable(resolvedCatalog, restNameParts)
+        }.getOrElse(u)
       }
     }
 
-    // If the database part is specified, and we support running SQL directly on files, and
-    // it's not a temporary view, and the table does not exist, then let's just return the
-    // original UnresolvedRelation. It is possible we are matching a query like "select *
-    // from parquet.`/path/to/query`". The plan will get resolved in the rule `ResolveDataSource`.
-    // Note that we are testing (!db_exists || !table_exists) because the catalog throws
-    // an exception from tableExists if the database does not exist.
-    private def isRunningDirectlyOnFiles(table: TableIdentifier): Boolean = {
-      table.database.isDefined && conf.runSQLonFile && !v1SessionCatalog.isTemporaryTable(table) &&
-        (!v1SessionCatalog.databaseExists(table.database.get)
-          || !v1SessionCatalog.tableExists(table))
+    private def loadTable(tableCatalog: CatalogPlugin, name: Seq[String]): Option[LogicalPlan] = {
+      if (CatalogV2Util.isSessionCatalog(tableCatalog)) {
+        CatalogV2Util.loadTable(tableCatalog, name.asIdentifier).map {
+          case v1Table: V1Table => v1SessionCatalog.createV1Relation(v1Table.v1Table)
+          case v2Table => DataSourceV2Relation.create(v2Table)
+        }
+      } else {
+        CatalogV2Util.loadTable(tableCatalog, name.asIdentifier).map(DataSourceV2Relation.create)
+      }
     }
   }
 
@@ -2753,38 +2756,6 @@ class Analyzer(
       }
     }
   }
-
-  /**
-   * Performs the lookup of DataSourceV2 Tables. The order of resolution is:
-   *   1. Check if this relation is a temporary table.
-   *   2. Check if it has a catalog identifier. Here we try to load the table.
-   *      If we find the table, return the v2 relation and catalog.
-   *   3. Try resolving the relation using the V2SessionCatalog if that is defined.
-   *      If the V2SessionCatalog returns a V1 table definition,
-   *      return `None` so that we can fallback to the V1 code paths.
-   *      If the V2SessionCatalog returns a V2 table, return the v2 relation and V2SessionCatalog.
-   */
-  private def lookupV2RelationAndCatalog(
-      identifier: Seq[String]): Option[(DataSourceV2Relation, CatalogPlugin, Identifier)] =
-    identifier match {
-      case AsTemporaryViewIdentifier(ti) if v1SessionCatalog.isTemporaryTable(ti) => None
-      case CatalogObjectIdentifier(catalog, ident) if !CatalogV2Util.isSessionCatalog(catalog) =>
-        CatalogV2Util.loadTable(catalog, ident) match {
-          case Some(table) => Some((DataSourceV2Relation.create(table), catalog, ident))
-          case None => None
-        }
-      case CatalogObjectIdentifier(catalog, ident) if CatalogV2Util.isSessionCatalog(catalog) =>
-        CatalogV2Util.loadTable(catalog, ident) match {
-          case Some(_: V1Table) => None
-          case Some(table) =>
-            Some((DataSourceV2Relation.create(table), catalog, ident))
-          case None => None
-        }
-      case _ => None
-    }
-
-  private def lookupV2Relation(identifier: Seq[String]): Option[DataSourceV2Relation] =
-    lookupV2RelationAndCatalog(identifier).map(_._1)
 }
 
 /**
