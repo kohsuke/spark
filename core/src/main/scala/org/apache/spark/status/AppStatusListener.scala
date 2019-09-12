@@ -215,15 +215,9 @@ private[spark] class AppStatusListener(
       exec.removeReason = event.reason
       update(exec, now, last = true)
 
-      // Remove all RDD distributions that reference the removed executor, in case there wasn't
-      // a corresponding event.
+      // Remove all RDD distributions and partitions that reference the removed executor.
       liveRDDs.values.foreach { rdd =>
-        if (rdd.removeDistribution(exec)) {
-          update(rdd, now)
-        }
-      }
-      // Remove all RDD partitions that reference the removed executor
-      liveRDDs.values.foreach { rdd =>
+        rdd.removeDistribution(exec)
         rdd.getPartitions().foreach { case (idx, partition) =>
           if (partition != null && partition.executors.contains(event.executorId)) {
             if (partition.executors.length == 1) {
