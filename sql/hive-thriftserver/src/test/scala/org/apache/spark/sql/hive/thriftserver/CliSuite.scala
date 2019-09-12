@@ -332,4 +332,18 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
       "SELECT concat_ws(',', 'First', example_max(1234321), 'Third');" -> "First,1234321,Third"
     )
   }
+
+  test("SPARK-29022 Use add jar class as serde") {
+    val jarFile = HiveTestUtils.getHiveHcatalogCoreJar.getCanonicalPath
+
+    runCliWithin(3.minute)(
+      s"ADD JAR ${jarFile};" -> "",
+      """CREATE TABLE addJar(key string)
+        |ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe';
+      """.stripMargin -> "",
+      "INSERT OVERWRITE TABLE addJar select 1;" -> "",
+      "SELECT * FROM addJar;" -> "1",
+      "DROP TABLE addJar;" -> ""
+    )
+  }
 }
