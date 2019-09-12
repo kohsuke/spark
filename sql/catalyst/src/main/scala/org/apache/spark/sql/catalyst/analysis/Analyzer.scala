@@ -668,9 +668,7 @@ class Analyzer(
   object ResolveTables extends Rule[LogicalPlan] {
     def apply(plan: LogicalPlan): LogicalPlan = plan.resolveOperatorsUp {
       case u: UnresolvedRelation =>
-        lookupV2Relation(u.multipartIdentifier)._1
-          .map(DataSourceV2Relation.create)
-          .getOrElse(u)
+        lookupV2Relation(u.multipartIdentifier).getOrElse(u)
     }
   }
 
@@ -787,15 +785,16 @@ class Analyzer(
     override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
       case i @ InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) if i.query.resolved =>
         lookupV2Relation(u.multipartIdentifier) match {
-          case (Some(v2Table: Table), _) =>
-            resolveV2Insert(i, v2Table)
+          case Some(relation) =>
+            resolveV2Insert(i, relation)
           case _ =>
             InsertIntoTable(i.table, i.partitionSpec, i.query, i.overwrite, i.ifPartitionNotExists)
         }
     }
 
-    private def resolveV2Insert(i: InsertIntoStatement, table: Table): LogicalPlan = {
-      val relation = DataSourceV2Relation.create(table)
+    private def resolveV2Insert(
+        i: InsertIntoStatement,
+        relation: DataSourceV2Relation): LogicalPlan = {
       // ifPartitionNotExists is append with validation, but validation is not supported
       if (i.ifPartitionNotExists) {
         throw new AnalysisException(
@@ -965,20 +964,10 @@ class Analyzer(
     private def resolveV2Alter(
         tableName: Seq[String],
         changes: Seq[TableChange]): Option[AlterTable] = {
-      lookupV2Relation(tableName) match {
-        case (Some(table), Some((catalog, ident))) =>
-          Some(AlterTable(
-            catalog,
-            ident,
-            DataSourceV2Relation.create(table),
-            changes))
-        case (Some(table), None) =>
-          Some(AlterTable(
-            sessionCatalog.asTableCatalog, // table being resolved means this exists
-            tableName.asIdentifier,
-            DataSourceV2Relation.create(table),
-            changes))
-        case (None, _) =>
+      lookupV2RelationAndCatalog(tableName) match {
+        case Some((relation, catalog, ident)) =>
+          Some(AlterTable(catalog, ident, relation, changes))
+        case None =>
           None
       }
     }
@@ -2835,37 +2824,44 @@ class Analyzer(
 
   /**
    * Performs the lookup of DataSourceV2 Tables. The order of resolution is:
-   *   1. Check if this relation is a temporary table
-   *   2. Check if it has a catalog identifier. Here we try to load the table. If we find the table,
-   *      we can return the table. The result returned by an explicit catalog will be returned on
-   *      the Left projection of the Either.
-   *   3. Try resolving the relation using the V2SessionCatalog if that is defined. If the
-   *      V2SessionCatalog returns a V1 table definition (UnresolvedTable), then we return a `None`
-   *      on the right side so that we can fallback to the V1 code paths.
-   * The basic idea is, if a value is returned on the Left, it means a v2 catalog is defined and
-   * must be used to resolve the table. If a value is returned on the right, then we can try
-   * creating a V2 relation if a V2 Table is defined. If it isn't defined, then we should defer
-   * to V1 code paths.
+   *   1. Check if this relation is a temporary table. If so, return `None`.
+   *   2. Check if it has a catalog identifier. Here we try to load the table.
+   *      If we find the table, return the v2 relation and the explicit catalog.
+   *      Otherwise return `None`.
+   *   3. Try resolving the relation using the V2SessionCatalog if that is defined.
+   *      If the V2SessionCatalog returns a V1 table definition (UnresolvedTable),
+   *      return `None` so that we can fallback to the V1 code paths.
+   *      If the V2SessionCatalog returns a V2 table, return the v2 relation and the V2SessionCatalog.
+   *      If the V2SessionCatalog can't find the table, return `None`.
    */
-  private def lookupV2Relation(
+  private def lookupV2RelationAndCatalog(
       identifier: Seq[String]
-      ): (Option[Table], Option[(TableCatalog, Identifier)]) = {
+      ): Option[(DataSourceV2Relation, TableCatalog, Identifier)] = {
     import org.apache.spark.sql.catalog.v2.utils.CatalogV2Util._
     import org.apache.spark.sql.catalog.v2.CatalogV2Implicits._
+    import DataSourceV2Relation.create
+
+    val v2SessionCatalog = catalogManager.v2SessionCatalog
 
     identifier match {
-      case AsTemporaryViewIdentifier(ti) if catalog.isTemporaryTable(ti) =>
-        (None, None)
+      case AsTemporaryViewIdentifier(ti) if catalog.isTemporaryTable(ti) => None
       case CatalogObjectIdentifier(Some(v2Catalog), ident) =>
-        (loadTable(v2Catalog, ident), Some((v2Catalog.asTableCatalog, ident)))
-      case CatalogObjectIdentifier(None, ident) =>
-        loadTable(catalogManager.v2SessionCatalog, ident) match {
-          case Some(_: V1Table) => (None, None)
-          case other => (other, None)
+        loadTable(v2Catalog, ident) match {
+          case Some(table) => Some((create(table), v2Catalog.asTableCatalog, ident))
+          case None => None
         }
-      case _ => (None, None)
+      case CatalogObjectIdentifier(None, ident) =>
+        loadTable(v2SessionCatalog, ident) match {
+          case Some(_: V1Table) => None
+          case Some(table) => Some((create(table), v2SessionCatalog.asTableCatalog, ident))
+          case None => None
+        }
+      case _ => None
     }
   }
+
+  private def lookupV2Relation(identifier: Seq[String]): Option[DataSourceV2Relation] =
+    lookupV2RelationAndCatalog(identifier).map(_._1)
 }
 
 /**
