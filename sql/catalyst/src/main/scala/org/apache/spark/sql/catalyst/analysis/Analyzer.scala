@@ -38,7 +38,7 @@ import org.apache.spark.sql.catalyst.plans.logical.sql._
 import org.apache.spark.sql.catalyst.rules._
 import org.apache.spark.sql.catalyst.trees.TreeNodeRef
 import org.apache.spark.sql.catalyst.util.toPrettySQL
-import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogPlugin, Identifier, LookupCatalog, Table, TableCatalog, TableChange, V1Table}
+import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogPlugin, CatalogV2Util, Identifier, LookupCatalog, Table, TableCatalog, TableChange, V1Table}
 import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTransform, Transform}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
@@ -964,7 +964,7 @@ class Analyzer(
         changes: Seq[TableChange]): Option[AlterTable] = {
       lookupV2RelationAndCatalog(tableName) match {
         case Some((relation, catalog, ident)) =>
-          Some(AlterTable(catalog, ident, relation, changes))
+          Some(AlterTable(catalog.asTableCatalog, ident, relation, changes))
         case None =>
           None
       }
@@ -2822,39 +2822,32 @@ class Analyzer(
 
   /**
    * Performs the lookup of DataSourceV2 Tables. The order of resolution is:
-   *   1. Check if this relation is a temporary table. If so, return `None`.
+   *   1. Check if this relation is a temporary table.
    *   2. Check if it has a catalog identifier. Here we try to load the table.
-   *      If we find the table, return the v2 relation and the explicit catalog.
-   *      Otherwise return `None`.
+   *      If we find the table, return the v2 relation and catalog.
    *   3. Try resolving the relation using the V2SessionCatalog if that is defined.
    *      If the V2SessionCatalog returns a V1 table definition,
    *      return `None` so that we can fallback to the V1 code paths.
    *      If the V2SessionCatalog returns a V2 table, return the v2 relation and V2SessionCatalog.
-   *      If the V2SessionCatalog can't find the table, return `None`.
    */
   private def lookupV2RelationAndCatalog(
-      identifier: Seq[String]
-      ): Option[(DataSourceV2Relation, TableCatalog, Identifier)] = {
-    import org.apache.spark.sql.connector.catalog.CatalogV2Util._
-    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
-    import DataSourceV2Relation.create
-
+      identifier: Seq[String]): Option[(DataSourceV2Relation, CatalogPlugin, Identifier)] =
     identifier match {
       case AsTemporaryViewIdentifier(ti) if catalog.isTemporaryTable(ti) => None
       case CatalogObjectIdentifier(Some(v2Catalog), ident) =>
-        loadTable(v2Catalog, ident) match {
-          case Some(table) => Some((create(table), v2Catalog.asTableCatalog, ident))
+        CatalogV2Util.loadTable(v2Catalog, ident) match {
+          case Some(table) => Some((DataSourceV2Relation.create(table), v2Catalog, ident))
           case None => None
         }
       case CatalogObjectIdentifier(None, ident) =>
-        loadTable(v2SessionCatalog, ident) match {
+        CatalogV2Util.loadTable(catalogManager.v2SessionCatalog, ident) match {
           case Some(_: V1Table) => None
-          case Some(table) => Some((create(table), v2SessionCatalog.asTableCatalog, ident))
+          case Some(table) =>
+            Some((DataSourceV2Relation.create(table), catalogManager.v2SessionCatalog, ident))
           case None => None
         }
       case _ => None
     }
-  }
 
   private def lookupV2Relation(identifier: Seq[String]): Option[DataSourceV2Relation] =
     lookupV2RelationAndCatalog(identifier).map(_._1)
