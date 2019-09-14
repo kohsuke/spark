@@ -44,10 +44,11 @@ class EquivalentExpressions {
    * Wrapper around an Expression that provides structural semantic equality.
    */
   case class StructuralExpr(e: Expression) {
+    // Normalize all ordinals in `BoundReference`s. Only leave data type and nullability.
     def normalized(expr: Expression): Expression = {
       expr.transformUp {
-        case b: ParameterizedBoundReference =>
-          b.copy(ordinalParam = "")
+        case b: BoundReference =>
+          b.copy(ordinal = -1)
       }
     }
     override def equals(o: Any): Boolean = o match {
@@ -96,7 +97,7 @@ class EquivalentExpressions {
    * structurally equivalent expressions. Non-recursive. Returns false if this doesn't add input
    * expression actually.
    */
-  def addStructExpr(ctx: CodegenContext, expr: Expression): Boolean = {
+  def addStructExpr(expr: Expression): Boolean = {
     if (expr.deterministic) {
       // For structural equivalent expressions, we need to pass in int type ordinals into
       // split functions. If the number of ordinals is more than JVM function limit, we skip
@@ -108,9 +109,7 @@ class EquivalentExpressions {
       }
       val parameterLength = CodeGenerator.calculateParamLength(refs) + 2
       if (CodeGenerator.isValidParamLength(parameterLength)) {
-        val parameterizedExpr = parameterizedBoundReferences(ctx, expr)
-
-        val e: StructuralExpr = StructuralExpr(parameterizedExpr)
+        val e: StructuralExpr = StructuralExpr(expr)
         val f = structEquivalenceMap.get(e)
         if (f.isDefined) {
           addExpr(expr, f.get)
@@ -125,17 +124,6 @@ class EquivalentExpressions {
       }
     } else {
       false
-    }
-  }
-
-  /**
-   * Replaces bound references in given expression by parameterized bound references.
-   */
-  private def parameterizedBoundReferences(ctx: CodegenContext, expr: Expression): Expression = {
-    expr.transformUp {
-      case b: BoundReference =>
-        val param = ctx.freshName("ordinal")
-        ParameterizedBoundReference(param, b.dataType, b.nullable)
     }
   }
 
@@ -187,11 +175,11 @@ class EquivalentExpressions {
    * Adds the expression to structural data structure recursively. Returns false if this doesn't add
    * the input expression actually.
    */
-  def addStructuralExprTree(ctx: CodegenContext, expr: Expression): Boolean = {
+  def addStructuralExprTree(expr: Expression): Boolean = {
     val skip = skipExpr(expr) || expr.isInstanceOf[CodegenFallback]
 
-    if (!skip && addStructExpr(ctx, expr)) {
-      childrenToRecurse(expr).foreach(addStructuralExprTree(ctx, _))
+    if (!skip && addStructExpr(expr)) {
+      childrenToRecurse(expr).foreach(addStructuralExprTree)
       true
     } else {
       false
@@ -213,10 +201,8 @@ class EquivalentExpressions {
     equivalenceMap.values.map(_.toSeq).toSeq
   }
 
-  def getStructurallyEquivalentExprs(ctx: CodegenContext, e: Expression): Seq[Seq[Expression]] = {
-    val parameterizedExpr = parameterizedBoundReferences(ctx, e)
-
-    val key = StructuralExpr(parameterizedExpr)
+  def getStructurallyEquivalentExprs(e: Expression): Seq[Seq[Expression]] = {
+    val key = StructuralExpr(e)
     structEquivalenceMap.get(key).map(_.values.map(_.toSeq).toSeq).getOrElse(Seq.empty)
   }
 
