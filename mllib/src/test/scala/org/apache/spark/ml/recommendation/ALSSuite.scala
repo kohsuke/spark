@@ -950,30 +950,6 @@ class ALSSuite extends MLTest with DefaultReadWriteTest with Logging {
     assert(shuffledItemFactors.size == 0)
   }
 
-  test("The input data to ALS must be determinate") {
-    // Explicitly disable this config, so the input dataset is indeterminate.
-    withSQLConf("spark.sql.execution.sortBeforeRepartition" -> "false") {
-      val spark = this.spark
-      import spark.implicits._
-
-      val (ratings, _) = genExplicitTestData(numUsers = 2, numItems = 2, rank = 1)
-      val data = ratings.toDF
-      implicit val rowEncoder = RowEncoder(data.schema)
-
-      val input = data.repartition(10).map(x => x).repartition(20).map(x => x)
-      assert(input.rdd.outputDeterministicLevel == DeterministicLevel.INDETERMINATE)
-
-      val err = intercept[IllegalArgumentException] {
-        new ALS()
-          .setMaxIter(2)
-          .setImplicitPrefs(true)
-          .setCheckpointInterval(-1)
-          .fit(input)
-      }
-      assert(err.getMessage.contains("The output of rating RDD can not be indeterminate."))
-    }
-  }
-
   private def checkRecommendations(
       topK: DataFrame,
       expected: Map[Int, Seq[(Int, Float)]],
