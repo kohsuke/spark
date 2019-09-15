@@ -131,7 +131,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   private val storePath = conf.get(LOCAL_STORE_DIR).map(new File(_))
   private val fastInProgressParsing = conf.get(FAST_IN_PROGRESS_PARSING)
 
-  private def getKVStore(path: File, dbName: String): KVStore = {
+  private def getKVStore(path: File, dbName: String, truncate: Boolean = false): KVStore = {
+    if (truncate) {
+      Files.deleteIfExists(new File(path, s"${dbName}.ldb").toPath)
+    }
     val dbPath = Files.createDirectories(new File(path, s"${dbName}.ldb").toPath()).toFile()
     Utils.chmod700(dbPath)
 
@@ -162,7 +165,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   }.getOrElse(new InMemoryStore())
 
   private[history] val processing: KVStore = storePath.map { path =>
-    getKVStore(path, "processing")
+    // We should truncate process db when initial.
+    getKVStore(path, "processing", truncate = true)
   }.getOrElse(new InMemoryStore())
 
   private val diskManager = storePath.map { path =>
