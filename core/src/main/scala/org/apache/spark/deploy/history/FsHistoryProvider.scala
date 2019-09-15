@@ -131,9 +131,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   private val storePath = conf.get(LOCAL_STORE_DIR).map(new File(_))
   private val fastInProgressParsing = conf.get(FAST_IN_PROGRESS_PARSING)
 
-  // Visible for testing.
-  private[history] val listing: KVStore = storePath.map { path =>
-    val dbPath = Files.createDirectories(new File(path, "listing.ldb").toPath()).toFile()
+  private def getKVStore(path: File, dbName: String): KVStore = {
+    val dbPath = Files.createDirectories(new File(path, s"${dbName}.ldb").toPath()).toFile()
     Utils.chmod700(dbPath)
 
     val metadata = new FsHistoryProviderMetadata(CURRENT_LISTING_VERSION,
@@ -155,6 +154,15 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         Utils.deleteRecursively(dbPath)
         open(dbPath, metadata)
     }
+  }
+
+  // Visible for testing.
+  private[history] val listing: KVStore = storePath.map { path =>
+    getKVStore(path, "listing")
+  }.getOrElse(new InMemoryStore())
+
+  private[history] val processing: KVStore = storePath.map { path =>
+    getKVStore(path, "processing")
   }.getOrElse(new InMemoryStore())
 
   private val diskManager = storePath.map { path =>
@@ -449,6 +457,15 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         }
         .filter { entry =>
           try {
+            processing.read(classOf[LogInfo], entry.getPath.toString)
+            false
+          } catch {
+            case _: NoSuchElementException =>
+              true
+          }
+        }
+        .filter { entry =>
+          try {
             val info = listing.read(classOf[LogInfo], entry.getPath().toString())
 
             if (info.appId.isDefined) {
@@ -512,6 +529,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
       val tasks = updated.flatMap { entry =>
         try {
+          processing.write(LogInfo(entry.getPath.toString, newLastScanTime, LogType.EventLogs, None,
+            None, entry.getLen))
           val task: Future[Unit] = replayExecutor.submit(
             () => mergeApplicationListing(entry, newLastScanTime, true))
           Some(task -> entry.getPath)
@@ -526,29 +545,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       }
 
       pendingReplayTasksCount.addAndGet(tasks.size)
-
-      // Wait for all tasks to finish. This makes sure that checkForLogs
-      // is not scheduled again while some tasks are already running in
-      // the replayExecutor.
-      tasks.foreach { case (task, path) =>
-        try {
-          task.get()
-        } catch {
-          case e: InterruptedException =>
-            throw e
-          case e: ExecutionException if e.getCause.isInstanceOf[AccessControlException] =>
-            // We don't have read permissions on the log file
-            logWarning(s"Unable to read log $path", e.getCause)
-            blacklist(path)
-            // SPARK-28157 We should remove this blacklisted entry from the KVStore
-            // to handle permission-only changes with the same file sizes later.
-            listing.delete(classOf[LogInfo], path.toString)
-          case e: Exception =>
-            logError("Exception while merging application listings", e)
-        } finally {
-          pendingReplayTasksCount.decrementAndGet()
-        }
-      }
 
       // Delete all information about applications whose log files disappeared from storage.
       // This is done by identifying the event logs which were not touched by the current
@@ -677,7 +673,32 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   /**
    * Replay the given log file, saving the application in the listing db.
    */
+
   protected def mergeApplicationListing(
+      fileStatus: FileStatus,
+      scanTime: Long,
+      enableOptimizations: Boolean): Unit = {
+    try {
+      mergeApplicationListingHelper(fileStatus, scanTime, enableOptimizations)
+    } catch {
+      case e: InterruptedException =>
+        throw e
+      case e: ExecutionException if e.getCause.isInstanceOf[AccessControlException] =>
+        // We don't have read permissions on the log file
+        logWarning(s"Unable to read log ${fileStatus.getPath}", e.getCause)
+        blacklist(fileStatus.getPath)
+        // SPARK-28157 We should remove this blacklisted entry from the KVStore
+        // to handle permission-only changes with the same file sizes later.
+        listing.delete(classOf[LogInfo], fileStatus.getPath.toString)
+      case e: Exception =>
+        logError("Exception while merging application listings", e)
+    } finally {
+      processing.delete(classOf[LogInfo], fileStatus.getPath.toString)
+      pendingReplayTasksCount.decrementAndGet()
+    }
+  }
+
+  private def mergeApplicationListingHelper(
       fileStatus: FileStatus,
       scanTime: Long,
       enableOptimizations: Boolean): Unit = {
