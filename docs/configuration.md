@@ -1574,7 +1574,7 @@ Apart from these, the following properties are also available, and may be useful
   <td><code>spark.storage.memoryMapThreshold</code></td>
   <td>2m</td>
   <td>
-    Size in bytes of a block above which Spark memory maps when reading a block from disk.Default unit is bytes,
+    Size of a block above which Spark memory maps when reading a block from disk. Default unit is bytes,
     unless specified otherwise. This prevents Spark from memory mapping very small blocks. In general, 
     memory mapping has high overhead for blocks close to or below the page size of the operating system.
   </td>
