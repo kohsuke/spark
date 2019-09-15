@@ -186,7 +186,7 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
       list.size should be (1)
     }
 
-    provider.mergeApplicationListingCall should be (1)
+    provider.mergeApplicationListingCall should be (2)
   }
 
   test("history file is renamed from inprogress to completed") {
@@ -912,9 +912,13 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
 
     // Manually overwrite the version in the listing db; this should cause the new provider to
     // discard all data because the versions don't match.
-    val meta = new FsHistoryProviderMetadata(FsHistoryProvider.CURRENT_LISTING_VERSION + 1,
+    val listingMeta = new FsHistoryProviderMetadata(FsHistoryProvider.CURRENT_LISTING_VERSION + 1,
       AppStatusStore.CURRENT_VERSION, conf.get(LOCAL_STORE_DIR).get)
-    oldProvider.listing.setMetadata(meta)
+    oldProvider.listing.setMetadata(listingMeta)
+    val processingMeta = new FsHistoryProviderMetadata(
+      FsHistoryProvider.CURRENT_PROCESSING_VERSION + 1, AppStatusStore.CURRENT_VERSION,
+      conf.get(LOCAL_STORE_DIR).get)
+    oldProvider.processing.setMetadata(processingMeta)
     oldProvider.stop()
 
     val mistatchedVersionProvider = new FsHistoryProvider(conf)

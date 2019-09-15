@@ -131,14 +131,18 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   private val storePath = conf.get(LOCAL_STORE_DIR).map(new File(_))
   private val fastInProgressParsing = conf.get(FAST_IN_PROGRESS_PARSING)
 
-  private def getKVStore(path: File, dbName: String, truncate: Boolean = false): KVStore = {
+  private def getKVStore(
+      path: File,
+      dbName: String,
+      currentDBVersion: Long,
+      truncate: Boolean = false): KVStore = {
     if (truncate) {
       Files.deleteIfExists(new File(path, s"${dbName}.ldb").toPath)
     }
     val dbPath = Files.createDirectories(new File(path, s"${dbName}.ldb").toPath()).toFile()
     Utils.chmod700(dbPath)
 
-    val metadata = new FsHistoryProviderMetadata(CURRENT_LISTING_VERSION,
+    val metadata = new FsHistoryProviderMetadata(currentDBVersion,
       AppStatusStore.CURRENT_VERSION, logDir.toString())
 
     try {
@@ -161,12 +165,12 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
   // Visible for testing.
   private[history] val listing: KVStore = storePath.map { path =>
-    getKVStore(path, "listing")
+    getKVStore(path, "listing", CURRENT_LISTING_VERSION)
   }.getOrElse(new InMemoryStore())
 
   private[history] val processing: KVStore = storePath.map { path =>
     // We should truncate process db when initial.
-    getKVStore(path, "processing", truncate = true)
+    getKVStore(path, "processing", CURRENT_PROCESSING_VERSION, truncate = true)
   }.getOrElse(new InMemoryStore())
 
   private val diskManager = storePath.map { path =>
@@ -416,6 +420,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       activeUIs.foreach { case (_, loadedUI) => loadedUI.ui.store.close() }
       activeUIs.clear()
       listing.close()
+      processing.close()
     }
   }
 
@@ -687,9 +692,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     } catch {
       case e: InterruptedException =>
         throw e
-      case e: ExecutionException if e.getCause.isInstanceOf[AccessControlException] =>
+      case e: AccessControlException =>
         // We don't have read permissions on the log file
-        logWarning(s"Unable to read log ${fileStatus.getPath}", e.getCause)
+        logWarning(s"Unable to read log ${fileStatus.getPath}", e)
         blacklist(fileStatus.getPath)
         // SPARK-28157 We should remove this blacklisted entry from the KVStore
         // to handle permission-only changes with the same file sizes later.
@@ -805,7 +810,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         // mean the end event is before the configured threshold, so call the method again to
         // re-parse the whole log.
         logInfo(s"Reparsing $logPath since end event was not found.")
-        mergeApplicationListing(fileStatus, scanTime, false)
+        mergeApplicationListingHelper(fileStatus, scanTime, false)
 
       case _ =>
         // If the app hasn't written down its app ID to the logs, still record the entry in the
@@ -1168,6 +1173,14 @@ private[history] object FsHistoryProvider {
    * all data and re-generate the listing data from the event logs.
    */
   private[history] val CURRENT_LISTING_VERSION = 1L
+
+  /**
+   * Current version of the data written to the processing database. When opening an existing
+   * db, if the version does not match this value, the FsHistoryProvider will throw away
+   * all data and re-generate the processing data from the event logs.
+   * Please keep CURRENT_PROCESSING_VERSION be different with CURRENT_LISTING_VERSION.
+   */
+  private[history] val CURRENT_PROCESSING_VERSION = 10000L
 }
 
 private[history] case class FsHistoryProviderMetadata(
