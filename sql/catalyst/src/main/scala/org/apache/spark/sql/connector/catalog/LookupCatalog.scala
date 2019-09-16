@@ -19,6 +19,7 @@ package org.apache.spark.sql.connector.catalog
 
 import org.apache.spark.annotation.Experimental
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.TableIdentifier
 
 /**
@@ -130,6 +131,59 @@ private[sql] trait LookupCatalog extends Logging {
         Some(TableIdentifier(table, Some(database)))
       case _ =>
         None
+    }
+  }
+
+  type CatalogAndRestNameParts = (Either[CatalogPlugin, CatalogPlugin], Seq[String])
+
+  /**
+   * Extract catalog and the rest name parts from a multi-part identifier. It returns a
+   * `Left[CatalogPlugin]` if the catalog is resolved from the identifier or it's the default
+   * catalog. Returns a `Right[CatalogPlugin]` if it's the session catalog.
+   */
+  object CatalogAndRestNameParts {
+    def unapply(nameParts: Seq[String]): Some[CatalogAndRestNameParts] = {
+      assert(nameParts.nonEmpty)
+      try {
+        Some((Left(catalogManager.catalog(nameParts.head)), nameParts.tail))
+      } catch {
+        case _: CatalogNotFoundException =>
+          defaultCatalog.map { catalog =>
+            Some((Left(catalog), nameParts))
+          }.getOrElse {
+            Some((Right(sessionCatalog), nameParts))
+          }
+      }
+    }
+  }
+
+  type CatalogAndTable = (TableCatalog, Seq[String], Either[V1Table, Table])
+
+  /**
+   * Extract catalog and table with its name from a multi-part identifier. It returns a
+   * `Left[V1Table]` if the resolved table is a [[V1Table]]. Otherwise returns `Right[Table]`. If
+   * the table can't be found, return None.
+   */
+  object CatalogAndTable {
+    import CatalogV2Implicits._
+    import CatalogV2Util._
+
+    def unapply(nameParts: Seq[String]): Option[CatalogAndTable] = {
+      assert(nameParts.nonEmpty)
+      val (catalog, tableName) = nameParts match {
+        case CatalogAndRestNameParts(Left(c), restNameParts) =>
+          c.asTableCatalog -> restNameParts
+        case CatalogAndRestNameParts(Right(c), restNameParts) =>
+          c.asTableCatalog -> restNameParts
+      }
+      loadTable(catalog, tableName.toIdentifier).map { table =>
+        table match {
+          case v1Table: V1Table =>
+            (catalog, tableName, Left(v1Table))
+          case v2Table =>
+            (catalog, tableName, Right(v2Table))
+        }
+      }
     }
   }
 }
