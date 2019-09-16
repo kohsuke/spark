@@ -227,7 +227,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     )
   }
 
-  test("Commands using SerDe provided in --hive.aux.jars.path") {
+  test("Commands using SerDe provided jars in conf hive.aux.jars.path") {
 
     val dataFilePath =
       Thread.currentThread().getContextClassLoader.getResource("data/files/small_kv.txt")

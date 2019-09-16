@@ -165,8 +165,6 @@ private[hive] object SparkSQLCLIDriver extends Logging {
       StringUtils.split(auxJars, ",").foreach(resourceLoader.addJar(_))
     }
 
-    SessionState.get().getConf.setClassLoader(SparkSQLEnv.sqlContext.sharedState.jarClassLoader)
-
     // TODO work around for set the log output to console, because the HiveContext
     // will set the output into an invalid buffer.
     sessionState.in = System.in
