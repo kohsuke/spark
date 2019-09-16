@@ -1841,6 +1841,15 @@ class DatasetSuite extends QueryTest with SharedSparkSession {
     val instant = java.time.Instant.parse("2019-03-30T09:54:00Z")
     assert(spark.range(1).map { _ => instant }.head === instant)
   }
+
+  test("SPARK-25153: Improve error messages for columns with dots/periods") {
+    val ds = Seq(SpecialCharClass("1", "2")).toDS
+    val colName = "field.1"
+    val errorMsg = intercept[AnalysisException] {
+      ds(colName)
+    }
+    assert(errorMsg.getMessage.contains(s"did you mean to quote the `${colName}` column?"))
+  }
 }
 
 object AssertExecutionId {
