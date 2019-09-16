@@ -159,13 +159,13 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     assume(!Utils.isWindows)
 
     class TestFsHistoryProvider extends FsHistoryProvider(createTestConf()) {
-      var mergeApplicationListingCall = 0
-      override protected def mergeApplicationListing(
+      var doMergeApplicationListingCall = 0
+      override private[history] def doMergeApplicationListing(
           fileStatus: FileStatus,
           lastSeen: Long,
           enableSkipToEnd: Boolean): Unit = {
-        super.mergeApplicationListing(fileStatus, lastSeen, enableSkipToEnd)
-        mergeApplicationListingCall += 1
+        super.doMergeApplicationListing(fileStatus, lastSeen, enableSkipToEnd)
+        doMergeApplicationListingCall += 1
       }
     }
     val provider = new TestFsHistoryProvider
@@ -186,7 +186,7 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
       list.size should be (1)
     }
 
-    provider.mergeApplicationListingCall should be (2)
+    provider.doMergeApplicationListingCall should be (1)
   }
 
   test("history file is renamed from inprogress to completed") {

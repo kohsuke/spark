@@ -692,8 +692,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
   /**
    * Replay the given log file, saving the application in the listing db.
+   * Visible for testing
    */
-  private def doMergeApplicationListing(
+  private[history] def doMergeApplicationListing(
       fileStatus: FileStatus,
       scanTime: Long,
       enableOptimizations: Boolean): Unit = {
