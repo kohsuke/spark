@@ -912,13 +912,9 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
 
     // Manually overwrite the version in the listing db; this should cause the new provider to
     // discard all data because the versions don't match.
-    val listingMeta = new FsHistoryProviderMetadata(FsHistoryProvider.CURRENT_LISTING_VERSION + 1,
+    val meta = new FsHistoryProviderMetadata(FsHistoryProvider.CURRENT_LISTING_VERSION + 1,
       AppStatusStore.CURRENT_VERSION, conf.get(LOCAL_STORE_DIR).get)
-    oldProvider.listing.setMetadata(listingMeta)
-    val processingMeta = new FsHistoryProviderMetadata(
-      FsHistoryProvider.CURRENT_PROCESSING_VERSION + 1, AppStatusStore.CURRENT_VERSION,
-      conf.get(LOCAL_STORE_DIR).get)
-    oldProvider.processing.setMetadata(processingMeta)
+    oldProvider.listing.setMetadata(meta)
     oldProvider.stop()
 
     val mistatchedVersionProvider = new FsHistoryProvider(conf)
