@@ -20,7 +20,7 @@ package org.apache.spark.deploy.history
 import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.Files
 import java.util.{Date, ServiceLoader}
-import java.util.concurrent.{ConcurrentHashMap, ConcurrentSkipListSet, ExecutorService, Future, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ExecutorService, Future, TimeUnit}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.JavaConverters._
@@ -160,7 +160,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     new HistoryServerDiskManager(conf, path, listing, clock)
   }
 
-  private val processing = new ConcurrentSkipListSet[String]
+  private val processing = ConcurrentHashMap.newKeySet[String]
 
   private def isProcessing(path: Path): Boolean = {
     processing.contains(path.getName)
