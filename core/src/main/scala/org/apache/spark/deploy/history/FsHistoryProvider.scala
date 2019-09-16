@@ -162,7 +162,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
   private val processing = new ConcurrentSkipListSet[String]
 
-  private[history] def isProcessing(path: Path): Boolean = {
+  private def isProcessing(path: Path): Boolean = {
     processing.contains(path.getName)
   }
 
