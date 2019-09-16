@@ -770,6 +770,10 @@ class SessionCatalog(
     }
   }
 
+  def isTempView(nameParts: Seq[String]): Boolean = {
+    nameParts.length == 1 && getTempView(formatTableName(nameParts.head)).isDefined
+  }
+
   /**
    * List all tables in the specified database, including local temporary views.
    *
