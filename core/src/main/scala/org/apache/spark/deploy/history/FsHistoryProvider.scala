@@ -679,10 +679,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
-  /**
-   * Replay the given log file, saving the application in the listing db.
-   */
-
   protected def mergeApplicationListing(
       fileStatus: FileStatus,
       scanTime: Long,
@@ -707,6 +703,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
+  /**
+   * Replay the given log file, saving the application in the listing db.
+   */
   private def mergeApplicationListingHelper(
       fileStatus: FileStatus,
       scanTime: Long,
