@@ -22,7 +22,7 @@ import java.io.File;
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
 
-public class LevelDBIteratorSuite extends DBIteratorSuite {
+public class LevelDBIteratorSuite extends KVStoreIteratorSuite {
 
   private static File dbpath;
   private static LevelDB db;

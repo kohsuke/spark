@@ -17,27 +17,28 @@
 
 package org.apache.spark.util.kvstore;
 
-import java.util.Arrays;
+import java.util.List;
 
-public class ArrayKeyIndexType {
-
+public class IntKeyType {
   @KVIndex
-  public int[] key;
+  public int key;
 
   @KVIndex("id")
-  public String[] id;
+  public String id;
+
+  public List<String> values;
 
   @Override
   public boolean equals(Object o) {
-    if (o instanceof ArrayKeyIndexType) {
-      ArrayKeyIndexType other = (ArrayKeyIndexType) o;
-      return Arrays.equals(key, other.key) && Arrays.equals(id, other.id);
+    if (o instanceof IntKeyType) {
+      IntKeyType other = (IntKeyType) o;
+      return key == other.key && id.equals(other.id) && values.equals(other.values);
     }
     return false;
   }
 
   @Override
   public int hashCode() {
-    return Arrays.hashCode(key);
+    return id.hashCode();
   }
 }
