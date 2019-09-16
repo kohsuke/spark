@@ -30,6 +30,11 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 @Experimental
 public interface CatalogExtension extends TableCatalog {
 
+  @Override
+  default String name() {
+    return CatalogManager.SESSION_CATALOG_NAME();
+  }
+
   /**
    * This will be called only once by Spark to pass in the Spark built-in session catalog, after
    * {@link #initialize(String, CaseInsensitiveStringMap)} is called.
