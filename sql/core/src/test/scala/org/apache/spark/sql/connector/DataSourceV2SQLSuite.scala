@@ -784,7 +784,8 @@ class DataSourceV2SQLSuite
       sql("SHOW NAMESPACES")
     }
 
-    assert(exception.getMessage.contains("No default v2 catalog is set"))
+    assert(exception.getMessage.contains(
+      "SHOW NAMESPACES is not supported with the session catalog"))
   }
 
   test("ShowNamespaces: default v2 catalog doesn't support namespace") {
@@ -812,12 +813,13 @@ class DataSourceV2SQLSuite
     assert(exception.getMessage.contains("does not support namespaces"))
   }
 
-  test("ShowNamespaces: no v2 catalog is available") {
+  test("ShowNamespaces: session catalog") {
     val exception = intercept[AnalysisException] {
       sql("SHOW NAMESPACES in dummy")
     }
 
-    assert(exception.getMessage.contains("No v2 catalog is available"))
+    assert(exception.getMessage.contains(
+      "SHOW NAMESPACES is not supported with the session catalog."))
   }
 
   private def testShowNamespaces(
@@ -846,8 +848,6 @@ class DataSourceV2SQLSuite
     checkPartitioning(sessionCatalog, "a")
     sql(s"CREATE TABLE testcat.tbl (a int, b string) USING $v2Source PARTITIONED BY (A)")
     checkPartitioning(testCatalog, "a")
-    sql(s"CREATE OR REPLACE TABLE tbl (a int, b string) USING $v2Source PARTITIONED BY (B)")
-    checkPartitioning(sessionCatalog, "b")
     sql(s"CREATE OR REPLACE TABLE testcat.tbl (a int, b string) USING $v2Source PARTITIONED BY (B)")
     checkPartitioning(testCatalog, "b")
   }
@@ -865,8 +865,6 @@ class DataSourceV2SQLSuite
     checkFailure(s"CREATE TABLE tbl (a int, b string) USING $v2Source PARTITIONED BY (A)")
     checkFailure(s"CREATE TABLE testcat.tbl (a int, b string) USING $v2Source PARTITIONED BY (A)")
     checkFailure(
-      s"CREATE OR REPLACE TABLE tbl (a int, b string) USING $v2Source PARTITIONED BY (B)")
-    checkFailure(
       s"CREATE OR REPLACE TABLE testcat.tbl (a int, b string) USING $v2Source PARTITIONED BY (B)")
   }
 
@@ -880,10 +878,6 @@ class DataSourceV2SQLSuite
         )
         testCreateAnalysisError(
           s"CREATE TABLE testcat.t ($c0 INT, $c1 INT) USING $v2Source",
-          errorMsg
-        )
-        testCreateAnalysisError(
-          s"CREATE OR REPLACE TABLE t ($c0 INT, $c1 INT) USING $v2Source",
           errorMsg
         )
         testCreateAnalysisError(
@@ -907,10 +901,6 @@ class DataSourceV2SQLSuite
           errorMsg
         )
         testCreateAnalysisError(
-          s"CREATE OR REPLACE TABLE t (d struct<$c0: INT, $c1: INT>) USING $v2Source",
-          errorMsg
-        )
-        testCreateAnalysisError(
           s"CREATE OR REPLACE TABLE testcat.t (d struct<$c0: INT, $c1: INT>) USING $v2Source",
           errorMsg
         )
@@ -926,11 +916,6 @@ class DataSourceV2SQLSuite
     )
     testCreateAnalysisError(
       s"CREATE TABLE testcat.tbl (a int, b string) USING $v2Source CLUSTERED BY (c) INTO 4 BUCKETS",
-      errorMsg
-    )
-    testCreateAnalysisError(
-      s"CREATE OR REPLACE TABLE tbl (a int, b string) USING $v2Source " +
-        "CLUSTERED BY (c) INTO 4 BUCKETS",
       errorMsg
     )
     testCreateAnalysisError(
@@ -950,10 +935,6 @@ class DataSourceV2SQLSuite
         )
         testCreateAnalysisError(
           s"CREATE TABLE testcat.t ($c0 INT) USING $v2Source PARTITIONED BY ($c0, $c1)",
-          errorMsg
-        )
-        testCreateAnalysisError(
-          s"CREATE OR REPLACE TABLE t ($c0 INT) USING $v2Source PARTITIONED BY ($c0, $c1)",
           errorMsg
         )
         testCreateAnalysisError(
@@ -979,17 +960,19 @@ class DataSourceV2SQLSuite
           errorMsg
         )
         testCreateAnalysisError(
-          s"CREATE OR REPLACE TABLE t ($c0 INT) USING $v2Source " +
-            s"CLUSTERED BY ($c0, $c1) INTO 2 BUCKETS",
-          errorMsg
-        )
-        testCreateAnalysisError(
           s"CREATE OR REPLACE TABLE testcat.t ($c0 INT) USING $v2Source " +
             s"CLUSTERED BY ($c0, $c1) INTO 2 BUCKETS",
           errorMsg
         )
       }
     }
+  }
+
+  test("REPLACE TABLE: session catalog") {
+    val e = intercept[AnalysisException] {
+      sql(s"CREATE OR REPLACE TABLE tbl (a int) USING $v2Source")
+    }
+    assert(e.message.contains("REPLACE TABLE is not supported with the session catalog"))
   }
 
   test("DeleteFrom: basic") {
