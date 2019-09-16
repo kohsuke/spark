@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression,
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.util.truncatedString
-import org.apache.spark.sql.connector.catalog.{Identifier, SupportsNamespaces, TableCatalog, TableChange}
+import org.apache.spark.sql.connector.catalog.{Identifier, SupportsNamespaces, Table, TableCatalog, TableChange}
 import org.apache.spark.sql.connector.catalog.TableChange.{AddColumn, ColumnChange}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types._
@@ -570,10 +570,7 @@ case class ShowNamespaces(
     AttributeReference("namespace", StringType, nullable = false)())
 }
 
-case class DescribeTable(table: NamedRelation, isExtended: Boolean) extends Command {
-
-  override def children: Seq[LogicalPlan] = Seq(table)
-
+case class DescribeTable(table: Table, isExtended: Boolean) extends Command {
   override val output = DescribeTableSchema.describeTableAttributes()
 }
 
@@ -598,10 +595,8 @@ case class DropTable(
 case class AlterTable(
     catalog: TableCatalog,
     ident: Identifier,
-    table: NamedRelation,
+    table: Table,
     changes: Seq[TableChange]) extends Command {
-
-  override def children: Seq[LogicalPlan] = Seq(table)
 
   override lazy val resolved: Boolean = childrenResolved && {
     changes.forall {
