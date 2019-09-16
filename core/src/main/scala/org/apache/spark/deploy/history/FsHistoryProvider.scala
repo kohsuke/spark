@@ -20,7 +20,7 @@ package org.apache.spark.deploy.history
 import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.Files
 import java.util.{Date, ServiceLoader}
-import java.util.concurrent.{ConcurrentHashMap, ExecutorService, Future, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ConcurrentSkipListSet, ExecutorService, Future, TimeUnit}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.JavaConverters._
@@ -157,10 +157,22 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }.getOrElse(new InMemoryStore())
 
-  private[history] val processing: KVStore = new InMemoryStore()
-
   private val diskManager = storePath.map { path =>
     new HistoryServerDiskManager(conf, path, listing, clock)
+  }
+
+  private val processing = new ConcurrentSkipListSet[String]
+
+  private[history] def isProcessing(path: Path): Boolean = {
+    processing.contains(path.getName)
+  }
+
+  private def processing(path: Path): Unit = {
+    processing.add(path.getName)
+  }
+
+  private def endProcess(path: Path): Unit = {
+    processing.remove(path.getName)
   }
 
   private val blacklist = new ConcurrentHashMap[String, Long]
@@ -406,7 +418,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       activeUIs.foreach { case (_, loadedUI) => loadedUI.ui.store.close() }
       activeUIs.clear()
       listing.close()
-      processing.close()
     }
   }
 
@@ -448,16 +459,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
             // reading a garbage file is safe, but we would log an error which can be scary to
             // the end-user.
             !entry.getPath().getName().startsWith(".") &&
-            !isBlacklisted(entry.getPath)
-        }
-        .filter { entry =>
-          try {
-            processing.read(classOf[LogInfo], entry.getPath.toString)
-            false
-          } catch {
-            case _: NoSuchElementException =>
-              true
-          }
+            !isBlacklisted(entry.getPath) &&
+            !isProcessing(entry.getPath)
         }
         .filter { entry =>
           try {
@@ -524,8 +527,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
 
       val tasks = updated.flatMap { entry =>
         try {
-          processing.write(LogInfo(entry.getPath.toString, newLastScanTime, LogType.EventLogs, None,
-            None, entry.getLen))
+          processing(entry.getPath)
           val task: Future[Unit] = replayExecutor.submit(
             () => mergeApplicationListing(entry, newLastScanTime, true))
           Some(task -> entry.getPath)
@@ -670,7 +672,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       scanTime: Long,
       enableOptimizations: Boolean): Unit = {
     try {
-      mergeApplicationListingHelper(fileStatus, scanTime, enableOptimizations)
+      doMergeApplicationListing(fileStatus, scanTime, enableOptimizations)
     } catch {
       case e: InterruptedException =>
         throw e
@@ -684,7 +686,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       case e: Exception =>
         logError("Exception while merging application listings", e)
     } finally {
-      processing.delete(classOf[LogInfo], fileStatus.getPath.toString)
+      endProcess(fileStatus.getPath)
       pendingReplayTasksCount.decrementAndGet()
     }
   }
@@ -692,7 +694,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   /**
    * Replay the given log file, saving the application in the listing db.
    */
-  private def mergeApplicationListingHelper(
+  private def doMergeApplicationListing(
       fileStatus: FileStatus,
       scanTime: Long,
       enableOptimizations: Boolean): Unit = {
@@ -795,7 +797,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         // mean the end event is before the configured threshold, so call the method again to
         // re-parse the whole log.
         logInfo(s"Reparsing $logPath since end event was not found.")
-        mergeApplicationListingHelper(fileStatus, scanTime, false)
+        doMergeApplicationListing(fileStatus, scanTime, false)
 
       case _ =>
         // If the app hasn't written down its app ID to the logs, still record the entry in the
