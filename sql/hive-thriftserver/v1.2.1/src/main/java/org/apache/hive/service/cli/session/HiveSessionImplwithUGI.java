@@ -122,8 +122,6 @@ public class HiveSessionImplwithUGI extends HiveSessionImpl {
    * Enable delegation token for the session
    * save the token string and set the token.signature in hive conf. The metastore client uses
    * this token.signature to determine where to use kerberos or delegation token
-   * @throws HiveException
-   * @throws IOException
    */
   private void setDelegationToken(String delegationTokenStr) throws HiveSQLException {
     this.delegationTokenStr = delegationTokenStr;

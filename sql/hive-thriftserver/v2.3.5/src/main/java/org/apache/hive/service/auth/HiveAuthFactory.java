@@ -204,9 +204,6 @@ public class HiveAuthFactory {
 
   /**
    * Returns the thrift processor factory for HiveServer2 running in binary mode
-   * @param service
-   * @return
-   * @throws LoginException
    */
   public TProcessorFactory getAuthProcFactory(ThriftCLIService service) throws LoginException {
     if (authTypeStr.equalsIgnoreCase(AuthTypes.KERBEROS.getAuthName())) {

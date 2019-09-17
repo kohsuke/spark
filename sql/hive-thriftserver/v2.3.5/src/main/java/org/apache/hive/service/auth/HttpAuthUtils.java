@@ -61,7 +61,6 @@ public final class HttpAuthUtils {
 
   /**
    * @return Stringified Base64 encoded kerberosAuthHeader on success
-   * @throws Exception
    */
   public static String getKerberosServiceTicket(String principal, String host,
       String serverHttpUrl, boolean assumeSubject) throws Exception {

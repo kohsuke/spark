@@ -86,8 +86,6 @@ public class SQLOperation extends ExecuteStatementOperation {
 
   /***
    * Compile the query and extract metadata
-   * @param queryState
-   * @throws HiveSQLException
    */
   public void prepare(QueryState queryState) throws HiveSQLException {
     setState(OperationState.RUNNING);
@@ -249,9 +247,7 @@ public class SQLOperation extends ExecuteStatementOperation {
 
   /**
    * Returns the current UGI on the stack
-   * @param opConfig
    * @return UserGroupInformation
-   * @throws HiveSQLException
    */
   private UserGroupInformation getCurrentUGI(HiveConf opConfig) throws HiveSQLException {
     try {
@@ -264,7 +260,6 @@ public class SQLOperation extends ExecuteStatementOperation {
   /**
    * Returns the ThreadLocal Hive for the current thread
    * @return Hive
-   * @throws HiveSQLException
    */
   private Hive getSessionHive() throws HiveSQLException {
     try {
@@ -435,7 +430,6 @@ public class SQLOperation extends ExecuteStatementOperation {
    * 2. confOverlay -
    *    The query specific settings should only be applied to the query config and not session
    * @return new configuration
-   * @throws HiveSQLException
    */
   private HiveConf getConfigForOperation() throws HiveSQLException {
     HiveConf sqlOperationConf = getParentSession().getHiveConf();

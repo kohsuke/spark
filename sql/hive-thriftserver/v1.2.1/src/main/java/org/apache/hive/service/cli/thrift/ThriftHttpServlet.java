@@ -307,7 +307,6 @@ public class ThriftHttpServlet extends TServlet {
 
   /**
    * Do the LDAP/PAM authentication
-   * @throws HttpAuthenticationException
    */
   private String doPasswdAuth(HttpServletRequest request, String authType)
       throws HttpAuthenticationException {
@@ -333,7 +332,6 @@ public class ThriftHttpServlet extends TServlet {
    * which GSS-API will extract information from.
    * In case of a SPNego request we use the httpUGI,
    * for the authenticating service tickets.
-   * @throws HttpAuthenticationException
    */
   private String doKerberosAuth(HttpServletRequest request)
       throws HttpAuthenticationException {

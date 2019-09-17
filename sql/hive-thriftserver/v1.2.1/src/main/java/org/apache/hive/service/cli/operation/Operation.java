@@ -247,7 +247,6 @@ public abstract class Operation {
 
   /**
    * Implemented by subclass of Operation class to execute specific behaviors.
-   * @throws HiveSQLException
    */
   protected abstract void runInternal() throws HiveSQLException;
 
@@ -289,8 +288,6 @@ public abstract class Operation {
 
   /**
    * Verify if the given fetch orientation is part of the default orientation types.
-   * @param orientation
-   * @throws HiveSQLException
    */
   protected void validateDefaultFetchOrientation(FetchOrientation orientation)
       throws HiveSQLException {
@@ -299,9 +296,6 @@ public abstract class Operation {
 
   /**
    * Verify if the given fetch orientation is part of the supported orientation types.
-   * @param orientation
-   * @param supportedOrientations
-   * @throws HiveSQLException
    */
   protected void validateFetchOrientation(FetchOrientation orientation,
       EnumSet<FetchOrientation> supportedOrientations) throws HiveSQLException {
