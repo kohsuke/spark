@@ -16,12 +16,10 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.state
 
-import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, RowEncoder}
-import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, JoinedRow, UnsafeRow}
+import org.apache.spark.sql.catalyst.expressions.{GenericInternalRow, UnsafeRow}
+import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.execution.streaming.state.{StateStore, StateStoreConf, StateStoreId, StateStoreProviderId}
-import org.apache.spark.sql.sources.v2.reader.PartitionReader
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.util.SerializableConfiguration
 

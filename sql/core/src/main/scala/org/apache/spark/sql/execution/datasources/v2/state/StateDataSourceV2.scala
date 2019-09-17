@@ -17,9 +17,9 @@
 package org.apache.spark.sql.execution.datasources.v2.state
 
 import org.apache.spark.sql.{AnalysisException, SparkSession}
+import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
 import org.apache.spark.sql.execution.streaming.state.StateStoreId
 import org.apache.spark.sql.sources.DataSourceRegister
-import org.apache.spark.sql.sources.v2.{Table, TableProvider}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
