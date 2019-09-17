@@ -361,17 +361,30 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     )
   }
 
-  test("SPARK-29022 Use add jar class as serde") {
-    val jarFile = HiveTestUtils.getHiveHcatalogCoreJar.getCanonicalPath
+  test("SPARK-29022 Commands using SerDe provided in ADD JAR sql") {
+    val dataFilePath =
+      Thread.currentThread().getContextClassLoader.getResource("data/files/small_kv.txt")
+    val hiveContribJar = HiveTestUtils.getHiveContribJar.getCanonicalPath
 
-    runCliWithin(3.minute)(
-      s"ADD JAR ${jarFile};" -> "",
-      """CREATE TABLE addJar(key string)
+    runCliWithin(
+      3.minute)(
+      s"ADD JAR ${hiveContribJar};" -> "",
+      """CREATE TABLE addJarWithSQL(key string, val string)
         |ROW FORMAT SERDE 'org.apache.hive.hcatalog.data.JsonSerDe';
-      """.stripMargin -> "",
-      "INSERT OVERWRITE TABLE addJar select 1;" -> "",
-      "SELECT * FROM addJar;" -> "1",
-      "DROP TABLE addJar;" -> ""
+      """.stripMargin
+        -> "",
+      "CREATE TABLE sourceTableForWithSQL(key INT, val STRING);"
+        -> "",
+      s"LOAD DATA LOCAL INPATH '$dataFilePath' OVERWRITE INTO TABLE sourceTableForWithSQL;"
+        -> "",
+      "INSERT INTO TABLE addJarWithSQL SELECT key, val FROM sourceTableForWithSQL;"
+        -> "",
+      "SELECT collect_list(array(val)) FROM addJarWithSQL;"
+        -> """[["val_238"],["val_86"],["val_311"],["val_27"],["val_165"]]""",
+      "DROP TABLE addJarWithSQL;"
+        -> "",
+      "DROP TABLE sourceTableForWithSQL;"
+        -> ""
     )
   }
 }
