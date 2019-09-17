@@ -24,10 +24,10 @@ import scala.util.Random
 import org.apache.hadoop.conf.Configuration
 
 import org.apache.spark.sql.execution.streaming.state.StateStoreTestsHelper.newDir
-import org.apache.spark.sql.test.SharedSQLContext
+import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types._
 
-class StateSchemaCompatibilityCheckerSuite extends SharedSQLContext {
+class StateSchemaCompatibilityCheckerSuite extends SharedSparkSession {
 
   testQuietly("changing schema of state when restarting query") {
     val opId = Random.nextInt(100000)
