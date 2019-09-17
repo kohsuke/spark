@@ -288,9 +288,6 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
    * 2. If hive.server2.allow.user.substitution = true: the username of the end user,
    * that the connecting user is trying to proxy for.
    * This includes a check whether the connecting user is allowed to proxy for the end user.
-   * @param req
-   * @return
-   * @throws HiveSQLException
    */
   private String getUserName(TOpenSessionReq req) throws HiveSQLException {
     String userName = null;
@@ -331,12 +328,6 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
 
   /**
    * Create a session handle
-   * @param req
-   * @param res
-   * @return
-   * @throws HiveSQLException
-   * @throws LoginException
-   * @throws IOException
    */
   SessionHandle getSessionHandle(TOpenSessionReq req, TOpenSessionResp res)
       throws HiveSQLException, LoginException, IOException {
@@ -638,11 +629,6 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
 
   /**
    * If the proxy user name is provided then check privileges to substitute the user.
-   * @param realUser
-   * @param sessionConf
-   * @param ipAddress
-   * @return
-   * @throws HiveSQLException
    */
   private String getProxyUser(String realUser, Map<String, String> sessionConf,
       String ipAddress) throws HiveSQLException {

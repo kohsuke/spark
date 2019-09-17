@@ -42,10 +42,6 @@ import org.apache.hive.service.cli.thrift.TProtocolVersion;
 import org.apache.hive.service.server.HiveServer2;
 import org.apache.hive.service.server.ThreadFactoryWithGarbageCleanup;
 
-/**
- * SessionManager.
- *
- */
 public class SessionManager extends CompositeService {
 
   private static final Log LOG = LogFactory.getLog(SessionManager.class);
@@ -227,16 +223,6 @@ public class SessionManager extends CompositeService {
    *
    * Please see {@code org.apache.hive.service.cli.thrift.ThriftCLIService.getUserName()} for
    * more details.
-   *
-   * @param protocol
-   * @param username
-   * @param password
-   * @param ipAddress
-   * @param sessionConf
-   * @param withImpersonation
-   * @param delegationToken
-   * @return
-   * @throws HiveSQLException
    */
   public SessionHandle openSession(TProtocolVersion protocol, String username, String password, String ipAddress,
       Map<String, String> sessionConf, boolean withImpersonation, String delegationToken)

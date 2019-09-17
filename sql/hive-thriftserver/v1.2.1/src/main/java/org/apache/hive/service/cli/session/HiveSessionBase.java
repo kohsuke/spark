@@ -36,7 +36,6 @@ public interface HiveSessionBase {
 
   /**
    * Set the session manager for the session
-   * @param sessionManager
    */
   void setSessionManager(SessionManager sessionManager);
 
@@ -47,7 +46,6 @@ public interface HiveSessionBase {
 
   /**
    * Set operation manager for the session
-   * @param operationManager
    */
   void setOperationManager(OperationManager operationManager);
 

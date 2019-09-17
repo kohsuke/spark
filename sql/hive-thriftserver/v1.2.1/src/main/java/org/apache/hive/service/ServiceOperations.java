@@ -22,10 +22,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.conf.HiveConf;
 
-/**
- * ServiceOperations.
- *
- */
 public final class ServiceOperations {
   private static final Log LOG = LogFactory.getLog(ServiceOperations.class);
 

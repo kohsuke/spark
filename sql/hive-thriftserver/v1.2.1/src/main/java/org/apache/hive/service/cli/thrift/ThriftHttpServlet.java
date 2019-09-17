@@ -254,7 +254,6 @@ public class ThriftHttpServlet extends TServlet {
    * returns the client name associated with the session. Else, it returns null.
    * @param request The HTTP Servlet Request send by the client
    * @return Client Username if the request has valid HS2 cookie, else returns null
-   * @throws UnsupportedEncodingException
    */
   private String validateCookie(HttpServletRequest request) throws UnsupportedEncodingException {
     // Find all the valid cookies associated with the request.
@@ -276,7 +275,6 @@ public class ThriftHttpServlet extends TServlet {
    * Generate a server side cookie given the cookie value as the input.
    * @param str Input string token.
    * @return The generated cookie.
-   * @throws UnsupportedEncodingException
    */
   private Cookie createCookie(String str) throws UnsupportedEncodingException {
     if (LOG.isDebugEnabled()) {
@@ -309,8 +307,6 @@ public class ThriftHttpServlet extends TServlet {
 
   /**
    * Do the LDAP/PAM authentication
-   * @param request
-   * @param authType
    * @throws HttpAuthenticationException
    */
   private String doPasswdAuth(HttpServletRequest request, String authType)
@@ -337,8 +333,6 @@ public class ThriftHttpServlet extends TServlet {
    * which GSS-API will extract information from.
    * In case of a SPNego request we use the httpUGI,
    * for the authenticating service tickets.
-   * @param request
-   * @return
    * @throws HttpAuthenticationException
    */
   private String doKerberosAuth(HttpServletRequest request)
@@ -488,10 +482,6 @@ public class ThriftHttpServlet extends TServlet {
 
   /**
    * Returns the base64 encoded auth header payload
-   * @param request
-   * @param authType
-   * @return
-   * @throws HttpAuthenticationException
    */
   private String getAuthHeader(HttpServletRequest request, String authType)
       throws HttpAuthenticationException {

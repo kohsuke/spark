@@ -25,78 +25,38 @@ import java.util.List;
 import org.apache.hive.service.rpc.thrift.TStatus;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 
-/**
- * HiveSQLException.
- *
- */
 public class HiveSQLException extends SQLException {
 
-  /**
-   *
-   */
   private static final long serialVersionUID = -6095254671958748094L;
 
-  /**
-   *
-   */
   public HiveSQLException() {
     super();
   }
 
-  /**
-   * @param reason
-   */
   public HiveSQLException(String reason) {
     super(reason);
   }
 
-  /**
-   * @param cause
-   */
   public HiveSQLException(Throwable cause) {
     super(cause);
   }
 
-  /**
-   * @param reason
-   * @param sqlState
-   */
   public HiveSQLException(String reason, String sqlState) {
     super(reason, sqlState);
   }
 
-  /**
-   * @param reason
-   * @param cause
-   */
   public HiveSQLException(String reason, Throwable cause) {
     super(reason, cause);
   }
 
-  /**
-   * @param reason
-   * @param sqlState
-   * @param vendorCode
-   */
   public HiveSQLException(String reason, String sqlState, int vendorCode) {
     super(reason, sqlState, vendorCode);
   }
 
-  /**
-   * @param reason
-   * @param sqlState
-   * @param cause
-   */
   public HiveSQLException(String reason, String sqlState, Throwable cause) {
     super(reason, sqlState, cause);
   }
 
-  /**
-   * @param reason
-   * @param sqlState
-   * @param vendorCode
-   * @param cause
-   */
   public HiveSQLException(String reason, String sqlState, int vendorCode, Throwable cause) {
     super(reason, sqlState, vendorCode, cause);
   }

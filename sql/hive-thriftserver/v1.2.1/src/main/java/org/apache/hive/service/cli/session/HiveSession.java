@@ -33,101 +33,62 @@ public interface HiveSession extends HiveSessionBase {
 
   /**
    * getInfo operation handler
-   * @param getInfoType
-   * @return
-   * @throws HiveSQLException
    */
   GetInfoValue getInfo(GetInfoType getInfoType) throws HiveSQLException;
 
   /**
    * execute operation handler
-   * @param statement
-   * @param confOverlay
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle executeStatement(String statement,
       Map<String, String> confOverlay) throws HiveSQLException;
 
   /**
    * execute operation handler
-   * @param statement
-   * @param confOverlay
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle executeStatementAsync(String statement,
       Map<String, String> confOverlay) throws HiveSQLException;
 
   /**
    * getTypeInfo operation handler
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getTypeInfo() throws HiveSQLException;
 
   /**
    * getCatalogs operation handler
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getCatalogs() throws HiveSQLException;
 
   /**
    * getSchemas operation handler
-   * @param catalogName
-   * @param schemaName
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getSchemas(String catalogName, String schemaName)
       throws HiveSQLException;
 
   /**
    * getTables operation handler
-   * @param catalogName
-   * @param schemaName
-   * @param tableName
-   * @param tableTypes
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getTables(String catalogName, String schemaName,
       String tableName, List<String> tableTypes) throws HiveSQLException;
 
   /**
    * getTableTypes operation handler
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getTableTypes() throws HiveSQLException ;
 
   /**
    * getColumns operation handler
-   * @param catalogName
-   * @param schemaName
-   * @param tableName
-   * @param columnName
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getColumns(String catalogName, String schemaName,
       String tableName, String columnName)  throws HiveSQLException;
 
   /**
    * getFunctions operation handler
-   * @param catalogName
-   * @param schemaName
-   * @param functionName
-   * @return
-   * @throws HiveSQLException
    */
   OperationHandle getFunctions(String catalogName, String schemaName,
       String functionName) throws HiveSQLException;
 
   /**
    * close the session
-   * @throws HiveSQLException
    */
   void close() throws HiveSQLException;
 
