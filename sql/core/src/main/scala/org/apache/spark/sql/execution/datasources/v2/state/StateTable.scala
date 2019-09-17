@@ -21,8 +21,8 @@ import java.util
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.{AnalysisException, SparkSession}
-import org.apache.spark.sql.sources.v2.{SupportsRead, Table, TableCapability}
-import org.apache.spark.sql.sources.v2.reader.ScanBuilder
+import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
+import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
