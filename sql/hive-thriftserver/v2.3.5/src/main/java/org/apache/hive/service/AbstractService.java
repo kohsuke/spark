@@ -25,6 +25,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * AbstractService.
+ *
+ */
 public abstract class AbstractService implements Service {
 
   private static final Logger LOG = LoggerFactory.getLogger(AbstractService.class);

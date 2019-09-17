@@ -42,6 +42,10 @@ import org.apache.hive.service.cli.thrift.TProtocolVersion;
 import org.apache.hive.service.server.HiveServer2;
 import org.apache.hive.service.server.ThreadFactoryWithGarbageCleanup;
 
+/**
+ * SessionManager.
+ *
+ */
 public class SessionManager extends CompositeService {
 
   private static final Log LOG = LogFactory.getLog(SessionManager.class);

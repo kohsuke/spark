@@ -25,6 +25,10 @@ import java.util.List;
 import org.apache.hive.service.rpc.thrift.TStatus;
 import org.apache.hive.service.rpc.thrift.TStatusCode;
 
+/**
+ * HiveSQLException.
+ *
+ */
 public class HiveSQLException extends SQLException {
 
   private static final long serialVersionUID = -6095254671958748094L;

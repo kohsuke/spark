@@ -22,6 +22,10 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * ServiceOperations.
+ *
+ */
 public final class ServiceOperations {
   private static final Logger LOG = LoggerFactory.getLogger(ServiceOperations.class);
 
