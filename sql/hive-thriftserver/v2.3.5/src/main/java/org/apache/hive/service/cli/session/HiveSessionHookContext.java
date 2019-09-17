@@ -28,19 +28,16 @@ public interface HiveSessionHookContext {
 
   /**
    * Retrieve session conf
-   * @return
    */
   HiveConf getSessionConf();
 
   /**
    * The get the username starting the session
-   * @return
    */
   String getSessionUser();
 
   /**
    * Retrieve handle for the session
-   * @return
    */
   String getSessionHandle();
 }

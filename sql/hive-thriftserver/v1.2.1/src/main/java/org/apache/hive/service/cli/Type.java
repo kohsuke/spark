@@ -183,7 +183,6 @@ public enum Type {
   /**
    * Maximum precision for numeric types.
    * Returns null for non-numeric types.
-   * @return
    */
   public Integer getMaxPrecision() {
     switch (this) {
@@ -230,7 +229,6 @@ public enum Type {
 
   /**
    * Suffix used to quote a literal of this type (may be null)
-   * @return
    */
   public String getLiteralSuffix() {
     return null;
@@ -238,7 +236,6 @@ public enum Type {
 
   /**
    * Can you use NULL for this type?
-   * @return
    * DatabaseMetaData.typeNoNulls - does not allow NULL values
    * DatabaseMetaData.typeNullable - allows NULL values
    * DatabaseMetaData.typeNullableUnknown - nullability unknown
@@ -250,7 +247,6 @@ public enum Type {
 
   /**
    * Is the type case sensitive?
-   * @return
    */
   public Boolean isCaseSensitive() {
     switch (this) {
@@ -263,7 +259,6 @@ public enum Type {
 
   /**
    * Parameters used in creating the type (may be null)
-   * @return
    */
   public String getCreateParams() {
     return null;
@@ -271,7 +266,6 @@ public enum Type {
 
   /**
    * Can you use WHERE based on this type?
-   * @return
    * DatabaseMetaData.typePredNone - No support
    * DatabaseMetaData.typePredChar - Only support with WHERE .. LIKE
    * DatabaseMetaData.typePredBasic - Supported except for WHERE .. LIKE
@@ -286,7 +280,6 @@ public enum Type {
 
   /**
    * Is this type unsigned?
-   * @return
    */
   public Boolean isUnsignedAttribute() {
     if (isNumericType()) {
@@ -297,7 +290,6 @@ public enum Type {
 
   /**
    * Can this type represent money?
-   * @return
    */
   public Boolean isFixedPrecScale() {
     return false;
@@ -305,7 +297,6 @@ public enum Type {
 
   /**
    * Can this type be used for an auto-increment value?
-   * @return
    */
   public Boolean isAutoIncrement() {
     return false;
@@ -313,7 +304,6 @@ public enum Type {
 
   /**
    * Localized version of type name (may be null).
-   * @return
    */
   public String getLocalizedName() {
     return null;
@@ -321,7 +311,6 @@ public enum Type {
 
   /**
    * Minimum scale supported for this type
-   * @return
    */
   public Short getMinimumScale() {
     return 0;
@@ -329,7 +318,6 @@ public enum Type {
 
   /**
    * Maximum scale supported for this type
-   * @return
    */
   public Short getMaximumScale() {
     return 0;

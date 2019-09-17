@@ -124,7 +124,6 @@ public class TypeDescriptor {
   /**
    * Maximum precision for numeric types.
    * Returns null for non-numeric types.
-   * @return
    */
   public Integer getPrecision() {
     if (this.type == Type.DECIMAL_TYPE) {

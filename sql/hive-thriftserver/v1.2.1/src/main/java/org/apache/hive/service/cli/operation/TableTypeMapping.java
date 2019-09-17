@@ -24,21 +24,16 @@ import java.util.Set;
 public interface TableTypeMapping {
   /**
    * Map client's table type name to hive's table type
-   * @param clientTypeName
-   * @return
    */
   String mapToHiveType(String clientTypeName);
 
   /**
    * Map hive's table type name to client's table type
-   * @param hiveTypeName
-   * @return
    */
   String mapToClientType(String hiveTypeName);
 
   /**
    * Get all the table types of this mapping
-   * @return
    */
   Set<String> getTableTypeNames();
 }
