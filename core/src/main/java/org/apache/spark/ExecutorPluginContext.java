@@ -34,16 +34,17 @@ public class ExecutorPluginContext {
   public final Boolean isLocal;
 
   @Private
-  public ExecutorPluginContext(MetricRegistry registry,
-                               SparkConf conf,
-                               String id,
-                               String hostName,
-                               Boolean local) {
-      metricRegistry = registry;
-      sparkConf = conf;
-      executorId = id;
-      executorHostName = hostName;
-      isLocal = local;
+  public ExecutorPluginContext(
+      MetricRegistry registry,
+      SparkConf conf,
+      String id,
+      String hostName,
+      Boolean local) {
+    metricRegistry = registry;
+    sparkConf = conf;
+    executorId = id;
+    executorHostName = hostName;
+    isLocal = local;
   }
 
 }
