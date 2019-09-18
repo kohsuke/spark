@@ -1021,6 +1021,45 @@ class CodegenContext extends Logging {
   }
 
   /**
+   * Defines an independent function for a given expression and returns a caller-side code
+   * for the function as `ExprCode`.
+   */
+  def defineIndependentFunction(
+      expr: Expression,
+      ev: ExprCode,
+      funcNameOption: Option[String] = None,
+      inputVarsOption: Option[Seq[VariableValue]] = None): ExprCode = {
+    val inputVars = inputVarsOption.getOrElse(getLocalInputVariableValues(this, expr).toSeq)
+    if (isValidParamLength(calculateParamLengthFromExprValues(inputVars))) {
+      val (isNull, setIsNull) = if (!ev.isNull.isInstanceOf[LiteralValue]) {
+        val globalIsNull = addMutableState(JAVA_BOOLEAN, "globalIsNull")
+        (JavaCode.isNullGlobal(globalIsNull), s"$globalIsNull = ${ev.isNull};")
+      } else {
+        (ev.isNull, "")
+      }
+
+      val fnName = freshName(funcNameOption.getOrElse(expr.prettyName))
+      val argList = inputVars.map(v => s"${v.javaType.getName} ${v.variableName}")
+      val returnType = javaType(expr.dataType)
+      val funcFullName = addNewFunction(fnName,
+        s"""
+           |private $returnType $fnName(${argList.mkString(", ")}) {
+           |  ${ev.code}
+           |  $setIsNull
+           |  return ${ev.value};
+           |}
+           """.stripMargin)
+
+      val newValue = freshName("value")
+      val inputVariables = inputVars.map(_.variableName).mkString(", ")
+      val code = code"$returnType $newValue = $funcFullName($inputVariables);"
+      ExprCode(code, isNull, JavaCode.variable(newValue, expr.dataType))
+    } else {
+      ev
+    }
+  }
+
+  /**
    * Checks and sets up the state and codegen for subexpression elimination. This finds the
    * common subexpressions, generates the code snippets that evaluate those expressions and
    * populates the mapping of common subexpressions to the generated code snippets. The generated
@@ -1038,10 +1077,10 @@ class CodegenContext extends Logging {
     // Get all the expressions that appear at least twice and set up the state for subexpression
     // elimination.
     val commonExprs = equivalentExpressions.getAllEquivalentExprs.filter(_.size > 1)
-    val commonExprVals = commonExprs.map(_.head.genCode(this))
+    val commonExprEvals = commonExprs.map(_.head.genCode(this))
 
     lazy val nonSplitExprCode = {
-      commonExprs.zip(commonExprVals).map { case (exprs, eval) =>
+      commonExprs.zip(commonExprEvals).map { case (exprs, eval) =>
         // Generate the code for this expression tree.
         val state = SubExprEliminationState(eval.isNull, eval.value)
         exprs.foreach(localSubExprEliminationExprs.put(_, state))
@@ -1049,42 +1088,21 @@ class CodegenContext extends Logging {
       }
     }
 
-    val codes = if (commonExprVals.map(_.code.length).sum > SQLConf.get.methodSplitThreshold) {
-      if (commonExprs.map(calculateParamLength).forall(isValidParamLength)) {
+    val codes = if (commonExprEvals.map(_.code.length).sum > SQLConf.get.methodSplitThreshold) {
+      val inputVars = commonExprs.map { expr =>
+        getLocalInputVariableValues(this, expr.head).toSeq
+      }
+      if (inputVars.map(calculateParamLengthFromExprValues).forall(isValidParamLength)) {
         commonExprs.zipWithIndex.map { case (exprs, i) =>
-          val expr = exprs.head
-          val eval = commonExprVals(i)
-
-          val isNullLiteral = eval.isNull match {
-            case TrueLiteral | FalseLiteral => true
-            case _ => false
-          }
-          val (isNull, isNullEvalCode) = if (!isNullLiteral) {
-            val v = addMutableState(JAVA_BOOLEAN, "subExprIsNull")
-            (JavaCode.isNullGlobal(v), s"$v = ${eval.isNull};")
-          } else {
-            (eval.isNull, "")
-          }
-
-          // Generate the code for this expression tree and wrap it in a function.
-          val fnName = freshName("subExpr")
-          val inputVars = getLocalInputVariableValues(this, expr).toSeq
-          val argList = inputVars.map(v => s"${v.javaType.getName} ${v.variableName}")
-          val returnType = javaType(expr.dataType)
-          val fn =
-            s"""
-               |private $returnType $fnName(${argList.mkString(", ")}) {
-               |  ${eval.code}
-               |  $isNullEvalCode
-               |  return ${eval.value};
-               |}
-               """.stripMargin
-
-          val value = freshName("subExprValue")
-          val state = SubExprEliminationState(isNull, JavaCode.variable(value, expr.dataType))
+          val funcEval = defineIndependentFunction(
+            expr = exprs.head,
+            ev = commonExprEvals(i),
+            funcNameOption = Some("subExprValue"),
+            inputVarsOption = Some(inputVars(i))
+          )
+          val state = SubExprEliminationState(funcEval.isNull, funcEval.value)
           exprs.foreach(localSubExprEliminationExprs.put(_, state))
-          val inputVariables = inputVars.map(_.variableName).mkString(", ")
-          s"$returnType $value = ${addNewFunction(fnName, fn)}($inputVariables);"
+          funcEval.code.toString
         }
       } else {
         val errMsg = "Failed to split subexpression code into small functions because the " +
