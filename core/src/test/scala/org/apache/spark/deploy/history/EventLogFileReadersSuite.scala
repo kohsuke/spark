@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.spark.scheduler
+package org.apache.spark.deploy.history
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, File}
 import java.net.URI
@@ -31,11 +31,12 @@ import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.deploy.history.EventLogTestHelper._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.io.CompressionCodec
-import org.apache.spark.scheduler.EventLogTestHelper._
 import org.apache.spark.util.Utils
+
 
 abstract class EventLogFileReadersSuite extends SparkFunSuite with LocalSparkContext
   with BeforeAndAfter with Logging {
@@ -81,20 +82,20 @@ abstract class EventLogFileReadersSuite extends SparkFunSuite with LocalSparkCon
         fileSystem.mkdirs(path)
       }
 
-      val reader = EventLogFileReader.getEventLogReader(fileSystem, path)
+      val reader = EventLogFileReader(fileSystem, path)
       assertInstanceOfEventLogReader(expectedClazz, reader)
-      val reader2 = EventLogFileReader.getEventLogReader(fileSystem,
+      val reader2 = EventLogFileReader(fileSystem,
         fileSystem.getFileStatus(path))
       assertInstanceOfEventLogReader(expectedClazz, reader)
     }
 
     // path with no last sequence - single event log
-    val reader1 = EventLogFileReader.getEventLogReader(fileSystem, new Path(testDirPath, "aaa"),
+    val reader1 = EventLogFileReader(fileSystem, new Path(testDirPath, "aaa"),
       None)
     assertInstanceOfEventLogReader(Some(classOf[SingleFileEventLogFileReader]), Some(reader1))
 
     // path with last sequence - rolling event log
-    val reader2 = EventLogFileReader.getEventLogReader(fileSystem,
+    val reader2 = EventLogFileReader(fileSystem,
       new Path(testDirPath, "eventlog_v2_aaa"), Some(3))
     assertInstanceOfEventLogReader(Some(classOf[RollingEventLogFilesFileReader]), Some(reader2))
 
@@ -117,10 +118,10 @@ abstract class EventLogFileReadersSuite extends SparkFunSuite with LocalSparkCon
   }
 
   val allCodecs = Seq(None) ++
-    CompressionCodec.ALL_COMPRESSION_CODECS.map(c => Some(CompressionCodec.getShortName(c)))
+    CompressionCodec.ALL_COMPRESSION_CODECS.map { c => Some(CompressionCodec.getShortName(c)) }
 
   allCodecs.foreach { codecShortName =>
-    test(s"get information, list event log files, zip log files - with code $codecShortName") {
+    test(s"get information, list event log files, zip log files - with codec $codecShortName") {
       val appId = getUniqueApplicationId
       val attemptId = None
 
@@ -135,7 +136,7 @@ abstract class EventLogFileReadersSuite extends SparkFunSuite with LocalSparkCon
       dummyData.foreach(writer.writeEvent(_, flushLogger = true))
 
       val logPathIncompleted = getCurrentLogPath(writer.logPath, isCompleted = false)
-      val readerOpt = EventLogFileReader.getEventLogReader(fileSystem,
+      val readerOpt = EventLogFileReader(fileSystem,
         new Path(logPathIncompleted))
       assertAppropriateReader(readerOpt)
       val reader = readerOpt.get
@@ -145,7 +146,7 @@ abstract class EventLogFileReadersSuite extends SparkFunSuite with LocalSparkCon
       writer.stop()
 
       val logPathCompleted = getCurrentLogPath(writer.logPath, isCompleted = true)
-      val readerOpt2 = EventLogFileReader.getEventLogReader(fileSystem, new Path(logPathCompleted))
+      val readerOpt2 = EventLogFileReader(fileSystem, new Path(logPathCompleted))
       assertAppropriateReader(readerOpt2)
       val reader2 = readerOpt2.get
 
@@ -200,15 +201,15 @@ class SingleFileEventLogFileReaderSuite extends EventLogFileReadersSuite {
 
     assert(stats.isFile)
     assert(reader.rootPath === logPath)
-    assert(reader.lastSequence.isEmpty)
-    assert(reader.fileSizeForLastSequence === stats.getLen)
+    assert(reader.lastSequenceNum.isEmpty)
+    assert(reader.fileSizeForLastSequenceNum === stats.getLen)
     assert(reader.completed === isCompleted)
     assert(reader.modificationTime === stats.getModificationTime)
     assert(reader.listEventLogFiles.length === 1)
     assert(reader.listEventLogFiles.map(_.getPath.toUri.getPath) ===
       Seq(logPath.toUri.getPath))
-    assert(reader.compression === compressionCodecShortName)
-    assert(reader.allSize === stats.getLen)
+    assert(reader.compressionCodec === compressionCodecShortName)
+    assert(reader.totalSize === stats.getLen)
 
     val underlyingStream = new ByteArrayOutputStream()
     Utils.tryWithResource(new ZipOutputStream(underlyingStream)) { os =>
@@ -216,7 +217,7 @@ class SingleFileEventLogFileReaderSuite extends EventLogFileReadersSuite {
     }
 
     Utils.tryWithResource(new ZipInputStream(
-      new ByteArrayInputStream(underlyingStream.toByteArray))) { is =>
+        new ByteArrayInputStream(underlyingStream.toByteArray))) { is =>
 
       var entry = is.getNextEntry
       assert(entry != null)
@@ -255,7 +256,7 @@ class RollingEventLogFilesReaderSuite extends EventLogFileReadersSuite {
       }
 
       val logPathIncompleted = getCurrentLogPath(writer.logPath, isCompleted = false)
-      val readerOpt = EventLogFileReader.getEventLogReader(fileSystem,
+      val readerOpt = EventLogFileReader(fileSystem,
         new Path(logPathIncompleted))
       verifyReader(readerOpt.get, new Path(logPathIncompleted), codecShortName, isCompleted = false)
       assert(readerOpt.get.listEventLogFiles.length === 3)
@@ -263,7 +264,7 @@ class RollingEventLogFilesReaderSuite extends EventLogFileReadersSuite {
       writer.stop()
 
       val logPathCompleted = getCurrentLogPath(writer.logPath, isCompleted = true)
-      val readerOpt2 = EventLogFileReader.getEventLogReader(fileSystem, new Path(logPathCompleted))
+      val readerOpt2 = EventLogFileReader(fileSystem, new Path(logPathCompleted))
       verifyReader(readerOpt2.get, new Path(logPathCompleted), codecShortName, isCompleted = true)
       assert(readerOpt.get.listEventLogFiles.length === 3)
     }
@@ -303,14 +304,14 @@ class RollingEventLogFilesReaderSuite extends EventLogFileReadersSuite {
     val allLen = eventFiles.map(_.getLen).sum
 
     assert(reader.rootPath === logPath)
-    assert(reader.lastSequence === Some(getSequence(lastEventFile.getPath.getName)))
-    assert(reader.fileSizeForLastSequence === lastEventFile.getLen)
+    assert(reader.lastSequenceNum === Some(getSequence(lastEventFile.getPath.getName)))
+    assert(reader.fileSizeForLastSequenceNum === lastEventFile.getLen)
     assert(reader.completed === isCompleted)
     assert(reader.modificationTime === lastEventFile.getModificationTime)
     assert(reader.listEventLogFiles.length === eventFiles.length)
     assert(reader.listEventLogFiles.map(_.getPath) === eventFiles.map(_.getPath))
-    assert(reader.compression === compressionCodecShortName)
-    assert(reader.allSize === allLen)
+    assert(reader.compressionCodec === compressionCodecShortName)
+    assert(reader.totalSize === allLen)
 
     val underlyingStream = new ByteArrayOutputStream()
     Utils.tryWithResource(new ZipOutputStream(underlyingStream)) { os =>

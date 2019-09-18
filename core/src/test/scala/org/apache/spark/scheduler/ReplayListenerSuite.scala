@@ -18,7 +18,6 @@
 package org.apache.spark.scheduler
 
 import java.io._
-import java.net.URI
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
@@ -30,8 +29,9 @@ import org.scalatest.BeforeAndAfter
 
 import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.deploy.history.EventLogFileReader
+import org.apache.spark.deploy.history.EventLogTestHelper._
 import org.apache.spark.io.{CompressionCodec, LZ4CompressionCodec}
-import org.apache.spark.scheduler.EventLogTestHelper._
 import org.apache.spark.util.{JsonProtocol, JsonProtocolSuite, Utils}
 
 /**

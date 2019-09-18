@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.spark.scheduler
+package org.apache.spark.deploy.history
 
 import java.io.{File, FileOutputStream, IOException}
 import java.net.URI
@@ -30,15 +30,14 @@ import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.SparkHadoopUtil
-import org.apache.spark.internal.Logging
+import org.apache.spark.deploy.history.EventLogTestHelper._
 import org.apache.spark.internal.config._
 import org.apache.spark.io.CompressionCodec
-import org.apache.spark.scheduler.EventLogTestHelper._
 import org.apache.spark.util.Utils
 
 
 abstract class EventLogFileWritersSuite extends SparkFunSuite with LocalSparkContext
-  with BeforeAndAfter with Logging {
+  with BeforeAndAfter {
 
   protected val fileSystem = Utils.getHadoopFileSystem("/",
     SparkHadoopUtil.get.newConfiguration(new SparkConf()))
@@ -57,7 +56,7 @@ abstract class EventLogFileWritersSuite extends SparkFunSuite with LocalSparkCon
 
   test("create EventLogFileWriter with enable/disable rolling") {
     def buildWriterAndVerify(conf: SparkConf, expectedClazz: Class[_]): Unit = {
-      val writer = EventLogFileWriter.createEventLogFileWriter(
+      val writer = EventLogFileWriter(
         getUniqueApplicationId, None, testDirPath.toUri, conf,
         SparkHadoopUtil.get.newConfiguration(conf))
       val writerClazz = writer.getClass

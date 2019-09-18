@@ -15,12 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.spark.scheduler
+package org.apache.spark.deploy.history
 
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.config.{EVENT_LOG_BLOCK_UPDATES, EVENT_LOG_COMPRESS, EVENT_LOG_COMPRESSION_CODEC, EVENT_LOG_DIR, EVENT_LOG_ENABLED, EVENT_LOG_STAGE_EXECUTOR_METRICS, EVENT_LOG_TESTING}
+import org.apache.spark.internal.config._
 
 object EventLogTestHelper {
   def getUniqueApplicationId: String = "test-" + System.currentTimeMillis

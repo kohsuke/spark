@@ -32,11 +32,12 @@ import org.scalatest.BeforeAndAfter
 
 import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.deploy.history.EventLogTestHelper._
+import org.apache.spark.deploy.history.SingleEventLogFileWriter
 import org.apache.spark.executor.{ExecutorMetrics, TaskMetrics}
 import org.apache.spark.internal.Logging
 import org.apache.spark.io._
 import org.apache.spark.metrics.{ExecutorMetricType, MetricsSystem}
-import org.apache.spark.scheduler.EventLogTestHelper._
 import org.apache.spark.scheduler.cluster.ExecutorInfo
 import org.apache.spark.util.{JsonProtocol, Utils}
 

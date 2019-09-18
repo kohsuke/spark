@@ -1167,7 +1167,7 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     when(mockedFs.getFileStatus(path)).thenReturn(fileStatus)
     var logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
       Some("attemptId"), 100, None, false)
-    var reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    var reader = EventLogFileReader(mockedFs, path)
     assert(reader.isDefined)
     assert(mockedProvider.shouldReloadLog(logInfo, reader.get))
 
@@ -1177,27 +1177,27 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     // DFSInputStream.getFileLength is more than logInfo fileSize
     logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
       Some("attemptId"), 100, None, false)
-    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    reader = EventLogFileReader(mockedFs, path)
     assert(reader.isDefined)
     assert(mockedProvider.shouldReloadLog(logInfo, reader.get))
 
     // DFSInputStream.getFileLength is equal to logInfo fileSize
     logInfo = new LogInfo(path.toString, 0, LogType.EventLogs, Some("appId"),
       Some("attemptId"), 200, None, false)
-    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    reader = EventLogFileReader(mockedFs, path)
     assert(reader.isDefined)
     assert(!mockedProvider.shouldReloadLog(logInfo, reader.get))
 
     // in.getWrappedStream returns other than DFSInputStream
     val bin = mock(classOf[BufferedInputStream])
     when(in.getWrappedStream).thenReturn(bin)
-    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    reader = EventLogFileReader(mockedFs, path)
     assert(reader.isDefined)
     assert(!mockedProvider.shouldReloadLog(logInfo, reader.get))
 
     // fs.open throws exception
     when(mockedFs.open(path)).thenThrow(new IOException("Throwing intentionally"))
-    reader = EventLogFileReader.getEventLogReader(mockedFs, path)
+    reader = EventLogFileReader(mockedFs, path)
     assert(reader.isDefined)
     assert(!mockedProvider.shouldReloadLog(logInfo, reader.get))
   }
