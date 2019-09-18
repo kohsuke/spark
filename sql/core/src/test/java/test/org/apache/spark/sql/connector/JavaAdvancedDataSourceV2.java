@@ -24,6 +24,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
+import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.connector.read.*;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.sources.GreaterThan;
@@ -33,7 +34,10 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 public class JavaAdvancedDataSourceV2 implements TableProvider {
 
   @Override
-  public Table getTable(CaseInsensitiveStringMap options) {
+  public Table getTable(
+      Optional<StructType> schema,
+      Optional<Transform[]> partitions,
+      Map<String, String> properties) {
     return new JavaSimpleBatchTable() {
       @Override
       public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {

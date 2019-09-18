@@ -53,7 +53,7 @@ private[sql] case class V1Table(v1Table: CatalogTable) extends Table {
 
   def catalogTable: CatalogTable = v1Table
 
-  lazy val options: Map[String, String] = {
+  private lazy val options: Map[String, String] = {
     v1Table.storage.locationUri match {
       case Some(uri) =>
         v1Table.storage.properties + ("path" -> uri.toString)
@@ -62,9 +62,11 @@ private[sql] case class V1Table(v1Table: CatalogTable) extends Table {
     }
   }
 
-  override lazy val properties: util.Map[String, String] = v1Table.properties.asJava
+  override lazy val properties: util.Map[String, String] = {
+    (options ++ v1Table.properties).asJava
+  }
 
-  override lazy val schema: StructType = v1Table.schema
+  override def schema: StructType = v1Table.schema
 
   override lazy val partitioning: Array[Transform] = {
     val partitions = new mutable.ArrayBuffer[Transform]()
@@ -84,5 +86,5 @@ private[sql] case class V1Table(v1Table: CatalogTable) extends Table {
 
   override def capabilities: util.Set[TableCapability] = new util.HashSet[TableCapability]()
 
-  override def toString: String = s"UnresolvedTable($name)"
+  override def toString: String = s"V1Table($name)"
 }

@@ -17,7 +17,11 @@
 
 package org.apache.spark.sql.connector.catalog;
 
+import java.util.Map;
+import java.util.Optional;
+
 import org.apache.spark.annotation.Evolving;
+import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
@@ -36,26 +40,21 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 public interface TableProvider {
 
   /**
-   * Return a {@link Table} instance to do read/write with user-specified options.
+   * Return a {@link Table} instance to do read/write with the given table metadata. The returned
+   * table must report the same schema and partitioning with the given table metadata.
    *
-   * @param options the user-specified options that can identify a table, e.g. file path, Kafka
-   *                topic name, etc. It's an immutable case-insensitive string-to-string map.
+   * @param schema The schema of the table to load. If it's empty, implementations should infer it.
+   * @param partitions The data partitioning of the table to load. If it's empty, implementations
+   *                   should infer it.
+   * @param properties The properties of the table to load. It should be sufficient to define and
+   *                   access a table. The properties map may be {@link CaseInsensitiveStringMap}.
+   *
+   * @throws IllegalArgumentException if the implementation can't infer schema/partitioning, or
+   *                                  the given schema/partitioning doesn't match the actual data
+   *                                  schema/partitioning.
    */
-  Table getTable(CaseInsensitiveStringMap options);
-
-  /**
-   * Return a {@link Table} instance to do read/write with user-specified schema and options.
-   * <p>
-   * By default this method throws {@link UnsupportedOperationException}, implementations should
-   * override this method to handle user-specified schema.
-   * </p>
-   * @param options the user-specified options that can identify a table, e.g. file path, Kafka
-   *                topic name, etc. It's an immutable case-insensitive string-to-string map.
-   * @param schema the user-specified schema.
-   * @throws UnsupportedOperationException
-   */
-  default Table getTable(CaseInsensitiveStringMap options, StructType schema) {
-    throw new UnsupportedOperationException(
-      this.getClass().getSimpleName() + " source does not support user-specified schema");
-  }
+  Table getTable(
+      Optional<StructType> schema,
+      Optional<Transform[]> partitions,
+      Map<String, String> properties);
 }

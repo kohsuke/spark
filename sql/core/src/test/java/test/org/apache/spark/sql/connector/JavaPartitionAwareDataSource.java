@@ -19,6 +19,8 @@ package test.org.apache.spark.sql.connector;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
@@ -30,6 +32,7 @@ import org.apache.spark.sql.connector.read.*;
 import org.apache.spark.sql.connector.read.partitioning.ClusteredDistribution;
 import org.apache.spark.sql.connector.read.partitioning.Distribution;
 import org.apache.spark.sql.connector.read.partitioning.Partitioning;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 public class JavaPartitionAwareDataSource implements TableProvider {
@@ -56,7 +59,10 @@ public class JavaPartitionAwareDataSource implements TableProvider {
   }
 
   @Override
-  public Table getTable(CaseInsensitiveStringMap options) {
+  public Table getTable(
+      Optional<StructType> schema,
+      Optional<Transform[]> partitions,
+      Map<String, String> properties) {
     return new JavaSimpleBatchTable() {
       @Override
       public Transform[] partitioning() {

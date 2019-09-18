@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import java.util.{Locale, Properties}
+import java.util.{Locale, Optional, Properties}
 
 import scala.collection.JavaConverters._
 
@@ -265,7 +265,7 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
       val dsOptions = new CaseInsensitiveStringMap(options.asJava)
 
       import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
-      provider.getTable(dsOptions) match {
+      provider.getTable(Optional.empty(), Optional.empty(), dsOptions) match {
         case table: SupportsWrite if table.supports(BATCH_WRITE) =>
           lazy val relation = DataSourceV2Relation.create(table, dsOptions)
           modeForDSV2 match {

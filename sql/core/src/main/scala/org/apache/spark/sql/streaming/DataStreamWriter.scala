@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.streaming
 
-import java.util.Locale
+import java.util.{Locale, Optional}
 
 import scala.collection.JavaConverters._
 
@@ -308,7 +308,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
         val options = sessionOptions ++ extraOptions
         val dsOptions = new CaseInsensitiveStringMap(options.asJava)
         import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
-        provider.getTable(dsOptions) match {
+        provider.getTable(Optional.empty(), Optional.empty(), dsOptions) match {
           case table: SupportsWrite if table.supports(STREAMING_WRITE) =>
             table
           case _ => createV1Sink()

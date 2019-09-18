@@ -16,12 +16,15 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.parquet
 
+import java.util
+import java.util.Optional
+
 import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 class ParquetDataSourceV2 extends FileDataSourceV2 {
 
@@ -29,16 +32,14 @@ class ParquetDataSourceV2 extends FileDataSourceV2 {
 
   override def shortName(): String = "parquet"
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
-    val paths = getPaths(options)
+  override def getTable(
+      schema: Optional[StructType],
+      partitions: Optional[Array[Transform]],
+      properties: util.Map[String, String]): Table = {
+    val paths = getPaths(properties)
     val tableName = getTableName(paths)
-    ParquetTable(tableName, sparkSession, options, paths, None, fallbackFileFormat)
-  }
-
-  override def getTable(options: CaseInsensitiveStringMap, schema: StructType): Table = {
-    val paths = getPaths(options)
-    val tableName = getTableName(paths)
-    ParquetTable(tableName, sparkSession, options, paths, Some(schema), fallbackFileFormat)
+    ParquetTable(
+      tableName, sparkSession, properties, paths, Option(schema.orElse(null)), fallbackFileFormat)
   }
 }
 

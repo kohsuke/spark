@@ -58,6 +58,45 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
     }
   }
 
+  override def tableExists(ident: Identifier): Boolean = {
+    if (ident.namespace().length <= 1) {
+      catalog.tableExists(ident.asTableIdentifier)
+    } else {
+      false
+    }
+  }
+
+  private def tryResolveTableProvider(table: V1Table): Table = {
+    assert(table.v1Table.provider.isDefined)
+    DataSource.lookupDataSourceV2(table.v1Table.provider.get, conf).map { provider =>
+      // TODO: support file source v2 in CREATE TABLE USING.
+      if (provider.isInstanceOf[FileDataSourceV2]) {
+        table
+      } else {
+        val actual = provider.getTable(
+          util.Optional.of(table.schema),
+          util.Optional.of(table.partitioning),
+          table.properties)
+
+        if (actual.schema() != table.schema) {
+          throw new IllegalArgumentException(s"Table provider '$provider' returns a table which " +
+            "has inappropriate schema:\n" +
+            s"schema in Spark metastore: ${table.schema}\n" +
+            s"schema from table provider: ${actual.schema()}")
+        }
+
+        if (actual.partitioning().sameElements(table.partitioning)) {
+          throw new IllegalArgumentException(s"Table provider '$provider' returns a table which " +
+            "has inappropriate partitioning:\n" +
+            s"partitioning in Spark metastore: ${table.partitioning.mkString(", ")}\n" +
+            s"partitioning from table provider: ${actual.partitioning.mkString(", ")}")
+        }
+
+        actual
+      }
+    }.getOrElse(table)
+  }
+
   override def loadTable(ident: Identifier): Table = {
     val catalogTable = try {
       catalog.getTableMetadata(ident.asTableIdentifier)
@@ -66,7 +105,11 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
         throw new NoSuchTableException(ident)
     }
 
-    V1Table(catalogTable)
+    if (catalogTable.tableType == CatalogTableType.VIEW) {
+      throw new NoSuchTableException(ident)
+    }
+
+    tryResolveTableProvider(V1Table(catalogTable))
   }
 
   override def invalidateTable(ident: Identifier): Unit = {
@@ -79,8 +122,22 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
       partitions: Array[Transform],
       properties: util.Map[String, String]): Table = {
 
-    val (partitionColumns, maybeBucketSpec) = V2SessionCatalog.convertTransforms(partitions)
     val provider = properties.getOrDefault("provider", conf.defaultDataSourceName)
+    val (actualSchema, actualPartitions) = if (schema.isEmpty && partitions.isEmpty) {
+      // If `CREATE TABLE ... USING` does not specify table metadata, get the table metadata from
+      // data source first.
+      val tableProvider = DataSource.lookupDataSourceV2(provider, conf)
+      // A sanity check. This is guaranteed by `DataSourceResolution`.
+      assert(tableProvider.isDefined)
+
+      val table = tableProvider.get.getTable(
+        util.Optional.empty(), util.Optional.empty(), properties)
+      table.schema() -> table.partitioning()
+    } else {
+      schema -> partitions
+    }
+
+    val (partitionColumns, maybeBucketSpec) = V2SessionCatalog.convertTransforms(actualPartitions)
     val tableProperties = properties.asScala
     val location = Option(properties.get(LOCATION_TABLE_PROP))
     val storage = DataSource.buildStorageFormatFromOptions(tableProperties.toMap)
@@ -91,7 +148,7 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
       identifier = ident.asTableIdentifier,
       tableType = tableType,
       storage = storage,
-      schema = schema,
+      schema = actualSchema,
       provider = Some(provider),
       partitionColumnNames = partitionColumns,
       bucketSpec = maybeBucketSpec,
@@ -133,19 +190,14 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
   }
 
   override def dropTable(ident: Identifier): Boolean = {
-    try {
-      if (loadTable(ident) != null) {
-        catalog.dropTable(
-          ident.asTableIdentifier,
-          ignoreIfNotExists = true,
-          purge = true /* skip HDFS trash */)
-        true
-      } else {
-        false
-      }
-    } catch {
-      case _: NoSuchTableException =>
-        false
+    if (tableExists(ident)) {
+      catalog.dropTable(
+        ident.asTableIdentifier,
+        ignoreIfNotExists = true,
+        purge = true /* skip HDFS trash */)
+      true
+    } else {
+      false
     }
   }
 
