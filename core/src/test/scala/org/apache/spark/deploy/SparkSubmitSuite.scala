@@ -43,7 +43,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.internal.config.UI._
 import org.apache.spark.launcher.SparkLauncher
-import org.apache.spark.scheduler.{EventLogFileReader, EventLogFileWriter, EventLoggingListener}
+import org.apache.spark.scheduler.{EventLogFileReader, EventLoggingListener}
 import org.apache.spark.util.{CommandLineUtils, ResetSystemProperties, Utils}
 
 trait TestPrematureExit {

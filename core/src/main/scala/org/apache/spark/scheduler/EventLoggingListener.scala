@@ -19,7 +19,7 @@ package org.apache.spark.scheduler
 
 import java.net.URI
 
-import scala.collection.mutable.{ArrayBuffer, Map}
+import scala.collection.mutable
 
 import org.apache.hadoop.conf.Configuration
 import org.json4s.JsonAST.JValue
@@ -27,6 +27,7 @@ import org.json4s.jackson.JsonMethods._
 
 import org.apache.spark.{SPARK_VERSION, SparkConf}
 import org.apache.spark.deploy.SparkHadoopUtil
+import org.apache.spark.deploy.history.EventLogFileWriter
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
@@ -60,18 +61,18 @@ private[spark] class EventLoggingListener(
 
   // For testing.
   private[scheduler] val logWriter: EventLogFileWriter =
-    EventLogFileWriter.createEventLogFileWriter(appId, appAttemptId, logBaseDir,
-      sparkConf, hadoopConf)
+    EventLogFileWriter(appId, appAttemptId, logBaseDir, sparkConf, hadoopConf)
 
   // For testing. Keep track of all JSON serialized events that have been logged.
-  private[scheduler] val loggedEvents = new ArrayBuffer[JValue]
+  private[scheduler] val loggedEvents = new mutable.ArrayBuffer[JValue]
 
   private val shouldLogBlockUpdates = sparkConf.get(EVENT_LOG_BLOCK_UPDATES)
   private val shouldLogStageExecutorMetrics = sparkConf.get(EVENT_LOG_STAGE_EXECUTOR_METRICS)
   private val testing = sparkConf.get(EVENT_LOG_TESTING)
 
   // map of (stageId, stageAttempt) to executor metric peaks per executor/driver for the stage
-  private val liveStageExecutorMetrics = Map.empty[(Int, Int), Map[String, ExecutorMetrics]]
+  private val liveStageExecutorMetrics =
+    mutable.HashMap.empty[(Int, Int), mutable.HashMap[String, ExecutorMetrics]]
 
   /**
    * Creates the log file in the configured log directory.
@@ -106,7 +107,7 @@ private[spark] class EventLoggingListener(
     if (shouldLogStageExecutorMetrics) {
       // record the peak metrics for the new stage
       liveStageExecutorMetrics.put((event.stageInfo.stageId, event.stageInfo.attemptNumber()),
-        Map.empty[String, ExecutorMetrics])
+        mutable.HashMap.empty[String, ExecutorMetrics])
     }
   }
 

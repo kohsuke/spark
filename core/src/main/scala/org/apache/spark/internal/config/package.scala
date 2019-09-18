@@ -180,15 +180,15 @@ package object config {
     ConfigBuilder("spark.eventLog.longForm.enabled").booleanConf.createWithDefault(false)
 
   private[spark] val EVENT_LOG_ENABLE_ROLLING =
-    ConfigBuilder("spark.eventLog.rollLog")
+    ConfigBuilder("spark.eventLog.logRolling.enabled")
       .doc("Whether rolling over event log files is enabled.")
       .booleanConf.createWithDefault(false)
 
   private[spark] val EVENT_LOG_ROLLED_EVENT_LOG_MAX_FILE_SIZE =
-    ConfigBuilder("spark.eventLog.rollLog.maxFileSize")
-      .doc("The max size of event log file to be rolled over, in KiB unless otherwise specified.")
+    ConfigBuilder("spark.eventLog.logRolling.maxFileSize")
+      .doc("The max size of event log file to be rolled over.")
       .bytesConf(ByteUnit.KiB)
-      .createWithDefaultString("10m")
+      .createWithDefaultString("128m")
 
   private[spark] val EXECUTOR_ID =
     ConfigBuilder("spark.executor.id").stringConf.createOptional

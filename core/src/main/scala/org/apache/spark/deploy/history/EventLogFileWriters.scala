@@ -15,12 +15,10 @@
  * limitations under the License.
  */
 
-package org.apache.spark.scheduler
+package org.apache.spark.deploy.history
 
 import java.io._
 import java.net.URI
-
-import scala.collection.mutable.Map
 
 import org.apache.commons.compress.utils.CountingOutputStream
 import org.apache.hadoop.conf.Configuration
@@ -77,9 +75,7 @@ abstract class EventLogFileWriter(
     }
   }
 
-  protected def initLogFile(path: Path): (Option[FSDataOutputStream],
-    Option[CountingOutputStream]) = {
-
+  protected def initLogFile(path: Path): (Option[FSDataOutputStream], OutputStream) = {
     if (shouldOverwrite && fileSystem.delete(path, true)) {
       logWarning(s"Event log $path already exists. Overwriting...")
     }
@@ -103,11 +99,9 @@ abstract class EventLogFileWriter(
     try {
       val cstream = compressionCodec.map(_.compressedOutputStream(dstream)).getOrElse(dstream)
       val bstream = new BufferedOutputStream(cstream, outputBufferSize)
-      val ostream = new CountingOutputStream(bstream)
       fileSystem.setPermission(path, EventLogFileWriter.LOG_FILE_PERMISSIONS)
       logInfo(s"Logging events to $path")
-
-      (hadoopDataStream, Some(ostream))
+      (hadoopDataStream, bstream)
     } catch {
       case e: Exception =>
         dstream.close()
@@ -136,9 +130,7 @@ abstract class EventLogFileWriter(
     }
   }
 
-  // ================ methods to be override ================
-
-  /** starts writer instance - initialize writer for event logging */
+  /** initialize writer for event logging */
   def start(): Unit
 
   /** writes JSON format of event to file */
@@ -157,7 +149,7 @@ object EventLogFileWriter {
 
   val LOG_FILE_PERMISSIONS = new FsPermission(Integer.parseInt("770", 8).toShort)
 
-  def createEventLogFileWriter(
+  def apply(
       appId: String,
       appAttemptId: Option[String],
       logBaseDir: URI,
@@ -196,7 +188,7 @@ class SingleEventLogFileWriter(
     logBaseDir: URI,
     sparkConf: SparkConf,
     hadoopConf: Configuration)
-  extends EventLogFileWriter(appId, appAttemptId, logBaseDir, sparkConf, hadoopConf) with Logging {
+  extends EventLogFileWriter(appId, appAttemptId, logBaseDir, sparkConf, hadoopConf) {
 
   override val logPath: String = SingleEventLogFileWriter.getLogPath(logBaseDir, appId,
     appAttemptId, compressionCodecName)
@@ -211,11 +203,9 @@ class SingleEventLogFileWriter(
   override def start(): Unit = {
     requireLogBaseDirAsDirectory()
 
-    val streams = initLogFile(new Path(inProgressPath))
-    hadoopDataStream = streams._1
-    if (streams._2.isDefined) {
-      writer = Some(new PrintWriter(streams._2.get))
-    }
+    val (hadoopStream, outputStream) = initLogFile(new Path(inProgressPath))
+    hadoopDataStream = hadoopStream
+    writer = Some(new PrintWriter(outputStream))
   }
 
   override def writeEvent(eventJson: String, flushLogger: Boolean = false): Unit = {
@@ -272,7 +262,7 @@ object SingleEventLogFileWriter {
 /**
  * The writer to write event logs into multiple log files, rolled over via configured size.
  *
- * The class creates each directory per application, and stores event log files as well as
+ * The class creates one directory per application, and stores event log files as well as
  * metadata files. The name of directory and files in the directory would follow:
  *
  * - The name of directory: eventlog_v2_appId(_[appAttemptId])
@@ -282,13 +272,9 @@ object SingleEventLogFileWriter {
  *
  * The writer will roll over the event log file when configured size is reached. Note that the
  * writer doesn't check the size on file being open for write: the writer tracks the count of bytes
- * being written currently.
+ * written before compression is applied.
  *
  * For metadata files, the class will leverage zero-byte file, as it provides minimized cost.
- *
- * The writer leverages the following configurable parameters:
- *   spark.eventLog.rollLog - Whether rolling over event log files is enabled.
- *   spark.eventLog.rollLog.maxFileSize - The max size of event log file to be rolled over.
  */
 class RollingEventLogFilesWriter(
     appId: String,
@@ -317,29 +303,25 @@ class RollingEventLogFilesWriter(
     requireLogBaseDirAsDirectory()
 
     if (fileSystem.exists(logDirForAppPath) && shouldOverwrite) {
-      // try to delete the directory
       fileSystem.delete(logDirForAppPath, true)
     }
 
     if (fileSystem.exists(logDirForAppPath)) {
-      // we tried to delete the existing one, but failed
       throw new IOException(s"Target log directory already exists ($logDirForAppPath)")
-    } else {
-      fileSystem.mkdirs(logDirForAppPath, EventLogFileWriter.LOG_FILE_PERMISSIONS)
-      createAppStatusFile(inProgress = true)
-      rollNewEventLogFile(None)
     }
+
+    fileSystem.mkdirs(logDirForAppPath, EventLogFileWriter.LOG_FILE_PERMISSIONS)
+    createAppStatusFile(inProgress = true)
+    rollEventLogFile()
   }
 
   override def writeEvent(eventJson: String, flushLogger: Boolean = false): Unit = {
     writer.foreach { w =>
       val currentLen = countingOutputStream.get.getBytesWritten
       if (currentLen + eventJson.length > eventFileMaxLengthKiB * 1024) {
-        rollNewEventLogFile(Some(w))
+        rollEventLogFile()
       }
     }
-
-    // if the event log file is rolled over, writer will refer next event log file
 
     // scalastyle:off println
     writer.foreach(_.println(eventJson))
@@ -350,21 +332,17 @@ class RollingEventLogFilesWriter(
     }
   }
 
-  private def rollNewEventLogFile(w: Option[PrintWriter]): Unit = {
+  private def rollEventLogFile(): Unit = {
     writer.foreach(_.close())
 
     sequence += 1
     currentEventLogFilePath = getEventLogFilePath(logDirForAppPath, appId, appAttemptId, sequence,
       compressionCodecName)
 
-    val streams = initLogFile(currentEventLogFilePath)
-    hadoopDataStream = streams._1
-    countingOutputStream = streams._2
-    if (countingOutputStream.isDefined) {
-      writer = Some(new PrintWriter(streams._2.get))
-    } else {
-      writer = None
-    }
+    val (hadoopStream, outputStream) = initLogFile(currentEventLogFilePath)
+    hadoopDataStream = hadoopStream
+    countingOutputStream = Some(new CountingOutputStream(outputStream))
+    writer = Some(new PrintWriter(outputStream))
   }
 
   override def stop(): Unit = {
@@ -380,8 +358,7 @@ class RollingEventLogFilesWriter(
 
   private def createAppStatusFile(inProgress: Boolean): Unit = {
     val appStatusPath = getAppStatusFilePath(logDirForAppPath, appId, appAttemptId, inProgress)
-    val streams = initLogFile(appStatusPath)
-    val outputStream = streams._2.get
+    val outputStream = fileSystem.create(appStatusPath)
     // we intentionally create zero-byte file to minimize the cost
     outputStream.close()
   }
