@@ -1008,9 +1008,9 @@ Apart from these, the following properties are also available, and may be useful
 </tr>
 <tr>
   <td><code>spark.eventLog.logRolling.maxFileSize</code></td>
-  <td>10m</td>
+  <td>128m</td>
   <td>
-    The max size of event log file to be rolled over, in KiB unless otherwise specified.
+    The max size of event log file to be rolled over.
   </td>
 </tr>
 <tr>
