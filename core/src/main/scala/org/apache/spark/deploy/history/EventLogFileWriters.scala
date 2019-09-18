@@ -65,7 +65,7 @@ abstract class EventLogFileWriter(
       None
     }
 
-  private[scheduler] val compressionCodecName = compressionCodec.map { c =>
+  private[history] val compressionCodecName = compressionCodec.map { c =>
     CompressionCodec.getShortName(c.getClass.getName)
   }
 
