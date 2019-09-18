@@ -89,12 +89,12 @@ abstract class EventLogFileReadersSuite extends SparkFunSuite with LocalSparkCon
       assertInstanceOfEventLogReader(expectedClazz, reader)
     }
 
-    // path with no last sequence - single event log
+    // path with no last index - single event log
     val reader1 = EventLogFileReader(fileSystem, new Path(testDirPath, "aaa"),
       None)
     assertInstanceOfEventLogReader(Some(classOf[SingleFileEventLogFileReader]), Some(reader1))
 
-    // path with last sequence - rolling event log
+    // path with last index - rolling event log
     val reader2 = EventLogFileReader(fileSystem,
       new Path(testDirPath, "eventlog_v2_aaa"), Some(3))
     assertInstanceOfEventLogReader(Some(classOf[RollingEventLogFilesFileReader]), Some(reader2))
@@ -201,8 +201,8 @@ class SingleFileEventLogFileReaderSuite extends EventLogFileReadersSuite {
 
     assert(stats.isFile)
     assert(reader.rootPath === logPath)
-    assert(reader.lastSequenceNum.isEmpty)
-    assert(reader.fileSizeForLastSequenceNum === stats.getLen)
+    assert(reader.lastIndex.isEmpty)
+    assert(reader.fileSizeForLastIndex === stats.getLen)
     assert(reader.completed === isCompleted)
     assert(reader.modificationTime === stats.getModificationTime)
     assert(reader.listEventLogFiles.length === 1)
@@ -304,8 +304,8 @@ class RollingEventLogFilesReaderSuite extends EventLogFileReadersSuite {
     val allLen = eventFiles.map(_.getLen).sum
 
     assert(reader.rootPath === logPath)
-    assert(reader.lastSequenceNum === Some(getSequence(lastEventFile.getPath.getName)))
-    assert(reader.fileSizeForLastSequenceNum === lastEventFile.getLen)
+    assert(reader.lastIndex === Some(getSequence(lastEventFile.getPath.getName)))
+    assert(reader.fileSizeForLastIndex === lastEventFile.getLen)
     assert(reader.completed === isCompleted)
     assert(reader.modificationTime === lastEventFile.getModificationTime)
     assert(reader.listEventLogFiles.length === eventFiles.length)

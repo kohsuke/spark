@@ -56,23 +56,23 @@ abstract class EventLogFileReader(
     }
   }
 
-  /** Returns the last sequence number of event log files. None for single event log file. */
-  def lastSequenceNum: Option[Long]
+  /** Returns the last index of event log files. None for single event log file. */
+  def lastIndex: Option[Long]
 
   /**
-   * Returns the size of file for the last sequence number of event log files. Returns its size for
+   * Returns the size of file for the last index of event log files. Returns its size for
    * single event log file.
    */
-  def fileSizeForLastSequenceNum: Long
+  def fileSizeForLastIndex: Long
 
   /** Returns whether the application is completed. */
   def completed: Boolean
 
   /**
-   * Returns the size of file for the last sequence number of event log files, only when
+   * Returns the size of file for the last index of event log files, only when
    * underlying input stream is DFSInputStream. Otherwise returns None.
    */
-  def fileSizeForLastSequenceNumberForDFS: Option[Long]
+  def fileSizeForLastIndexForDFS: Option[Long]
 
   /** Returns the modification time for the last sequence number of event log files. */
   def modificationTime: Long
@@ -161,15 +161,15 @@ class SingleFileEventLogFileReader(
   // TODO: get stats with constructor and only call if it's needed?
   private lazy val status = fileSystem.getFileStatus(rootPath)
 
-  override def lastSequenceNum: Option[Long] = None
+  override def lastIndex: Option[Long] = None
 
-  override def fileSizeForLastSequenceNum: Long = status.getLen
+  override def fileSizeForLastIndex: Long = status.getLen
 
   override def completed: Boolean = !rootPath.getName.endsWith(EventLogFileWriter.IN_PROGRESS)
 
-  override def fileSizeForLastSequenceNumberForDFS: Option[Long] = {
+  override def fileSizeForLastIndexForDFS: Option[Long] = {
     if (completed) {
-      Some(fileSizeForLastSequenceNum)
+      Some(fileSizeForLastIndex)
     } else {
       fileSizeForDFS(rootPath)
     }
@@ -184,7 +184,7 @@ class SingleFileEventLogFileReader(
 
   override def compressionCodec: Option[String] = EventLogFileWriter.codecName(rootPath)
 
-  override def totalSize: Long = fileSizeForLastSequenceNum
+  override def totalSize: Long = fileSizeForLastIndex
 }
 
 /** The reader which will read the information of rolled multiple event log files. */
@@ -200,14 +200,14 @@ class RollingEventLogFilesFileReader(
     ret
   }
 
-  override def lastSequenceNum: Option[Long] = {
+  override def lastIndex: Option[Long] = {
     val maxSeq = files.filter(isEventLogFile)
       .map { stats => getSequence(stats.getPath.getName) }
       .max
     Some(maxSeq)
   }
 
-  override def fileSizeForLastSequenceNum: Long = lastEventLogFile.getLen
+  override def fileSizeForLastIndex: Long = lastEventLogFile.getLen
 
   override def completed: Boolean = {
     val appStatsFile = files.find(isAppStatusFile)
@@ -215,9 +215,9 @@ class RollingEventLogFilesFileReader(
     appStatsFile.exists(!_.getPath.getName.endsWith(EventLogFileWriter.IN_PROGRESS))
   }
 
-  override def fileSizeForLastSequenceNumberForDFS: Option[Long] = {
+  override def fileSizeForLastIndexForDFS: Option[Long] = {
     if (completed) {
-      Some(fileSizeForLastSequenceNum)
+      Some(fileSizeForLastIndex)
     } else {
       fileSizeForDFS(lastEventLogFile.getPath)
     }

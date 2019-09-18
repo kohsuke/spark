@@ -450,8 +450,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
               // that the entry is not deleted from the SHS listing. Also update the file size, in
               // case the code below decides we don't need to parse the log.
               listing.write(info.copy(lastProcessed = newLastScanTime,
-                fileSize = reader.fileSizeForLastSequenceNum,
-                lastSequenceNum = reader.lastSequenceNum,
+                fileSize = reader.fileSizeForLastIndex,
+                lastSequenceNum = reader.lastIndex,
                 isComplete = reader.completed))
             }
 
@@ -499,9 +499,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
               // to parse it. This will allow the cleaner code to detect the file as stale later on
               // if it was not possible to parse it.
               listing.write(LogInfo(reader.rootPath.toString(), newLastScanTime, LogType.EventLogs,
-                None, None, reader.fileSizeForLastSequenceNum, reader.lastSequenceNum,
+                None, None, reader.fileSizeForLastIndex, reader.lastIndex,
                 reader.completed))
-              reader.fileSizeForLastSequenceNum > 0
+              reader.fileSizeForLastIndex > 0
           }
         }
         .sortWith { case (entry1, entry2) =>
@@ -581,15 +581,15 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       true
     } else {
       var result = if (info.lastSequenceNum.isDefined) {
-        require(reader.lastSequenceNum.isDefined)
-        info.lastSequenceNum.get < reader.lastSequenceNum.get ||
-          info.fileSize < reader.fileSizeForLastSequenceNum
+        require(reader.lastIndex.isDefined)
+        info.lastSequenceNum.get < reader.lastIndex.get ||
+          info.fileSize < reader.fileSizeForLastIndex
       } else {
-        info.fileSize < reader.fileSizeForLastSequenceNum
+        info.fileSize < reader.fileSizeForLastIndex
       }
       if (!result && !reader.completed) {
         try {
-          result = reader.fileSizeForLastSequenceNumberForDFS.exists(info.fileSize < _)
+          result = reader.fileSizeForLastIndexForDFS.exists(info.fileSize < _)
         } catch {
           case e: Exception =>
             logDebug(s"Failed to check the length for the file : ${info.logPath}", e)
@@ -753,14 +753,14 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         invalidateUI(app.info.id, app.attempts.head.info.attemptId)
         addListing(app)
         listing.write(LogInfo(logPath.toString(), scanTime, LogType.EventLogs, Some(app.info.id),
-          app.attempts.head.info.attemptId, reader.fileSizeForLastSequenceNum,
-          reader.lastSequenceNum, reader.completed))
+          app.attempts.head.info.attemptId, reader.fileSizeForLastIndex,
+          reader.lastIndex, reader.completed))
 
         // For a finished log, remove the corresponding "in progress" entry from the listing DB if
         // the file is really gone.
         // The logic is only valid for single event log, as root path doesn't change for
         // rolled event logs.
-        if (appCompleted && reader.lastSequenceNum.isDefined) {
+        if (appCompleted && reader.lastIndex.isDefined) {
           val inProgressLog = logPath.toString() + EventLogFileWriter.IN_PROGRESS
           try {
             // Fetch the entry first to avoid an RPC when it's already removed.
@@ -786,7 +786,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         // does not make progress after the configured max log age.
         listing.write(
           LogInfo(logPath.toString(), scanTime, LogType.EventLogs, None, None,
-            reader.fileSizeForLastSequenceNum, reader.lastSequenceNum, reader.completed))
+            reader.fileSizeForLastIndex, reader.lastIndex, reader.completed))
     }
   }
 
@@ -1200,7 +1200,7 @@ private[history] class AppListingListener(
 
   private val app = new MutableApplicationInfo()
   private val attempt = new MutableAttemptInfo(reader.rootPath.getName(),
-    reader.fileSizeForLastSequenceNum, reader.lastSequenceNum)
+    reader.fileSizeForLastIndex, reader.lastIndex)
 
   private var gotEnvUpdate = false
   private var halted = false
