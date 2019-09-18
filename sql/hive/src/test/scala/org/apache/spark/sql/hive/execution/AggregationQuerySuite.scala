@@ -1018,6 +1018,24 @@ abstract class AggregationQuerySuite extends QueryTest with SQLTestUtils with Te
     val agg2 = agg1.groupBy($"text").agg(sum($"avg_res"))
     checkAnswer(agg2, Row("a", BigDecimal("11.9999999994857142860000")))
   }
+
+  test("SPARK-29140: HashAggregateExec aggregating binary type doesn't break codegen compilation") {
+    val withDistinct = countDistinct($"c1")
+
+    val schema = new StructType().add("c1", BinaryType, nullable = true)
+    val schemaWithId = StructType(StructField("id", IntegerType, nullable = false) +: schema.fields)
+
+    withSQLConf(
+      SQLConf.CODEGEN_SPLIT_AGGREGATE_FUNC.key -> "true",
+      SQLConf.CODEGEN_METHOD_SPLIT_THRESHOLD.key -> "1") {
+      val emptyRows = spark.sparkContext.parallelize(Seq.empty[Row], 1)
+      val aggDf = spark.createDataFrame(emptyRows, schemaWithId)
+        .groupBy($"id" % 10 as "group")
+        .agg(withDistinct)
+        .orderBy("group")
+      checkAnswer(aggDf, Seq.empty[Row])
+    }
+  }
 }
 
 
