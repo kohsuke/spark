@@ -345,7 +345,7 @@ class RollingEventLogFilesWriter(
     val (hadoopStream, outputStream) = initLogFile(currentEventLogFilePath)
     hadoopDataStream = hadoopStream
     countingOutputStream = Some(new CountingOutputStream(outputStream))
-    writer = Some(new PrintWriter(outputStream))
+    writer = Some(new PrintWriter(countingOutputStream.get))
   }
 
   override def stop(): Unit = {

@@ -200,7 +200,7 @@ class SingleFileEventLogFileReaderSuite extends EventLogFileReadersSuite {
     val stats = fileSystem.getFileStatus(logPath)
 
     assert(stats.isFile)
-    assert(reader.rootPath === logPath)
+    assert(reader.rootPath === fileSystem.makeQualified(logPath))
     assert(reader.lastIndex.isEmpty)
     assert(reader.fileSizeForLastIndex === stats.getLen)
     assert(reader.completed === isCompleted)
@@ -303,7 +303,7 @@ class RollingEventLogFilesReaderSuite extends EventLogFileReadersSuite {
     val lastEventFile = eventFiles.last
     val allLen = eventFiles.map(_.getLen).sum
 
-    assert(reader.rootPath === logPath)
+    assert(reader.rootPath === fileSystem.makeQualified(logPath))
     assert(reader.lastIndex === Some(getSequence(lastEventFile.getPath.getName)))
     assert(reader.fileSizeForLastIndex === lastEventFile.getLen)
     assert(reader.completed === isCompleted)
