@@ -269,8 +269,8 @@ object SingleEventLogFileWriter {
  * metadata files. The name of directory and files in the directory would follow:
  *
  * - The name of directory: eventlog_v2_appId(_[appAttemptId])
- * - The prefix of name on event files: events_[sequence]_[appId](_[appAttemptId])(.[codec])
- *   - "sequence" would be monotonically increasing value
+ * - The prefix of name on event files: events_[index]_[appId](_[appAttemptId])(.[codec])
+ *   - "index" would be monotonically increasing value (say, sequence)
  * - The name of metadata (app. status) file name: appstatus_[appId](_[appAttemptId])(.inprogress)
  *
  * The writer will roll over the event log file when configured size is reached. Note that the
@@ -298,8 +298,8 @@ class RollingEventLogFilesWriter(
   private var countingOutputStream: Option[CountingOutputStream] = None
   private var writer: Option[PrintWriter] = None
 
-  // seq and event log path will be updated soon in rollNewEventLogFile, which `start` will call
-  private var sequence: Long = 0L
+  // seq and event log path will be updated soon in rollEventLogFile, which `start` will call
+  private var index: Long = 0L
   private var currentEventLogFilePath: Path = logDirForAppPath
 
   override def start(): Unit = {
@@ -338,8 +338,8 @@ class RollingEventLogFilesWriter(
   private def rollEventLogFile(): Unit = {
     writer.foreach(_.close())
 
-    sequence += 1
-    currentEventLogFilePath = getEventLogFilePath(logDirForAppPath, appId, appAttemptId, sequence,
+    index += 1
+    currentEventLogFilePath = getEventLogFilePath(logDirForAppPath, appId, appAttemptId, index,
       compressionCodecName)
 
     val (hadoopStream, outputStream) = initLogFile(currentEventLogFilePath)
@@ -386,9 +386,9 @@ object RollingEventLogFilesWriter {
       appLogDir: Path,
       appId: String,
       appAttemptId: Option[String],
-      seq: Long,
+      index: Long,
       codecName: Option[String]): Path = {
-    val base = s"events_${seq}_" + EventLogFileWriter.nameForAppAndAttempt(appId, appAttemptId)
+    val base = s"events_${index}_" + EventLogFileWriter.nameForAppAndAttempt(appId, appAttemptId)
     val codec = codecName.map("." + _).getOrElse("")
     new Path(appLogDir, base + codec)
   }
