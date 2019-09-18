@@ -24,16 +24,14 @@ import scala.collection.immutable.Map
 import scala.collection.mutable
 import scala.collection.mutable.Set
 import scala.io.Source
-
 import org.apache.hadoop.fs.Path
 import org.json4s.jackson.JsonMethods._
 import org.mockito.Mockito
 import org.scalatest.BeforeAndAfter
-
 import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.deploy.history.EventLogTestHelper._
-import org.apache.spark.deploy.history.SingleEventLogFileWriter
+import org.apache.spark.deploy.history.{EventLogFileReader, SingleEventLogFileWriter}
 import org.apache.spark.executor.{ExecutorMetrics, TaskMetrics}
 import org.apache.spark.internal.Logging
 import org.apache.spark.io._
