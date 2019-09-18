@@ -22,7 +22,7 @@ import scala.collection.immutable.TreeSet
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
-import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, FalseLiteral, GenerateSafeProjection, GenerateUnsafeProjection, Predicate => BasePredicate}
+import org.apache.spark.sql.catalyst.expressions.codegen.{CodegenContext, CodeGenerator, ExprCode, FalseLiteral, Predicate => BasePredicate}
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, LeafNode, LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.util.TypeUtils
@@ -592,9 +592,19 @@ case class Or(left: Expression, right: Expression) extends BinaryOperator with P
     }
   }
 
+  // Splits predicate code if the generated code of `expr` is too long
+  private def genSplitCode(ctx: CodegenContext, expr: Expression): ExprCode = {
+    val eval = expr.genCode(ctx)
+    if (eval.code.length > SQLConf.get.methodSplitThreshold) {
+      ctx.defineIndependentFunction(this, eval)
+    } else {
+      eval
+    }
+  }
+
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    val eval1 = left.genCode(ctx)
-    val eval2 = right.genCode(ctx)
+    val eval1 = genSplitCode(ctx, left)
+    val eval2 = genSplitCode(ctx, right)
 
     // The result should be `true`, if any of them is `true` whenever the other is null or not.
     if (!left.nullable && !right.nullable) {
