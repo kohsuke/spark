@@ -311,10 +311,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
         localSparkSession.conf.set(SQLConf.ANSI_SQL_PARSER.key, true)
         localSparkSession.conf.set(SQLConf.PREFER_INTEGRAL_DIVISION.key, true)
         localSparkSession.conf.set(SQLConf.FAIL_ON_INTEGRAL_TYPE_OVERFLOW.key, true)
-        // Propagate the SQL conf FAIL_ON_INTEGRAL_TYPE_OVERFLOW to executor.
-        // TODO: remove this after SPARK-29122 is resolved.
-        localSparkSession.sparkContext.setLocalProperty(
-          SQLConf.FAIL_ON_INTEGRAL_TYPE_OVERFLOW.key, "true")
       case _ =>
     }
 
