@@ -99,4 +99,24 @@ object Utils extends Logging {
         s"under spark home test dir ${sparkHomeDir.toAbsolutePath}!")
     }
   }
+
+  def getTestFileAbsolutePath(fileName: String, sparkHomeDir: Path): String = {
+    val filePathsFound = Files
+      .walk(sparkHomeDir)
+      .filter(Files.isRegularFile(_))
+      .filter((f: Path) => {f.toFile.getName == fileName})
+    // we should not have more than one here under current test build dir
+    // we only need one though
+    val filePath = filePathsFound
+      .iterator()
+      .asScala
+      .map(_.toAbsolutePath.toString)
+      .toArray
+      .headOption
+    filePath match {
+      case Some(file) => file
+      case _ => throw new SparkException(s"No valid $fileName file was found " +
+        s"under spark home test dir ${sparkHomeDir.toAbsolutePath}!")
+    }
+  }
 }

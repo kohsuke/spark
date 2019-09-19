@@ -125,16 +125,16 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       .endSpec()
       .build()
 
-    kubernetesTestComponents
+    Eventually.eventually(TIMEOUT, INTERVAL) (kubernetesTestComponents
       .kubernetesClient
       .services()
-      .create(cephService)
+      .create(cephService))
 
-    kubernetesTestComponents
+    Eventually.eventually(TIMEOUT, INTERVAL) (kubernetesTestComponents
       .kubernetesClient
       .apps()
       .statefulSets()
-      .create(cephStatefulSet)
+      .create(cephStatefulSet))
   }
 
  private def deleteCephStorage(): Unit = {
@@ -143,16 +143,18 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       .apps()
       .statefulSets()
       .withName(cName)
+      .withGracePeriod(0)
       .delete()
 
     kubernetesTestComponents
       .kubernetesClient
       .services()
       .withName(svcName)
+      .withGracePeriod(0)
       .delete()
   }
 
-  test("Launcher client dependencies", k8sTestTag, MinikubeTag) {
+  test("Launcher java client dependencies", k8sTestTag, MinikubeTag) {
     val fileName = Utils.createTempFile(FILE_CONTENTS, HOST_PATH)
     try {
       setupCephStorage()
@@ -160,7 +162,7 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       val cephUrl = new URL(cephUrlStr)
       val cephHost = cephUrl.getHost
       val cephPort = cephUrl.getPort
-      val examplesJar = Utils.getExamplesJarAbsolutePath(sparkHomeDir)
+      val examplesJar = Utils.getTestFileAbsolutePath(Utils.getExamplesJarName(), sparkHomeDir)
       val (accessKey, secretKey) = getCephCredentials()
       sparkAppConf
         .set("spark.hadoop.fs.s3a.access.key", accessKey)
@@ -177,6 +179,50 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       runSparkRemoteCheckAndVerifyCompletion(appResource = examplesJar,
         appArgs = Array(fileName),
         timeout = Option(DEPS_TIMEOUT))
+    } finally {
+      // make sure this always runs
+      deleteCephStorage()
+    }
+  }
+
+  test("Launcher python client dependencies", k8sTestTag, MinikubeTag) {
+    try {
+      setupCephStorage()
+      val cephUrlStr = getServiceUrl(svcName)
+      val cephUrl = new URL(cephUrlStr)
+      val cephHost = cephUrl.getHost
+      val cephPort = cephUrl.getPort
+      val examplesJar = Utils.getTestFileAbsolutePath(Utils.getExamplesJarName(), sparkHomeDir)
+
+      val (accessKey, secretKey) = getCephCredentials()
+      sparkAppConf
+        .set("spark.kubernetes.container.image", pyImage)
+        .set("spark.kubernetes.pyspark.pythonVersion", "2")
+        .set("spark.hadoop.fs.s3a.access.key", accessKey)
+        .set("spark.hadoop.fs.s3a.secret.key", secretKey)
+        .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+        .set("spark.hadoop.fs.s3a.endpoint", s"$cephHost:$cephPort")
+        .set("spark.kubernetes.file.upload.path", s"s3a://$bucket")
+        .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .set("spark.jars.packages", "com.amazonaws:aws-java-sdk:" +
+          "1.7.4,org.apache.hadoop:hadoop-aws:2.7.6")
+        .set("spark.driver.extraJavaOptions", "-Divy.cache.dir=/tmp -Divy.home=/tmp")
+      createS3Bucket(accessKey, secretKey, cephUrlStr)
+      val pySparkFiles = Utils.getTestFileAbsolutePath("pyfiles.py", sparkHomeDir )
+      val pyContainerChecks = Utils.getTestFileAbsolutePath("py_container_checks.py", sparkHomeDir )
+      runSparkApplicationAndVerifyCompletion(
+        appResource = pySparkFiles,
+        mainClass = "",
+        expectedLogOnCompletion = Seq(
+          "Python runtime version check is: True",
+          "Python environment version check is: True",
+          "Python runtime version check for executor is: True"),
+        appArgs = Array("python"),
+        driverPodChecker = doBasicDriverPyPodCheck,
+        executorPodChecker = doBasicExecutorPyPodCheck,
+        appLocator = appLocator,
+        isJVM = false,
+        pyFiles = Some(pyContainerChecks))
     } finally {
       // make sure this always runs
       deleteCephStorage()
