@@ -34,6 +34,7 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, CartesianProductExec, SortMergeJoinExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.SQLConf.{PARTITION_OVERWRITE_MODE, PartitionOverwriteMode}
 import org.apache.spark.sql.test.{SharedSparkSession, TestSQLContext}
 import org.apache.spark.sql.test.SQLTestData._
 import org.apache.spark.sql.types._
@@ -3221,15 +3222,50 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-29239: Subquery should not cause NPE when eliminating subexpression") {
     withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "false",
-        SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false",
-        SQLConf.CODEGEN_FACTORY_MODE.key -> "CODEGEN_ONLY",
-        SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConvertToLocalRelation.ruleName) {
+      SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false",
+      SQLConf.CODEGEN_FACTORY_MODE.key -> "CODEGEN_ONLY",
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConvertToLocalRelation.ruleName) {
       withTempView("t1", "t2") {
         sql("create temporary view t1 as select * from values ('val1a', 10L) as t1(t1a, t1b)")
         sql("create temporary view t2 as select * from values ('val3a', 110L) as t2(t2a, t2b)")
         val df = sql("SELECT min, min from (SELECT (SELECT min(t2b) FROM t2) min " +
           "FROM t1 WHERE t1a = 'val1c')")
         assert(df.collect().size == 0)
+      }
+    }
+  }
+
+  test("SPARK-29037: For non dynamic partition overwrite, set a unique staging dir") {
+    withSQLConf(PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.STATIC.toString) {
+      withTable("ta", "tb") {
+        sql("create table ta(id int, p1 int, p2 int) using parquet partitioned by (p1, p2)")
+        sql("insert overwrite table ta partition(p1=1,p2) select 1, 3")
+        val df1 = sql("select * from ta order by p2")
+        checkAnswer(df1, Array(Row(1, 1, 3)))
+        sql("insert overwrite table ta partition(p1=1,p2) select 1, 4")
+        val df2 = sql("select * from ta order by p2")
+        checkAnswer(df2, Array(Row(1, 1, 4)))
+        sql("insert overwrite table ta partition(p1=1,p2=5) select 1")
+        val df3 = sql("select * from ta order by p2")
+        checkAnswer(df3, Array(Row(1, 1, 4), Row(1, 1, 5)))
+        sql("insert overwrite table ta select 1, 2, 3")
+        val df4 = sql("select * from ta order by p2")
+        checkAnswer(df4, Array(Row(1, 2, 3)))
+        sql("insert overwrite table ta select 9, 9, 9")
+        val df5 = sql("select * from ta order by p2")
+        checkAnswer(df5, Array(Row(9, 9, 9)))
+
+        // For non-partitioned table write.
+        sql("create table tb(id int, p1 int, p2 int) using parquet")
+        sql("insert overwrite table tb select 1, 2, 3")
+        val df6 = sql("select * from tb order by p2")
+        checkAnswer(df6, Array(Row(1, 2, 3)))
+        sql("insert overwrite table tb select 1, 2, 4")
+        val df7 = sql("select * from tb order by p2")
+        checkAnswer(df7, Array(Row(1, 2, 4)))
+        sql("insert into table tb select 1, 2, 5")
+        val df8 = sql("select * from tb order by p2")
+        checkAnswer(df8, Array(Row(1, 2, 4), Row(1, 2, 5)))
       }
     }
   }

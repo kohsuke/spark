@@ -147,7 +147,10 @@ object FileCommitProtocol extends Logging {
       className: String,
       jobId: String,
       outputPath: String,
-      dynamicPartitionOverwrite: Boolean = false): FileCommitProtocol = {
+      dynamicPartitionOverwrite: Boolean = false,
+      isInsertIntoHadoopFsRelation: Boolean = false,
+      staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)]):
+  FileCommitProtocol = {
 
     logDebug(s"Creating committer $className; job $jobId; output=$outputPath;" +
       s" dynamic=$dynamicPartitionOverwrite")
@@ -156,9 +159,11 @@ object FileCommitProtocol extends Logging {
     // dynamicPartitionOverwrite: Boolean).
     // If that doesn't exist, try the one with (jobId: string, outputPath: String).
     try {
-      val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean])
-      logDebug("Using (String, String, Boolean) constructor")
-      ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean])
+      val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean],
+        classOf[Boolean], classOf[Seq[(String, String)]])
+      logDebug("Using (String, String, Boolean, Seq[(String, String)]) constructor")
+      ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
+        isInsertIntoHadoopFsRelation.asInstanceOf[java.lang.Boolean], staticPartitionKVS)
     } catch {
       case _: NoSuchMethodException =>
         logDebug("Falling back to (String, String) constructor")

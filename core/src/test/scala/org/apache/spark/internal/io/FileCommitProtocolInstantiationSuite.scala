@@ -43,13 +43,13 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
     instantiateClassic(false)
   }
 
-  test("Three arg constructors have priority") {
-    assert(3 == instantiateNew(false).argCount,
+  test("Five arg constructors have priority") {
+    assert(5 == instantiateNew(false).argCount,
       "Wrong constructor argument count")
   }
 
-  test("Three arg constructors have priority when dynamic") {
-    assert(3 == instantiateNew(true).argCount,
+  test("Five arg constructors have priority when dynamic") {
+    assert(5 == instantiateNew(true).argCount,
       "Wrong constructor argument count")
   }
 
@@ -127,8 +127,8 @@ private class FullConstructorCommitProtocol(
     this(arg1, arg2, false, 2)
   }
 
-  def this(arg1: String, arg2: String, b: Boolean) = {
-    this(arg1, arg2, false, 3)
+  def this(arg1: String, arg2: String, b: Boolean, insert: Boolean, pkv: Seq[(String, String)]) = {
+    this(arg1, arg2, false, 5)
   }
 }
 
