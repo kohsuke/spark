@@ -16,11 +16,13 @@
  */
 package org.apache.spark.deploy.k8s.integrationtest
 
-import java.io.{Closeable, File, PrintWriter}
+import java.io.{Closeable, File, FileInputStream, FileOutputStream, PrintWriter}
 import java.nio.file.{Files, Path}
+import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.JavaConverters._
 
+import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.io.output.ByteArrayOutputStream
 
 import org.apache.spark.{SPARK_VERSION, SparkException}
@@ -99,4 +101,41 @@ object Utils extends Logging {
         s"under spark home test dir ${sparkHomeDir.toAbsolutePath}!")
     }
   }
+
+  def getTestFileAbsolutePath(fileName: String, sparkHomeDir: Path): String = {
+    val filePathsFound = Files
+      .walk(sparkHomeDir)
+      .filter(Files.isRegularFile(_))
+      .filter((f: Path) => {f.toFile.getName == fileName})
+    // we should not have more than one here under current test build dir
+    // we only need one though
+    val filePath = filePathsFound
+      .iterator()
+      .asScala
+      .map(_.toAbsolutePath.toString)
+      .toArray
+      .headOption
+    filePath match {
+      case Some(file) => file
+      case _ => throw new SparkException(s"No valid $fileName file was found " +
+        s"under spark home test dir ${sparkHomeDir.toAbsolutePath}!")
+    }
+  }
+
+  def createZipFile(inFile: String, outFile: String): Unit = {
+    try {
+      val fileToZip = new File(inFile)
+      val fis = new FileInputStream(fileToZip)
+      val fos = new FileOutputStream(outFile)
+      val zipOut = new ZipOutputStream(fos)
+      val zipEntry = new ZipEntry(fileToZip.getName)
+      zipOut.putNextEntry(zipEntry)
+      IOUtils.copy(fis, zipOut)
+      IOUtils.closeQuietly(fis)
+      IOUtils.closeQuietly(zipOut)
+    } catch {
+      case e: Exception => log.error(s"Failed to zip file: $inFile"); throw e
+    }
+  }
 }
+
