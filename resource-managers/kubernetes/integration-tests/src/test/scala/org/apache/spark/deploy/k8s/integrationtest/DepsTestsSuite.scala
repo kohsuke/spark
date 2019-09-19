@@ -120,16 +120,18 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       .endSpec()
       .build()
 
-    kubernetesTestComponents
+    // try until the service from a previous test is deleted
+    Eventually.eventually(TIMEOUT, INTERVAL) (kubernetesTestComponents
       .kubernetesClient
       .services()
-      .create(minioService)
+      .create(minioService))
 
-    kubernetesTestComponents
+    // try until the stateful set of a previous test is deleted
+    Eventually.eventually(TIMEOUT, INTERVAL) (kubernetesTestComponents
       .kubernetesClient
       .apps()
       .statefulSets()
-      .create(minioStatefulSet)
+      .create(minioStatefulSet))
   }
 
  private def deleteMinioStorage(): Unit = {
@@ -138,16 +140,18 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       .apps()
       .statefulSets()
       .withName(cName)
+      .withGracePeriod(0)
       .delete()
 
     kubernetesTestComponents
       .kubernetesClient
       .services()
       .withName(svcName)
+      .withGracePeriod(0)
       .delete()
   }
 
-  test("Launcher client dependencies", k8sTestTag, MinikubeTag) {
+  test("Launcher java client dependencies", k8sTestTag, MinikubeTag) {
     val fileName = Utils.createTempFile(FILE_CONTENTS, HOST_PATH)
     try {
       setupMinioStorage()
@@ -155,7 +159,7 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       val minioUrl = new URL(minioUrlStr)
       val minioHost = minioUrl.getHost
       val minioPort = minioUrl.getPort
-      val examplesJar = Utils.getExamplesJarAbsolutePath(sparkHomeDir)
+      val examplesJar = Utils.getTestFileAbsolutePath(Utils.getExamplesJarName(), sparkHomeDir)
       sparkAppConf
         .set("spark.hadoop.fs.s3a.access.key", ACCESS_KEY)
         .set("spark.hadoop.fs.s3a.secret.key", SECRET_KEY)
@@ -171,6 +175,60 @@ private[spark] trait DepsTestsSuite { k8sSuite: KubernetesSuite =>
       runSparkRemoteCheckAndVerifyCompletion(appResource = examplesJar,
         appArgs = Array(fileName),
         timeout = Option(DEPS_TIMEOUT))
+    } finally {
+      // make sure this always runs
+      deleteMinioStorage()
+    }
+  }
+
+  test("Launcher python client dependencies using py", k8sTestTag, MinikubeTag) {
+    val depsFile = Utils.getTestFileAbsolutePath("py_container_checks.py", sparkHomeDir)
+    testPythonDeps(depsFile)
+  }
+
+  test("Launcher python client dependencies using a zip file", k8sTestTag, MinikubeTag) {
+    val inDepsFile = Utils.getTestFileAbsolutePath("py_container_checks.py", sparkHomeDir)
+    val outDepsFile = s"${inDepsFile.substring(0, inDepsFile.lastIndexOf("."))}.zip"
+    Utils.createZipFile(inDepsFile, outDepsFile)
+    testPythonDeps(outDepsFile)
+  }
+
+  private def testPythonDeps(depsFile: String): Unit = {
+    try {
+      setupMinioStorage()
+      val minioUrlStr = getServiceUrl(svcName)
+      val minioUrl = new URL(minioUrlStr)
+      val minioHost = minioUrl.getHost
+      val minioPort = minioUrl.getPort
+      val examplesJar = Utils.getTestFileAbsolutePath(Utils.getExamplesJarName(), sparkHomeDir)
+      sparkAppConf
+        .set("spark.kubernetes.container.image", pyImage)
+        .set("spark.kubernetes.pyspark.pythonVersion", "3")
+        .set("spark.hadoop.fs.s3a.access.key", ACCESS_KEY)
+        .set("spark.hadoop.fs.s3a.secret.key", SECRET_KEY)
+        .set("spark.hadoop.fs.s3a.connection.ssl.enabled", "false")
+        .set("spark.hadoop.fs.s3a.endpoint", s"$minioHost:$minioPort")
+        .set("spark.kubernetes.file.upload.path", s"s3a://$BUCKET")
+        .set("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .set("spark.jars.packages", "com.amazonaws:aws-java-sdk:" +
+          "1.7.4,org.apache.hadoop:hadoop-aws:2.7.6")
+        .set("spark.driver.extraJavaOptions", "-Divy.cache.dir=/tmp -Divy.home=/tmp")
+      createS3Bucket(ACCESS_KEY, SECRET_KEY, minioUrlStr)
+      val pySparkFiles = Utils.getTestFileAbsolutePath("pyfiles.py", sparkHomeDir )
+      val pyContainerChecks = depsFile
+      runSparkApplicationAndVerifyCompletion(
+        appResource = pySparkFiles,
+        mainClass = "",
+        expectedLogOnCompletion = Seq(
+          "Python runtime version check is: True",
+          "Python environment version check is: True",
+          "Python runtime version check for executor is: True"),
+        appArgs = Array("python3"),
+        driverPodChecker = doBasicDriverPyPodCheck,
+        executorPodChecker = doBasicExecutorPyPodCheck,
+        appLocator = appLocator,
+        isJVM = false,
+        pyFiles = Some(pyContainerChecks))
     } finally {
       // make sure this always runs
       deleteMinioStorage()
