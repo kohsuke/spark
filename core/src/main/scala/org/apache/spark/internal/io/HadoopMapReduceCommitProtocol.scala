@@ -17,7 +17,7 @@
 
 package org.apache.spark.internal.io
 
-import java.io.IOException
+import java.io.{File, IOException}
 import java.util.{Date, UUID}
 
 import scala.collection.mutable
@@ -26,7 +26,7 @@ import scala.util.Try
 import org.apache.hadoop.conf.Configurable
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
-import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import org.apache.spark.internal.Logging
@@ -52,7 +52,9 @@ import org.apache.spark.mapred.SparkHadoopMapRedUtil
 class HadoopMapReduceCommitProtocol(
     jobId: String,
     path: String,
-    dynamicPartitionOverwrite: Boolean = false)
+    dynamicPartitionOverwrite: Boolean = false,
+    isInsertIntoHadoopFsRelation: Boolean = false,
+    staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)])
   extends FileCommitProtocol with Serializable with Logging {
 
   import FileCommitProtocol._
@@ -91,7 +93,29 @@ class HadoopMapReduceCommitProtocol(
    */
   private def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
+  /**
+   * Get the desired output path for the job. The output will be [[path]] when it is not a
+   * InsertIntoHadoopRelation operation. Otherwise, it will be [[stagingDir]].
+   */
+  protected def getOutputPath(context: TaskAttemptContext): Path = {
+    if (isInsertIntoHadoopFsRelation) {
+      val outputPath = new Path(path, ".spark-staging-" + jobId)
+      outputPath.getFileSystem(context.getConfiguration).makeQualified(outputPath)
+      outputPath
+    } else {
+      new Path(path)
+    }
+  }
+
+  private def getStaticPartitionPath(): String = {
+    staticPartitionKVS.map(kv => kv._1 + "=" + kv._2).mkString(File.separator)
+  }
+
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
+    if (isInsertIntoHadoopFsRelation) {
+      context.getConfiguration.set(FileOutputFormat.OUTDIR, getOutputPath(context).toString)
+    }
+
     val format = context.getOutputFormatClass.getConstructor().newInstance()
     // If OutputFormat is Configurable, we should set conf to it.
     format match {
@@ -199,6 +223,26 @@ class HadoopMapReduceCommitProtocol(
             fs.mkdirs(finalPartPath.getParent)
           }
           fs.rename(new Path(stagingDir, part), finalPartPath)
+        }
+      } else if (isInsertIntoHadoopFsRelation) {
+        if (!getStaticPartitionPath().isEmpty) {
+          val finalPartPath = new Path(path, getStaticPartitionPath)
+          if (fs.exists(new Path(stagingDir, getStaticPartitionPath()))) {
+            assert(!fs.exists(finalPartPath))
+            fs.rename(new Path(stagingDir, getStaticPartitionPath), finalPartPath)
+          }
+        } else {
+          val files = fs.listStatus(stagingDir)
+            .map(_.getPath.getName)
+            .filter(_ != "_temporary")
+            .filter(name => !name.startsWith("."))
+          for (file <- files) {
+            val finalPath = new Path(path, file)
+            if (fs.exists(finalPath)) {
+              fs.delete(finalPath, true)
+            }
+            fs.rename(new Path(stagingDir, file), finalPath)
+          }
         }
       }
 

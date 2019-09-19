@@ -33,6 +33,7 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, CartesianProductExec, SortMergeJoinExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.SQLConf.{PARTITION_OVERWRITE_MODE, PartitionOverwriteMode}
 import org.apache.spark.sql.test.{SharedSparkSession, TestSQLContext}
 import org.apache.spark.sql.test.SQLTestData._
 import org.apache.spark.sql.types._
@@ -3190,6 +3191,41 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       checkAnswer(df2, Array(Row(100)))
       val df3 = sql("select case when 1=2 then 1 else 1.000000000000000000000001 end / 10")
       checkAnswer(df3, Array(Row(new java.math.BigDecimal("0.100000000000000000000000100"))))
+    }
+  }
+
+  test("SPARK-29037: For non dynamic partition overwrite, set a unique staging dir") {
+    withSQLConf(PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.STATIC.toString) {
+      withTable("ta", "tb") {
+        sql("create table ta(id int, p1 int, p2 int) using parquet partitioned by (p1, p2)")
+        sql("insert overwrite table ta partition(p1=1,p2) select 1, 3")
+        val df1 = sql("select * from ta order by p2")
+        checkAnswer(df1, Array(Row(1, 1, 3)))
+        sql("insert overwrite table ta partition(p1=1,p2) select 1, 4")
+        val df2 = sql("select * from ta order by p2")
+        checkAnswer(df2, Array(Row(1, 1, 4)))
+        sql("insert overwrite table ta partition(p1=1,p2=5) select 1")
+        val df3 = sql("select * from ta order by p2")
+        checkAnswer(df3, Array(Row(1, 1, 4), Row(1, 1, 5)))
+        sql("insert overwrite table ta select 1, 2, 3")
+        val df4 = sql("select * from ta order by p2")
+        checkAnswer(df4, Array(Row(1, 2, 3)))
+        sql("insert overwrite table ta select 9, 9, 9")
+        val df5 = sql("select * from ta order by p2")
+        checkAnswer(df5, Array(Row(9, 9, 9)))
+
+        // For non-partitioned table write.
+        sql("create table tb(id int, p1 int, p2 int) using parquet")
+        sql("insert overwrite table tb select 1, 2, 3")
+        val df6 = sql("select * from tb order by p2")
+        checkAnswer(df6, Array(Row(1, 2, 3)))
+        sql("insert overwrite table tb select 1, 2, 4")
+        val df7 = sql("select * from tb order by p2")
+        checkAnswer(df7, Array(Row(1, 2, 4)))
+        sql("insert into table tb select 1, 2, 5")
+        val df8 = sql("select * from tb order by p2")
+        checkAnswer(df8, Array(Row(1, 2, 4), Row(1, 2, 5)))
+      }
     }
   }
 }
