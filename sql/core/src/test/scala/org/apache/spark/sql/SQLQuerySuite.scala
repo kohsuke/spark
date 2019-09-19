@@ -22,7 +22,7 @@ import java.net.{MalformedURLException, URL}
 import java.sql.{Date, Timestamp}
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{AccumulatorSuite, SparkException}
+import org.apache.spark.{AccumulatorSuite, InsertFileSourceConflictException, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerJobStart}
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.catalyst.util.StringUtils
@@ -34,6 +34,7 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetScan
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, CartesianProductExec, SortMergeJoinExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.SQLConf.{PARTITION_OVERWRITE_MODE, PartitionOverwriteMode}
 import org.apache.spark.sql.test.{SharedSparkSession, TestSQLContext}
 import org.apache.spark.sql.test.SQLTestData._
 import org.apache.spark.sql.types._
@@ -3230,6 +3231,70 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         val df = sql("SELECT min, min from (SELECT (SELECT min(t2b) FROM t2) min " +
           "FROM t1 WHERE t1a = 'val1c')")
         assert(df.collect().size == 0)
+      }
+    }
+  }
+
+  test("SPARK-28945 SPARK-29037: Fix the issue that spark gives duplicate result and support" +
+    " concurrent file source write operations write to different partitions in the same table.") {
+    withSQLConf(PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.STATIC.toString) {
+      withTable("ta", "tb", "tc") {
+        // partitioned table
+        sql("create table ta(id int, p1 int, p2 int) using parquet partitioned by (p1, p2)")
+        sql("insert overwrite table ta partition(p1=1,p2) select 1, 3")
+        val df1 = sql("select * from ta order by p2")
+        checkAnswer(df1, Array(Row(1, 1, 3)))
+        sql("insert overwrite table ta partition(p1=1,p2) select 1, 4")
+        val df2 = sql("select * from ta order by p2")
+        checkAnswer(df2, Array(Row(1, 1, 4)))
+        sql("insert overwrite table ta partition(p1=1,p2=5) select 1")
+        val df3 = sql("select * from ta order by p2")
+        checkAnswer(df3, Array(Row(1, 1, 4), Row(1, 1, 5)))
+        sql("insert overwrite table ta select 1, 2, 3")
+        val df4 = sql("select * from ta order by p2")
+        checkAnswer(df4, Array(Row(1, 2, 3)))
+        sql("insert overwrite table ta select 9, 9, 9")
+        val df5 = sql("select * from ta order by p2")
+        checkAnswer(df5, Array(Row(9, 9, 9)))
+        sql("insert into table ta select 6, 6, 6")
+        val df6 = sql("select * from ta order by p2")
+        checkAnswer(df6, Array(Row(6, 6, 6), Row(9, 9, 9)))
+
+        // non-partitioned table
+        sql("create table tb(id int) using parquet")
+        sql("insert into table tb select 7")
+        val df7 = sql("select * from tb order by id")
+        checkAnswer(df7, Array(Row(7)))
+        sql("insert overwrite table tb select 8")
+        val df8 = sql("select * from tb order by id")
+        checkAnswer(df8, Array(Row(8)))
+        sql("insert into table tb select 9")
+        val df9 = sql("select * from tb order by id")
+        checkAnswer(df9, Array(Row(8), Row(9)))
+
+        // detect concurrent conflict
+        sql("create table tc(id int, p1 int, p2 int) using parquet partitioned by (p1, p2)")
+        sql("insert overwrite table tc partition(p1=1, p2) select 1, 3")
+
+        val warehouse = SQLConf.get.warehousePath.split(":").last
+        val tblPath = Array(warehouse, "org.apache.spark.sql.SQLQuerySuite", "tc")
+          .mkString(File.separator)
+        val staging1 = new File(Array(tblPath, ".spark-staging-1", "p1=1", "application_1234")
+          .mkString(File.separator))
+        staging1.mkdirs()
+
+        val msg = intercept[InsertFileSourceConflictException](
+          sql("insert overwrite table tc partition(p1=1, p2) select 1, 2")).message
+        assert(msg.contains(".spark-staging-1/p1=1") && msg.contains("application_1234"))
+        intercept[InsertFileSourceConflictException](
+          sql("insert overwrite table tc partition(p1=1, p2=2) select 1"))
+        intercept[InsertFileSourceConflictException](
+          sql("insert overwrite table tc select 1, 2, 3"))
+        intercept[InsertFileSourceConflictException](
+          sql("insert into table tc select 1, 2, 3"))
+
+        sql("insert overwrite table tc partition(p1=2, p2) select 1, 2")
+        sql("insert overwrite table tc partition(p1=2, p2=3) select 1")
       }
     }
   }
