@@ -17,7 +17,7 @@
 
 package org.apache.spark.internal.io
 
-import java.io.IOException
+import java.io.{File, IOException}
 import java.util.{Date, UUID}
 
 import scala.collection.mutable
@@ -26,7 +26,7 @@ import scala.util.Try
 import org.apache.hadoop.conf.Configurable
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
-import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
 import org.apache.spark.internal.Logging
@@ -52,7 +52,8 @@ import org.apache.spark.mapred.SparkHadoopMapRedUtil
 class HadoopMapReduceCommitProtocol(
     jobId: String,
     path: String,
-    dynamicPartitionOverwrite: Boolean = false)
+    dynamicPartitionOverwrite: Boolean = false,
+    staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)])
   extends FileCommitProtocol with Serializable with Logging {
 
   import FileCommitProtocol._
@@ -89,9 +90,15 @@ class HadoopMapReduceCommitProtocol(
    * The staging directory of this write job. Spark uses it to deal with files with absolute output
    * path, or writing data into partitioned directory with dynamicPartitionOverwrite=true.
    */
-  private def stagingDir = new Path(path, ".spark-staging-" + jobId)
+  protected def stagingDir = new Path(path, ".spark-staging-" + jobId)
+
+
+  private def getStaticPartitionPath(): String = {
+    staticPartitionKVS.map(kv => kv._1 + "=" + kv._2).mkString(File.separator)
+  }
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
+    context.getConfiguration.set(FileOutputFormat.OUTDIR, stagingDir.toString)
     val format = context.getOutputFormatClass.getConstructor().newInstance()
     // If OutputFormat is Configurable, we should set conf to it.
     format match {
@@ -198,6 +205,20 @@ class HadoopMapReduceCommitProtocol(
             // a parent that exists, otherwise we may get unexpected result on the rename.
             fs.mkdirs(finalPartPath.getParent)
           }
+          fs.rename(new Path(stagingDir, part), finalPartPath)
+        }
+      } else if (!getStaticPartitionPath().isEmpty) {
+        val finalPartPath = new Path(path, getStaticPartitionPath)
+        assert(!fs.exists(finalPartPath))
+        fs.rename(new Path(stagingDir, getStaticPartitionPath), finalPartPath)
+      } else {
+        val parts = fs.listStatus(stagingDir)
+          .filter(_.isDirectory)
+          .map(_.getPath.getName)
+          .filter(name => !name.startsWith(".") && name.contains("="))
+        for (part <- parts) {
+          val finalPartPath = new Path(path, part)
+          assert(!fs.exists(finalPartPath))
           fs.rename(new Path(stagingDir, part), finalPartPath)
         }
       }
