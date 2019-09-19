@@ -16,14 +16,16 @@
  */
 package org.apache.spark.deploy.k8s.integrationtest
 
-import java.io.{Closeable, File, PrintWriter}
+import java.io.{Closeable, File, FileInputStream, FileOutputStream, PrintWriter}
 import java.nio.file.{Files, Path}
 import java.util.concurrent.CountDownLatch
+import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.JavaConverters._
 
 import io.fabric8.kubernetes.client.dsl.ExecListener
 import okhttp3.Response
+import org.apache.commons.compress.utils.IOUtils
 import org.apache.commons.io.output.ByteArrayOutputStream
 
 import org.apache.spark.{SPARK_VERSION, SparkException}
@@ -111,24 +113,40 @@ object Utils extends Logging {
     filename
   }
 
-  def getExamplesJarAbsolutePath(sparkHomeDir: Path): String = {
-    val jarName = getExamplesJarName()
-    val jarPathsFound = Files
+  def getTestFileAbsolutePath(fileName: String, sparkHomeDir: Path): String = {
+    val filePathsFound = Files
       .walk(sparkHomeDir)
       .filter(Files.isRegularFile(_))
-      .filter((f: Path) => {f.toFile.getName == jarName})
+      .filter((f: Path) => {f.toFile.getName == fileName})
     // we should not have more than one here under current test build dir
     // we only need one though
-    val jarPath = jarPathsFound
+    val filePath = filePathsFound
       .iterator()
       .asScala
       .map(_.toAbsolutePath.toString)
       .toArray
       .headOption
-    jarPath match {
-      case Some(jar) => jar
-      case _ => throw new SparkException(s"No valid $jarName file was found " +
+    filePath match {
+      case Some(file) => file
+      case _ => throw new SparkException(s"No valid $fileName file was found " +
         s"under spark home test dir ${sparkHomeDir.toAbsolutePath}!")
     }
   }
+
+  def createZipFile(inFile: String, outFile: String): Unit = {
+    try {
+      val fileToZip = new File(inFile)
+      val fis = new FileInputStream(fileToZip)
+      val fos = new FileOutputStream(outFile)
+      val zipOut = new ZipOutputStream(fos)
+      val zipEntry = new ZipEntry(fileToZip.getName)
+      zipOut.putNextEntry(zipEntry)
+      IOUtils.copy(fis, zipOut)
+      IOUtils.closeQuietly(fis)
+      IOUtils.closeQuietly(zipOut)
+    } catch {
+      case e: Exception => log.error(s"Failed to zip file: $inFile"); throw e
+    }
+  }
 }
+
