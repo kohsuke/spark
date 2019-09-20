@@ -209,18 +209,22 @@ class HadoopMapReduceCommitProtocol(
         }
       } else if (!getStaticPartitionPath().isEmpty) {
         val finalPartPath = new Path(path, getStaticPartitionPath)
-        assert(!fs.exists(finalPartPath))
-        fs.rename(new Path(stagingDir, getStaticPartitionPath), finalPartPath)
-      } else {
-        val parts = fs.listStatus(stagingDir)
-          .filter(_.isDirectory)
-          .map(_.getPath.getName)
-          .filter(name => !name.startsWith(".") && name.contains("="))
-        for (part <- parts) {
-          val finalPartPath = new Path(path, part)
+        if (fs.exists(new Path(stagingDir, getStaticPartitionPath()))) {
           assert(!fs.exists(finalPartPath))
-          fs.rename(new Path(stagingDir, part), finalPartPath)
+          fs.rename(new Path(stagingDir, getStaticPartitionPath), finalPartPath)
         }
+      } else {
+        val files = fs.listStatus(stagingDir)
+          .map(_.getPath.getName)
+          .filter(_ != "_temporary")
+          .filter(name => !name.startsWith("."))
+          for (file <- files) {
+            val finalPath = new Path(path, file)
+            if (fs.exists(finalPath)) {
+              fs.delete(finalPath, true)
+            }
+            fs.rename(new Path(stagingDir, file), finalPath)
+          }
       }
 
       fs.delete(stagingDir, true)
