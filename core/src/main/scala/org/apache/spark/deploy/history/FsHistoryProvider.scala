@@ -160,6 +160,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     new HistoryServerDiskManager(conf, path, listing, clock)
   }
 
+  // Used to store the paths, which are being processed. This enable the replay log tasks execute
+  // asynchronously and make sure that checkForLogs would not process a path repeatedly.
   private val processing = ConcurrentHashMap.newKeySet[String]
 
   private def isProcessing(path: Path): Boolean = {
@@ -170,7 +172,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     processing.add(path.getName)
   }
 
-  private def endProcess(path: Path): Unit = {
+  private def endProcessing(path: Path): Unit = {
     processing.remove(path.getName)
   }
 
@@ -685,7 +687,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       case e: Exception =>
         logError("Exception while merging application listings", e)
     } finally {
-      endProcess(fileStatus.getPath)
+      endProcessing(fileStatus.getPath)
       pendingReplayTasksCount.decrementAndGet()
     }
   }
