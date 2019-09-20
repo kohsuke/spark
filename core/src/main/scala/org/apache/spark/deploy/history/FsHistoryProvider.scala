@@ -666,7 +666,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     }
   }
 
-  protected def mergeApplicationListing(
+  private def mergeApplicationListing(
       fileStatus: FileStatus,
       scanTime: Long,
       enableOptimizations: Boolean): Unit = {
