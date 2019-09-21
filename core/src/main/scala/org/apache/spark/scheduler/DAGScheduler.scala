@@ -1521,7 +1521,7 @@ private[spark] class DAGScheduler(
             markStageAsFinished(failedStage, errorMessage = Some(failureMessage),
               willRetry = !shouldAbortStage)
           } else {
-            logDebug(s"Received fetch failure from $task, but its from $failedStage which is no " +
+            logDebug(s"Received fetch failure from $task, but it's from $failedStage which is no " +
               s"longer running")
           }
 
