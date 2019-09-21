@@ -96,7 +96,7 @@ class HadoopMapReduceCommitProtocol(
 
   /**
    * Get the desired output path for the job. The output will be [[path]] when it is not a
-   * InsertIntoHadoopRelation operation. Otherwise, it will be [[stagingDir]].
+   * InsertOverwriteHadoopRelation operation. Otherwise, it will be [[stagingDir]].
    */
   protected def getOutputPath(context: TaskAttemptContext): Path = {
     if (isInsertOverwriteHadoopFsRelation) {
