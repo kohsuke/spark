@@ -22,12 +22,14 @@ import java.lang.reflect.InvocationTargetException
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.{List => JList}
-import java.util.jar.JarFile
+import java.util.jar.{JarFile, JarInputStream}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.io.Source
 import scala.util.Try
+
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.{SparkConf, SparkException, SparkUserAppException}
 import org.apache.spark.deploy.SparkSubmitAction._
@@ -216,20 +218,27 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       val uri = new URI(primaryResource)
       val uriScheme = uri.getScheme()
 
-      uriScheme match {
-        case "file" =>
-          try {
+      try {
+        uriScheme match {
+          case "file" =>
             Utils.tryWithResource(new JarFile(uri.getPath)) { jar =>
               // Note that this might still return null if no main-class is set; we catch that later
               mainClass = jar.getManifest.getMainAttributes.getValue("Main-Class")
             }
-          } catch {
-            case _: Exception =>
-              error(s"Cannot load main class from JAR $primaryResource")
-          }
-        case _ =>
+          case _ =>
+            val sparkConf = new SparkConf()
+            sparkConf.setAll(sparkProperties)
+            val fs = FileSystem.get(uri, SparkHadoopUtil.newConfiguration(sparkConf))
+
+            Utils.tryWithResource(new JarInputStream(fs.open(new Path(primaryResource)))) { jar =>
+              // Note that this might still return null if no main-class is set; we catch that later
+              mainClass = jar.getManifest.getMainAttributes.getValue("Main-Class")
+            }
+        }
+      } catch {
+        case e: Exception =>
           error(
-            s"Cannot load main class from JAR $primaryResource with URI $uriScheme. " +
+            s"Cannot load main class from JAR $primaryResource due to '${e.getMessage}'. " +
             "Please specify a class through --class.")
       }
     }
