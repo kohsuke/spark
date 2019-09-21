@@ -3235,9 +3235,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  test("SPARK-29037: For static partition overwrite, set a unique staging dir") {
+  test("SPARK-29037: For InsertIntoHadoopFsRelation operation, set a unique staging dir") {
     withSQLConf(PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.STATIC.toString) {
-      withTable("ta") {
+      withTable("ta", "tb", "tc") {
         sql("create table ta(id int, p1 int, p2 int) using parquet partitioned by (p1, p2)")
         sql("insert overwrite table ta partition(p1=1,p2) select 1, 3")
         val df1 = sql("select * from ta order by p2")
@@ -3254,6 +3254,20 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         sql("insert overwrite table ta select 9, 9, 9")
         val df5 = sql("select * from ta order by p2")
         checkAnswer(df5, Array(Row(9, 9, 9)))
+        sql("insert into table ta select 6, 6, 6")
+        val df6 = sql("select * from ta order by p2")
+        checkAnswer(df6, Array(Row(6, 6, 6), Row(9, 9, 9)))
+
+        sql("create table tb(id int) using parquet")
+        sql("insert into table tb select 7")
+        val df7 = sql("select * from tb order by id")
+        checkAnswer(df7, Array(Row(7)))
+        sql("insert overwrite table tb select 8")
+        val df8 = sql("select * from tb order by id")
+        checkAnswer(df8, Array(Row(8)))
+        sql("insert into table tb select 9")
+        val df9 = sql("select * from tb order by id")
+        checkAnswer(df9, Array(Row(8), Row(9)))
       }
     }
   }
