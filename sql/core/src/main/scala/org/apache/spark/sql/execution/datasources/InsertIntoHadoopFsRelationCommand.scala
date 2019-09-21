@@ -117,7 +117,7 @@ case class InsertIntoHadoopFsRelationCommand(
       outputPath = outputPath.toString,
       dynamicPartitionOverwrite = dynamicPartitionOverwrite,
       isPartitionOverwrite = isPartitionOverwrite,
-      staticPartitionKVS = staticPartitionKVs)
+      staticPartitionKVs = staticPartitionKVs)
 
     val doInsertion = (mode, pathExists) match {
       case (SaveMode.ErrorIfExists, true) =>

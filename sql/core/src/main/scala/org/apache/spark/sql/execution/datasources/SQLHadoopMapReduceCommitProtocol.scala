@@ -34,9 +34,9 @@ class SQLHadoopMapReduceCommitProtocol(
     path: String,
     dynamicPartitionOverwrite: Boolean = false,
     isPartitionOverwrite: Boolean = false,
-    staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)])
+    staticPartitionKVs: Seq[(String, String)] = Seq.empty[(String, String)])
   extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite,
-    isPartitionOverwrite, staticPartitionKVS)
+    isPartitionOverwrite, staticPartitionKVs)
     with Serializable with Logging {
 
   override protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {

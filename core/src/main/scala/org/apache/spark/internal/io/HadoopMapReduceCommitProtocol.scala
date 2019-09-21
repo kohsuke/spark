@@ -55,7 +55,7 @@ class HadoopMapReduceCommitProtocol(
     path: String,
     dynamicPartitionOverwrite: Boolean = false,
     isPartitionOverwrite: Boolean = false,
-    staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)])
+    staticPartitionKVs: Seq[(String, String)] = Seq.empty[(String, String)])
   extends FileCommitProtocol with Serializable with Logging {
 
   import FileCommitProtocol._
@@ -112,7 +112,7 @@ class HadoopMapReduceCommitProtocol(
    * Get the determinable base path of results according to specified partition key-value pairs.
    */
   private def getStaticPartitionPath(): String = {
-    staticPartitionKVS.map{kv =>
+    staticPartitionKVs.map{kv =>
       escapePathName(kv._1) + "=" + escapePathName(kv._2)
     }.mkString(File.separator)
   }

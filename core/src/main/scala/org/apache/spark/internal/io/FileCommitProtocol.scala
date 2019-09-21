@@ -149,21 +149,23 @@ object FileCommitProtocol extends Logging {
       outputPath: String,
       dynamicPartitionOverwrite: Boolean = false,
       isPartitionOverwrite: Boolean = false,
-      staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)]):
+      staticPartitionKVs: Seq[(String, String)] = Seq.empty[(String, String)]):
   FileCommitProtocol = {
 
     logDebug(s"Creating committer $className; job $jobId; output=$outputPath;" +
-      s" dynamic=$dynamicPartitionOverwrite")
+      s" dynamic=$dynamicPartitionOverwrite; isPartitionOverWrite=$isPartitionOverwrite;" +
+      s" staticPartitionKVS=$staticPartitionKVs")
     val clazz = Utils.classForName[FileCommitProtocol](className)
     // First try the constructor with arguments (jobId: String, outputPath: String,
-    // dynamicPartitionOverwrite: Boolean).
+    // dynamicPartitionOverwrite: Boolean, isPartitionOverwrite: Boolean,
+    // staticPartitionKVs: Seq[(String, String)]).
     // If that doesn't exist, try the one with (jobId: string, outputPath: String).
     try {
       val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean],
         classOf[Boolean], classOf[Seq[(String, String)]])
       logDebug("Using (String, String, Boolean, Boolean, Seq[(String, String)]) constructor")
       ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
-        isPartitionOverwrite.asInstanceOf[java.lang.Boolean], staticPartitionKVS)
+        isPartitionOverwrite.asInstanceOf[java.lang.Boolean], staticPartitionKVs)
     } catch {
       case _: NoSuchMethodException =>
         logDebug("Falling back to (String, String) constructor")
