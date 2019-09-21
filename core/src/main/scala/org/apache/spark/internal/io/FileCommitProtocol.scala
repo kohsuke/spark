@@ -148,7 +148,7 @@ object FileCommitProtocol extends Logging {
       jobId: String,
       outputPath: String,
       dynamicPartitionOverwrite: Boolean = false,
-      isInsertIntoHadoopFsRelation: Boolean = false,
+      isInsertOverwriteHadoopFsRelation: Boolean = false,
       staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)]):
   FileCommitProtocol = {
 
@@ -163,7 +163,7 @@ object FileCommitProtocol extends Logging {
         classOf[Boolean], classOf[Seq[(String, String)]])
       logDebug("Using (String, String, Boolean, Seq[(String, String)]) constructor")
       ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
-        isInsertIntoHadoopFsRelation.asInstanceOf[java.lang.Boolean], staticPartitionKVS)
+        isInsertOverwriteHadoopFsRelation.asInstanceOf[java.lang.Boolean], staticPartitionKVS)
     } catch {
       case _: NoSuchMethodException =>
         logDebug("Falling back to (String, String) constructor")

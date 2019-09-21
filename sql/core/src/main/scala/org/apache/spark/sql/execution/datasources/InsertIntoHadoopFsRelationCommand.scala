@@ -114,7 +114,7 @@ case class InsertIntoHadoopFsRelationCommand(
       jobId = java.util.UUID.randomUUID().toString,
       outputPath = outputPath.toString,
       dynamicPartitionOverwrite = dynamicPartitionOverwrite,
-      isInsertIntoHadoopFsRelation = true,
+      isInsertOverwriteHadoopFsRelation = mode == SaveMode.Overwrite,
       staticPartitionKVS = staticPartitionKVs)
 
     val doInsertion = (mode, pathExists) match {
