@@ -98,9 +98,20 @@ private[spark] object TestUtils {
    * Create a jar file that contains this set of files. All files will be located in the specified
    * directory or at the root of the jar.
    */
-  def createJar(files: Seq[File], jarFile: File, directoryPrefix: Option[String] = None): URL = {
+  def createJar(
+      files: Seq[File],
+      jarFile: File,
+      directoryPrefix: Option[String] = None,
+      mainClass: Option[String] = None): URL = {
+    val mf = mainClass match {
+      case Some(mc) => new java.util.jar.Manifest(
+        new ByteArrayInputStream(s"Manifest-Version: 1.0\nMain-Class: $mc\n".getBytes)
+      )
+      case None => new java.util.jar.Manifest()
+    }
+
     val jarFileStream = new FileOutputStream(jarFile)
-    val jarStream = new JarOutputStream(jarFileStream, new java.util.jar.Manifest())
+    val jarStream = new JarOutputStream(jarFileStream, mf)
 
     for (file <- files) {
       // The `name` for the argument in `JarEntry` should use / for its separator. This is

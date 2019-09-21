@@ -453,6 +453,52 @@ class SparkSubmitSuite
     conf.get("spark.kubernetes.driver.container.image") should be ("bar")
   }
 
+  test("automatically sets mainClass if primary resource is S3 JAR") {
+    withTempDir { tempDir =>
+      val excFile = TestUtils.createCompiledClass("SomeMainClass", tempDir, "", null, Seq.empty)
+      val jarFile = new File(tempDir, "s3-mainClass-test-%s.jar".format(System.currentTimeMillis()))
+      val jarUrl = TestUtils.createJar(
+        Seq(excFile),
+        jarFile,
+        directoryPrefix = Some(tempDir.toString),
+        mainClass = Some("SomeMainClass"))
+
+      val hadoopConf = new Configuration()
+      updateConfWithFakeS3Fs(hadoopConf)
+
+      val clArgs = Seq(
+        "--name", "testApp",
+        "--master", "yarn",
+        "--conf", "spark.hadoop.fs.s3a.impl=org.apache.spark.deploy.TestFileSystem",
+        "--conf", "spark.hadoop.fs.s3a.impl.disable.cache=true",
+        s"s3a://${jarUrl.getPath}",
+        "arg1", "arg2")
+
+      val appArgs = new SparkSubmitArguments(clArgs)
+      val (childArgs, classpaths, _, mainClass_) = submit.prepareSubmitEnvironment(
+        appArgs, conf = Some(hadoopConf))
+
+      mainClass_ should be ("SomeMainClass")
+      classpaths should have length 1
+      classpaths.head should endWith (jarFile.getName)
+      childArgs.mkString(" ") should be ("arg1 arg2")
+    }
+  }
+
+  test("error informatively when mainClass isn't set and S3 JAR doesn't exist") {
+    val hadoopConf = new Configuration()
+    updateConfWithFakeS3Fs(hadoopConf)
+
+    val clArgs = Seq(
+      "--name", "testApp",
+      "--master", "yarn",
+      "--conf", "spark.hadoop.fs.s3a.impl=org.apache.spark.deploy.TestFileSystem",
+      "--conf", "spark.hadoop.fs.s3a.impl.disable.cache=true",
+      s"s3a:///does-not-exist.jar")
+
+    testPrematureExit(clArgs.toArray, "File /does-not-exist.jar does not exist")
+  }
+
   test("handles confs with flag equivalents") {
     val clArgs = Seq(
       "--deploy-mode", "cluster",

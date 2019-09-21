@@ -22,12 +22,14 @@ import java.lang.reflect.InvocationTargetException
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.util.{List => JList}
-import java.util.jar.JarFile
+import java.util.jar.JarInputStream
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.io.Source
 import scala.util.Try
+
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.{SparkConf, SparkException, SparkUserAppException}
 import org.apache.spark.deploy.SparkSubmitAction._
@@ -213,24 +215,19 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
 
     // Try to set main class from JAR if no --class argument is given
     if (mainClass == null && !isPython && !isR && primaryResource != null) {
-      val uri = new URI(primaryResource)
-      val uriScheme = uri.getScheme()
+      try {
+        val fs = FileSystem.get(
+          new URI(primaryResource), SparkHadoopUtil.newConfiguration(sparkProperties)
+        )
 
-      uriScheme match {
-        case "file" =>
-          try {
-            Utils.tryWithResource(new JarFile(uri.getPath)) { jar =>
-              // Note that this might still return null if no main-class is set; we catch that later
-              mainClass = jar.getManifest.getMainAttributes.getValue("Main-Class")
-            }
-          } catch {
-            case _: Exception =>
-              error(s"Cannot load main class from JAR $primaryResource")
-          }
-        case _ =>
-          error(
-            s"Cannot load main class from JAR $primaryResource with URI $uriScheme. " +
-            "Please specify a class through --class.")
+        Utils.tryWithResource(fs.open(new Path(primaryResource))) { is =>
+          val mf = new JarInputStream(is)
+          // Note that this might still return null if no main-class is set; we catch that later
+          mainClass = mf.getManifest.getMainAttributes.getValue("Main-Class")
+        }
+      } catch {
+        case exc: Exception =>
+          error(s"Cannot load main class from JAR $primaryResource due to: ${exc.getMessage}")
       }
     }
 

@@ -417,6 +417,14 @@ private[spark] object SparkHadoopUtil {
     hadoopConf
   }
 
+  private[spark] def newConfiguration(map: mutable.HashMap[String, String]): Configuration = {
+    val sparkConf = new SparkConf()
+    sparkConf.setAll(map)
+
+    newConfiguration(sparkConf)
+  }
+
+
   private def appendS3AndSparkHadoopConfigurations(
       conf: SparkConf,
       hadoopConf: Configuration): Unit = {
