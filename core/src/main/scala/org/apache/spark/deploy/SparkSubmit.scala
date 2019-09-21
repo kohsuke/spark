@@ -23,6 +23,7 @@ import java.net.{URI, URL}
 import java.security.PrivilegedExceptionAction
 import java.text.ParseException
 import java.util.{ServiceLoader, UUID}
+import java.util.jar.{JarFile, JarInputStream}
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -201,6 +202,52 @@ private[spark] class SparkSubmit extends Logging {
     } else {
       doRunMain()
     }
+  }
+
+  /**
+    * Tries to read the mainClass from the JAR manifest if not already set.
+    *
+    * Works with non-local JARs as well.
+    *
+    * @param args Spark submit arguments
+    * @param hadoopConf Hadoop configuration
+    * @param jarPath Path to JAR file, can be remote
+    * @return the FQDN of the main class or null if not found
+    */
+  private def resolveMainClassIfNeeded(
+    args: SparkSubmitArguments,
+    hadoopConf: HadoopConfiguration,
+    jarPath: String
+  ): String = {
+    if (args.mainClass != null) {
+      return args.mainClass
+    }
+
+    var mainClass: String = null
+    if (args.mainClass == null && !args.isPython && !args.isR && jarPath != null) {
+      val uri = new URI(jarPath)
+      val uriScheme = uri.getScheme
+
+      try {
+        uriScheme match {
+          case "file" =>
+            // If local file, probably more stable to use JarFile than Hadoop's FileSystem class
+            Utils.tryWithResource(new JarFile(uri.getPath)) { jar =>
+              mainClass = jar.getManifest.getMainAttributes.getValue("Main-Class")
+            }
+          case _ =>
+            val fs = FileSystem.get(uri, hadoopConf)
+
+            Utils.tryWithResource(new JarInputStream(fs.open(new Path(jarPath)))) { jar =>
+              mainClass = jar.getManifest.getMainAttributes.getValue("Main-Class")
+            }
+        }
+      } catch {
+        case _: Throwable => // pass
+      }
+    }
+
+    mainClass
   }
 
   /**
@@ -435,6 +482,22 @@ private[spark] class SparkSubmit extends Logging {
       args.archives = Option(args.archives).map { archives =>
         Utils.stringToSeq(archives).map(downloadResource).mkString(",")
       }.orNull
+    }
+
+    // At this point, we have attempted to download all remote resources.
+    // Now we try to resolve the main class if our primary resource is a JAR.
+    // First, try the localPrimaryResource.
+    if (args.mainClass == null) {
+      args.mainClass = resolveMainClassIfNeeded(args, hadoopConf, localPrimaryResource)
+    }
+    // If we can't get it from localPrimaryResource, use whatever the original argument was.
+    if (args.mainClass == null) {
+      args.mainClass = resolveMainClassIfNeeded(args, hadoopConf, args.primaryResource)
+    }
+    // If we still can't figure out the main class at this point, blow up.
+    if (args.mainClass == null && !args.isPython && !args.isR) {
+      error(
+        s"No main class set in JAR; please specify one with --class.")
     }
 
     // If we're running a python app, set the main class to our specific python runner
