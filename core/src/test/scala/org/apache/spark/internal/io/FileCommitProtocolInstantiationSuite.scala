@@ -127,7 +127,7 @@ private class FullConstructorCommitProtocol(
     this(arg1, arg2, false, 2)
   }
 
-  def this(arg1: String, arg2: String, b: Boolean, insert: Boolean, pkv: Seq[(String, String)]) = {
+  def this(arg1: String, arg2: String, b: Boolean, pow: Boolean, pkv: Seq[(String, String)]) = {
     this(arg1, arg2, false, 5)
   }
 }

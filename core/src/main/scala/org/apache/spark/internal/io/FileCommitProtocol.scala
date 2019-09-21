@@ -148,7 +148,7 @@ object FileCommitProtocol extends Logging {
       jobId: String,
       outputPath: String,
       dynamicPartitionOverwrite: Boolean = false,
-      isInsertIntoHadoopFsRelation: Boolean = false,
+      isPartitionOverwrite: Boolean = false,
       staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)]):
   FileCommitProtocol = {
 
@@ -161,9 +161,9 @@ object FileCommitProtocol extends Logging {
     try {
       val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean],
         classOf[Boolean], classOf[Seq[(String, String)]])
-      logDebug("Using (String, String, Boolean, Seq[(String, String)]) constructor")
+      logDebug("Using (String, String, Boolean, Boolean, Seq[(String, String)]) constructor")
       ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
-        isInsertIntoHadoopFsRelation.asInstanceOf[java.lang.Boolean], staticPartitionKVS)
+        isPartitionOverwrite.asInstanceOf[java.lang.Boolean], staticPartitionKVS)
     } catch {
       case _: NoSuchMethodException =>
         logDebug("Falling back to (String, String) constructor")

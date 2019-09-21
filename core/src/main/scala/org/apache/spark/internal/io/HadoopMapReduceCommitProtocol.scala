@@ -28,6 +28,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
+import org.apache.hadoop.util.Shell
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
@@ -53,11 +54,12 @@ class HadoopMapReduceCommitProtocol(
     jobId: String,
     path: String,
     dynamicPartitionOverwrite: Boolean = false,
-    isInsertIntoHadoopFsRelation: Boolean = false,
+    isPartitionOverwrite: Boolean = false,
     staticPartitionKVS: Seq[(String, String)] = Seq.empty[(String, String)])
   extends FileCommitProtocol with Serializable with Logging {
 
   import FileCommitProtocol._
+  import HadoopMapReduceCommitProtocol._
 
   /** OutputCommitter from Hadoop is not serializable so marking it transient. */
   @transient private var committer: OutputCommitter = _
@@ -89,30 +91,34 @@ class HadoopMapReduceCommitProtocol(
 
   /**
    * The staging directory of this write job. Spark uses it to deal with files with absolute output
-   * path, or writing data into partitioned directory with dynamicPartitionOverwrite=true.
+   * path, or writing data into partitioned directory.
    */
   private def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
   /**
    * Get the desired output path for the job. The output will be [[path]] when it is not a
-   * InsertIntoHadoopRelation operation. Otherwise, it will be [[stagingDir]].
+   * partitionOverwrite operation. Otherwise, it will be [[stagingDir]].
    */
   protected def getOutputPath(context: TaskAttemptContext): Path = {
-    if (isInsertIntoHadoopFsRelation) {
-      val outputPath = new Path(path, ".spark-staging-" + jobId)
-      outputPath.getFileSystem(context.getConfiguration).makeQualified(outputPath)
+    if (isPartitionOverwrite) {
+      val outputPath = stagingDir.getFileSystem(context.getConfiguration).makeQualified(stagingDir)
       outputPath
     } else {
       new Path(path)
     }
   }
 
+  /**
+   * Get the determinable base path of results according to specified partition key-value pairs.
+   */
   private def getStaticPartitionPath(): String = {
-    staticPartitionKVS.map(kv => kv._1 + "=" + kv._2).mkString(File.separator)
+    staticPartitionKVS.map{kv =>
+      escapePathName(kv._1) + "=" + escapePathName(kv._2)
+    }.mkString(File.separator)
   }
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
-    if (isInsertIntoHadoopFsRelation) {
+    if (isPartitionOverwrite) {
       context.getConfiguration.set(FileOutputFormat.OUTDIR, getOutputPath(context).toString)
     }
 
@@ -224,7 +230,7 @@ class HadoopMapReduceCommitProtocol(
           }
           fs.rename(new Path(stagingDir, part), finalPartPath)
         }
-      } else if (isInsertIntoHadoopFsRelation) {
+      } else if (isPartitionOverwrite) {
         if (!getStaticPartitionPath().isEmpty) {
           val finalPartPath = new Path(path, getStaticPartitionPath)
           if (fs.exists(new Path(stagingDir, getStaticPartitionPath()))) {
@@ -232,16 +238,13 @@ class HadoopMapReduceCommitProtocol(
             fs.rename(new Path(stagingDir, getStaticPartitionPath), finalPartPath)
           }
         } else {
-          val files = fs.listStatus(stagingDir)
+          val parts = fs.listStatus(stagingDir)
             .map(_.getPath.getName)
-            .filter(_ != "_temporary")
-            .filter(name => !name.startsWith("."))
-          for (file <- files) {
-            val finalPath = new Path(path, file)
-            if (fs.exists(finalPath)) {
-              fs.delete(finalPath, true)
-            }
-            fs.rename(new Path(stagingDir, file), finalPath)
+            .filter(name => !name.startsWith(".") && name.contains("="))
+          for (part <- parts) {
+            val finalPartPath = new Path(path, part)
+            assert(!fs.exists(finalPartPath))
+            fs.rename(new Path(stagingDir, part), finalPartPath)
           }
         }
       }
@@ -314,5 +317,50 @@ class HadoopMapReduceCommitProtocol(
       case e: IOException =>
         logWarning(s"Exception while aborting ${taskContext.getTaskAttemptID}", e)
     }
+  }
+}
+
+object  HadoopMapReduceCommitProtocol {
+  // Copied from ExternalCatalogUtils in catalyst module and used to escape path name.
+
+  private val charToEscape = {
+    val bitSet = new java.util.BitSet(128)
+
+    /**
+     * ASCII 01-1F are HTTP control characters that need to be escaped.
+     * \u000A and \u000D are \n and \r, respectively.
+     */
+    val clist = Array(
+      '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\u0007', '\u0008', '\u0009',
+      '\n', '\u000B', '\u000C', '\r', '\u000E', '\u000F', '\u0010', '\u0011', '\u0012', '\u0013',
+      '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', '\u0019', '\u001A', '\u001B', '\u001C',
+      '\u001D', '\u001E', '\u001F', '"', '#', '%', '\'', '*', '/', ':', '=', '?', '\\', '\u007F',
+      '{', '[', ']', '^')
+
+    clist.foreach(bitSet.set(_))
+
+    if (Shell.WINDOWS) {
+      Array(' ', '<', '>', '|').foreach(bitSet.set(_))
+    }
+
+    bitSet
+  }
+
+  private def needsEscaping(c: Char): Boolean = {
+    c >= 0 && c < charToEscape.size() && charToEscape.get(c)
+  }
+
+  private def escapePathName(path: String): String = {
+    val builder = new StringBuilder()
+    path.foreach { c =>
+      if (needsEscaping(c)) {
+        builder.append('%')
+        builder.append(f"${c.asInstanceOf[Int]}%02X")
+      } else {
+        builder.append(c)
+      }
+    }
+
+    builder.toString()
   }
 }
