@@ -186,7 +186,6 @@ object FileCommitProtocol extends Logging {
 
   /**
    * Invoke the mergePaths method of a FileOutputCommitter instance.
-   * @throws IOException
    */
   def mergePaths(
       committer: FileOutputCommitter,
