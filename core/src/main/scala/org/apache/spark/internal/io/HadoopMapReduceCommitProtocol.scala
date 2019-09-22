@@ -17,14 +17,14 @@
 
 package org.apache.spark.internal.io
 
-import java.io.{File, FileNotFoundException, IOException}
+import java.io.{File, IOException}
 import java.util.{Date, UUID}
 
 import scala.collection.mutable
 import scala.util.Try
 
 import org.apache.hadoop.conf.Configurable
-import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
@@ -93,9 +93,10 @@ class HadoopMapReduceCommitProtocol(
 
   /**
    * The staging directory of this write job. Spark uses it to deal with files with absolute output
-   * path, or writing data into partitioned directory.
+   * path, or writing data for InsertIntoHadoopFsRelation operation.
    */
-  private def stagingDir = new Path(path, ".spark-staging-" + jobId)
+  private def stagingDir = new Path(path, ".spark-staging-" + jobId + "-" +
+    (if (isOverwrite) "overwrite-" else "append-") + staticPartitionKVs.size)
 
   /**
    * Get the desired output path for the job. The output will be [[path]] when it is not a
@@ -104,7 +105,8 @@ class HadoopMapReduceCommitProtocol(
   protected def getOutputPath(context: TaskAttemptContext): Path = {
     if (isInsertIntoHadoopFsRelation) {
       val appId = SparkEnv.get.conf.getAppId
-      val outputPath = new Path(stagingDir, appId + File.separator + getPrefixStaticPartitionPath())
+      val outputPath = new Path(stagingDir,
+        appId + File.separator + getPrefixStaticPartitionPath(staticPartitionKVs))
       stagingDir.getFileSystem(context.getConfiguration).makeQualified(outputPath)
       outputPath
     } else {
@@ -113,16 +115,6 @@ class HadoopMapReduceCommitProtocol(
   }
 
   @transient private var outputPath: Path = _
-
-  /**
-   * Get a path with `sp_` prefix according to specified partition key-value pairs.
-   * This path is used to detect the partition which is being written.
-   */
-  private def getPrefixStaticPartitionPath(): String = {
-    staticPartitionKVs.map{kv =>
-      "sp_" + escapePathName(kv._1) + "=" + escapePathName(kv._2)
-    }.mkString(File.separator)
-  }
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
     if (isInsertIntoHadoopFsRelation) {
@@ -239,7 +231,8 @@ class HadoopMapReduceCommitProtocol(
           fs.rename(new Path(stagingDir, part), finalPartPath)
         }
       } else if (isInsertIntoHadoopFsRelation) {
-        mergePaths(fs, fs.getFileStatus(outputPath), new Path(path))
+        FileCommitProtocol.mergePaths(committer.asInstanceOf[FileOutputCommitter],
+          fs, fs.getFileStatus(outputPath), new Path(path))
       }
 
       fs.delete(stagingDir, true)
@@ -357,66 +350,13 @@ object  HadoopMapReduceCommitProtocol extends Logging {
     builder.toString()
   }
 
-  val algorithmVersion = SparkEnv.get.conf
-    .get("spark.hadoop.mapreduce.fileoutputcommitter.algorithm.version", "1")
-
-  @throws[IOException]
-  private def mergePaths(fs: FileSystem, from: FileStatus, to: Path): Unit = {
-    logDebug(s"Merging data from $from to $to ")
-    var toStat: FileStatus = null
-    try {
-      toStat = fs.getFileStatus(to)
-    } catch {
-      case _: FileNotFoundException =>
-        toStat = null
-    }
-    if (from.isFile) {
-      if (toStat != null && !fs.delete(to, true)) {
-        throw new IOException("Failed to delete " + to)
-      }
-
-      if (!fs.rename(from.getPath, to)) {
-        throw new IOException("Failed to rename " + from + " to " + to)
-      }
-    } else if (from.isDirectory) {
-      if (toStat != null) {
-        if (!toStat.isDirectory()) {
-          if (!fs.delete(to, true)) {
-            throw new IOException("Failed to delete " + to)
-          }
-
-          renameOrMerge(fs, from, to);
-        } else {
-          val var5 = fs.listStatus(from.getPath());
-          val var6 = var5.length;
-
-          for (var7 <- 0 until var6) {
-            val subFrom = var5(var7)
-            val subTo = new Path(to, subFrom.getPath().getName())
-            mergePaths(fs, subFrom, subTo)
-          }
-        }
-      } else {
-        renameOrMerge(fs, from, to);
-      }
-    }
-  }
-
-  @throws[IOException]
-  private def renameOrMerge(fs: FileSystem, from: FileStatus, to: Path): Unit = {
-    if (algorithmVersion == 1) {
-      if (!fs.rename(from.getPath, to)) {
-        throw new IOException("Failed to rename " + from + " to " + to)
-      }
-    } else {
-      fs.mkdirs(to)
-      val var4 = fs.listStatus(from.getPath)
-      val var5 = var4.length
-      for (var6 <- 0 until var5) {
-        val subFrom = var4(var6)
-        val subTo = new Path(to, subFrom.getPath.getName)
-        mergePaths(fs, subFrom, subTo)
-      }
-    }
+  /**
+   * Get a path with `sp_` prefix according to specified partition key-value pairs.
+   * This path is used to detect the partition which is being written.
+   */
+  def getPrefixStaticPartitionPath(staticPartitionKVs: Seq[(String, String)]): String = {
+    staticPartitionKVs.map{kv =>
+      "sp_" + escapePathName(kv._1) + "=" + escapePathName(kv._2)
+    }.mkString(File.separator)
   }
 }

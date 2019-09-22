@@ -17,11 +17,14 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import java.io.IOException
+import java.io.{File, IOException}
+import java.util.concurrent.TimeUnit
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 
+import org.apache.spark.InsertDataSourceConflictException
 import org.apache.spark.internal.io.FileCommitProtocol
+import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTablePartition}
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
@@ -126,14 +129,18 @@ case class InsertIntoHadoopFsRelationCommand(
       case (SaveMode.Overwrite, true) =>
         if (ifPartitionNotExists && matchingPartitions.nonEmpty) {
           false
-        } else if (dynamicPartitionOverwrite) {
-          // For dynamic partition overwrite, do not delete partition directories ahead.
-          true
         } else {
-          deleteMatchingPartitions(fs, qualifiedOutputPath, customPartitionLocations, committer)
-          true
+          detectConflict(fs, outputPath, isOverwrite, staticPartitionKVs)
+          if (dynamicPartitionOverwrite) {
+            // For dynamic partition overwrite, do not delete partition directories ahead.
+            true
+          } else {
+            deleteMatchingPartitions(fs, qualifiedOutputPath, customPartitionLocations, committer)
+            true
+          }
         }
       case (SaveMode.Append, _) | (SaveMode.Overwrite, _) | (SaveMode.ErrorIfExists, false) =>
+        detectConflict(fs, outputPath, isOverwrite, staticPartitionKVs)
         true
       case (SaveMode.Ignore, exists) =>
         !exists
@@ -271,5 +278,97 @@ case class InsertIntoHadoopFsRelationCommand(
         None
       }
     }.toMap
+  }
+
+  /**
+   * Detect the conflict when there are several InsertIntoHadoopFsRelation operations
+   * write concurrently.
+   */
+  private def detectConflict(
+      fs: FileSystem,
+      path: Path,
+      isOverwrite: Boolean,
+      staticPartitionKVs: Seq[(String, String)]): Unit = {
+    val prefixPath = HadoopMapReduceCommitProtocol.getPrefixStaticPartitionPath(staticPartitionKVs)
+    if (fs.exists(path)) {
+      fs.listStatus(path)
+        .map(_.getPath)
+        .filter { p =>
+          val pName = p.getName
+          val forOverwrite = if (isOverwrite) {
+            pName.contains("overwrite") || pName.contains("append")
+          } else {
+            pName.contains("overwrite")
+          }
+          pName.startsWith(".spark-staging") && forOverwrite
+        }
+        .foreach { stagingDir =>
+          val depth = stagingDir.getName.split("-").last.toInt
+          val appIdAndStaticPrefixPath = getAppIdAndStaticPrefixPath(fs, stagingDir, depth)
+          if (!appIdAndStaticPrefixPath.isEmpty) {
+            val appId = appIdAndStaticPrefixPath.get._1
+            if (pathIsContained(prefixPath, appIdAndStaticPrefixPath.get._2)) {
+              val fileStatus = fs.getFileStatus(stagingDir)
+              val accessTime = fileStatus.getAccessTime
+              val modificationTime = fileStatus.getModificationTime
+              val lastedTime =
+                TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - modificationTime)
+              throw new InsertDataSourceConflictException(
+                s"""
+                   | The staging dir for InsertIntoHadoopFsRelation is existed, its create time is
+                   | $accessTime, and its modified time is $modificationTime, already $lastedTime
+                   | seconds from now. There may be two possibilities:
+                   | 1. Another InsertDataSource operation is executing, you need wait for it to
+                   |  complete.
+                   | 2. The staging dir is belong to a killed application and not be cleaned up
+                   | gracefully, please refer to its modification time and it need be cleaned up
+                   | manually.
+                   | Please process this staging dir according to above information.
+                   |""".stripMargin
+              )
+            }
+          }
+        }
+    }
+  }
+
+
+  /**
+   * Judge whether a path is absolute contained by another path.
+   * @return
+   */
+  private def pathIsContained(path1: String, path2: String): Boolean = {
+    path1 == "" ||path2 == "" || path1 == path2 ||
+      (path1.startsWith(path2) && path1.charAt(path2.length) == '/') ||
+      (path2.startsWith(path1) && path2.charAt(path1.length) == '/')
+  }
+
+  /**
+   * Get relative application Id and a path with static prefix.
+   */
+  private def getAppIdAndStaticPrefixPath(
+      fs: FileSystem,
+      stagingDir: Path,
+      depth: Int): Option[(String, String)] = {
+    try {
+      val appIdPath = fs.listStatus(stagingDir)
+        .map(_.getPath)
+        .filter(p => p.getName.startsWith("local_") || p.getName.startsWith("application_"))
+        .apply(0)
+      val appId = appIdPath.getName
+      var staticPrefixPath = Seq.empty[String]
+      var curPath = appIdPath
+      for (_ <- 0 until depth) {
+        val prefixPath = fs.listStatus(curPath)
+          .map(_.getPath)
+          .filter(p => p.getName.startsWith("sp_"))
+          .apply(0)
+        staticPrefixPath ++= Seq(prefixPath.getName)
+        curPath = prefixPath
+      }
+      Some((appId, staticPrefixPath.mkString(File.separator)))
+    } catch {
+      case _: Exception => None
+    }
   }
 }

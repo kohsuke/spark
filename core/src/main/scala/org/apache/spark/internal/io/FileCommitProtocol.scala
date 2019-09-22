@@ -17,8 +17,11 @@
 
 package org.apache.spark.internal.io
 
+import java.io.IOException
+
 import org.apache.hadoop.fs._
 import org.apache.hadoop.mapreduce._
+import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
@@ -179,5 +182,34 @@ object FileCommitProtocol extends Logging {
         val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String])
         ctor.newInstance(jobId, outputPath)
     }
+  }
+
+  /**
+   * Invoke the mergePaths method of a FileOutputCommitter instance.
+   * @throws IOException
+   */
+  def mergePaths(
+      committer: FileOutputCommitter,
+      fs: FileSystem,
+      from: FileStatus,
+      to: Path): Unit = {
+    var clazz: Class[_ <: Any] = committer.getClass
+    while (clazz != null) {
+      try {
+        val method = clazz.getDeclaredMethod("mergePaths", classOf[FileSystem],
+          classOf[FileStatus], classOf[Path])
+        method.setAccessible(true)
+        method.invoke(committer, fs, from, to)
+        method.setAccessible(false)
+        return
+      } catch {
+        case _: NoSuchMethodException =>
+          logDebug(s"Can not get mergePaths method from $clazz, try to get from its superclass:" +
+            s" ${clazz.getSuperclass}")
+          clazz = clazz.getSuperclass
+      }
+    }
+    throw new NoSuchMethodException(s"Can not get mergePaths method from ${committer.getClass}" +
+      s" and its superclasses")
   }
 }
