@@ -28,11 +28,11 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
-import org.apache.hadoop.util.Shell
 
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
+import org.apache.spark.util.Utils
 
 /**
  * An [[FileCommitProtocol]] implementation backed by an underlying Hadoop OutputCommitter
@@ -194,7 +194,9 @@ class HadoopMapReduceCommitProtocol(
   }
 
   override def commitJob(jobContext: JobContext, taskCommits: Seq[TaskCommitMessage]): Unit = {
-    committer.commitJob(jobContext)
+    if (!isInsertIntoHadoopFsRelation) {
+      committer.commitJob(jobContext)
+    }
 
     if (hasValidPath) {
       val (allAbsPathFiles, allPartitionPaths) =
@@ -231,8 +233,8 @@ class HadoopMapReduceCommitProtocol(
           fs.rename(new Path(stagingDir, part), finalPartPath)
         }
       } else if (isInsertIntoHadoopFsRelation) {
-        FileCommitProtocol.mergePaths(committer.asInstanceOf[FileOutputCommitter],
-          fs, fs.getFileStatus(outputPath), new Path(path))
+        FileCommitProtocol.commitJob(committer.asInstanceOf[FileOutputCommitter],
+          jobContext, new Path(path))
       }
 
       fs.delete(stagingDir, true)
@@ -307,47 +309,12 @@ class HadoopMapReduceCommitProtocol(
 }
 
 object  HadoopMapReduceCommitProtocol extends Logging {
-  // Copied from ExternalCatalogUtils in catalyst module and used to escape path name.
-
-  private val charToEscape = {
-    val bitSet = new java.util.BitSet(128)
-
-    /**
-     * ASCII 01-1F are HTTP control characters that need to be escaped.
-     * \u000A and \u000D are \n and \r, respectively.
-     */
-    val clist = Array(
-      '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\u0007', '\u0008', '\u0009',
-      '\n', '\u000B', '\u000C', '\r', '\u000E', '\u000F', '\u0010', '\u0011', '\u0012', '\u0013',
-      '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', '\u0019', '\u001A', '\u001B', '\u001C',
-      '\u001D', '\u001E', '\u001F', '"', '#', '%', '\'', '*', '/', ':', '=', '?', '\\', '\u007F',
-      '{', '[', ']', '^')
-
-    clist.foreach(bitSet.set(_))
-
-    if (Shell.WINDOWS) {
-      Array(' ', '<', '>', '|').foreach(bitSet.set(_))
-    }
-
-    bitSet
-  }
-
-  private def needsEscaping(c: Char): Boolean = {
-    c >= 0 && c < charToEscape.size() && charToEscape.get(c)
-  }
 
   private def escapePathName(path: String): String = {
-    val builder = new StringBuilder()
-    path.foreach { c =>
-      if (needsEscaping(c)) {
-        builder.append('%')
-        builder.append(f"${c.asInstanceOf[Int]}%02X")
-      } else {
-        builder.append(c)
-      }
-    }
-
-    builder.toString()
+    val externalCatalogUtils = Utils.classForName(
+      "org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils")
+    externalCatalogUtils.getMethod("escapePathName", classOf[String])
+      .invoke(null, path).asInstanceOf[String]
   }
 
   /**

@@ -19,9 +19,10 @@ package org.apache.spark.internal.io
 
 import java.io.IOException
 
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs._
 import org.apache.hadoop.mapreduce._
-import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
@@ -185,30 +186,174 @@ object FileCommitProtocol extends Logging {
   }
 
   /**
-   * Invoke the mergePaths method of a FileOutputCommitter instance.
+   * Commit all committed task output to a outputPath directly.
+   * These code referred the implementation of [[FileOutputCommitter]],
+   * please keep consistent with it.
    */
-  def mergePaths(
+  @throws[IOException]
+  def commitJob(
       committer: FileOutputCommitter,
-      fs: FileSystem,
-      from: FileStatus,
-      to: Path): Unit = {
-    var clazz: Class[_ <: Any] = committer.getClass
+      context: JobContext,
+      outputPath: Path): Unit = {
+    val algorithmVersion = getFieldValue(committer, "algorithmVersion").asInstanceOf[Int]
+    val maxAttemptsOnFailure = if (algorithmVersion == 2) {
+      context.getConfiguration.getInt("mapreduce.fileoutputcommitter.failures.attempts", 1)
+    } else {
+      1
+    }
+    var attempt = 0
+    var jobCommitNotFinished = true
+    while (jobCommitNotFinished) {
+      try {
+        commitJobInternal(committer, context, algorithmVersion, outputPath)
+        jobCommitNotFinished = false
+      } catch {
+        case e: Exception =>
+          if (attempt + 1 > maxAttemptsOnFailure) {
+            throw e
+          } else {
+            attempt += 1
+            logWarning(s"Exception get thrown in job commit, retry ($attempt) time.", e)
+          }
+      }
+    }
+    if (committer.getClass.getName.endsWith("ParquetOutputCommitter")) {
+      // Please keep consistent with the implementation of ParquetOutputCommitter.commitJob().
+      var parquetCommitter: Class[_] = null
+      var contextUtil: Class[_] = null
+
+      try {
+        parquetCommitter = Utils.classForName("org.apache.parquet.hadoop.ParquetOutputCommitter")
+        contextUtil = Utils.classForName("org.apache.parquet.hadoop.util.ContextUtil")
+      } catch {
+        case _: ClassNotFoundException =>
+          parquetCommitter = Utils.classForName("parquet.hadoop.ParquetOutputCommitter")
+          contextUtil = Utils.classForName("parquet.hadoop.util.ContextUtil")
+      }
+
+      val getConfiguration = contextUtil.getMethod("getConfiguration", classOf[JobContext])
+      val writeMetadata = parquetCommitter.getMethod("writeMetaDataFile", classOf[Configuration],
+        classOf[Path])
+      val configuration = getConfiguration.invoke(null, context)
+      writeMetadata.invoke(null, configuration, outputPath)
+    }
+  }
+
+  /**
+   * The job has completed, so do following commit job, include:
+   * Move all committed tasks to the final output dir (algorithm 1 only).
+   * Delete the temporary directory, including all of the work directories.
+   * Create a _SUCCESS file to make it as successful.
+   *
+   * Copied from [[FileOutputCommitter]], please keep consistent with it.
+   */
+  @throws[IOException]
+  private def commitJobInternal(
+      committer: FileOutputCommitter,
+      context: JobContext,
+      algorithmVersion: Int,
+      outputPath: Path): Unit = {
+    if (outputPath != null) {
+      val fs = outputPath.getFileSystem(context.getConfiguration)
+
+      if (algorithmVersion == 1) {
+        for (stat <- getAllCommittedTaskPaths(committer, context)) {
+          mergePaths(committer, fs, stat, outputPath)
+        }
+      } else {
+        invokeMethod(committer, "cleanupJob", Seq(classOf[JobContext]), Seq(context))
+        val stagingOutput = new Path(context.getConfiguration.get(FileOutputFormat.OUTDIR))
+        mergePaths(committer, fs, fs.getFileStatus(stagingOutput), outputPath)
+      }
+
+      if (context.getConfiguration.getBoolean("mapreduce.fileoutputcommitter.marksuccessfuljobs",
+        true)) {
+        val markerPath = new Path(outputPath, "_SUCCESS")
+        if (algorithmVersion == 2) {
+          fs.create(markerPath, true).close()
+        } else {
+          fs.create(markerPath)
+        }
+      }
+    } else {
+      logWarning("Output Path is null in commitJob()")
+    }
+  }
+
+  /**
+   * Invoke a method from the Class of instance or from its superclasses.
+   */
+  private def invokeMethod(
+      instance: Any,
+      methodName: String,
+      argTypes: Seq[Class[_]],
+      params: Seq[AnyRef]): Any = {
+    var clazz: Class[_ <: Any] = instance.getClass
     while (clazz != null) {
       try {
-        val method = clazz.getDeclaredMethod("mergePaths", classOf[FileSystem],
-          classOf[FileStatus], classOf[Path])
+        val method = clazz.getDeclaredMethod(methodName, argTypes: _*)
         method.setAccessible(true)
-        method.invoke(committer, fs, from, to)
+        val r = method.invoke(instance, params: _*)
         method.setAccessible(false)
-        return
+        return r
       } catch {
         case _: NoSuchMethodException =>
-          logDebug(s"Can not get mergePaths method from $clazz, try to get from its superclass:" +
+          logDebug(s"Can not get $methodName method from $clazz, try to get from its superclass:" +
             s" ${clazz.getSuperclass}")
           clazz = clazz.getSuperclass
       }
     }
-    throw new NoSuchMethodException(s"Can not get mergePaths method from ${committer.getClass}" +
+    throw new NoSuchMethodException(s"Can not get $methodName method from ${instance.getClass}" +
       s" and its superclasses")
+  }
+
+  /**
+   * Get a field value from the Class of instance or from its superclasses.
+   */
+  private def getFieldValue(
+      instance: Any,
+      name: String): Any = {
+    var clazz: Class[_ <: Any] = instance.getClass
+    while (clazz != null) {
+      try {
+        val field = clazz.getDeclaredField(name)
+        field.setAccessible(true)
+        val r = field.get(instance)
+        field.setAccessible(false)
+        return r
+      } catch {
+        case _: NoSuchFieldException =>
+          logDebug(s"Can not get $name from $clazz, try to get from its superclass:" +
+            s" ${clazz.getSuperclass}")
+          clazz = clazz.getSuperclass
+      }
+    }
+    throw new NoSuchFieldException(s"Can not get $name from ${instance.getClass}" +
+      s" and its superclasses")
+  }
+
+  /**
+   * Invoke the `mergePaths` method of a FileOutputCommitter instance.
+   */
+  @throws[IOException]
+  private def mergePaths(
+      committer: FileOutputCommitter,
+      fs: FileSystem,
+      from: FileStatus,
+      to: Path): Unit = {
+    invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
+      classOf[Path]),
+      Seq(fs, from, to))
+  }
+
+  /**
+   * Invoke the `getAllCommittedTaskPaths` method of a FileOutputCommitter instance.
+   */
+  @throws[IOException]
+  private def getAllCommittedTaskPaths(
+      committer: FileOutputCommitter,
+      context: JobContext): Array[FileStatus] = {
+    invokeMethod(committer, "getAllCommittedTaskPaths", Seq(classOf[JobContext]), Seq(context))
+      .asInstanceOf[Array[FileStatus]]
   }
 }
