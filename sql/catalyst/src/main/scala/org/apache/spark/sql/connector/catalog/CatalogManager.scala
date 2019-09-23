@@ -21,6 +21,8 @@ import scala.collection.mutable
 import scala.util.control.NonFatal
 
 import org.apache.spark.internal.Logging
+import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
+import org.apache.spark.sql.catalyst.catalog.SessionCatalog
 import org.apache.spark.sql.internal.SQLConf
 
 /**
@@ -28,7 +30,11 @@ import org.apache.spark.sql.internal.SQLConf
  * the caller to look up a catalog by name.
  */
 private[sql]
-class CatalogManager(conf: SQLConf, defaultSessionCatalog: TableCatalog) extends Logging {
+class CatalogManager(
+    conf: SQLConf,
+    defaultSessionCatalog: TableCatalog,
+    v1SessionCatalog: SessionCatalog) extends Logging {
+  import CatalogManager.SESSION_CATALOG_NAME
 
   private val catalogs = mutable.HashMap.empty[String, CatalogPlugin]
 
@@ -85,25 +91,38 @@ class CatalogManager(conf: SQLConf, defaultSessionCatalog: TableCatalog) extends
 
   def currentNamespace: Array[String] = synchronized {
     _currentNamespace.getOrElse {
-      currentCatalog.map { catalogName =>
-        getDefaultNamespace(catalog(catalogName))
-      }.getOrElse(Array("default")) // The builtin catalog use "default" as the default database.
+      if (currentCatalog.name() == SESSION_CATALOG_NAME) {
+        Array(v1SessionCatalog.getCurrentDatabase)
+      } else {
+        getDefaultNamespace(currentCatalog)
+      }
     }
   }
 
   def setCurrentNamespace(namespace: Array[String]): Unit = synchronized {
-    _currentNamespace = Some(namespace)
+    // For session catalog, the current namespace is kept in `SessionCatalog#currentDb`. We can't
+    // keep it here as `SessionCatalog#currentDb` is used by many commands that are not supported
+    // by the v2 catalog API.
+    if (currentCatalog.name() == SESSION_CATALOG_NAME) {
+      if (namespace.length != 1) {
+        throw new NoSuchNamespaceException(namespace)
+      }
+      v1SessionCatalog.setCurrentDatabase(namespace.head)
+    } else {
+      _currentNamespace = Some(namespace)
+    }
   }
 
-  private var _currentCatalog: Option[String] = None
+  private var _currentCatalogName: Option[String] = None
 
-  // Returns the name of current catalog. None means the current catalog is the builtin catalog.
-  def currentCatalog: Option[String] = synchronized {
-    _currentCatalog.orElse(conf.defaultV2Catalog)
+  def currentCatalog: CatalogPlugin = synchronized {
+    _currentCatalogName.map(catalogName => catalog(catalogName))
+      .orElse(defaultCatalog)
+      .getOrElse(v2SessionCatalog)
   }
 
   def setCurrentCatalog(catalogName: String): Unit = synchronized {
-    _currentCatalog = Some(catalogName)
+    _currentCatalogName = Some(catalogName)
     _currentNamespace = None
   }
 
@@ -111,7 +130,7 @@ class CatalogManager(conf: SQLConf, defaultSessionCatalog: TableCatalog) extends
   private[sql] def reset(): Unit = synchronized {
     catalogs.clear()
     _currentNamespace = None
-    _currentCatalog = None
+    _currentCatalogName = None
   }
 }
 
