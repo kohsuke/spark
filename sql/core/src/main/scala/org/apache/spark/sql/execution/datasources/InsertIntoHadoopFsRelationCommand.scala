@@ -289,86 +289,63 @@ case class InsertIntoHadoopFsRelationCommand(
       path: Path,
       isOverwrite: Boolean,
       staticPartitionKVs: Seq[(String, String)]): Unit = {
-    val prefixPath = HadoopMapReduceCommitProtocol.getPrefixStaticPartitionPath(staticPartitionKVs)
-    if (fs.exists(path)) {
-      fs.listStatus(path)
-        .map(_.getPath)
-        .filter { p =>
-          val pName = p.getName
-          val forOverwrite = if (isOverwrite) {
-            pName.contains("overwrite") || pName.contains("append")
-          } else {
-            pName.contains("overwrite")
-          }
-          pName.startsWith(".spark-staging") && forOverwrite
+    val overwriteStaging = new Path(path, ".spark-staging-overwrite-0")
+    val appendStaging = new Path(path, ".spark-staging-append-0")
+    if (fs.exists(overwriteStaging)) {
+      throwConflictException(overwriteStaging)
+    }
+    if (isOverwrite) {
+      if (fs.exists(appendStaging)) {
+        throwConflictException(appendStaging)
+      }
+    }
+    if (staticPartitionKVs.size == 0) {
+      for (i <- 1 until partitionColumns.size) {
+        val checkedStagingDir = if (isOverwrite) {
+          Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
+        } else {
+          Seq(s".spark-staging-overwrite-$i")
         }
-        .foreach { stagingDir =>
-          val depth = stagingDir.getName.split("-").last.toInt
-          val appIdAndStaticPrefixPath = getAppIdAndStaticPrefixPath(fs, stagingDir, depth)
-          if (!appIdAndStaticPrefixPath.isEmpty) {
-            val appId = appIdAndStaticPrefixPath.get._1
-            if (pathIsContained(prefixPath, appIdAndStaticPrefixPath.get._2)) {
-              val fileStatus = fs.getFileStatus(stagingDir)
-              val accessTime = fileStatus.getAccessTime
-              val modificationTime = fileStatus.getModificationTime
-              val lastedTime =
-                TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - modificationTime)
-              throw new InsertDataSourceConflictException(
-                s"""
-                   | The staging dir for InsertIntoHadoopFsRelation is existed, its create time is
-                   | $accessTime, and its modified time is $modificationTime, already $lastedTime
-                   | seconds from now. There may be two possibilities:
-                   | 1. Another InsertDataSource operation is executing, you need wait for it to
-                   |  complete.
-                   | 2. The staging dir is belong to a killed application and not be cleaned up
-                   | gracefully, please refer to its modification time and it need be cleaned up
-                   | manually.
-                   | Please process this staging dir according to above information.
-                   |""".stripMargin
-              )
+        checkedStagingDir
+          .map(stagingDir => new Path(path, stagingDir))
+          .foreach { p =>
+          if (fs.exists(p)) {
+            throwConflictException(p)
+          }
+        }
+      }
+    } else {
+      for (i <- 1 until partitionColumns.size) {
+        val checkedStagingDir = if (isOverwrite) {
+          Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
+        } else {
+          Seq(s".spark-staging-overwrite-$i")
+        }
+        checkedStagingDir.map(stagingDir => new Path(path, stagingDir))
+          .filter(p => fs.exists(p))
+          .map(stagingPath => new Path(stagingPath,
+            HadoopMapReduceCommitProtocol.getStaticPartitionPath(staticPartitionKVs.slice(0, i))))
+          .foreach { p =>
+            if (fs.exists(p)) {
+              throwConflictException(p)
             }
           }
-        }
-    }
-  }
-
-
-  /**
-   * Judge whether a path is absolute contained by another path.
-   * @return
-   */
-  private def pathIsContained(path1: String, path2: String): Boolean = {
-    path1 == "" ||path2 == "" || path1 == path2 ||
-      (path1.startsWith(path2) && path1.charAt(path2.length) == '/') ||
-      (path2.startsWith(path1) && path2.charAt(path1.length) == '/')
-  }
-
-  /**
-   * Get relative application Id and a path with static prefix.
-   */
-  private def getAppIdAndStaticPrefixPath(
-      fs: FileSystem,
-      stagingDir: Path,
-      depth: Int): Option[(String, String)] = {
-    try {
-      val appIdPath = fs.listStatus(stagingDir)
-        .map(_.getPath)
-        .filter(p => p.getName.startsWith("local_") || p.getName.startsWith("application_"))
-        .apply(0)
-      val appId = appIdPath.getName
-      var staticPrefixPath = Seq.empty[String]
-      var curPath = appIdPath
-      for (_ <- 0 until depth) {
-        val prefixPath = fs.listStatus(curPath)
-          .map(_.getPath)
-          .filter(p => p.getName.startsWith("sp_"))
-          .apply(0)
-        staticPrefixPath ++= Seq(prefixPath.getName)
-        curPath = prefixPath
       }
-      Some((appId, staticPrefixPath.mkString(File.separator)))
-    } catch {
-      case _: Exception => None
     }
+  }
+
+  private def throwConflictException(p: Path): Unit = {
+    throw new InsertDataSourceConflictException(
+      s"""
+         | A conflict is detected, relative dir: $p is existed.
+         | There may be two possibilities:
+         | 1. Another InsertDataSource operation is executing, you need wait for it to
+         |  complete.
+         | 2. This dir is belong to a killed application and not be cleaned up gracefully,
+         |  please check the last modification time and try to find responding application
+         |  ID in last level(referred to `.spark-staging-{mode}-depth`) to help judge
+         |  whether relative application is running now.
+         | Please process this staging dir according to above information.
+         |""".stripMargin)
   }
 }

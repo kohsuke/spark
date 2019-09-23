@@ -3282,8 +3282,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         val warehouse = SQLConf.get.warehousePath.split(":").last
         val tblPath = Array(warehouse, "org.apache.spark.sql.SQLQuerySuite", "test")
           .mkString(File.separator)
-        val staging1 = Array(tblPath, s".spark-staging-${UUID.randomUUID()}-overwrite-1",
-          "application_1234", "sp_p1=1").mkString(File.separator)
+        val staging1 = Array(tblPath, ".spark-staging-overwrite-1", "p1=1", "application_1234")
+          .mkString(File.separator)
         new File(staging1).mkdirs()
 
         intercept[InsertDataSourceConflictException](

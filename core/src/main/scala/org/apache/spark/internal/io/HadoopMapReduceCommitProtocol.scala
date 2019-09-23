@@ -24,7 +24,7 @@ import scala.collection.mutable
 import scala.util.Try
 
 import org.apache.hadoop.conf.Configurable
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
@@ -93,28 +93,34 @@ class HadoopMapReduceCommitProtocol(
 
   /**
    * The staging directory of this write job. Spark uses it to deal with files with absolute output
-   * path, or writing data for InsertIntoHadoopFsRelation operation.
+   * path, or writing data into partitioned directory with dynamicPartitionOverwrite=true.
    */
-  private def stagingDir = new Path(path, ".spark-staging-" + jobId + "-" +
-    (if (isOverwrite) "overwrite-" else "append-") + staticPartitionKVs.size)
+  private def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
   /**
-   * Get the desired output path for the job. The output will be [[path]] when it is not a
-   * InsertIntoHadoopFsRelation operation. Otherwise, it will be a sub dir under [[stagingDir]].
+   * The staging root directory for InsertIntoHadoopFsRelation operation.
+   */
+  @transient private var insertStagingDir: Path = null
+
+  @transient private var outputPath: Path = _
+
+  /**
+   * Get the desired output path for the job.
    */
   protected def getOutputPath(context: TaskAttemptContext): Path = {
     if (isInsertIntoHadoopFsRelation) {
+      val overwriteFlag = if (isOverwrite) "overwrite-" else "append-"
+      val insertStagingPath = ".spark-staging-" + overwriteFlag + staticPartitionKVs.size
+      insertStagingDir = new Path(path, insertStagingPath)
       val appId = SparkEnv.get.conf.getAppId
-      val outputPath = new Path(stagingDir,
-        appId + File.separator + getPrefixStaticPartitionPath(staticPartitionKVs))
-      stagingDir.getFileSystem(context.getConfiguration).makeQualified(outputPath)
+      val outputPath = new Path(path, Array(insertStagingPath,
+        getStaticPartitionPath(staticPartitionKVs), appId).mkString(File.separator))
+      insertStagingDir.getFileSystem(context.getConfiguration).makeQualified(outputPath)
       outputPath
     } else {
       new Path(path)
     }
   }
-
-  @transient private var outputPath: Path = _
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
     if (isInsertIntoHadoopFsRelation) {
@@ -195,6 +201,8 @@ class HadoopMapReduceCommitProtocol(
 
   override def commitJob(jobContext: JobContext, taskCommits: Seq[TaskCommitMessage]): Unit = {
     if (!isInsertIntoHadoopFsRelation) {
+      // For InsertIntoHadoopFsRelation, we will merge the files from task attempt output to
+      // table path directly.
       committer.commitJob(jobContext)
     }
 
@@ -235,6 +243,11 @@ class HadoopMapReduceCommitProtocol(
       } else if (isInsertIntoHadoopFsRelation) {
         FileCommitProtocol.commitJob(committer.asInstanceOf[FileOutputCommitter],
           jobContext, new Path(path))
+      }
+
+      // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
+      if (isInsertIntoHadoopFsRelation) {
+        deleteInsertStagingDir(fs)
       }
 
       fs.delete(stagingDir, true)
@@ -306,6 +319,38 @@ class HadoopMapReduceCommitProtocol(
         logWarning(s"Exception while aborting ${taskContext.getTaskAttemptID}", e)
     }
   }
+
+  private def deleteInsertStagingDir(fs: FileSystem): Unit = {
+    if (staticPartitionKVs.size == 0) {
+      fs.delete(insertStagingDir, true)
+    } else {
+      var currentLevelPath = new Path(insertStagingDir, getStaticPartitionPath(staticPartitionKVs))
+      fs.delete(currentLevelPath, true)
+
+      var complete = false
+      var remainingLevel = staticPartitionKVs.size - 1
+      while (!complete && remainingLevel > 0) {
+        try {
+          currentLevelPath = new Path(insertStagingDir,
+            getStaticPartitionPath(staticPartitionKVs.slice(0, remainingLevel)))
+          if (!fs.delete(currentLevelPath, false)) {
+            complete = true
+          }
+          remainingLevel -= 1
+        } catch {
+          case e: Exception =>
+            logWarning(s"Exception occurred when deleting dir: $currentLevelPath.", e)
+            complete = true
+        }
+      }
+
+      try {
+        fs.delete(insertStagingDir, false)
+      } catch {
+        case _: Exception =>
+      }
+    }
+  }
 }
 
 object  HadoopMapReduceCommitProtocol extends Logging {
@@ -321,9 +366,9 @@ object  HadoopMapReduceCommitProtocol extends Logging {
    * Get a path with `sp_` prefix according to specified partition key-value pairs.
    * This path is used to detect the partition which is being written.
    */
-  def getPrefixStaticPartitionPath(staticPartitionKVs: Seq[(String, String)]): String = {
+  def getStaticPartitionPath(staticPartitionKVs: Iterable[(String, String)]): String = {
     staticPartitionKVs.map{kv =>
-      "sp_" + escapePathName(kv._1) + "=" + escapePathName(kv._2)
+      escapePathName(kv._1) + "=" + escapePathName(kv._2)
     }.mkString(File.separator)
   }
 }
