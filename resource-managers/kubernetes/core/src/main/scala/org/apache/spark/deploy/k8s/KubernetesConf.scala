@@ -24,6 +24,7 @@ import org.apache.spark.SparkConf
 import org.apache.spark.deploy.k8s.Config._
 import org.apache.spark.deploy.k8s.Constants._
 import org.apache.spark.deploy.k8s.submit._
+import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.ConfigEntry
 import org.apache.spark.util.Utils
 
@@ -123,7 +124,7 @@ private[spark] class KubernetesExecutorConf(
     val appId: String,
     val executorId: String,
     val driverPod: Option[Pod])
-  extends KubernetesConf(sparkConf) {
+  extends KubernetesConf(sparkConf) with Logging {
 
   override val resourceNamePrefix: String = {
     get(KUBERNETES_EXECUTOR_POD_NAME_PREFIX).getOrElse(
@@ -148,7 +149,8 @@ private[spark] class KubernetesExecutorConf(
     executorCustomLabels ++ presetLabels
   }
 
-  override def environment: Map[String, String] = sparkConf.getExecutorEnv.toMap
+  override def environment: Map[String, String] = sparkConf.getExecutorEnv.filter(
+    p => checkExecutorEnv(p._1)).toMap
 
   override def annotations: Map[String, String] = {
     KubernetesUtils.parsePrefixedKeyValuePairs(sparkConf, KUBERNETES_EXECUTOR_ANNOTATION_PREFIX)
@@ -164,6 +166,24 @@ private[spark] class KubernetesExecutorConf(
 
   override def volumes: Seq[KubernetesVolumeSpec] = {
     KubernetesVolumeUtils.parseVolumesWithPrefix(sparkConf, KUBERNETES_EXECUTOR_VOLUMES_PREFIX)
+  }
+
+  private def checkExecutorEnv(executorEnvKey: String): Boolean = {
+    // Pattern for matching a executorEnv key, which meets certain naming rules.
+    // Effective for release-1.8 and later versions in kubernetes.
+    // If you are using kubernetes release-1.7 and previous versions, your environment variable
+    // names may need to meet the requirements of regular expressions "[A-Za-z_] [A-Za-z0-9_]*"
+    val executorEnvRegex = "[-._a-zA-Z][-._a-zA-Z0-9]*".r
+    if (executorEnvRegex.pattern.matcher(executorEnvKey).matches()) {
+      true
+    } else {
+      logWarning(s"Invalid value: $executorEnvKey: " +
+        "a valid environment variable name must consist of alphabetic characters, " +
+        "digits, '_', '-', or '.', and must not start with a digit." +
+        "Regex used for validation in kubernetes " +
+        s"release-1.8 and higher versions is '$executorEnvRegex')")
+      false
+    }
   }
 
 }
