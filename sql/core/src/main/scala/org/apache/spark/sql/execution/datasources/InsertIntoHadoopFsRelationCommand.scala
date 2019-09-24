@@ -389,14 +389,19 @@ case class InsertIntoHadoopFsRelationCommand(
       path: Path,
       depth: Int,
       paths: ListBuffer[Path]): Unit = {
-    if (fs.exists(path)) {
-      if (depth == 0) {
-        paths += path
-      } else {
-        for (file <- fs.listStatus(path)) {
-          findConflictedStagingOutputPaths(fs, file.getPath, depth - 1, paths)
+    try {
+      if (fs.exists(path)) {
+        if (depth == 0) {
+          paths += path
+        } else {
+          for (file <- fs.listStatus(path)) {
+            findConflictedStagingOutputPaths(fs, file.getPath, depth - 1, paths)
+          }
         }
       }
+    } catch {
+      case e: Exception =>
+        logDebug("Exception occurred when finding conflicted staging output paths.", e)
     }
   }
 }
