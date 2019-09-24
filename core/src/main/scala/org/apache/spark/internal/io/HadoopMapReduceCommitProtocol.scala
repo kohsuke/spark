@@ -102,8 +102,6 @@ class HadoopMapReduceCommitProtocol(
    */
   @transient private var insertStagingDir: Path = null
 
-  @transient private var outputPath: Path = _
-
   /**
    * Get the desired output path for the job.
    */
@@ -114,7 +112,7 @@ class HadoopMapReduceCommitProtocol(
       insertStagingDir = new Path(path, insertStagingPath)
       val appId = SparkEnv.get.conf.getAppId
       val outputPath = new Path(path, Array(insertStagingPath,
-        getStaticPartitionPath(staticPartitionKVs), appId).mkString(File.separator))
+        getStaticPartitionPath(staticPartitionKVs), appId, jobId).mkString(File.separator))
       insertStagingDir.getFileSystem(context.getConfiguration).makeQualified(outputPath)
       outputPath
     } else {
@@ -124,7 +122,7 @@ class HadoopMapReduceCommitProtocol(
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
     if (isInsertIntoHadoopFsRelation) {
-      outputPath = getOutputPath(context)
+      val outputPath = getOutputPath(context)
       context.getConfiguration.set(FileOutputFormat.OUTDIR, outputPath.toString)
     }
 
@@ -247,7 +245,7 @@ class HadoopMapReduceCommitProtocol(
 
       // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
       if (isInsertIntoHadoopFsRelation) {
-        deleteInsertStagingDir(fs)
+        deleteStagingInsertOutputPath(fs)
       }
 
       fs.delete(stagingDir, true)
@@ -320,7 +318,10 @@ class HadoopMapReduceCommitProtocol(
     }
   }
 
-  private def deleteInsertStagingDir(fs: FileSystem): Unit = {
+  /**
+   * Delete the staging output path of current InsertIntoHadoopFsRelation operation.
+   */
+  private def deleteStagingInsertOutputPath(fs: FileSystem): Unit = {
     if (staticPartitionKVs.size == 0) {
       fs.delete(insertStagingDir, true)
     } else {
@@ -347,7 +348,8 @@ class HadoopMapReduceCommitProtocol(
       try {
         fs.delete(insertStagingDir, false)
       } catch {
-        case _: Exception =>
+        case e: Exception =>
+          logWarning(s"Exception occurred when deleting dir: $insertStagingDir.", e)
       }
     }
   }
@@ -363,8 +365,7 @@ object  HadoopMapReduceCommitProtocol extends Logging {
   }
 
   /**
-   * Get a path with `sp_` prefix according to specified partition key-value pairs.
-   * This path is used to detect the partition which is being written.
+   * Get a path according to specified partition key-value pairs.
    */
   def getStaticPartitionPath(staticPartitionKVs: Iterable[(String, String)]): String = {
     staticPartitionKVs.map{kv =>
