@@ -17,8 +17,10 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import java.io.{File, IOException}
-import java.util.concurrent.TimeUnit
+import java.io.IOException
+import java.util.Date
+
+import scala.collection.mutable.ListBuffer
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -292,60 +294,109 @@ case class InsertIntoHadoopFsRelationCommand(
     val overwriteStaging = new Path(path, ".spark-staging-overwrite-0")
     val appendStaging = new Path(path, ".spark-staging-append-0")
     if (fs.exists(overwriteStaging)) {
-      throwConflictException(overwriteStaging)
+      throwConflictException(fs, overwriteStaging, 0, staticPartitionKVs)
     }
     if (isOverwrite) {
       if (fs.exists(appendStaging)) {
-        throwConflictException(appendStaging)
+        throwConflictException(fs, appendStaging, 0, staticPartitionKVs)
       }
     }
     if (staticPartitionKVs.size == 0) {
       for (i <- 1 until partitionColumns.size) {
-        val checkedStagingDir = if (isOverwrite) {
+        val checkedStagingPath = if (isOverwrite) {
           Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
         } else {
           Seq(s".spark-staging-overwrite-$i")
         }
-        checkedStagingDir
-          .map(stagingDir => new Path(path, stagingDir))
-          .foreach { p =>
-          if (fs.exists(p)) {
-            throwConflictException(p)
+        checkedStagingPath
+          .map(stagingPath => new Path(path, stagingPath))
+          .foreach { stagingDir =>
+          if (fs.exists(stagingDir)) {
+            throwConflictException(fs, stagingDir, i, staticPartitionKVs)
           }
         }
       }
     } else {
       for (i <- 1 until partitionColumns.size) {
-        val checkedStagingDir = if (isOverwrite) {
+        val checkedStagingPath = if (isOverwrite) {
           Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
         } else {
           Seq(s".spark-staging-overwrite-$i")
         }
-        checkedStagingDir.map(stagingDir => new Path(path, stagingDir))
-          .filter(p => fs.exists(p))
-          .map(stagingPath => new Path(stagingPath,
-            HadoopMapReduceCommitProtocol.getStaticPartitionPath(staticPartitionKVs.slice(0, i))))
-          .foreach { p =>
-            if (fs.exists(p)) {
-              throwConflictException(p)
+        checkedStagingPath
+          .map(stagingPath => new Path(path, stagingPath))
+          .foreach { stagingDir =>
+            if (fs.exists(stagingDir)) {
+              val checkedPath = new Path(stagingDir, HadoopMapReduceCommitProtocol
+                .getStaticPartitionPath(staticPartitionKVs.slice(0, i)))
+              if (fs.exists(checkedPath)) {
+                throwConflictException(fs, stagingDir, i, staticPartitionKVs)
+              }
             }
           }
       }
     }
   }
 
-  private def throwConflictException(p: Path): Unit = {
+  private def throwConflictException(
+      fs: FileSystem,
+      stagingDir: Path,
+      depth: Int,
+      staticPartitionKVs: Seq[(String, String)]): Unit = {
+    val conflictedPaths = ListBuffer[Path]()
+    val currentPath = if (depth == staticPartitionKVs.size || staticPartitionKVs.size == 0) {
+      stagingDir
+    } else {
+      new Path(stagingDir, HadoopMapReduceCommitProtocol.getStaticPartitionPath(
+        staticPartitionKVs.slice(0, staticPartitionKVs.size - depth)))
+    }
+
+    findConflictedStagingOutputPaths(fs, currentPath, depth, conflictedPaths)
+
+    val pathsInfo = conflictedPaths.map { path =>
+      val files = fs.listFiles(path, false)
+      val appId = if (files.hasNext) {
+        files.next().getPath.getName
+      } else {
+        "Not Found."
+      }
+
+      (path, appId, new Date(fs.getFileStatus(path).getModificationTime))
+    }
+
     throw new InsertDataSourceConflictException(
       s"""
-         | A conflict is detected, relative dir: $p is existed.
+         | Conflict is detected, some other conflicted output path(s) existed.
+         | Relative path, appId and last modification time information is shown as below:
+         | $pathsInfo.
          | There may be two possibilities:
          | 1. Another InsertDataSource operation is executing, you need wait for it to
          |  complete.
          | 2. This dir is belong to a killed application and not be cleaned up gracefully,
-         |  please check the last modification time and try to find responding application
-         |  ID in last level(referred to `.spark-staging-{mode}-depth`) to help judge
-         |  whether relative application is running now.
+         |  please check the last modification time use relative appId to judge whether
+         |  relative application is running now.
+         |
          | Please process this staging dir according to above information.
          |""".stripMargin)
+  }
+
+  /**
+   * Find relative staging output paths, which is conflicted with current
+   * InsertIntoHadoopFsRelation operation.
+   */
+  private def findConflictedStagingOutputPaths(
+      fs: FileSystem,
+      path: Path,
+      depth: Int,
+      paths: ListBuffer[Path]): Unit = {
+    if (fs.exists(path)) {
+      if (depth == 0) {
+        paths += path
+      } else {
+        for (file <- fs.listStatus(path)) {
+          findConflictedStagingOutputPaths(fs, file.getPath, depth - 1, paths)
+        }
+      }
+    }
   }
 }
