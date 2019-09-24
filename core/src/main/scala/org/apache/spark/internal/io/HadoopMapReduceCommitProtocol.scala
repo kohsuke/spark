@@ -102,6 +102,8 @@ class HadoopMapReduceCommitProtocol(
    */
   @transient private var insertStagingDir: Path = null
 
+  @transient private var stagingOutputPath: Path = null
+
   /**
    * Get the desired output path for the job.
    */
@@ -122,8 +124,11 @@ class HadoopMapReduceCommitProtocol(
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
     if (isInsertIntoHadoopFsRelation) {
-      val outputPath = getOutputPath(context)
-      context.getConfiguration.set(FileOutputFormat.OUTDIR, outputPath.toString)
+      stagingOutputPath = getOutputPath(context)
+      context.getConfiguration.set(FileOutputFormat.OUTDIR, stagingOutputPath.toString)
+      // We can set file output committer to 2 implicitly, for that the task output would be
+      // committed to staging output path firstly, which is equivalent to algorithm 1.
+      context.getConfiguration.setInt(FileOutputCommitter.FILEOUTPUTCOMMITTER_ALGORITHM_VERSION, 2)
     }
 
     val format = context.getOutputFormatClass.getConstructor().newInstance()
@@ -198,11 +203,7 @@ class HadoopMapReduceCommitProtocol(
   }
 
   override def commitJob(jobContext: JobContext, taskCommits: Seq[TaskCommitMessage]): Unit = {
-    if (!isInsertIntoHadoopFsRelation) {
-      // For InsertIntoHadoopFsRelation, we will merge the files from task attempt output to
-      // table path directly.
-      committer.commitJob(jobContext)
-    }
+    committer.commitJob(jobContext)
 
     if (hasValidPath) {
       val (allAbsPathFiles, allPartitionPaths) =
@@ -239,8 +240,8 @@ class HadoopMapReduceCommitProtocol(
           fs.rename(new Path(stagingDir, part), finalPartPath)
         }
       } else if (isInsertIntoHadoopFsRelation) {
-        FileCommitProtocol.commitJob(committer.asInstanceOf[FileOutputCommitter],
-          jobContext, new Path(path))
+        FileCommitProtocol.mergePaths(committer.asInstanceOf[FileOutputCommitter], fs,
+          fs.getFileStatus(stagingOutputPath), new Path(path))
       }
 
       // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
