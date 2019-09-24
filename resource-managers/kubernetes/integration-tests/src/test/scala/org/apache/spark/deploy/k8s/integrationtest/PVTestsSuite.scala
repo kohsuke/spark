@@ -111,7 +111,6 @@ private[spark] trait PVTestsSuite { k8sSuite: KubernetesSuite =>
       .delete()
 
     mountProcess.foreach(_.destroy())
-
   }
 
   private def checkPVs(pod: Pod, file: String) = {
@@ -167,7 +166,7 @@ private[spark] trait PVTestsSuite { k8sSuite: KubernetesSuite =>
 }
 
 private[spark] object PVTestsSuite {
-  val STORAGE_NAME = "test-local-storage-2"
+  val STORAGE_NAME = "test-local-storage"
   val PV_NAME = "test-local-pv"
   val PVC_NAME = "test-local-pvc"
   val CONTAINER_MOUNT_PATH = "/opt/spark/pv-tests"
