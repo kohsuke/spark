@@ -258,12 +258,14 @@ class HadoopMapReduceCommitProtocol(
           fs.rename(new Path(stagingDir, part), finalPartPath)
         }
       } else if (isInsertIntoHadoopFsRelation) {
+        // For InsertIntoHadoopFsRelation operation, the result has been committed to staging
+        // output path, merge it to destination path.
         FileCommitProtocol.mergePaths(committer.asInstanceOf[FileOutputCommitter], fs,
           fs.getFileStatus(stagingOutputPath), new Path(path), jobContext)
       }
 
-      // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
       if (isInsertIntoHadoopFsRelation) {
+        // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
         deleteStagingInsertOutputPath(fs)
       }
 

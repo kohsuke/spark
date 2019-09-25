@@ -339,6 +339,7 @@ case class InsertIntoHadoopFsRelationCommand(
           (relativePath, appId, new Date(fs.getFileStatus(path).getModificationTime))
         } catch {
           case e: Exception => logWarning("Exception occurred", e)
+            ("Not found due to exception", "Not Found", null)
         }
       }
 
