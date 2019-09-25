@@ -22,7 +22,7 @@ import java.net.{MalformedURLException, URL}
 import java.sql.{Date, Timestamp}
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{AccumulatorSuite, InsertDataSourceConflictException, SparkEnv, SparkException}
+import org.apache.spark.{AccumulatorSuite, InsertFileSourceConflictException, SparkEnv, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerJobStart}
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.catalyst.util.StringUtils
@@ -3282,13 +3282,13 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           .mkString(File.separator)
         new File(staging1).mkdirs()
 
-        intercept[InsertDataSourceConflictException](
+        intercept[InsertFileSourceConflictException](
           sql("insert overwrite table tc partition(p1=1, p2) select 1, 2"))
-        intercept[InsertDataSourceConflictException](
+        intercept[InsertFileSourceConflictException](
           sql("insert overwrite table tc partition(p1=1, p2=2) select 1"))
-        intercept[InsertDataSourceConflictException](
+        intercept[InsertFileSourceConflictException](
           sql("insert overwrite table tc select 1, 2, 3"))
-        intercept[InsertDataSourceConflictException](
+        intercept[InsertFileSourceConflictException](
           sql("insert into table tc select 1, 2, 3"))
 
         sql("insert overwrite table tc partition(p1=2, p2) select 1, 2")
