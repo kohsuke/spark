@@ -219,9 +219,19 @@ object FileCommitProtocol extends Logging {
       committer: FileOutputCommitter,
       fs: FileSystem,
       from: FileStatus,
-      to: Path): Unit = {
-    invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
-      classOf[Path]),
-      Seq(fs, from, to))
+      to: Path,
+      context: JobContext): Unit = {
+    try {
+      invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
+        classOf[Path]),
+        Seq(fs, from, to))
+    } catch {
+      case _: NoSuchMethodException =>
+        // The args of `mergePaths` method has been changed in high hadoop version.
+        logDebug("Falling back to (FileSystem, FileStatus, Path, JobContext) args method")
+        invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
+          classOf[Path], classOf[JobContext]),
+          Seq(fs, from, to, context))
+    }
   }
 }

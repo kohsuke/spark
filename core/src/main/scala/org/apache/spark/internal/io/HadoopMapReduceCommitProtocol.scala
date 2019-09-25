@@ -241,7 +241,7 @@ class HadoopMapReduceCommitProtocol(
         }
       } else if (isInsertIntoHadoopFsRelation) {
         FileCommitProtocol.mergePaths(committer.asInstanceOf[FileOutputCommitter], fs,
-          fs.getFileStatus(stagingOutputPath), new Path(path))
+          fs.getFileStatus(stagingOutputPath), new Path(path), jobContext)
       }
 
       // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
