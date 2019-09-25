@@ -126,7 +126,7 @@ class HadoopMapReduceCommitProtocol(
     if (isInsertIntoHadoopFsRelation) {
       stagingOutputPath = getOutputPath(context)
       context.getConfiguration.set(FileOutputFormat.OUTDIR, stagingOutputPath.toString)
-      // We can set file output committer to 2 implicitly, for that the task output would be
+      // Set file output committer to 2 implicitly, for that the task output would be
       // committed to staging output path firstly, which is equivalent to algorithm 1.
       context.getConfiguration.setInt(FileOutputCommitter.FILEOUTPUTCOMMITTER_ALGORITHM_VERSION, 2)
     }
@@ -356,7 +356,7 @@ class HadoopMapReduceCommitProtocol(
   }
 }
 
-object  HadoopMapReduceCommitProtocol extends Logging {
+object  HadoopMapReduceCommitProtocol {
 
   private def escapePathName(path: String): String = {
     val externalCatalogUtils = Utils.classForName(

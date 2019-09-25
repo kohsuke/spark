@@ -292,10 +292,9 @@ case class InsertIntoHadoopFsRelationCommand(
       isOverwrite: Boolean,
       staticPartitionKVs: Seq[(String, String)]): Unit = {
     for (i <- 0 until partitionColumns.size) {
-      val checkedStagingPath = if (isOverwrite) {
-        Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
-      } else {
-        Seq(s".spark-staging-overwrite-$i")
+      val checkedStagingPath = ListBuffer(s".spark-staging-overwrite-$i")
+      if (isOverwrite) {
+        checkedStagingPath += s".spark-staging-append-$i"
       }
       checkedStagingPath
         .map(stagingPath => new Path(path, stagingPath))
@@ -331,30 +330,34 @@ case class InsertIntoHadoopFsRelationCommand(
 
     findConflictedStagingOutputPaths(fs, currentPath, depth, conflictedPaths)
 
-    val pathsInfo = conflictedPaths.map { path =>
-      val files = fs.listFiles(path, false)
-      val appId = if (files.hasNext) {
-        files.next().getPath.getName
+    val pathsInfo = conflictedPaths.toList
+      .map { path =>
+      val files = fs.listStatus(path)
+      val appId = if (files.size > 0) {
+        files.apply(0).getPath.getName
       } else {
-        "Not Found."
+        "Not Found"
       }
 
-      (path, appId, new Date(fs.getFileStatus(path).getModificationTime))
-    }
+      val absolutePath = path.toUri.getRawPath
+      val relativePath = absolutePath.substring(absolutePath.lastIndexOf(stagingDir.getName))
+      (relativePath, appId, new Date(fs.getFileStatus(path).getModificationTime))
+      }
 
     throw new InsertFileSourceConflictException(
       s"""
-         | Conflict is detected, some other conflicted output path(s) existed.
+         | Conflict is detected, some other conflicted output path(s) under tablePath:
+         | ($outputPath) existed.
          | Relative path, appId and last modification time information is shown as below:
-         | $pathsInfo.
+         | ${pathsInfo}.
          | There may be two possibilities:
          | 1. Another InsertDataSource operation is executing, you need wait for it to
-         |  complete.
-         | 2. This dir is belong to a killed application and not be cleaned up gracefully,
-         |  please check the last modification time use relative appId to judge whether
-         |  relative application is running now.
+         |    complete.
+         | 2. This dir is belong to a killed application and not be cleaned up gracefully.
          |
-         | Please process this staging dir according to above information.
+         | Please check the last modification time and use given appId to judge whether
+         | relative application is running now.
+         | If not, you should delete responding path without recursive manually.
          |""".stripMargin)
   }
 
