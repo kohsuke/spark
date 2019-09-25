@@ -20,7 +20,6 @@ package org.apache.spark.sql
 import java.io.File
 import java.net.{MalformedURLException, URL}
 import java.sql.{Date, Timestamp}
-import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark.{AccumulatorSuite, InsertFileSourceConflictException, SparkEnv, SparkException}

@@ -291,50 +291,28 @@ case class InsertIntoHadoopFsRelationCommand(
       path: Path,
       isOverwrite: Boolean,
       staticPartitionKVs: Seq[(String, String)]): Unit = {
-    val overwriteStaging = new Path(path, ".spark-staging-overwrite-0")
-    val appendStaging = new Path(path, ".spark-staging-append-0")
-    if (fs.exists(overwriteStaging)) {
-      throwConflictException(fs, overwriteStaging, 0, staticPartitionKVs)
-    }
-    if (isOverwrite) {
-      if (fs.exists(appendStaging)) {
-        throwConflictException(fs, appendStaging, 0, staticPartitionKVs)
+    for (i <- 0 until partitionColumns.size) {
+      val checkedStagingPath = if (isOverwrite) {
+        Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
+      } else {
+        Seq(s".spark-staging-overwrite-$i")
       }
-    }
-    if (staticPartitionKVs.size == 0) {
-      for (i <- 1 until partitionColumns.size) {
-        val checkedStagingPath = if (isOverwrite) {
-          Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
-        } else {
-          Seq(s".spark-staging-overwrite-$i")
-        }
-        checkedStagingPath
-          .map(stagingPath => new Path(path, stagingPath))
-          .foreach { stagingDir =>
+      checkedStagingPath
+        .map(stagingPath => new Path(path, stagingPath))
+        .foreach { stagingDir =>
           if (fs.exists(stagingDir)) {
-            throwConflictException(fs, stagingDir, i, staticPartitionKVs)
-          }
-        }
-      }
-    } else {
-      for (i <- 1 until partitionColumns.size) {
-        val checkedStagingPath = if (isOverwrite) {
-          Seq(s".spark-staging-overwrite-$i", s".spark-staging-append-$i")
-        } else {
-          Seq(s".spark-staging-overwrite-$i")
-        }
-        checkedStagingPath
-          .map(stagingPath => new Path(path, stagingPath))
-          .foreach { stagingDir =>
-            if (fs.exists(stagingDir)) {
-              val checkedPath = new Path(stagingDir, HadoopMapReduceCommitProtocol
-                .getStaticPartitionPath(staticPartitionKVs.slice(0, i)))
-              if (fs.exists(checkedPath)) {
-                throwConflictException(fs, stagingDir, i, staticPartitionKVs)
-              }
+            val subPath = HadoopMapReduceCommitProtocol.getStaticPartitionPath(
+              staticPartitionKVs.slice(0, i))
+            val checkedPath = if (!subPath.isEmpty) {
+              new Path(stagingDir, subPath)
+            } else {
+              stagingDir
+            }
+            if (fs.exists(checkedPath)) {
+              throwConflictException(fs, stagingDir, i, staticPartitionKVs)
             }
           }
-      }
+        }
     }
   }
 
