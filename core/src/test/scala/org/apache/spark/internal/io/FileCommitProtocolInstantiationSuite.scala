@@ -43,14 +43,24 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
     instantiateClassic(false)
   }
 
-  test("Six arg constructors have priority") {
-    assert(6 == instantiateNew(false).argCount,
+  test("Three arg constructors have priority") {
+    assert(3 == instantiateNew(false).argCount,
       "Wrong constructor argument count")
   }
 
-  test("Six arg constructors have priority when dynamic") {
-    assert(6 == instantiateNew(true).argCount,
+  test("Three arg constructors have priority when dynamic") {
+    assert(3 == instantiateNew(true).argCount,
       "Wrong constructor argument count")
+  }
+
+  test("Four arg constructors have priority") {
+    assert(4 == instantiateWithFileSourceWriteDesc(false, None).argCount,
+      "Wrong constructor argument count")
+  }
+
+  test("Four arg constructors have priority with file source write description specified") {
+    assert(4 == instantiateWithFileSourceWriteDesc(false,
+      Some(FileSourceWriteDesc(true, Seq.empty))).argCount, "Wrong constructor argument count")
   }
 
   test("The protocol must be of the correct class") {
@@ -75,7 +85,7 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
 
   /**
    * Create a classic two-arg protocol instance.
-   * @param dynamic dyanmic partitioning mode
+   * @param dynamic dynamic partitioning mode
    * @return the instance
    */
   private def instantiateClassic(dynamic: Boolean): ClassicConstructorCommitProtocol = {
@@ -88,7 +98,7 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
 
   /**
    * Create a three-arg protocol instance.
-   * @param dynamic dyanmic partitioning mode
+   * @param dynamic dynamic partitioning mode
    * @return the instance
    */
   private def instantiateNew(
@@ -98,6 +108,22 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
       "job",
       "path",
       dynamic).asInstanceOf[FullConstructorCommitProtocol]
+  }
+
+  /**
+   * Create a four-arg protocol instance.
+   * @param dynamic dynamic partitioning mode
+   * @param desc file source write description
+   * @return the instance
+   */
+  private def instantiateWithFileSourceWriteDesc(
+      dynamic: Boolean, desc: Option[FileSourceWriteDesc]): FullConstructorCommitProtocol = {
+    FileCommitProtocol.instantiate(
+      classOf[FullConstructorCommitProtocol].getCanonicalName,
+      "job",
+      "path",
+      dynamic,
+      None).asInstanceOf[FullConstructorCommitProtocol]
   }
 
 }
@@ -114,27 +140,26 @@ private class ClassicConstructorCommitProtocol(arg1: String, arg2: String)
  * This protocol implementation does have the new three-arg constructor
  * alongside the original, and a 4 arg one for completeness.
  * The final value of the real constructor is the number of arguments
- * used in the 2- and 3- constructor, for test assertions.
+ * used in the 2-, 3- and 4- constructor, for test assertions.
  */
 private class FullConstructorCommitProtocol(
   arg1: String,
   arg2: String,
   b: Boolean,
+  desc: Option[FileSourceWriteDesc],
   val argCount: Int)
   extends HadoopMapReduceCommitProtocol(arg1, arg2, b) {
 
   def this(arg1: String, arg2: String) = {
-    this(arg1, arg2, false, 2)
+    this(arg1, arg2, false, None, 2)
   }
 
-  def this(
-    arg1: String,
-    arg2: String,
-    b: Boolean,
-    b2: Boolean,
-    b3: Boolean,
-    pkv: Seq[(String, String)]) = {
-    this(arg1, arg2, false, 6)
+  def this(arg1: String, arg2: String, b: Boolean) = {
+    this(arg1, arg2, false, None, 3)
+  }
+
+  def this(arg1: String, arg2: String, b: Boolean, desc: Option[FileSourceWriteDesc]) {
+    this(arg1, arg2, false, None, 4)
   }
 }
 

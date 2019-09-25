@@ -22,7 +22,7 @@ import java.net.{MalformedURLException, URL}
 import java.sql.{Date, Timestamp}
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{AccumulatorSuite, InsertFileSourceConflictException, SparkEnv, SparkException}
+import org.apache.spark.{AccumulatorSuite, InsertFileSourceConflictException, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerJobStart}
 import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.catalyst.util.StringUtils
@@ -3278,13 +3278,13 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         val warehouse = SQLConf.get.warehousePath.split(":").last
         val tblPath = Array(warehouse, "org.apache.spark.sql.SQLQuerySuite", "tc")
           .mkString(File.separator)
-        val staging1 = Array(tblPath, ".spark-staging-overwrite-1", "p1=1", "application_1234")
+        val staging1 = Array(tblPath, ".spark-staging-1", "p1=1", "application_1234")
           .mkString(File.separator)
         new File(staging1).mkdirs()
 
         val msg = intercept[InsertFileSourceConflictException](
           sql("insert overwrite table tc partition(p1=1, p2) select 1, 2")).message
-        assert(msg.contains(".spark-staging-overwrite-1/p1=1") && msg.contains("application_1234"))
+        assert(msg.contains(".spark-staging-1/p1=1") && msg.contains("application_1234"))
         intercept[InsertFileSourceConflictException](
           sql("insert overwrite table tc partition(p1=1, p2=2) select 1"))
         intercept[InsertFileSourceConflictException](

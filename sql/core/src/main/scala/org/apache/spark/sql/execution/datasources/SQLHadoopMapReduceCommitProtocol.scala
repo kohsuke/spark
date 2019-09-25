@@ -22,7 +22,7 @@ import org.apache.hadoop.mapreduce.{OutputCommitter, TaskAttemptContext}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
+import org.apache.spark.internal.io.{FileSourceWriteDesc, HadoopMapReduceCommitProtocol}
 import org.apache.spark.sql.internal.SQLConf
 
 /**
@@ -33,11 +33,8 @@ class SQLHadoopMapReduceCommitProtocol(
     jobId: String,
     path: String,
     dynamicPartitionOverwrite: Boolean = false,
-    isInsertIntoHadoopFsRelation: Boolean = false,
-    isOverwrite: Boolean = false,
-    staticPartitionKVs: Seq[(String, String)] = Seq.empty[(String, String)])
-  extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite,
-    isInsertIntoHadoopFsRelation, isOverwrite, staticPartitionKVs)
+    fileSourceWriteDesc: Option[FileSourceWriteDesc] = None)
+  extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite, fileSourceWriteDesc)
     with Serializable with Logging {
 
   override protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
