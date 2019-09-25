@@ -60,6 +60,8 @@ class HadoopMapReduceCommitProtocol(
   import FileCommitProtocol._
   import HadoopMapReduceCommitProtocol._
 
+  def this(jobId: String, path: String, dpOverwrite: Boolean) = this(jobId, path, dpOverwrite, None)
+
   /** OutputCommitter from Hadoop is not serializable so marking it transient. */
   @transient private var committer: OutputCommitter = _
 
