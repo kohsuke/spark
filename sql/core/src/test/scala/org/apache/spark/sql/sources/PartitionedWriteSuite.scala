@@ -19,7 +19,6 @@ package org.apache.spark.sql.sources
 
 import java.io.File
 import java.sql.Timestamp
-import java.util.concurrent.Semaphore
 
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.{OutputCommitter, TaskAttemptContext}
@@ -204,51 +203,5 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
         }
       }
     }
-  }
-
-  test("Concurrent write to the same table with different partitions should be possible") {
-    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
-      withTable("t") {
-        val sem = new Semaphore(0)
-        Seq((1, 2)).toDF("a", "b")
-          .write
-          .partitionBy("b")
-          .mode("overwrite")
-          .saveAsTable("t")
-
-        val df1 = spark.range(0, 10).map(x => (x, 1)).toDF("a", "b")
-        val df2 = spark.range(0, 10).map(x => (x, 2)).toDF("a", "b")
-        val dfs = Seq(df1, df2)
-
-        var throwable: Option[Throwable] = None
-        for (i <- 0 until 2) {
-          new Thread {
-            override def run(): Unit = {
-              try {
-                dfs(i)
-                  .write
-                  .mode("overwrite")
-                  .insertInto("t")
-              } catch {
-                case t: Throwable =>
-                  throwable = Some(t)
-              } finally {
-                sem.release()
-              }
-            }
-          }.start()
-        }
-        // make sure writing table in two threads are executed.
-        sem.acquire(2)
-        throwable.foreach { t => throw improveStackTrace(t) }
-        checkAnswer(spark.sql("select a, b from t where b = 1"), df1)
-        checkAnswer(spark.sql("select a, b from t where b = 2"), df2)
-      }
-    }
-  }
-
-  private def improveStackTrace(t: Throwable): Throwable = {
-    t.setStackTrace(t.getStackTrace ++ Thread.currentThread.getStackTrace)
-    t
   }
 }
