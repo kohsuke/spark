@@ -3236,13 +3236,14 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
         val warehouse = SQLConf.get.warehousePath.split(":").last
         val tblPath = Array(warehouse, "org.apache.spark.sql.SQLQuerySuite", "tc")
-            .mkString(File.separator)
+          .mkString(File.separator)
         val staging1 = Array(tblPath, ".spark-staging-overwrite-1", "p1=1", "application_1234")
           .mkString(File.separator)
         new File(staging1).mkdirs()
 
-        intercept[InsertFileSourceConflictException](
-          sql("insert overwrite table tc partition(p1=1, p2) select 1, 2"))
+        val msg = intercept[InsertFileSourceConflictException](
+          sql("insert overwrite table tc partition(p1=1, p2) select 1, 2")).message
+        assert(msg.contains(".spark-staging-overwrite-1/p1=1") && msg.contains("application_1234"))
         intercept[InsertFileSourceConflictException](
           sql("insert overwrite table tc partition(p1=1, p2=2) select 1"))
         intercept[InsertFileSourceConflictException](
