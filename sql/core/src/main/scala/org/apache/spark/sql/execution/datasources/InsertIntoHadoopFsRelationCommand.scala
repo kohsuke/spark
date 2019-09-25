@@ -24,7 +24,7 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 
-import org.apache.spark.InsertDataSourceConflictException
+import org.apache.spark.InsertFileSourceConflictException
 import org.apache.spark.internal.io.FileCommitProtocol
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
 import org.apache.spark.sql._
@@ -364,7 +364,7 @@ case class InsertIntoHadoopFsRelationCommand(
       (path, appId, new Date(fs.getFileStatus(path).getModificationTime))
     }
 
-    throw new InsertDataSourceConflictException(
+    throw new InsertFileSourceConflictException(
       s"""
          | Conflict is detected, some other conflicted output path(s) existed.
          | Relative path, appId and last modification time information is shown as below:
