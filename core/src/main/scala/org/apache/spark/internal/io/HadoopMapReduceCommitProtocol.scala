@@ -32,7 +32,6 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
-import org.apache.spark.util.Utils
 
 /**
  * An [[FileCommitProtocol]] implementation backed by an underlying Hadoop OutputCommitter
@@ -55,9 +54,7 @@ class HadoopMapReduceCommitProtocol(
     jobId: String,
     path: String,
     dynamicPartitionOverwrite: Boolean = false,
-    isInsertIntoHadoopFsRelation: Boolean = false,
-    isOverwrite: Boolean = false,
-    staticPartitionKVs: Seq[(String, String)] = Seq.empty[(String, String)])
+    fileSourceWriteDesc: Option[FileSourceWriteDesc] = None)
   extends FileCommitProtocol with Serializable with Logging {
 
   import FileCommitProtocol._
@@ -98,23 +95,44 @@ class HadoopMapReduceCommitProtocol(
   private def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
   /**
+   * Whether is a InsertIntoHadoopFsRelation operation, the default is false.
+   */
+  private def isInsertIntoHadoopFsRelation =
+    fileSourceWriteDesc.map(_.isInsertIntoHadoopFsRelation).getOrElse(false)
+
+  /**
+   * Get escaped static partition key and value pairs, the default is empty.
+   */
+  private def escapedStaticPartitionKVs =
+    fileSourceWriteDesc.map(_.escapedStaticPartitionKVs).getOrElse(Seq.empty)
+
+  /**
    * The staging root directory for InsertIntoHadoopFsRelation operation.
    */
   @transient private var insertStagingDir: Path = null
 
+  /**
+   * The staging output path for InsertIntoHadoopFsRelation operation.
+   */
   @transient private var stagingOutputPath: Path = null
 
   /**
-   * Get the desired output path for the job.
+   * Get the desired output path for the job. The output will be [[path]] when current operation
+   * is not a InsertIntoHadoopFsRelation operation. Otherwise, we choose a sub path compose of
+   * [[escapedStaticPartitionKVs]] under [[insertStagingDir]] over [[path]] to mark this operation
+   * and we can detect whether there is a operation conflict with current by check the existence of
+   * relative output path.
+   *
+   * @return Path the desired output path.
    */
   protected def getOutputPath(context: TaskAttemptContext): Path = {
     if (isInsertIntoHadoopFsRelation) {
-      val overwriteFlag = if (isOverwrite) "overwrite-" else "append-"
-      val insertStagingPath = ".spark-staging-" + overwriteFlag + staticPartitionKVs.size
+      val insertStagingPath = ".spark-staging-" + escapedStaticPartitionKVs.size
       insertStagingDir = new Path(path, insertStagingPath)
       val appId = SparkEnv.get.conf.getAppId
       val outputPath = new Path(path, Array(insertStagingPath,
-        getStaticPartitionPath(staticPartitionKVs), appId, jobId).mkString(File.separator))
+        getEscapedStaticPartitionPath(escapedStaticPartitionKVs), appId, jobId)
+        .mkString(File.separator))
       insertStagingDir.getFileSystem(context.getConfiguration).makeQualified(outputPath)
       outputPath
     } else {
@@ -126,8 +144,8 @@ class HadoopMapReduceCommitProtocol(
     if (isInsertIntoHadoopFsRelation) {
       stagingOutputPath = getOutputPath(context)
       context.getConfiguration.set(FileOutputFormat.OUTDIR, stagingOutputPath.toString)
-      // Set file output committer to 2 implicitly, for that the task output would be
-      // committed to staging output path firstly, which is equivalent to algorithm 1.
+      logWarning("Set file output committer to 2 implicitly, for that the task output would be" +
+        " committed to staging output path firstly, which is equivalent to algorithm 1.")
       context.getConfiguration.setInt(FileOutputCommitter.FILEOUTPUTCOMMITTER_ALGORITHM_VERSION, 2)
     }
 
@@ -321,20 +339,30 @@ class HadoopMapReduceCommitProtocol(
 
   /**
    * Delete the staging output path of current InsertIntoHadoopFsRelation operation.
+   * This output path is used to mark a InsertIntoHadoopFsRelation operation and we
+   * can detect conflict when there are several operations write same partition or a
+   * non-partitioned table concurrently.
+   *
+   * The output path is a multi level path and is composed of specified partition
+   * key-value pairs formatted `.spark-staging-${depth}/p1=v1/p2=v2/.../pn=vn`.
+   * When deleting the staging output path, delete the last level with recursive
+   * firstly. Then we would try to delete upper level without recursive, if success,
+   * then delete upper level with same way, until delete the [[insertStagingDir]].
    */
   private def deleteStagingInsertOutputPath(fs: FileSystem): Unit = {
-    if (staticPartitionKVs.size == 0) {
+    if (escapedStaticPartitionKVs.size == 0) {
       fs.delete(insertStagingDir, true)
     } else {
-      var currentLevelPath = new Path(insertStagingDir, getStaticPartitionPath(staticPartitionKVs))
+      var currentLevelPath = new Path(insertStagingDir,
+        getEscapedStaticPartitionPath(escapedStaticPartitionKVs))
       fs.delete(currentLevelPath, true)
 
       var complete = false
-      var remainingLevel = staticPartitionKVs.size - 1
+      var remainingLevel = escapedStaticPartitionKVs.size - 1
       while (!complete && remainingLevel > 0) {
         try {
           currentLevelPath = new Path(insertStagingDir,
-            getStaticPartitionPath(staticPartitionKVs.slice(0, remainingLevel)))
+            getEscapedStaticPartitionPath(escapedStaticPartitionKVs.slice(0, remainingLevel)))
           if (!fs.delete(currentLevelPath, false)) {
             complete = true
           }
@@ -358,19 +386,12 @@ class HadoopMapReduceCommitProtocol(
 
 object  HadoopMapReduceCommitProtocol {
 
-  private def escapePathName(path: String): String = {
-    val externalCatalogUtils = Utils.classForName(
-      "org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils")
-    externalCatalogUtils.getMethod("escapePathName", classOf[String])
-      .invoke(null, path).asInstanceOf[String]
-  }
-
   /**
    * Get a path according to specified partition key-value pairs.
    */
-  def getStaticPartitionPath(staticPartitionKVs: Iterable[(String, String)]): String = {
+  def getEscapedStaticPartitionPath(staticPartitionKVs: Iterable[(String, String)]): String = {
     staticPartitionKVs.map{kv =>
-      escapePathName(kv._1) + "=" + escapePathName(kv._2)
+      kv._1 + "=" + kv._2
     }.mkString(File.separator)
   }
 }

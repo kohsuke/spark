@@ -26,7 +26,6 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.Utils
 
-
 /**
  * An interface to define how a single Spark job commits its outputs. Three notes:
  *
@@ -150,29 +149,18 @@ object FileCommitProtocol extends Logging {
       className: String,
       jobId: String,
       outputPath: String,
-      dynamicPartitionOverwrite: Boolean = false,
-      isInsertIntoHadoopFsRelation: Boolean = false,
-      isOverwrite: Boolean = false,
-      staticPartitionKVs: Seq[(String, String)] = Seq.empty[(String, String)]):
-  FileCommitProtocol = {
+      dynamicPartitionOverwrite: Boolean = false): FileCommitProtocol = {
 
     logDebug(s"Creating committer $className; job $jobId; output=$outputPath;" +
-      s" dynamic=$dynamicPartitionOverwrite;" +
-      s" isInsertIntoHadoopFsRelation=$isInsertIntoHadoopFsRelation; isOverwrite=$isOverwrite;" +
-      s" staticPartitionKVS=$staticPartitionKVs")
+      s" dynamic=$dynamicPartitionOverwrite")
     val clazz = Utils.classForName[FileCommitProtocol](className)
     // First try the constructor with arguments (jobId: String, outputPath: String,
-    // dynamicPartitionOverwrite: Boolean, isInsertIntoHadoopFsRelation: Boolean,
-    // isOverwrite: Boolean, staticPartitionKVs: Seq[(String, String)]).
+    // dynamicPartitionOverwrite: Boolean).
     // If that doesn't exist, try the one with (jobId: string, outputPath: String).
     try {
-      val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean],
-        classOf[Boolean], classOf[Boolean], classOf[Seq[(String, String)]])
-      logDebug("Using (String, String, Boolean, Boolean, Boolean, Seq[(String, String)])" +
-        " constructor")
-      ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
-        isInsertIntoHadoopFsRelation.asInstanceOf[java.lang.Boolean],
-        isOverwrite.asInstanceOf[java.lang.Boolean], staticPartitionKVs)
+      val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean])
+      logDebug("Using (String, String, Boolean) constructor")
+      ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean])
     } catch {
       case _: NoSuchMethodException =>
         logDebug("Falling back to (String, String) constructor")
@@ -181,6 +169,37 @@ object FileCommitProtocol extends Logging {
             s" the committer ${className} does not have the appropriate constructor")
         val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String])
         ctor.newInstance(jobId, outputPath)
+    }
+  }
+
+  /**
+   * Instantiates a FileCommitProtocol with file source write description.
+   */
+  def instantiate(
+      className: String,
+      jobId: String,
+      outputPath: String,
+      dynamicPartitionOverwrite: Boolean,
+      fileSourceWriteDesc: Option[FileSourceWriteDesc]): FileCommitProtocol = {
+
+    logDebug(s"Creating committer $className; job $jobId; output=$outputPath;" +
+      s" dynamic=$dynamicPartitionOverwrite; fileSourceWriteDesc= $fileSourceWriteDesc")
+    val clazz = Utils.classForName[FileCommitProtocol](className)
+    // First try the constructor with arguments (jobId: String, outputPath: String,
+    // dynamicPartitionOverwrite: Boolean, fileSourceWriteDesc: Option[FileSourceWriteDesc]).
+    // If that doesn't exist, try to invoke `FileCommitProtocol.instance(className,
+    // JobId, outputPath, dynamicPartitionOverwrite)`.
+    try {
+      val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean],
+        classOf[Option[FileSourceWriteDesc]])
+      logDebug("Using (String, String, Boolean, FileSourceWriteDesc) constructor")
+      ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
+        fileSourceWriteDesc)
+    } catch {
+      case _: NoSuchMethodException =>
+        logDebug("Falling back to invoke instance(className, JobId, outputPath," +
+          " dynamicPartitionOverwrite)")
+        instantiate(className, jobId, outputPath, dynamicPartitionOverwrite)
     }
   }
 
@@ -223,15 +242,13 @@ object FileCommitProtocol extends Logging {
       context: JobContext): Unit = {
     try {
       invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
-        classOf[Path]),
-        Seq(fs, from, to))
+        classOf[Path]), Seq(fs, from, to))
     } catch {
       case _: NoSuchMethodException =>
         // The args of `mergePaths` method has been changed in high hadoop version.
         logDebug("Falling back to (FileSystem, FileStatus, Path, JobContext) args method")
         invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
-          classOf[Path], classOf[JobContext]),
-          Seq(fs, from, to, context))
+          classOf[Path], classOf[JobContext]), Seq(fs, from, to, context))
     }
   }
 }

@@ -25,10 +25,9 @@ import scala.collection.mutable.ListBuffer
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.InsertFileSourceConflictException
-import org.apache.spark.internal.io.FileCommitProtocol
-import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
+import org.apache.spark.internal.io.{FileCommitProtocol, FileSourceWriteDesc, HadoopMapReduceCommitProtocol}
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTablePartition}
+import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogTable, CatalogTablePartition, ExternalCatalogUtils}
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
@@ -110,20 +109,20 @@ case class InsertIntoHadoopFsRelationCommand(
     val dynamicPartitionOverwrite = enableDynamicOverwrite && mode == SaveMode.Overwrite &&
       staticPartitions.size < partitionColumns.length
 
-    val staticPartitionKVs = partitionColumns
+    val escapedStaticPartitionKVs = partitionColumns
       .filter(c => staticPartitions.contains(c.name))
-      .map(att => (att.name, staticPartitions.get(att.name).get))
-
-    val isOverwrite = mode == SaveMode.Overwrite
+      .map { attr =>
+        val escapedKey = ExternalCatalogUtils.escapePathName(attr.name)
+        val escapedValue = ExternalCatalogUtils.escapePathName(staticPartitions.get(attr.name).get)
+        (escapedKey, escapedValue)
+      }
 
     val committer = FileCommitProtocol.instantiate(
       sparkSession.sessionState.conf.fileCommitProtocolClass,
       jobId = java.util.UUID.randomUUID().toString,
       outputPath = outputPath.toString,
       dynamicPartitionOverwrite = dynamicPartitionOverwrite,
-      isInsertIntoHadoopFsRelation = true,
-      isOverwrite = isOverwrite,
-      staticPartitionKVs = staticPartitionKVs)
+      fileSourceWriteDesc = Some(FileSourceWriteDesc(true, escapedStaticPartitionKVs)))
 
     val doInsertion = (mode, pathExists) match {
       case (SaveMode.ErrorIfExists, true) =>
@@ -132,7 +131,7 @@ case class InsertIntoHadoopFsRelationCommand(
         if (ifPartitionNotExists && matchingPartitions.nonEmpty) {
           false
         } else {
-          detectConflict(fs, outputPath, isOverwrite, staticPartitionKVs)
+          detectConflict(fs, outputPath, escapedStaticPartitionKVs)
           if (dynamicPartitionOverwrite) {
             // For dynamic partition overwrite, do not delete partition directories ahead.
             true
@@ -142,7 +141,7 @@ case class InsertIntoHadoopFsRelationCommand(
           }
         }
       case (SaveMode.Append, _) | (SaveMode.Overwrite, _) | (SaveMode.ErrorIfExists, false) =>
-        detectConflict(fs, outputPath, isOverwrite, staticPartitionKVs)
+        detectConflict(fs, outputPath, escapedStaticPartitionKVs)
         true
       case (SaveMode.Ignore, exists) =>
         !exists
@@ -289,18 +288,13 @@ case class InsertIntoHadoopFsRelationCommand(
   private def detectConflict(
       fs: FileSystem,
       path: Path,
-      isOverwrite: Boolean,
       staticPartitionKVs: Seq[(String, String)]): Unit = {
     for (i <- 0 until partitionColumns.size) {
-      val checkedStagingPath = ListBuffer(s".spark-staging-overwrite-$i")
-      if (isOverwrite) {
-        checkedStagingPath += s".spark-staging-append-$i"
-      }
-      checkedStagingPath
+      Some(".spark-staging-" + i)
         .map(stagingPath => new Path(path, stagingPath))
         .foreach { stagingDir =>
           if (fs.exists(stagingDir)) {
-            val subPath = HadoopMapReduceCommitProtocol.getStaticPartitionPath(
+            val subPath = HadoopMapReduceCommitProtocol.getEscapedStaticPartitionPath(
               staticPartitionKVs.slice(0, i))
             val checkedPath = if (!subPath.isEmpty) {
               new Path(stagingDir, subPath)
@@ -324,7 +318,7 @@ case class InsertIntoHadoopFsRelationCommand(
     val currentPath = if (depth == staticPartitionKVs.size || staticPartitionKVs.size == 0) {
       stagingDir
     } else {
-      new Path(stagingDir, HadoopMapReduceCommitProtocol.getStaticPartitionPath(
+      new Path(stagingDir, HadoopMapReduceCommitProtocol.getEscapedStaticPartitionPath(
         staticPartitionKVs.slice(0, staticPartitionKVs.size - depth)))
     }
 
@@ -332,16 +326,20 @@ case class InsertIntoHadoopFsRelationCommand(
 
     val pathsInfo = conflictedPaths.toList
       .map { path =>
-      val files = fs.listStatus(path)
-      val appId = if (files.size > 0) {
-        files.apply(0).getPath.getName
-      } else {
-        "Not Found"
-      }
+        try {
+          val files = fs.listStatus(path)
+          val appId = if (files.size > 0) {
+            files.apply(0).getPath.getName
+          } else {
+            "Not Found"
+          }
 
-      val absolutePath = path.toUri.getRawPath
-      val relativePath = absolutePath.substring(absolutePath.lastIndexOf(stagingDir.getName))
-      (relativePath, appId, new Date(fs.getFileStatus(path).getModificationTime))
+          val absolutePath = path.toUri.getRawPath
+          val relativePath = absolutePath.substring(absolutePath.lastIndexOf(stagingDir.getName))
+          (relativePath, appId, new Date(fs.getFileStatus(path).getModificationTime))
+        } catch {
+          case e: Exception => logWarning("Exception occurred", e)
+        }
       }
 
     throw new InsertFileSourceConflictException(
@@ -382,7 +380,7 @@ case class InsertIntoHadoopFsRelationCommand(
       }
     } catch {
       case e: Exception =>
-        logDebug("Exception occurred when finding conflicted staging output paths.", e)
+        logWarning("Exception occurred when finding conflicted staging output paths.", e)
     }
   }
 }
