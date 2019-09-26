@@ -192,7 +192,7 @@ object FileCommitProtocol extends Logging {
     try {
       val ctor = clazz.getDeclaredConstructor(classOf[String], classOf[String], classOf[Boolean],
         classOf[Option[FileSourceWriteDesc]])
-      logDebug("Using (String, String, Boolean, FileSourceWriteDesc) constructor")
+      logDebug("Using (String, String, Boolean, Option[FileSourceWriteDesc]) constructor")
       ctor.newInstance(jobId, outputPath, dynamicPartitionOverwrite.asInstanceOf[java.lang.Boolean],
         fileSourceWriteDesc)
     } catch {
