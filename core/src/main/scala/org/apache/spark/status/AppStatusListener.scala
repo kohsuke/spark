@@ -938,8 +938,10 @@ private[spark] class AppStatusListener(
         } else {
           current :+ executorId
         }
-      } else {
+      } else if (partition != null) {
         partition.executors.filter(_ != executorId)
+      } else {
+        Nil
       }
 
       // Only update the partition if it's still stored in some executor, otherwise get rid of it.

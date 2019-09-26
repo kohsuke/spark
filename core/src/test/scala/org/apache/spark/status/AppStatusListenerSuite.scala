@@ -711,6 +711,10 @@ class AppStatusListenerSuite extends SparkFunSuite with BeforeAndAfter {
       assert(wrapper.info.storageLevel === rdd1Info.storageLevel.description)
     }
 
+    // Emulate a missed event by trying to drop an unknown block.
+    listener.onBlockUpdated(SparkListenerBlockUpdated(
+      BlockUpdatedInfo(bm1, rdd1b1.blockId, StorageLevel.NONE, 0L, 0L)))
+
     // Add partition 1 replicated on two block managers.
     listener.onBlockUpdated(SparkListenerBlockUpdated(
       BlockUpdatedInfo(bm1, rdd1b1.blockId, level, rdd1b1.memSize, rdd1b1.diskSize)))
