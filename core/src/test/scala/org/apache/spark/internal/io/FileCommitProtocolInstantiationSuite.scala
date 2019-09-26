@@ -53,12 +53,12 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
       "Wrong constructor argument count")
   }
 
-  test("Four arg constructors have priority") {
+  test("Four-arg constructor has priority") {
     assert(4 == instantiateWithFileSourceWriteDesc(false, None).argCount,
       "Wrong constructor argument count")
   }
 
-  test("Four arg constructors have priority with file source write description specified") {
+  test("Four-arg constructor has priority with file source write description specified") {
     assert(4 == instantiateWithFileSourceWriteDesc(false,
       Some(FileSourceWriteDesc(true, Seq.empty))).argCount, "Wrong constructor argument count")
   }
@@ -125,7 +125,6 @@ class FileCommitProtocolInstantiationSuite extends SparkFunSuite {
       dynamic,
       None).asInstanceOf[FullConstructorCommitProtocol]
   }
-
 }
 
 /**

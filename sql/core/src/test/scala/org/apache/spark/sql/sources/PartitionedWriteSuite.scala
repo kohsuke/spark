@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.{OutputCommitter, TaskAttemptContext}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 
-import org.apache.spark.{SparkContext, TestUtils}
+import org.apache.spark.TestUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileSourceWriteDesc
 import org.apache.spark.sql.{QueryTest, Row}
@@ -34,7 +34,7 @@ import org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtoc
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
-import org.apache.spark.sql.test.{SharedSparkSession, TestSparkSession}
+import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.util.Utils
 
 private class OnlyDetectCustomPathFileCommitProtocol(jobId: String, path: String)
@@ -70,13 +70,6 @@ private class DetectCorrectOutputPathFileCommitProtocol(
 
 class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
   import testImplicits._
-
-  // create sparkSession with 4 cores to support concurrent write.
-  override protected def createSparkSession = new TestSparkSession(
-    new SparkContext(
-      "local[4]",
-      "test-partitioned-write-context",
-      sparkConf.set("spark.sql.testkey", "true")))
 
   test("write many partitions") {
     val path = Utils.createTempDir()

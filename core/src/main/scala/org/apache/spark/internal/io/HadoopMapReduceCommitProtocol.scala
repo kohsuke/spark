@@ -120,10 +120,10 @@ class HadoopMapReduceCommitProtocol(
 
   /**
    * Get the desired output path for the job. The output will be [[path]] when current operation
-   * is not a InsertIntoHadoopFsRelation operation. Otherwise, we choose a sub path compose of
+   * is not a InsertIntoHadoopFsRelation operation. Otherwise, we choose a sub path composed of
    * [[escapedStaticPartitionKVs]] under [[insertStagingDir]] over [[path]] to mark this operation
-   * and we can detect whether there is a operation conflict with current by check the existence of
-   * relative output path.
+   * and we can detect whether there is a operation conflict with current by checking the existence
+   * of relative output path.
    *
    * @return Path the desired output path.
    */
@@ -351,8 +351,8 @@ class HadoopMapReduceCommitProtocol(
    * The output path is a multi level path and is composed of specified partition
    * key-value pairs formatted `.spark-staging-${depth}/p1=v1/p2=v2/.../pn=vn`.
    * When deleting the staging output path, delete the last level with recursive
-   * firstly. Then we would try to delete upper level without recursive, if success,
-   * then delete upper level with same way, until delete the [[insertStagingDir]].
+   * firstly. Then try to delete upper level without recursive, if success, then
+   * delete upper level with same way, until delete the [[insertStagingDir]].
    */
   private def deleteStagingInsertOutputPath(fs: FileSystem): Unit = {
     if (escapedStaticPartitionKVs.size == 0) {

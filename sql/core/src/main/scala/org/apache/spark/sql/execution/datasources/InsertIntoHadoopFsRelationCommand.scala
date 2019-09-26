@@ -283,7 +283,7 @@ case class InsertIntoHadoopFsRelationCommand(
 
   /**
    * Detect the conflict when there are several InsertIntoHadoopFsRelation operations
-   * write concurrently.
+   * write to same partition in the same table or a non-partitioned table concurrently.
    */
   private def detectConflict(
       fs: FileSystem,
@@ -326,21 +326,19 @@ case class InsertIntoHadoopFsRelationCommand(
 
     val pathsInfo = conflictedPaths.toList
       .map { path =>
+        val absolutePath = path.toUri.getRawPath
+        val relativePath = absolutePath.substring(absolutePath.lastIndexOf(stagingDir.getName))
+        var appId: Option[String] = None
         try {
           val files = fs.listStatus(path)
-          val appId = if (files.size > 0) {
-            files.apply(0).getPath.getName
-          } else {
-            "Not Found"
+          if (files.size > 0) {
+            appId = Some(files.apply(0).getPath.getName)
           }
-
-          val absolutePath = path.toUri.getRawPath
-          val relativePath = absolutePath.substring(absolutePath.lastIndexOf(stagingDir.getName))
-          (relativePath, appId, new Date(fs.getFileStatus(path).getModificationTime))
         } catch {
           case e: Exception => logWarning("Exception occurred", e)
-            ("Not found due to exception", "Not Found", null)
         }
+        (relativePath, appId.getOrElse("Not Found"),
+          new Date(fs.getFileStatus(path).getModificationTime))
       }
 
     throw new InsertFileSourceConflictException(
@@ -355,8 +353,8 @@ case class InsertIntoHadoopFsRelationCommand(
          | 2. This dir is belong to a killed application and not be cleaned up gracefully.
          |
          | Please check the last modification time and use given appId to judge whether
-         | relative application is running now.
-         | If not, you should delete responding path without recursive manually.
+         | relative application is running now. If not, you should delete responding path
+         | without recursive manually.
          |""".stripMargin)
   }
 
