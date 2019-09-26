@@ -329,16 +329,17 @@ case class InsertIntoHadoopFsRelationCommand(
         val absolutePath = path.toUri.getRawPath
         val relativePath = absolutePath.substring(absolutePath.lastIndexOf(stagingDir.getName))
         var appId: Option[String] = None
+        var modificationTime: Date = null
         try {
           val files = fs.listStatus(path)
           if (files.size > 0) {
             appId = Some(files.apply(0).getPath.getName)
           }
+          modificationTime = new Date(fs.getFileStatus(path).getModificationTime)
         } catch {
           case e: Exception => logWarning("Exception occurred", e)
         }
-        (relativePath, appId.getOrElse("Not Found"),
-          new Date(fs.getFileStatus(path).getModificationTime))
+        (relativePath, appId.getOrElse("Not Found"), modificationTime)
       }
 
     throw new InsertFileSourceConflictException(

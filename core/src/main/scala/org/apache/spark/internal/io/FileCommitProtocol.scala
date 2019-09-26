@@ -227,7 +227,7 @@ object FileCommitProtocol extends Logging {
       }
     }
     throw new NoSuchMethodException(s"Can not get $methodName method from ${instance.getClass}" +
-      s" and its superclasses")
+      " and its superclasses")
   }
 
   /**
@@ -245,7 +245,7 @@ object FileCommitProtocol extends Logging {
         classOf[Path]), Seq(fs, from, to))
     } catch {
       case _: NoSuchMethodException =>
-        // The args of `mergePaths` method has been changed in high hadoop version.
+        // The args of `mergePaths` method have been changed in high hadoop version.
         logDebug("Falling back to (FileSystem, FileStatus, Path, JobContext) args method")
         invokeMethod(committer, "mergePaths", Seq(classOf[FileSystem], classOf[FileStatus],
           classOf[Path], classOf[JobContext]), Seq(fs, from, to, context))
