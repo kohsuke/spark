@@ -3222,9 +3222,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-29239: Subquery should not cause NPE when eliminating subexpression") {
     withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "false",
-      SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false",
-      SQLConf.CODEGEN_FACTORY_MODE.key -> "CODEGEN_ONLY",
-      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConvertToLocalRelation.ruleName) {
+        SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false",
+        SQLConf.CODEGEN_FACTORY_MODE.key -> "CODEGEN_ONLY",
+        SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConvertToLocalRelation.ruleName) {
       withTempView("t1", "t2") {
         sql("create temporary view t1 as select * from values ('val1a', 10L) as t1(t1a, t1b)")
         sql("create temporary view t2 as select * from values ('val3a', 110L) as t2(t2a, t2b)")
@@ -3235,7 +3235,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  test("SPARK-29037: For static partition overwrite, spark may give duplicate result.") {
+  test("SPARK-28945 SPARK-29037: Fix the issue that spark gives duplicate result and support" +
+    " concurrent file source write operations write to different partitions in the same table.") {
     withSQLConf(PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.STATIC.toString) {
       withTable("ta", "tb", "tc") {
         // partitioned table
