@@ -64,6 +64,9 @@ case class InsertIntoHadoopFsRelationCommand(
   extends DataWritingCommand {
   import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils.escapePathName
 
+  // A staging dir may be created for InsertHadoopFsRelation operation.
+  private var insertStagingDir: Option[Path] = None
+
   override def run(sparkSession: SparkSession, child: SparkPlan): Seq[Row] = {
     // Most formats don't do well with duplicate columns, so lets not allow that
     SchemaUtils.checkColumnNameDuplication(
@@ -122,105 +125,113 @@ case class InsertIntoHadoopFsRelationCommand(
       dynamicPartitionOverwrite = dynamicPartitionOverwrite,
       fileSourceWriteDesc = Some(FileSourceWriteDesc(true, escapedStaticPartitionKVs)))
 
-    val doInsertion = if (mode == SaveMode.Append) {
-      detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
-      true
-    } else {
-      val pathExists = fs.exists(qualifiedOutputPath)
-      (mode, pathExists) match {
-        case (SaveMode.ErrorIfExists, true) =>
-          throw new AnalysisException(s"path $qualifiedOutputPath already exists.")
-        case (SaveMode.Overwrite, true) =>
-          if (ifPartitionNotExists && matchingPartitions.nonEmpty) {
-            false
-          } else {
-            detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
-            if (dynamicPartitionOverwrite) {
-              // For dynamic partition overwrite, do not delete partition directories ahead.
-              true
+    try {
+      val doInsertion = if (mode == SaveMode.Append) {
+        detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
+        true
+      } else {
+        val pathExists = fs.exists(qualifiedOutputPath)
+        (mode, pathExists) match {
+          case (SaveMode.ErrorIfExists, true) =>
+            throw new AnalysisException(s"path $qualifiedOutputPath already exists.")
+          case (SaveMode.Overwrite, true) =>
+            if (ifPartitionNotExists && matchingPartitions.nonEmpty) {
+              false
             } else {
-              deleteMatchingPartitions(fs, qualifiedOutputPath, customPartitionLocations, committer)
-              true
+              detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
+              if (dynamicPartitionOverwrite) {
+                // For dynamic partition overwrite, do not delete partition directories ahead.
+                true
+              } else {
+                deleteMatchingPartitions(fs, qualifiedOutputPath, customPartitionLocations,
+                  committer)
+                true
+              }
             }
-          }
-        case (SaveMode.Overwrite, _) | (SaveMode.ErrorIfExists, false) =>
-          detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
-          true
-        case (SaveMode.Ignore, exists) =>
-          if (!exists) {
+          case (SaveMode.Overwrite, _) | (SaveMode.ErrorIfExists, false) =>
             detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
-          }
-          !exists
-        case (s, exists) =>
-          throw new IllegalStateException(s"unsupported save mode $s ($exists)")
-      }
-    }
-
-    if (doInsertion) {
-
-      def refreshUpdatedPartitions(updatedPartitionPaths: Set[String]): Unit = {
-        val updatedPartitions = updatedPartitionPaths.map(PartitioningUtils.parsePathFragment)
-        if (partitionsTrackedByCatalog) {
-          val newPartitions = updatedPartitions -- initialMatchingPartitions
-          if (newPartitions.nonEmpty) {
-            AlterTableAddPartitionCommand(
-              catalogTable.get.identifier, newPartitions.toSeq.map(p => (p, None)),
-              ifNotExists = true).run(sparkSession)
-          }
-          // For dynamic partition overwrite, we never remove partitions but only update existing
-          // ones.
-          if (mode == SaveMode.Overwrite && !dynamicPartitionOverwrite) {
-            val deletedPartitions = initialMatchingPartitions.toSet -- updatedPartitions
-            if (deletedPartitions.nonEmpty) {
-              AlterTableDropPartitionCommand(
-                catalogTable.get.identifier, deletedPartitions.toSeq,
-                ifExists = true, purge = false,
-                retainData = true /* already deleted */).run(sparkSession)
+            true
+          case (SaveMode.Ignore, exists) =>
+            if (!exists) {
+              detectConflict(committer, fs, outputPath, escapedStaticPartitionKVs)
             }
-          }
+            !exists
+          case (s, exists) =>
+            throw new IllegalStateException(s"unsupported save mode $s ($exists)")
         }
       }
 
-      val updatedPartitionPaths =
-        FileFormatWriter.write(
-          sparkSession = sparkSession,
-          plan = child,
-          fileFormat = fileFormat,
-          committer = committer,
-          outputSpec = FileFormatWriter.OutputSpec(
-            qualifiedOutputPath.toString, customPartitionLocations, outputColumns),
-          hadoopConf = hadoopConf,
-          partitionColumns = partitionColumns,
-          bucketSpec = bucketSpec,
-          statsTrackers = Seq(basicWriteJobStatsTracker(hadoopConf)),
-          options = options)
+      if (doInsertion) {
+
+        def refreshUpdatedPartitions(updatedPartitionPaths: Set[String]): Unit = {
+          val updatedPartitions = updatedPartitionPaths.map(PartitioningUtils.parsePathFragment)
+          if (partitionsTrackedByCatalog) {
+            val newPartitions = updatedPartitions -- initialMatchingPartitions
+            if (newPartitions.nonEmpty) {
+              AlterTableAddPartitionCommand(
+                catalogTable.get.identifier, newPartitions.toSeq.map(p => (p, None)),
+                ifNotExists = true).run(sparkSession)
+            }
+            // For dynamic partition overwrite, we never remove partitions but only update existing
+            // ones.
+            if (mode == SaveMode.Overwrite && !dynamicPartitionOverwrite) {
+              val deletedPartitions = initialMatchingPartitions.toSet -- updatedPartitions
+              if (deletedPartitions.nonEmpty) {
+                AlterTableDropPartitionCommand(
+                  catalogTable.get.identifier, deletedPartitions.toSeq,
+                  ifExists = true, purge = false,
+                  retainData = true /* already deleted */).run(sparkSession)
+              }
+            }
+          }
+        }
+
+        val updatedPartitionPaths =
+          FileFormatWriter.write(
+            sparkSession = sparkSession,
+            plan = child,
+            fileFormat = fileFormat,
+            committer = committer,
+            outputSpec = FileFormatWriter.OutputSpec(
+              qualifiedOutputPath.toString, customPartitionLocations, outputColumns),
+            hadoopConf = hadoopConf,
+            partitionColumns = partitionColumns,
+            bucketSpec = bucketSpec,
+            statsTrackers = Seq(basicWriteJobStatsTracker(hadoopConf)),
+            options = options)
 
 
-      // update metastore partition metadata
-      if (updatedPartitionPaths.isEmpty && staticPartitions.nonEmpty
-        && partitionColumns.length == staticPartitions.size) {
-        // Avoid empty static partition can't loaded to datasource table.
-        val staticPathFragment =
-          PartitioningUtils.getPathFragment(staticPartitions, partitionColumns)
-        refreshUpdatedPartitions(Set(staticPathFragment))
+        // update metastore partition metadata
+        if (updatedPartitionPaths.isEmpty && staticPartitions.nonEmpty
+          && partitionColumns.length == staticPartitions.size) {
+          // Avoid empty static partition can't loaded to datasource table.
+          val staticPathFragment =
+            PartitioningUtils.getPathFragment(staticPartitions, partitionColumns)
+          refreshUpdatedPartitions(Set(staticPathFragment))
+        } else {
+          refreshUpdatedPartitions(updatedPartitionPaths)
+        }
+
+        // refresh cached files in FileIndex
+        fileIndex.foreach(_.refresh())
+        // refresh data cache if table is cached
+        sparkSession.catalog.refreshByPath(outputPath.toString)
+
+        if (catalogTable.nonEmpty) {
+          CommandUtils.updateTableStats(sparkSession, catalogTable.get)
+        }
+
       } else {
-        refreshUpdatedPartitions(updatedPartitionPaths)
+        logInfo("Skipping insertion into a relation that already exists.")
       }
 
-      // refresh cached files in FileIndex
-      fileIndex.foreach(_.refresh())
-      // refresh data cache if table is cached
-      sparkSession.catalog.refreshByPath(outputPath.toString)
-
-      if (catalogTable.nonEmpty) {
-        CommandUtils.updateTableStats(sparkSession, catalogTable.get)
+      Seq.empty[Row]
+    } finally {
+      insertStagingDir.foreach { dir =>
+        HadoopMapReduceCommitProtocol.deleteStagingInsertOutputPath(fs, dir,
+          escapedStaticPartitionKVs)
       }
-
-    } else {
-      logInfo("Skipping insertion into a relation that already exists.")
     }
-
-    Seq.empty[Row]
   }
 
   /**
@@ -303,14 +314,15 @@ case class InsertIntoHadoopFsRelationCommand(
 
     val supportConcurrent = commitProtocol.isInstanceOf[HadoopMapReduceCommitProtocol] &&
       commitProtocol.asInstanceOf[HadoopMapReduceCommitProtocol].supportConcurrent
-    if (supportConcurrent) {
+    if (supportConcurrent && fs.exists(outputPath)) {
       val insertStagingPath = ".spark-staging-" + staticPartitionKVs.size
       val stagingOutputDir = new Path(outputPath, Array(insertStagingPath,
         getEscapedStaticPartitionPath(staticPartitionKVs)).mkString(File.separator))
-      val insertStagingDir = new Path(outputPath, insertStagingPath)
+      insertStagingDir = Some(new Path(outputPath, insertStagingPath))
 
       if (fs.exists(stagingOutputDir)) {
-        throwConflictException(fs, insertStagingDir, staticPartitionKVs.size, staticPartitionKVs)
+        throwConflictException(fs, insertStagingDir.get, staticPartitionKVs.size,
+          staticPartitionKVs)
       }
       fs.mkdirs(stagingOutputDir)
 
@@ -326,7 +338,6 @@ case class InsertIntoHadoopFsRelationCommand(
               stagingDir
             }
             if (fs.exists(checkedPath)) {
-              deleteStagingInsertOutputPath(fs, insertStagingDir, staticPartitionKVs)
               throwConflictException(fs, stagingDir, i, staticPartitionKVs)
             }
           }

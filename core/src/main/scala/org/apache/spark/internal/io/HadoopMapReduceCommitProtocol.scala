@@ -371,36 +371,38 @@ object  HadoopMapReduceCommitProtocol extends Logging {
        fs: FileSystem,
        insertStagingDir: Path,
        escapedStaticPartitionKVs: Seq[(String, String)]): Unit = {
-    if (escapedStaticPartitionKVs.size == 0) {
-      fs.delete(insertStagingDir, true)
-    } else {
-      var currentLevelPath = new Path(insertStagingDir,
-        getEscapedStaticPartitionPath(escapedStaticPartitionKVs))
-      fs.delete(currentLevelPath, true)
+     if (fs.exists(insertStagingDir)) {
+       if (escapedStaticPartitionKVs.size == 0) {
+         fs.delete(insertStagingDir, true)
+       } else {
+         var currentLevelPath = new Path(insertStagingDir,
+           getEscapedStaticPartitionPath(escapedStaticPartitionKVs))
+         fs.delete(currentLevelPath, true)
 
-      var complete = false
-      var remainingLevel = escapedStaticPartitionKVs.size - 1
-      while (!complete && remainingLevel > 0) {
-        try {
-          currentLevelPath = new Path(insertStagingDir,
-            getEscapedStaticPartitionPath(escapedStaticPartitionKVs.slice(0, remainingLevel)))
-          if (!fs.delete(currentLevelPath, false)) {
-            complete = true
-          }
-          remainingLevel -= 1
-        } catch {
-          case e: Exception =>
-            logWarning(s"Exception occurred when deleting dir: $currentLevelPath.", e)
-            complete = true
-        }
-      }
+         var complete = false
+         var remainingLevel = escapedStaticPartitionKVs.size - 1
+         while (!complete && remainingLevel > 0) {
+           try {
+             currentLevelPath = new Path(insertStagingDir,
+               getEscapedStaticPartitionPath(escapedStaticPartitionKVs.slice(0, remainingLevel)))
+             if (!fs.delete(currentLevelPath, false)) {
+               complete = true
+             }
+             remainingLevel -= 1
+           } catch {
+             case e: Exception =>
+               logWarning(s"Exception occurred when deleting dir: $currentLevelPath.", e)
+               complete = true
+           }
+         }
 
-      try {
-        fs.delete(insertStagingDir, false)
-      } catch {
-        case e: Exception =>
-          logWarning(s"Exception occurred when deleting dir: $insertStagingDir.", e)
-      }
-    }
+         try {
+           fs.delete(insertStagingDir, false)
+         } catch {
+           case e: Exception =>
+             logWarning(s"Exception occurred when deleting dir: $insertStagingDir.", e)
+         }
+       }
+     }
   }
 }
