@@ -18,7 +18,6 @@
 package org.apache.spark.status
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.status.api.v1.RDDPartitionInfo
 import org.apache.spark.storage.{RDDBlockId, StorageLevel}
 
 class LiveEntitySuite extends SparkFunSuite {
