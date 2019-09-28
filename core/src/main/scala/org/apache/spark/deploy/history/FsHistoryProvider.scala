@@ -542,8 +542,6 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         }
       }
 
-      pendingReplayTasksCount.addAndGet(tasks.size)
-
       // Delete all information about applications whose log files disappeared from storage.
       // This is done by identifying the event logs which were not touched by the current
       // directory scan.
@@ -555,7 +553,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         .last(newLastScanTime - 1)
         .asScala
         .toList
-      stale.foreach { log =>
+      stale.filterNot { info =>
+        processing.contains(info.logPath.split("/").last)
+      }.foreach { log =>
         log.appId.foreach { appId =>
           cleanAppData(appId, log.attemptId, log.logPath)
           listing.delete(classOf[LogInfo], log.logPath)
@@ -673,6 +673,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       scanTime: Long,
       enableOptimizations: Boolean): Unit = {
     try {
+      pendingReplayTasksCount.incrementAndGet()
       doMergeApplicationListing(fileStatus, scanTime, enableOptimizations)
     } catch {
       case e: InterruptedException =>
