@@ -134,7 +134,7 @@ class HadoopMapReduceCommitProtocol(
       insertStagingDir = new Path(path, insertStagingPath)
       val appId = SparkEnv.get.conf.getAppId
       val outputPath = new Path(path, Array(insertStagingPath,
-        getEscapedStaticPartitionPath(escapedStaticPartitionKVs), appId, jobId)
+        getEscapedStaticPartitionPath(escapedStaticPartitionKVs), appId)
         .mkString(File.separator))
       insertStagingDir.getFileSystem(context.getConfiguration).makeQualified(outputPath)
       outputPath
@@ -270,7 +270,8 @@ class HadoopMapReduceCommitProtocol(
 
       if (supportConcurrent) {
         // For InsertIntoHadoopFsRelation operation, try to delete its staging output path.
-        deleteStagingInsertOutputPath(fs, insertStagingDir, escapedStaticPartitionKVs)
+        deleteStagingInsertOutputPath(fs, insertStagingDir, stagingOutputPath,
+          escapedStaticPartitionKVs)
       }
 
       fs.delete(stagingDir, true)
@@ -295,6 +296,8 @@ class HadoopMapReduceCommitProtocol(
       if (hasValidPath) {
         val fs = stagingDir.getFileSystem(jobContext.getConfiguration)
         fs.delete(stagingDir, true)
+        deleteStagingInsertOutputPath(fs, insertStagingDir, stagingOutputPath,
+          escapedStaticPartitionKVs)
       }
     } catch {
       case e: IOException =>
@@ -356,53 +359,47 @@ object  HadoopMapReduceCommitProtocol extends Logging {
   }
 
   /**
-   * Delete the staging output path of current InsertIntoHadoopFsRelation operation.
-   * This output path is used to mark a InsertIntoHadoopFsRelation operation and we
-   * can detect conflict when there are several operations write same partition or a
-   * non-partitioned table concurrently.
+   * Delete the staging output path of current InsertIntoHadoopFsRelation operation. This output
+   * path is used to mark a InsertIntoHadoopFsRelation operation and we can detect conflict when
+   * there are several operations write same partition or a non-partitioned table concurrently.
    *
-   * The output path is a multi level path and is composed of specified partition
-   * key-value pairs formatted `.spark-staging-${depth}/p1=v1/p2=v2/.../pn=vn`.
-   * When deleting the staging output path, delete the last level with recursive
-   * firstly. Then try to delete upper level without recursive, if success, then
-   * delete upper level with same way, until delete the insertStagingDir.
+   * The output path is a multi level path and is composed of specified partition key value pairs
+   * formatted `.spark-staging-${depth}/p1=v1/p2=v2/.../pn=vn/appId/jobId`. When deleting the
+   * staging output path, delete the last level with recursive firstly. Then try to delete upper
+   * level without recursive, if success, then delete upper level with same way, until delete the
+   * insertStagingDir.
    */
    def deleteStagingInsertOutputPath(
        fs: FileSystem,
        insertStagingDir: Path,
+       stagingOutputDir: Path,
        escapedStaticPartitionKVs: Seq[(String, String)]): Unit = {
-     if (fs.exists(insertStagingDir)) {
-       if (escapedStaticPartitionKVs.size == 0) {
-         fs.delete(insertStagingDir, true)
-       } else {
-         var currentLevelPath = new Path(insertStagingDir,
-           getEscapedStaticPartitionPath(escapedStaticPartitionKVs))
-         fs.delete(currentLevelPath, true)
+     if (insertStagingDir == null || stagingOutputDir ==null || !fs.exists(stagingOutputDir) ||
+       !fs.isDirectory(stagingOutputDir)) {
+       return
+     }
 
-         var complete = false
-         var remainingLevel = escapedStaticPartitionKVs.size - 1
-         while (!complete && remainingLevel > 0) {
-           try {
-             currentLevelPath = new Path(insertStagingDir,
-               getEscapedStaticPartitionPath(escapedStaticPartitionKVs.slice(0, remainingLevel)))
-             if (!fs.delete(currentLevelPath, false)) {
-               complete = true
-             }
-             remainingLevel -= 1
-           } catch {
-             case e: Exception =>
-               logWarning(s"Exception occurred when deleting dir: $currentLevelPath.", e)
-               complete = true
-           }
-         }
+     // Firstly, delete the staging output dir with recursive, because it is unique.
+     fs.delete(stagingOutputDir, true)
 
-         try {
-           fs.delete(insertStagingDir, false)
-         } catch {
-           case e: Exception =>
-             logWarning(s"Exception occurred when deleting dir: $insertStagingDir.", e)
-         }
+     var currentLevelPath = stagingOutputDir.getParent
+     var complete: Boolean = false
+     while (!complete && currentLevelPath != insertStagingDir) {
+       try {
+         fs.delete(currentLevelPath, false)
+         currentLevelPath = currentLevelPath.getParent
+       } catch {
+         case e: Exception =>
+           logWarning(s"Exception occurred when deleting dir: $currentLevelPath.", e)
+           complete = true
        }
+     }
+
+     try {
+       fs.delete(insertStagingDir, false)
+     } catch {
+       case e: Exception =>
+         logWarning(s"Exception occurred when deleting dir: $insertStagingDir.", e)
      }
   }
 }

@@ -24,7 +24,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.{OutputCommitter, TaskAttemptContext}
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 
-import org.apache.spark.TestUtils
+import org.apache.spark.{SparkEnv, TestUtils}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.FileSourceWriteDesc
 import org.apache.spark.sql.{QueryTest, Row}

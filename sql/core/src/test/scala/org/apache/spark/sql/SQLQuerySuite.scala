@@ -3305,8 +3305,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         val warehouse = SQLConf.get.warehousePath.split(":").last
         val tblPath = Array(warehouse, "org.apache.spark.sql.SQLQuerySuite", "tc")
           .mkString(File.separator)
-        val staging1 = new File(Array(tblPath, ".spark-staging-1", "p1=1", "application_1234")
-          .mkString(File.separator))
+        val staging1 = new File(Array(tblPath, ".spark-staging-1", "p1=1", "application_1234",
+          "jobUUID").mkString(File.separator))
         staging1.mkdirs()
 
         val msg = intercept[InsertFileSourceConflictException](
