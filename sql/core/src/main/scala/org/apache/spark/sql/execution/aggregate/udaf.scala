@@ -20,11 +20,12 @@ package org.apache.spark.sql.execution.aggregate
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
+import org.apache.spark.sql.catalyst.encoders.ExpressionEncoder
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression, _}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{ImperativeAggregate, TypedImperativeAggregate}
-import org.apache.spark.sql.catalyst.expressions.codegen.GenerateMutableProjection
-import org.apache.spark.sql.expressions.{MutableAggregationBuffer, UserDefinedAggregateFunction, UserDefinedImperativeAggregator}
+import org.apache.spark.sql.catalyst.expressions.codegen.{GenerateMutableProjection, GenerateSafeProjection}
+import org.apache.spark.sql.expressions.{Aggregator, MutableAggregationBuffer, UserDefinedAggregateFunction, UserDefinedImperativeAggregator}
 import org.apache.spark.sql.types._
 
 /**
@@ -523,4 +524,93 @@ case class ScalaUDIA[T](
     s"""${udia.getClass.getSimpleName}(${children.mkString(",")})"""
 
   override def nodeName: String = udia.getClass.getSimpleName
+}
+
+case class ScalaAggregator(
+    children: Seq[Expression],
+    agg: Aggregator[Any, Any, Any],
+    // inputType: DataType,
+    mutableAggBufferOffset: Int = 0,
+    inputAggBufferOffset: Int = 0)
+  extends TypedImperativeAggregate[Any]
+  with NonSQLExpression
+  with UserDefinedExpression
+  // with ImplicitCastInputTypes
+  with Logging {
+
+  val outputEncoder = agg.outputEncoder.asInstanceOf[ExpressionEncoder[Any]]
+  val bufferEncoder = agg.bufferEncoder.asInstanceOf[ExpressionEncoder[Any]]
+  val bufferSerializer = bufferEncoder.namedExpressions
+  val bufferDeserializer = bufferEncoder.resolveAndBind().deserializer
+
+  def dataType: DataType = outputEncoder.objSerializer.dataType
+
+  // val inputTypes: Seq[DataType] = Seq(inputType)
+
+  // does this have to be hard-coded?
+  def nullable: Boolean = true
+
+  // Aggregator-based expressions appear to be always deterministic, which seems wrong.
+  // is there a way to not hardcode this to one value?
+  override lazy val deterministic: Boolean = true
+
+  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ScalaAggregator =
+    copy(mutableAggBufferOffset = newMutableAggBufferOffset)
+
+  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ScalaAggregator =
+    copy(inputAggBufferOffset = newInputAggBufferOffset)
+
+  private[this] lazy val childrenSchema: StructType = {
+    val inputFields = children.zipWithIndex.map {
+      case (child, index) =>
+        StructField(s"input$index", child.dataType, child.nullable, Metadata.empty)
+    }
+    // This requirement for exactly one input is different than UDAF
+    assert(inputFields.length == 1)
+    StructType(inputFields)
+  }
+
+  private lazy val inputProjection = {
+    val inputAttributes = childrenSchema.toAttributes
+    log.debug(
+      s"Creating MutableProj: $children, inputSchema: $inputAttributes.")
+    MutableProjection.create(children, inputAttributes)
+  }
+
+  private[this] lazy val inputToScalaConverters: Any => Any =
+    CatalystTypeConverters.createToScalaConverter(childrenSchema)
+
+  def createAggregationBuffer(): Any = agg.zero
+
+  def update(buffer: Any, input: InternalRow): Any = {
+    val inrow = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
+    // note the requirement for exactly one input
+    agg.reduce(buffer, inrow.getAs[Any](0))
+  }
+
+  def merge(buffer: Any, input: Any): Any = agg.merge(buffer, input)
+
+  private[this] lazy val outputToCatalystConverter: Any => Any = {
+    CatalystTypeConverters.createToCatalystConverter(dataType)
+  }
+
+  private[this] lazy val bufferObjToRow = UnsafeProjection.create(bufferSerializer)
+  private[this] lazy val bufferRow = new UnsafeRow(bufferSerializer.length)
+  private[this] lazy val bufferRowToObject =
+    GenerateSafeProjection.generate(bufferDeserializer :: Nil)
+
+  def eval(buffer: Any): Any =
+    outputToCatalystConverter(agg.finish(buffer))
+
+  def serialize(agg: Any): Array[Byte] = bufferObjToRow(InternalRow(agg)).getBytes
+
+  def deserialize(storageFormat: Array[Byte]): Any = {
+    bufferRow.pointTo(storageFormat, storageFormat.length)
+    bufferRowToObject(bufferRow).get(0, ObjectType(classOf[Any]))
+  }
+
+  override def toString: String =
+    s"""${agg.getClass.getSimpleName}(${children.mkString(",")})"""
+
+  override def nodeName: String = agg.getClass.getSimpleName
 }
