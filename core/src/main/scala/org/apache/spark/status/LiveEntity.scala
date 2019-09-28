@@ -278,12 +278,14 @@ private class LiveExecutor(val executorId: String, _addTime: Long) extends LiveE
   var usedOnHeap = 0L
   var usedOffHeap = 0L
 
-  // RDD block info. Keeps track of which blocks are stored in this executor, to help with RDD usage
-  // accounting. This uses nested maps to make it easier to remove information when RDDs are
-  // unpersisted. First level key is the RDD id, second is the split index.
-  //
-  // This is a var so that we can "clear" it and restart with a new map when it becomes empty,
-  // to save some memory.
+  /**
+   * RDD block info. Keeps track of which blocks are stored in this executor, to help with RDD usage
+   * accounting. This uses nested maps to make it easier to remove information when RDDs are
+   * unpersisted. First level key is the RDD id, second is the split index.
+   *
+   * This is a var so that we can "clear" it and restart with a new map when it becomes empty,
+   * to save some memory.
+   */
   private var rddBlockUsage = new OpenHashMap[Int, RDDBlockTracker]()
   private var trackedRDDCount = 0
 
