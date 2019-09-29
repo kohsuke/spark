@@ -553,8 +553,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         .last(newLastScanTime - 1)
         .asScala
         .toList
-      stale.filterNot { info =>
-        processing.contains(info.logPath.split("/").last)
+      stale.filterNot { log =>
+        processing.contains(log.logPath.split("/").last)
       }.foreach { log =>
         log.appId.foreach { appId =>
           cleanAppData(appId, log.attemptId, log.logPath)
@@ -853,7 +853,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       .asScala
       .filter { l => l.logType == null || l.logType == LogType.EventLogs }
       .toList
-    stale.foreach { log =>
+    stale.filterNot { log =>
+      processing.contains(log.logPath.split("/").last)
+    }.foreach { log =>
       if (log.appId.isEmpty) {
         logInfo(s"Deleting invalid / corrupt event log ${log.logPath}")
         deleteLog(fs, new Path(log.logPath))
@@ -961,7 +963,9 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       .asScala
       .filter { l => l.logType != null && l.logType == LogType.DriverLogs }
       .toList
-    stale.foreach { log =>
+    stale.filterNot { log =>
+      processing.contains(log.logPath.split("/").last)
+    }.foreach { log =>
       logInfo(s"Deleting invalid driver log ${log.logPath}")
       listing.delete(classOf[LogInfo], log.logPath)
       deleteLog(driverLogFs, new Path(log.logPath))
