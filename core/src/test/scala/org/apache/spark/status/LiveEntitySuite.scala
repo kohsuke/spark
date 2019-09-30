@@ -82,6 +82,8 @@ class LiveEntitySuite extends SparkFunSuite {
     assert(exec.usedOnHeap === 1)
     assert(exec.usedOffHeap === 0)
 
+    // Update an existing block, as would happen if a block is evicted from memory to disk,
+    // or loaded back into memory from disk after space becomes available.
     val old1 = exec.addBlock(RDDBlockId(1, 1), 3L, 3L, false)
     assert(exec.hasRDDData(1))
     assert(old1 != null)

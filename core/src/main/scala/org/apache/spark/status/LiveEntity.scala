@@ -654,7 +654,6 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
 
   private val partitions = new OpenHashMap[Int, LiveRDDPartition]()
   private val partitionSeq = new RDDPartitionSeq()
-  private var partitionCount = 0
 
   private val distributions = new HashMap[String, LiveRDDDistribution]()
 
@@ -665,7 +664,6 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
       part.update(Nil, 0L, 0L)
       partitions.update(block.splitIndex, part)
       partitionSeq.addPartition(part)
-      partitionCount += 1
     }
     part
   }
@@ -675,7 +673,6 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
     if (part != null) {
       partitions.update(splitIndex, null)
       partitionSeq.removePartition(part)
-      partitionCount -= 1
     }
   }
 
@@ -706,7 +703,7 @@ private class LiveRDD(val info: RDDInfo) extends LiveEntity {
       info.id,
       info.name,
       info.numPartitions,
-      partitionCount,
+      partitionSeq.length,
       storageLevel,
       memoryUsed,
       diskUsed,
