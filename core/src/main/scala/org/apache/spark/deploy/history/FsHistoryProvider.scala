@@ -164,8 +164,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   // asynchronously and make sure that checkForLogs would not process a path repeatedly.
   private val processing = ConcurrentHashMap.newKeySet[String]
 
-  private def isProcessing(path: Path): Boolean = {
-    processing.contains(path.getName)
+  private def isProcessing(log: Any): Boolean = log match {
+    case path: Path => processing.contains(path.getName)
+    case info: LogInfo => processing.contains(info.logPath.split("/").last)
+    case _ => false
   }
 
   private def processing(path: Path): Unit = {
@@ -553,9 +555,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         .last(newLastScanTime - 1)
         .asScala
         .toList
-      stale.filterNot { log =>
-        processing.contains(log.logPath.split("/").last)
-      }.foreach { log =>
+      stale.filterNot(isProcessing(_)).foreach { log =>
         log.appId.foreach { appId =>
           cleanAppData(appId, log.attemptId, log.logPath)
           listing.delete(classOf[LogInfo], log.logPath)
@@ -853,9 +853,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       .asScala
       .filter { l => l.logType == null || l.logType == LogType.EventLogs }
       .toList
-    stale.filterNot { log =>
-      processing.contains(log.logPath.split("/").last)
-    }.foreach { log =>
+    stale.filterNot(isProcessing(_)).foreach { log =>
       if (log.appId.isEmpty) {
         logInfo(s"Deleting invalid / corrupt event log ${log.logPath}")
         deleteLog(fs, new Path(log.logPath))
@@ -963,9 +961,7 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
       .asScala
       .filter { l => l.logType != null && l.logType == LogType.DriverLogs }
       .toList
-    stale.filterNot { log =>
-      processing.contains(log.logPath.split("/").last)
-    }.foreach { log =>
+    stale.filterNot(isProcessing(_)).foreach { log =>
       logInfo(s"Deleting invalid driver log ${log.logPath}")
       listing.delete(classOf[LogInfo], log.logPath)
       deleteLog(driverLogFs, new Path(log.logPath))
