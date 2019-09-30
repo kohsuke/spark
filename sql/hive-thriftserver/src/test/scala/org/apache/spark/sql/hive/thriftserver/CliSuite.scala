@@ -332,4 +332,10 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
       "SELECT concat_ws(',', 'First', example_max(1234321), 'Third');" -> "First,1234321,Third"
     )
   }
+
+  test("SPARK-29268 test spark sql with spark.sql.hive.metastore.jars") {
+    runCliWithin(2.minute, Seq("--conf", "spark.sql.hive.metastore.jars=maven"))(
+      "SET conf1;" -> "conftest"
+    )
+  }
 }
