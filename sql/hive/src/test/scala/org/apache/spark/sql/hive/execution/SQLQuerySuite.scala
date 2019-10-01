@@ -2024,8 +2024,8 @@ class SQLQuerySuite extends QueryTest with SQLTestUtils with TestHiveSingleton {
               |CREATE TABLE part_table (c STRING)
               |PARTITIONED BY (d STRING)
             """.stripMargin)
-          sql(s"LOAD DATA LOCAL INPATH '$path/part-r-000011' " +
-            s"INTO TABLE part_table PARTITION(D ='1')")
+          sql("LOAD DATA LOCAL INPATH '$path/part-r-000011' " +
+            "INTO TABLE part_table PARTITION(D ='1')")
           checkAnswer(sql("SELECT * FROM part_table"), Seq(Row("1", "1")))
         }
       }
