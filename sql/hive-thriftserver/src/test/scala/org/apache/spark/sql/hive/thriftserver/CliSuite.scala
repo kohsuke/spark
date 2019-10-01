@@ -333,7 +333,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     )
   }
 
-  test("SPARK-29268 test spark sql with spark.sql.hive.metastore.jars") {
+  test("SPARK-29268 test spark sql with spark.sql.hive.metastore.jars != builtin") {
     runCliWithin(2.minute, Seq("--conf", "spark.sql.hive.metastore.jars=maven"))(
       "SET conf1;" -> "conftest"
     )
