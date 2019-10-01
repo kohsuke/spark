@@ -795,7 +795,7 @@ class FlatMapGroupsWithStateSuite extends StateStoreMetricsTest {
         }
       },
       CheckNewAnswer(("c", "-1")),
-      assertNumStateRows(total = 0, updated = 0, lateInput = 0)
+      assertNumStateRows(total = 0, updated = 1, lateInput = 0)
     )
   }
 
