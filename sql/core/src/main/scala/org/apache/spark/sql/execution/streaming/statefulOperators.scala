@@ -451,6 +451,7 @@ case class StateStoreSaveExec(
           case Some(Update) =>
 
             new NextIterator[InternalRow] {
+              // Filter late date using watermark if specified
               private[this] val baseIterator = watermarkPredicateForData match {
                 case Some(predicate) => iter.filter((row: InternalRow) => !predicate.eval(row))
                 case None => iter
