@@ -53,7 +53,7 @@ case class CountLateRowsExec(
 
   override lazy val metrics = Map(
     "numLateRows" -> SQLMetrics.createMetric(sparkContext,
-      "number of input rows later than watermark"))
+      "number of input rows later than watermark plus allowed delay"))
 
   override protected def doExecute(): RDD[InternalRow] = {
     val numLateRows = longMetric("numLateRows")
