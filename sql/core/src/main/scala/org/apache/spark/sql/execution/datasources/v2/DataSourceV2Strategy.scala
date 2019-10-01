@@ -20,10 +20,10 @@ package org.apache.spark.sql.execution.datasources.v2
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.{AnalysisException, Strategy}
-import org.apache.spark.sql.catalyst.expressions.{And, PredicateHelper, SubqueryExpression}
+import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, Repartition, ReplaceTable, ReplaceTableAsSelect, ShowNamespaces, ShowTables}
-import org.apache.spark.sql.connector.catalog.{StagingTableCatalog, TableCapability}
+import org.apache.spark.sql.connector.catalog.{StagingTableCatalog, Table, TableCapability}
 import org.apache.spark.sql.connector.read.streaming.{ContinuousStream, MicroBatchStream}
 import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
@@ -190,19 +190,19 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       OverwritePartitionsDynamicExec(
         r.table.asWritable, writeOptions.asOptions, planLater(query)) :: Nil
 
-    case DeleteFromTable(r: DataSourceV2Relation, condition) =>
+    case DeleteFromTable(V2TableRelation(table, output), condition) =>
       if (condition.exists(SubqueryExpression.hasSubquery)) {
         throw new AnalysisException(
           s"Delete by condition with subquery is not supported: $condition")
       }
       // fail if any filter cannot be converted. correctness depends on removing all matching data.
-      val filters = DataSourceStrategy.normalizeFilters(condition.toSeq, r.output)
+      val filters = DataSourceStrategy.normalizeFilters(condition.toSeq, output)
           .flatMap(splitConjunctivePredicates(_).map {
             f => DataSourceStrategy.translateFilter(f).getOrElse(
               throw new AnalysisException(s"Exec update failed:" +
                   s" cannot translate expression to source filter: $f"))
           }).toArray
-      DeleteFromTableExec(r.table.asDeletable, filters) :: Nil
+      DeleteFromTableExec(table.asDeletable, filters) :: Nil
 
     case WriteToContinuousDataSource(writer, query) =>
       WriteToContinuousDataSourceExec(writer, planLater(query)) :: Nil
@@ -219,8 +219,8 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
         Nil
       }
 
-    case desc @ DescribeTable(r: DataSourceV2Relation, isExtended) =>
-      DescribeTableExec(desc.output, r.table, isExtended) :: Nil
+    case desc @ DescribeTable(V2TableRelation(table, _), isExtended) =>
+      DescribeTableExec(desc.output, table, isExtended) :: Nil
 
     case DropTable(catalog, ident, ifExists) =>
       DropTableExec(catalog, ident, ifExists) :: Nil
@@ -235,5 +235,16 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       ShowTablesExec(r.output, r.catalog, r.namespace, r.pattern) :: Nil
 
     case _ => Nil
+  }
+
+  private object V2TableRelation {
+    def unapply(plan: LogicalPlan): Option[(Table, Seq[AttributeReference])] = plan match {
+      case r: DataSourceV2Relation =>
+        Some((r.table, r.output))
+      case r: DataSourceV2ScanRelation =>
+        Some((r.table, r.output))
+      case _ =>
+        None
+    }
   }
 }
