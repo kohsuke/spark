@@ -3296,6 +3296,7 @@ class Dataset[T] private[sql](
               batchWriter.end()
               val batches = buffer.toByteArray
               out.writeInt(batches.length)
+              println(batches.length)
               out.write(batches)
             }
           } else {
