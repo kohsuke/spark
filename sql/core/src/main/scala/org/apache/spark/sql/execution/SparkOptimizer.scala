@@ -34,11 +34,11 @@ class SparkOptimizer(
   extends Optimizer(catalog) {
 
   override def earlyScanPushDownRules: Seq[Rule[LogicalPlan]] =
-    PruneFileSourcePartitions :: V2ScanRelationPushDown :: Nil
+    // TODO: move SchemaPruning into catalyst
+    SchemaPruning :: PruneFileSourcePartitions :: V2ScanRelationPushDown :: Nil
 
   override def defaultBatches: Seq[Batch] = (preOptimizationBatches ++ super.defaultBatches :+
     Batch("Optimize Metadata Only Query", Once, OptimizeMetadataOnlyQuery(catalog)) :+
-    Batch("Schema Pruning", Once, SchemaPruning) :+
     Batch("PartitionPruning", Once,
       PartitionPruning,
       OptimizeSubqueries) :+
