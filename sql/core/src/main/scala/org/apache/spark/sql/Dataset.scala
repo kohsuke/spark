@@ -3271,47 +3271,45 @@ class Dataset[T] private[sql](
       RRDD.serveToStream("serve-Arrow") { outputStream =>
         val buffer = new ByteArrayOutputStream()
         val out = new DataOutputStream(outputStream)
+        val batchWriter = new ArrowBatchStreamWriter(schema, buffer, timeZoneId)
+        val arrowBatchRdd = toArrowBatchRdd(plan)
+        val numPartitions = arrowBatchRdd.partitions.length
 
-        out.writeInt(777)
-//
-//        val batchWriter = new ArrowBatchStreamWriter(schema, buffer, timeZoneId)
-//        val arrowBatchRdd = toArrowBatchRdd(plan)
-//        val numPartitions = arrowBatchRdd.partitions.length
-//
-//        // Store collection results for worst case of 1 to N-1 partitions
-//        val results = new Array[Array[Array[Byte]]](numPartitions - 1)
-//        var lastIndex = -1  // index of last partition written
-//
-//        // Handler to eagerly write partitions to Python in order
-//        def handlePartitionBatches(index: Int, arrowBatches: Array[Array[Byte]]): Unit = {
-//          // If result is from next partition in order
-//          if (index - 1 == lastIndex) {
-//            batchWriter.writeBatches(arrowBatches.iterator)
-//            lastIndex += 1
-//            // Write stored partitions that come next in order
-//            while (lastIndex < results.length && results(lastIndex) != null) {
-//              batchWriter.writeBatches(results(lastIndex).iterator)
-//              results(lastIndex) = null
-//              lastIndex += 1
-//            }
-//            // After last batch, end the stream
-//            if (lastIndex == results.length) {
-//              batchWriter.end()
-//              val batches = buffer.toByteArray
-//              out.writeInt(batches.length)
-//              out.write(batches)
-//            }
-//          } else {
-//            // Store partitions received out of order
-//            results(index - 1) = arrowBatches
-//          }
-//        }
-//
-//        sparkSession.sparkContext.runJob(
-//          arrowBatchRdd,
-//          (ctx: TaskContext, it: Iterator[Array[Byte]]) => it.toArray,
-//          0 until numPartitions,
-//          handlePartitionBatches)
+        // Store collection results for worst case of 1 to N-1 partitions
+        val results = new Array[Array[Array[Byte]]](numPartitions - 1)
+        var lastIndex = -1  // index of last partition written
+
+        // Handler to eagerly write partitions to Python in order
+        def handlePartitionBatches(index: Int, arrowBatches: Array[Array[Byte]]): Unit = {
+          // If result is from next partition in order
+          if (index - 1 == lastIndex) {
+            batchWriter.writeBatches(arrowBatches.iterator)
+            lastIndex += 1
+            // Write stored partitions that come next in order
+            while (lastIndex < results.length && results(lastIndex) != null) {
+              batchWriter.writeBatches(results(lastIndex).iterator)
+              results(lastIndex) = null
+              lastIndex += 1
+            }
+            // After last batch, end the stream
+            if (lastIndex == results.length) {
+              batchWriter.end()
+              val batches = buffer.toByteArray
+              assert(batches.nonEmpty)
+              out.writeInt(batches.length)
+              out.write(batches)
+            }
+          } else {
+            // Store partitions received out of order
+            results(index - 1) = arrowBatches
+          }
+        }
+
+        sparkSession.sparkContext.runJob(
+          arrowBatchRdd,
+          (ctx: TaskContext, it: Iterator[Array[Byte]]) => it.toArray,
+          0 until numPartitions,
+          handlePartitionBatches)
       }
     }
   }
