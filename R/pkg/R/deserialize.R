@@ -154,6 +154,7 @@ readStruct <- function(con) {
 
 readRaw <- function(con) {
   dataLen <- readInt(con)
+  print(as.integer(dataLen))
   readBin(con, raw(), as.integer(dataLen), endian = "big")
 }
 
