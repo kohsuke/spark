@@ -65,8 +65,8 @@ fi
 
 echo "Running CRAN check with $CRAN_CHECK_OPTIONS options"
 
-# Remove this environment variable to allow check suggested packages once
-# Jenkins installs arrow. See SPARK-29339
+# Remove this environment variable to allow to check suggested packages once
+# Jenkins installs arrow. See SPARK-29339.
 _R_CHECK_FORCE_SUGGESTS_=false
 
 if [ -n "$NO_TESTS" ] && [ -n "$NO_MANUAL" ]
