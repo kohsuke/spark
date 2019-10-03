@@ -781,8 +781,19 @@ class SessionCatalog(
     }
   }
 
-  def isTempView(nameParts: Seq[String]): Boolean = {
-    nameParts.length == 1 && getTempView(formatTableName(nameParts.head)).isDefined
+  def isView(nameParts: Seq[String]): Boolean = {
+    nameParts.length <= 2 && {
+      val ident = if (nameParts.length == 1) {
+        TableIdentifier(nameParts.head)
+      } else {
+        TableIdentifier(nameParts.last, Some(nameParts.head))
+      }
+      try {
+        getTempViewOrPermanentTableMetadata(ident).tableType == CatalogTableType.VIEW
+      } catch {
+        case _: NoSuchTableException => false
+      }
+    }
   }
 
   /**

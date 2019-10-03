@@ -47,9 +47,3 @@ abstract class ParsedStatement extends LogicalPlan {
 
   final override lazy val resolved = false
 }
-
-// A special `ParsedStatement` which needs to look up the table. If the table can't be found,
-// `AnalysisException` will be thrown.
-abstract class StatementRequiringTable extends ParsedStatement {
-  def tableName: Seq[String]
-}
