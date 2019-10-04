@@ -17,9 +17,12 @@
 
 package org.apache.spark.sql.catalyst.csv
 
+import org.scalatest.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks._
+
 import org.apache.spark.SparkFunSuite
 
-class CSVExprUtilsSuite extends SparkFunSuite {
+class CSVExprUtilsSuite extends SparkFunSuite with Matchers {
   test("Can parse escaped characters") {
     assert(CSVExprUtils.toChar("""\t""") === '\t')
     assert(CSVExprUtils.toChar("""\r""") === '\r')
@@ -57,5 +60,37 @@ class CSVExprUtilsSuite extends SparkFunSuite {
       CSVExprUtils.toChar("")
     }
     assert(exception.getMessage.contains("Delimiter cannot be empty string"))
+  }
+
+  val testCases = Table(
+    ("input", "separatorStr", "expectedErrorMsg"),
+    // normal tab
+    ("""\t""", Some("\t"), None),
+    // backslash, then tab
+    ("""\\t""", Some("""\t"""), None),
+    // invalid special character (dot)
+    ("""\.""", None, Some("Unsupported special character for delimiter")),
+    // backslash, then dot
+    ("""\\.""", Some("""\."""), None),
+    // nothing special, just straight conversion
+    ("""foo""", Some("foo"), None),
+    // tab in the middle of some other letters
+    ("""ba\tr""", Some("ba\tr"), None)
+  )
+
+  test("should correctly produce separator strings, or exceptions, from input") {
+    forAll(testCases) { (input, separatorStr, expectedErrorMsg) =>
+      try {
+        val separator = CSVExprUtils.toDelimiterStr(input)
+        separatorStr.isDefined should equal(true)
+        expectedErrorMsg.isEmpty should equal(true)
+        separator should equal(separatorStr.get)
+      } catch {
+        case e: IllegalArgumentException =>
+          separatorStr.isEmpty should equal(true)
+          expectedErrorMsg.isDefined should equal(true)
+          e.getMessage should include(expectedErrorMsg.get)
+      }
+    }
   }
 }
