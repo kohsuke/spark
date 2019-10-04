@@ -195,8 +195,8 @@ class ShuffleBlockFetcherIteratorSuite extends SparkFunSuite with PrivateMethodT
     doReturn(Map("test-host-local-client-1" -> Array("local-dir")))
       .when(blockManager).getHostLocalDirs(any())
 
-    val blocksByAddress = Seq[(BlockManagerId, Seq[(BlockId, Long)])](
-      (hostLocalBmIdNoLocDir, remoteBlocksAsFallback.keys.map(blockId => (blockId, 1L)).toSeq)
+    val blocksByAddress = Seq[(BlockManagerId, Seq[(BlockId, Long, Int)])](
+      (hostLocalBmIdNoLocDir, remoteBlocksAsFallback.keys.map(blockId => (blockId, 1L, 1)).toSeq)
     ).toIterator
 
     val taskContext = TaskContext.empty()
