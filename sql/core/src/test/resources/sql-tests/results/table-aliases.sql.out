@@ -39,7 +39,7 @@ struct<k:int,sum(col2):bigint>
 -- !query 4
 SELECT * FROM testData AS t(col1, col2, col3)
 -- !query 4 schema
-struct<>
+
 -- !query 4 output
 org.apache.spark.sql.AnalysisException
 Number of column aliases does not match number of columns. Number of column aliases: 3; number of columns: 2.; line 1 pos 14
@@ -48,7 +48,7 @@ Number of column aliases does not match number of columns. Number of column alia
 -- !query 5
 SELECT * FROM testData AS t(col1)
 -- !query 5 schema
-struct<>
+
 -- !query 5 output
 org.apache.spark.sql.AnalysisException
 Number of column aliases does not match number of columns. Number of column aliases: 1; number of columns: 2.; line 1 pos 14
@@ -57,7 +57,7 @@ Number of column aliases does not match number of columns. Number of column alia
 -- !query 6
 SELECT a AS col1, b AS col2 FROM testData AS t(c, d)
 -- !query 6 schema
-struct<>
+
 -- !query 6 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`a`' given input columns: [c, d]; line 1 pos 7

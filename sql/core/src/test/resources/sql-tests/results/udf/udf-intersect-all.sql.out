@@ -95,7 +95,7 @@ SELECT k, udf(v) FROM tab1
 INTERSECT ALL
 SELECT array(1), udf(2)
 -- !query 7 schema
-struct<>
+
 -- !query 7 output
 org.apache.spark.sql.AnalysisException
 IntersectAll can only be performed on tables with the compatible column types. array<int> <> int at the first column of the second table;
@@ -106,7 +106,7 @@ SELECT udf(k) FROM tab1
 INTERSECT ALL
 SELECT udf(k), udf(v) FROM tab2
 -- !query 8 schema
-struct<>
+
 -- !query 8 output
 org.apache.spark.sql.AnalysisException
 IntersectAll can only be performed on tables with the same number of columns, but the first table has 1 columns and the second table has 2 columns;

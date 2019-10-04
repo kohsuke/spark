@@ -389,7 +389,7 @@ struct<five:string,q1:bigint,q2:bigint,minus:bigint>
 -- !query 40
 SELECT '' AS three, q1, q2, q1 * q2 AS multiply FROM INT8_TBL
 -- !query 40 schema
-struct<>
+
 -- !query 40 output
 java.lang.ArithmeticException
 long overflow
@@ -601,7 +601,7 @@ struct<q1:int>
 -- !query 60
 SELECT CAST(q1 AS int) FROM int8_tbl WHERE q2 <> 456
 -- !query 60 schema
-struct<>
+
 -- !query 60 output
 java.lang.ArithmeticException
 Casting 4567890123456789 to int causes overflow
@@ -618,7 +618,7 @@ struct<q1:smallint>
 -- !query 62
 SELECT CAST(q1 AS smallint) FROM int8_tbl WHERE q2 <> 456
 -- !query 62 schema
-struct<>
+
 -- !query 62 output
 java.lang.ArithmeticException
 Casting 4567890123456789 to short causes overflow
@@ -655,7 +655,7 @@ struct<CAST(CAST(36854775807.0 AS FLOAT) AS BIGINT):bigint>
 -- !query 66
 SELECT CAST(double('922337203685477580700.0') AS bigint)
 -- !query 66 schema
-struct<>
+
 -- !query 66 output
 java.lang.ArithmeticException
 Casting 9.223372036854776E20 to long causes overflow
@@ -693,7 +693,7 @@ struct<id:bigint>
 -- !query 69
 SELECT * FROM range(bigint('+4567890123456789'), bigint('+4567890123456799'), 0)
 -- !query 69 schema
-struct<>
+
 -- !query 69 output
 java.lang.IllegalArgumentException
 requirement failed: step (0) cannot be 0
@@ -722,7 +722,7 @@ struct<CAST(shiftleft(CAST(-1 AS BIGINT), 63) AS STRING):string>
 -- !query 72
 SELECT string(int(shiftleft(bigint(-1), 63))+1)
 -- !query 72 schema
-struct<>
+
 -- !query 72 output
 java.lang.ArithmeticException
 Casting -9223372036854775808 to int causes overflow
@@ -731,7 +731,7 @@ Casting -9223372036854775808 to int causes overflow
 -- !query 73
 SELECT bigint((-9223372036854775808)) * bigint((-1))
 -- !query 73 schema
-struct<>
+
 -- !query 73 output
 java.lang.ArithmeticException
 long overflow
@@ -756,7 +756,7 @@ struct<(CAST(-9223372036854775808 AS BIGINT) % CAST(-1 AS BIGINT)):bigint>
 -- !query 76
 SELECT bigint((-9223372036854775808)) * int((-1))
 -- !query 76 schema
-struct<>
+
 -- !query 76 output
 java.lang.ArithmeticException
 long overflow
@@ -781,7 +781,7 @@ struct<(CAST(-9223372036854775808 AS BIGINT) % CAST(CAST(-1 AS INT) AS BIGINT)):
 -- !query 79
 SELECT bigint((-9223372036854775808)) * smallint((-1))
 -- !query 79 schema
-struct<>
+
 -- !query 79 output
 java.lang.ArithmeticException
 long overflow

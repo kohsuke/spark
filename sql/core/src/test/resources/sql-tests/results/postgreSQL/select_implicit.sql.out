@@ -119,7 +119,7 @@ struct<count(1):bigint>
 -- !query 13
 SELECT count(*) FROM test_missing_target GROUP BY a ORDER BY b
 -- !query 13 schema
-struct<>
+
 -- !query 13 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`b`' given input columns: [count(1)]; line 1 pos 61
@@ -200,7 +200,7 @@ cccc	2
 -- !query 20
 SELECT c, count(*) FROM test_missing_target GROUP BY 3
 -- !query 20 schema
-struct<>
+
 -- !query 20 output
 org.apache.spark.sql.AnalysisException
 GROUP BY position 3 is not in select list (valid range is [1, 2]); line 1 pos 53
@@ -211,7 +211,7 @@ SELECT count(*) FROM test_missing_target x, test_missing_target y
 	WHERE x.a = y.a
 	GROUP BY b ORDER BY b
 -- !query 21 schema
-struct<>
+
 -- !query 21 output
 org.apache.spark.sql.AnalysisException
 Reference 'b' is ambiguous, could be: x.b, y.b.; line 3 pos 10
@@ -319,7 +319,7 @@ struct<count(c):bigint>
 -- !query 29
 SELECT count(a) FROM test_missing_target GROUP BY a ORDER BY b
 -- !query 29 schema
-struct<>
+
 -- !query 29 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`b`' given input columns: [count(a)]; line 1 pos 61
@@ -379,7 +379,7 @@ SELECT count(x.a) FROM test_missing_target x, test_missing_target y
 	WHERE x.a = y.a
 	GROUP BY b/2 ORDER BY b/2
 -- !query 34 schema
-struct<>
+
 -- !query 34 output
 org.apache.spark.sql.AnalysisException
 Reference 'b' is ambiguous, could be: x.b, y.b.; line 3 pos 10
@@ -402,7 +402,7 @@ SELECT count(b) FROM test_missing_target x, test_missing_target y
 	WHERE x.a = y.a
 	GROUP BY x.b/2
 -- !query 36 schema
-struct<>
+
 -- !query 36 output
 org.apache.spark.sql.AnalysisException
 Reference 'b' is ambiguous, could be: x.b, y.b.; line 1 pos 13

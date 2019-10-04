@@ -197,7 +197,7 @@ struct<three:string,f1:int>
 -- !query 21
 SELECT '' AS five, i.f1, i.f1 * smallint('2') AS x FROM INT4_TBL i
 -- !query 21 schema
-struct<>
+
 -- !query 21 output
 java.lang.ArithmeticException
 integer overflow
@@ -217,7 +217,7 @@ struct<five:string,f1:int,x:int>
 -- !query 23
 SELECT '' AS five, i.f1, i.f1 * int('2') AS x FROM INT4_TBL i
 -- !query 23 schema
-struct<>
+
 -- !query 23 output
 java.lang.ArithmeticException
 integer overflow
@@ -237,7 +237,7 @@ struct<five:string,f1:int,x:int>
 -- !query 25
 SELECT '' AS five, i.f1, i.f1 + smallint('2') AS x FROM INT4_TBL i
 -- !query 25 schema
-struct<>
+
 -- !query 25 output
 java.lang.ArithmeticException
 integer overflow
@@ -258,7 +258,7 @@ struct<five:string,f1:int,x:int>
 -- !query 27
 SELECT '' AS five, i.f1, i.f1 + int('2') AS x FROM INT4_TBL i
 -- !query 27 schema
-struct<>
+
 -- !query 27 output
 java.lang.ArithmeticException
 integer overflow
@@ -279,7 +279,7 @@ struct<five:string,f1:int,x:int>
 -- !query 29
 SELECT '' AS five, i.f1, i.f1 - smallint('2') AS x FROM INT4_TBL i
 -- !query 29 schema
-struct<>
+
 -- !query 29 output
 java.lang.ArithmeticException
 integer overflow
@@ -300,7 +300,7 @@ struct<five:string,f1:int,x:int>
 -- !query 31
 SELECT '' AS five, i.f1, i.f1 - int('2') AS x FROM INT4_TBL i
 -- !query 31 schema
-struct<>
+
 -- !query 31 output
 java.lang.ArithmeticException
 integer overflow

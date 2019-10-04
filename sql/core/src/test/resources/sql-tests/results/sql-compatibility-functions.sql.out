@@ -93,7 +93,7 @@ struct<CAST(2014-04-04 AS DATE):date,CAST(CAST(2014-04-04 AS DATE) AS TIMESTAMP)
 -- !query 11
 SELECT string(1, 2)
 -- !query 11 schema
-struct<>
+
 -- !query 11 output
 org.apache.spark.sql.AnalysisException
 Function string accepts only one argument; line 1 pos 7

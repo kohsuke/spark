@@ -230,7 +230,7 @@ Hello %%
 -- !query 26
 select format_string('Hello %s %s', 'World')
 -- !query 26 schema
-struct<>
+
 -- !query 26 output
 java.util.MissingFormatArgumentException
 Format specifier '%s'
@@ -239,7 +239,7 @@ Format specifier '%s'
 -- !query 27
 select format_string('Hello %s')
 -- !query 27 schema
-struct<>
+
 -- !query 27 output
 java.util.MissingFormatArgumentException
 Format specifier '%s'
@@ -272,7 +272,7 @@ struct<format_string(%1$s %12$s, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12):string>
 -- !query 31
 select format_string('%1$s %4$s', 1, 2, 3)
 -- !query 31 schema
-struct<>
+
 -- !query 31 output
 java.util.MissingFormatArgumentException
 Format specifier '%4$s'
@@ -281,7 +281,7 @@ Format specifier '%4$s'
 -- !query 32
 select format_string('%1$s %13$s', 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
 -- !query 32 schema
-struct<>
+
 -- !query 32 output
 java.util.MissingFormatArgumentException
 Format specifier '%13$s'

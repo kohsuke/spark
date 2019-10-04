@@ -327,7 +327,7 @@ Storage Properties  	[a=1, b=2]
 -- !query 18
 DESC t PARTITION (c='Us', d=2)
 -- !query 18 schema
-struct<>
+
 -- !query 18 output
 org.apache.spark.sql.catalyst.analysis.NoSuchPartitionException
 Partition not found in table 't' database 'default':
@@ -338,7 +338,7 @@ d -> 2;
 -- !query 19
 DESC t PARTITION (c='Us')
 -- !query 19 schema
-struct<>
+
 -- !query 19 output
 org.apache.spark.sql.AnalysisException
 Partition spec is invalid. The spec (c) must match the partition spec (c, d) defined in table '`default`.`t`';
@@ -347,7 +347,7 @@ Partition spec is invalid. The spec (c) must match the partition spec (c, d) def
 -- !query 20
 DESC t PARTITION (c='Us', d)
 -- !query 20 schema
-struct<>
+
 -- !query 20 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -428,7 +428,7 @@ structType          	struct<f1:string,f2:int>
 -- !query 26
 DESC temp_v PARTITION (c='Us', d=1)
 -- !query 26 schema
-struct<>
+
 -- !query 26 output
 org.apache.spark.sql.AnalysisException
 DESC PARTITION is not allowed on a temporary view: temp_v;
@@ -507,7 +507,7 @@ Table Properties    	[view.query.out.col.3=d, view.query.out.col.0=a, view.query
 -- !query 31
 DESC v PARTITION (c='Us', d=1)
 -- !query 31 schema
-struct<>
+
 -- !query 31 output
 org.apache.spark.sql.AnalysisException
 DESC PARTITION is not allowed on a view: v;

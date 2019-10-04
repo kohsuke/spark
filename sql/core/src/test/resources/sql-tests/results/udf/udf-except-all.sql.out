@@ -138,7 +138,7 @@ SELECT udf(c1) FROM tab1
 EXCEPT ALL
 SELECT array(1)
 -- !query 10 schema
-struct<>
+
 -- !query 10 output
 org.apache.spark.sql.AnalysisException
 ExceptAll can only be performed on tables with the compatible column types. array<int> <> int at the first column of the second table;
@@ -210,7 +210,7 @@ SELECT k FROM tab3
 EXCEPT ALL
 SELECT k, v FROM tab4
 -- !query 16 schema
-struct<>
+
 -- !query 16 output
 org.apache.spark.sql.AnalysisException
 ExceptAll can only be performed on tables with the same number of columns, but the first table has 1 columns and the second table has 2 columns;

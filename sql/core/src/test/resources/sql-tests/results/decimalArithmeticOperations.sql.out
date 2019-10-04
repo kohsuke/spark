@@ -381,7 +381,7 @@ struct<(CAST(10.300000000000000000 AS DECIMAL(20,18)) * CAST(3.00000000000000000
 -- !query 45
 select 10.300000000000000000 * 3.0000000000000000000
 -- !query 45 schema
-struct<>
+
 -- !query 45 output
 java.lang.ArithmeticException
 Decimal(expanded,30.900000000000000000000000000000000000,38,36}) cannot be represented as Decimal(38, 37).
@@ -390,7 +390,7 @@ Decimal(expanded,30.900000000000000000000000000000000000,38,36}) cannot be repre
 -- !query 46
 select (5e36 + 0.1) + 5e36
 -- !query 46 schema
-struct<>
+
 -- !query 46 output
 java.lang.ArithmeticException
 Decimal(expanded,10000000000000000000000000000000000000.1,39,1}) cannot be represented as Decimal(38, 1).
@@ -399,7 +399,7 @@ Decimal(expanded,10000000000000000000000000000000000000.1,39,1}) cannot be repre
 -- !query 47
 select (-4e36 - 0.1) - 7e36
 -- !query 47 schema
-struct<>
+
 -- !query 47 output
 java.lang.ArithmeticException
 Decimal(expanded,-11000000000000000000000000000000000000.1,39,1}) cannot be represented as Decimal(38, 1).
@@ -408,7 +408,7 @@ Decimal(expanded,-11000000000000000000000000000000000000.1,39,1}) cannot be repr
 -- !query 48
 select 12345678901234567890.0 * 12345678901234567890.0
 -- !query 48 schema
-struct<>
+
 -- !query 48 output
 java.lang.ArithmeticException
 Decimal(expanded,1.5241578753238836750190519987501905210E+38,38,-1}) cannot be represented as Decimal(38, 2).
@@ -417,7 +417,7 @@ Decimal(expanded,1.5241578753238836750190519987501905210E+38,38,-1}) cannot be r
 -- !query 49
 select 1e35 / 0.1
 -- !query 49 schema
-struct<>
+
 -- !query 49 output
 java.lang.ArithmeticException
 Decimal(expanded,1000000000000000000000000000000000000,37,0}) cannot be represented as Decimal(38, 3).
@@ -426,7 +426,7 @@ Decimal(expanded,1000000000000000000000000000000000000,37,0}) cannot be represen
 -- !query 50
 select 123456789123456789.1234567890 * 1.123456789123456789
 -- !query 50 schema
-struct<>
+
 -- !query 50 output
 java.lang.ArithmeticException
 Decimal(expanded,138698367904130467.65432098851562262075,38,20}) cannot be represented as Decimal(38, 28).
@@ -435,7 +435,7 @@ Decimal(expanded,138698367904130467.65432098851562262075,38,20}) cannot be repre
 -- !query 51
 select 123456789123456789.1234567890 * 1.123456789123456789
 -- !query 51 schema
-struct<>
+
 -- !query 51 output
 java.lang.ArithmeticException
 Decimal(expanded,138698367904130467.65432098851562262075,38,20}) cannot be represented as Decimal(38, 28).
@@ -444,7 +444,7 @@ Decimal(expanded,138698367904130467.65432098851562262075,38,20}) cannot be repre
 -- !query 52
 select 12345678912345.123456789123 / 0.000000012345678
 -- !query 52 schema
-struct<>
+
 -- !query 52 output
 java.lang.ArithmeticException
 Decimal(expanded,1000000073899961059796.7258663315210392,38,16}) cannot be represented as Decimal(38, 18).

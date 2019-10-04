@@ -37,7 +37,7 @@ struct<127:tinyint,-128:tinyint>
 -- !query 4
 select 128Y
 -- !query 4 schema
-struct<>
+
 -- !query 4 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -67,7 +67,7 @@ struct<32767:smallint,-32768:smallint>
 -- !query 7
 select 32768S
 -- !query 7 schema
-struct<>
+
 -- !query 7 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -97,7 +97,7 @@ struct<9223372036854775807:bigint,-9223372036854775808:bigint>
 -- !query 10
 select 9223372036854775808L
 -- !query 10 schema
-struct<>
+
 -- !query 10 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -143,7 +143,7 @@ struct<9223372036854775808:decimal(19,0),-9223372036854775809:decimal(19,0)>
 -- !query 15
 select 1234567890123456789012345678901234567890
 -- !query 15 schema
-struct<>
+
 -- !query 15 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -155,7 +155,7 @@ select 1234567890123456789012345678901234567890
 -- !query 16
 select 1234567890123456789012345678901234567890.0
 -- !query 16 schema
-struct<>
+
 -- !query 16 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -183,7 +183,7 @@ struct<-1.0:double,-1.2:double,-1E+10:decimal(1,-10),-1.5E+5:decimal(2,-4),-0.1:
 -- !query 19
 select .e3
 -- !query 19 schema
-struct<>
+
 -- !query 19 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -287,7 +287,7 @@ struct<DATE '2016-03-12':date>
 -- !query 31
 select date 'mar 11 2016'
 -- !query 31 schema
-struct<>
+
 -- !query 31 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -309,7 +309,7 @@ struct<TIMESTAMP('2016-03-11 20:54:00'):timestamp>
 -- !query 33
 select timestamp '2016-33-11 20:54:00.000'
 -- !query 33 schema
-struct<>
+
 -- !query 33 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -339,7 +339,7 @@ interval 1 years 2 months 3 weeks 4 days 5 hours 6 minutes 7 seconds 8 milliseco
 -- !query 36
 select interval 10 nanoseconds
 -- !query 36 schema
-struct<>
+
 -- !query 36 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -353,7 +353,7 @@ select interval 10 nanoseconds
 -- !query 37
 select GEO '(10,-6)'
 -- !query 37 schema
-struct<>
+
 -- !query 37 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -375,7 +375,7 @@ struct<90912830918230182310293801923652346786:decimal(38,0),1.230E-26:decimal(29
 -- !query 39
 select 1.20E-38BD
 -- !query 39 schema
-struct<>
+
 -- !query 39 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -397,7 +397,7 @@ struct<X'2379ACFE':binary>
 -- !query 41
 select X'XuZ'
 -- !query 41 schema
-struct<>
+
 -- !query 41 output
 org.apache.spark.sql.catalyst.parser.ParseException
 

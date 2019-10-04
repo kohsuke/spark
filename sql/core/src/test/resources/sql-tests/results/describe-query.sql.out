@@ -108,7 +108,7 @@ val                 	string
 -- !query 12
 DESCRIBE INSERT INTO desc_temp1 values (1, 'val1')
 -- !query 12 schema
-struct<>
+
 -- !query 12 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -122,7 +122,7 @@ DESCRIBE INSERT INTO desc_temp1 values (1, 'val1')
 -- !query 13
 DESCRIBE INSERT INTO desc_temp1 SELECT * FROM desc_temp2
 -- !query 13 schema
-struct<>
+
 -- !query 13 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -139,7 +139,7 @@ DESCRIBE
      insert into desc_temp1 select *
      insert into desc_temp2 select *
 -- !query 14 schema
-struct<>
+
 -- !query 14 output
 org.apache.spark.sql.catalyst.parser.ParseException
 

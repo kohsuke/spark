@@ -74,7 +74,7 @@ histogram	NULL
 -- !query 5
 DESC desc_col_temp_view key1
 -- !query 5 schema
-struct<>
+
 -- !query 5 output
 org.apache.spark.sql.AnalysisException
 Column key1 does not exist;
@@ -185,7 +185,7 @@ histogram	NULL
 -- !query 14
 DESC FORMATTED desc_complex_col_table col.x
 -- !query 14 schema
-struct<>
+
 -- !query 14 output
 org.apache.spark.sql.AnalysisException
 DESC TABLE COLUMN command does not support nested data types: col.x;

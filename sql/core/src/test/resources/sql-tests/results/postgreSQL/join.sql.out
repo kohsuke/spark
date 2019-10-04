@@ -533,7 +533,7 @@ struct<xxx:string,i:int,j:int,t:string,i:int,k:int>
 SELECT '' AS `xxx`, i, k, t
   FROM J1_TBL CROSS JOIN J2_TBL
 -- !query 33 schema
-struct<>
+
 -- !query 33 output
 org.apache.spark.sql.AnalysisException
 Reference 'i' is ambiguous, could be: default.j1_tbl.i, default.j2_tbl.i.; line 1 pos 20
@@ -3250,7 +3250,7 @@ struct<x:int,q1:bigint,q2:bigint,y:bigint>
 select * from
   int8_tbl x join (int4_tbl x cross join int4_tbl y) j on q1 = f1
 -- !query 167 schema
-struct<>
+
 -- !query 167 output
 org.apache.spark.sql.AnalysisException
 Reference 'f1' is ambiguous, could be: j.f1, j.f1.; line 2 pos 63
@@ -3260,7 +3260,7 @@ Reference 'f1' is ambiguous, could be: j.f1, j.f1.; line 2 pos 63
 select * from
   int8_tbl x join (int4_tbl x cross join int4_tbl y) j on q1 = y.f1
 -- !query 168 schema
-struct<>
+
 -- !query 168 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`y.f1`' given input columns: [j.f1, j.f1, x.q1, x.q2]; line 2 pos 63
@@ -3279,7 +3279,7 @@ struct<q1:bigint,q2:bigint,f1:int,ff:int>
 select t1.uunique1 from
   tenk1 t1 join tenk2 t2 on t1.two = t2.two
 -- !query 170 schema
-struct<>
+
 -- !query 170 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`t1.uunique1`' given input columns: [t1.even, t2.even, t1.fivethous, t2.fivethous, t1.four, t2.four, t1.hundred, t2.hundred, t1.odd, t2.odd, t1.string4, t2.string4, t1.stringu1, t2.stringu1, t1.stringu2, t2.stringu2, t1.ten, t2.ten, t1.tenthous, t2.tenthous, t1.thousand, t2.thousand, t1.twenty, t2.twenty, t1.two, t2.two, t1.twothousand, t2.twothousand, t1.unique1, t2.unique1, t1.unique2, t2.unique2]; line 1 pos 7
@@ -3289,7 +3289,7 @@ cannot resolve '`t1.uunique1`' given input columns: [t1.even, t2.even, t1.fiveth
 select t2.uunique1 from
   tenk1 t1 join tenk2 t2 on t1.two = t2.two
 -- !query 171 schema
-struct<>
+
 -- !query 171 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`t2.uunique1`' given input columns: [t1.even, t2.even, t1.fivethous, t2.fivethous, t1.four, t2.four, t1.hundred, t2.hundred, t1.odd, t2.odd, t1.string4, t2.string4, t1.stringu1, t2.stringu1, t1.stringu2, t2.stringu2, t1.ten, t2.ten, t1.tenthous, t2.tenthous, t1.thousand, t2.thousand, t1.twenty, t2.twenty, t1.two, t2.two, t1.twothousand, t2.twothousand, t1.unique1, t2.unique1, t1.unique2, t2.unique2]; line 1 pos 7
@@ -3299,7 +3299,7 @@ cannot resolve '`t2.uunique1`' given input columns: [t1.even, t2.even, t1.fiveth
 select uunique1 from
   tenk1 t1 join tenk2 t2 on t1.two = t2.two
 -- !query 172 schema
-struct<>
+
 -- !query 172 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`uunique1`' given input columns: [t1.even, t2.even, t1.fivethous, t2.fivethous, t1.four, t2.four, t1.hundred, t2.hundred, t1.odd, t2.odd, t1.string4, t2.string4, t1.stringu1, t2.stringu1, t1.stringu2, t2.stringu2, t1.ten, t2.ten, t1.tenthous, t2.tenthous, t1.thousand, t2.thousand, t1.twenty, t2.twenty, t1.two, t2.two, t1.twothousand, t2.twothousand, t1.unique1, t2.unique1, t1.unique2, t2.unique2]; line 1 pos 7
@@ -3308,7 +3308,7 @@ cannot resolve '`uunique1`' given input columns: [t1.even, t2.even, t1.fivethous
 -- !query 173
 select f1,g from int4_tbl a, (select f1 as g) ss
 -- !query 173 schema
-struct<>
+
 -- !query 173 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`f1`' given input columns: []; line 1 pos 37
@@ -3317,7 +3317,7 @@ cannot resolve '`f1`' given input columns: []; line 1 pos 37
 -- !query 174
 select f1,g from int4_tbl a, (select a.f1 as g) ss
 -- !query 174 schema
-struct<>
+
 -- !query 174 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`a.f1`' given input columns: []; line 1 pos 37
@@ -3326,7 +3326,7 @@ cannot resolve '`a.f1`' given input columns: []; line 1 pos 37
 -- !query 175
 select f1,g from int4_tbl a cross join (select f1 as g) ss
 -- !query 175 schema
-struct<>
+
 -- !query 175 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`f1`' given input columns: []; line 1 pos 47
@@ -3335,7 +3335,7 @@ cannot resolve '`f1`' given input columns: []; line 1 pos 47
 -- !query 176
 select f1,g from int4_tbl a cross join (select a.f1 as g) ss
 -- !query 176 schema
-struct<>
+
 -- !query 176 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`a.f1`' given input columns: []; line 1 pos 47

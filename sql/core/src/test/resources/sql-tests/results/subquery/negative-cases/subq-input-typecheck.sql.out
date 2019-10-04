@@ -61,7 +61,7 @@ SELECT
   )
 FROM t1
 -- !query 5 schema
-struct<>
+
 -- !query 5 output
 org.apache.spark.sql.AnalysisException
 Scalar subquery must return only one column, but got 2;
@@ -76,7 +76,7 @@ SELECT
   )
 FROM t1
 -- !query 6 schema
-struct<>
+
 -- !query 6 output
 org.apache.spark.sql.AnalysisException
 Scalar subquery must return only one column, but got 2;
@@ -89,7 +89,7 @@ t1a IN (SELECT t2a, t2b
         FROM t2
         WHERE t1a = t2a)
 -- !query 7 schema
-struct<>
+
 -- !query 7 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(t1.`t1a` IN (listquery(t1.`t1a`)))' due to data type mismatch: 
@@ -110,7 +110,7 @@ WHERE
                FROM t2
                WHERE t1a = t2a)
 -- !query 8 schema
-struct<>
+
 -- !query 8 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(named_struct('t1a', t1.`t1a`, 't1b', t1.`t1b`) IN (listquery(t1.`t1a`)))' due to data type mismatch: 
@@ -132,7 +132,7 @@ WHERE
                            t5c
                     FROM t5)
 -- !query 9 schema
-struct<>
+
 -- !query 9 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(named_struct('t4a', t4.`t4a`, 't4b', t4.`t4b`, 't4c', t4.`t4c`) IN (listquery()))' due to data type mismatch: 

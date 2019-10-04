@@ -334,7 +334,7 @@ struct<CAST(CAST(-2147483648.5 AS FLOAT) AS INT):int>
 -- !query 37
 SELECT int(float('-2147483900'))
 -- !query 37 schema
-struct<>
+
 -- !query 37 output
 java.lang.ArithmeticException
 Casting -2.1474839E9 to int causes overflow
@@ -367,7 +367,7 @@ struct<CAST(CAST(-9223372036854775808.5 AS FLOAT) AS BIGINT):bigint>
 -- !query 41
 SELECT bigint(float('-9223380000000000000'))
 -- !query 41 schema
-struct<>
+
 -- !query 41 output
 java.lang.ArithmeticException
 Casting -9.22338E18 to int causes overflow

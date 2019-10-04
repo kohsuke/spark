@@ -207,7 +207,7 @@ dotNET	NULL	0	1	1
 -- !query 14
 SELECT course, udf(year), GROUPING(course) FROM courseSales GROUP BY course, udf(year)
 -- !query 14 schema
-struct<>
+
 -- !query 14 output
 org.apache.spark.sql.AnalysisException
 grouping() can only be used with GroupingSets/Cube/Rollup;
@@ -216,7 +216,7 @@ grouping() can only be used with GroupingSets/Cube/Rollup;
 -- !query 15
 SELECT course, udf(year), GROUPING_ID(course, year) FROM courseSales GROUP BY udf(course), year
 -- !query 15 schema
-struct<>
+
 -- !query 15 output
 org.apache.spark.sql.AnalysisException
 grouping_id() can only be used with GroupingSets/Cube/Rollup;
@@ -252,7 +252,7 @@ dotNET	NULL
 -- !query 18
 SELECT course, udf(year) FROM courseSales GROUP BY udf(course), year HAVING GROUPING(course) > 0
 -- !query 18 schema
-struct<>
+
 -- !query 18 output
 org.apache.spark.sql.AnalysisException
 grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
@@ -261,7 +261,7 @@ grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
 -- !query 19
 SELECT course, udf(udf(year)) FROM courseSales GROUP BY course, year HAVING GROUPING_ID(course) > 0
 -- !query 19 schema
-struct<>
+
 -- !query 19 output
 org.apache.spark.sql.AnalysisException
 grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
@@ -316,7 +316,7 @@ NULL	NULL	3
 -- !query 23
 SELECT course, udf(year) FROM courseSales GROUP BY course, udf(year) ORDER BY GROUPING(course)
 -- !query 23 schema
-struct<>
+
 -- !query 23 output
 org.apache.spark.sql.AnalysisException
 grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
@@ -325,7 +325,7 @@ grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;
 -- !query 24
 SELECT course, udf(year) FROM courseSales GROUP BY course, udf(year) ORDER BY GROUPING_ID(course)
 -- !query 24 schema
-struct<>
+
 -- !query 24 output
 org.apache.spark.sql.AnalysisException
 grouping()/grouping_id() can only be used with GroupingSets/Cube/Rollup;

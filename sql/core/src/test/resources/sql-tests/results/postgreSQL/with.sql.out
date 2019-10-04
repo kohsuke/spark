@@ -216,7 +216,7 @@ WITH outermost(x) AS (
 )
 SELECT * FROM outermost ORDER BY 1
 -- !query 22 schema
-struct<>
+
 -- !query 22 output
 org.apache.spark.sql.AnalysisException
 Table or view not found: outermost; line 4 pos 23
@@ -346,7 +346,7 @@ struct<id:int,val:string>
 -- !query 37
 create table foo (with baz)
 -- !query 37 schema
-struct<>
+
 -- !query 37 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -360,7 +360,7 @@ create table foo (with baz)
 -- !query 38
 create table foo (with ordinality)
 -- !query 38 schema
-struct<>
+
 -- !query 38 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -382,7 +382,7 @@ struct<x:int>
 -- !query 40
 WITH test AS (SELECT 42) INSERT INTO test VALUES (1)
 -- !query 40 schema
-struct<>
+
 -- !query 40 output
 org.apache.spark.sql.AnalysisException
 Table not found: test;

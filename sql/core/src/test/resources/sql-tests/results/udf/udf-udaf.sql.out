@@ -31,7 +31,7 @@ struct<my_avg:double,my_avg2:double,my_avg3:double>
 -- !query 3
 SELECT default.myDoubleAvg(udf(int_col1), udf(3)) as my_avg from t1
 -- !query 3 schema
-struct<>
+
 -- !query 3 output
 org.apache.spark.sql.AnalysisException
 Invalid number of arguments for function default.myDoubleAvg. Expected: 1; Found: 2; line 1 pos 7
@@ -48,7 +48,7 @@ struct<>
 -- !query 5
 SELECT default.udaf1(udf(int_col1)) as udaf1, udf(default.udaf1(udf(int_col1))) as udaf2, udf(default.udaf1(int_col1)) as udaf3 from t1
 -- !query 5 schema
-struct<>
+
 -- !query 5 output
 org.apache.spark.sql.AnalysisException
 Can not load class 'test.non.existent.udaf' when registering the function 'default.udaf1', please make sure it is on the classpath; line 1 pos 94

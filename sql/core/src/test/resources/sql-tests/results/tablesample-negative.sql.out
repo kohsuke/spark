@@ -29,7 +29,7 @@ struct<>
 -- !query 3
 SELECT mydb1.t1 FROM t1 TABLESAMPLE (-1 PERCENT)
 -- !query 3 schema
-struct<>
+
 -- !query 3 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -43,7 +43,7 @@ SELECT mydb1.t1 FROM t1 TABLESAMPLE (-1 PERCENT)
 -- !query 4
 SELECT mydb1.t1 FROM t1 TABLESAMPLE (101 PERCENT)
 -- !query 4 schema
-struct<>
+
 -- !query 4 output
 org.apache.spark.sql.catalyst.parser.ParseException
 

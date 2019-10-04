@@ -101,7 +101,7 @@ aa
 -- !query 12
 select cast(a as array<string>) from t
 -- !query 12 schema
-struct<>
+
 -- !query 12 output
 org.apache.spark.sql.AnalysisException
 cannot resolve 't.`a`' due to data type mismatch: cannot cast string to array<string>; line 1 pos 7
@@ -110,7 +110,7 @@ cannot resolve 't.`a`' due to data type mismatch: cannot cast string to array<st
 -- !query 13
 select cast(a as struct<s:string>) from t
 -- !query 13 schema
-struct<>
+
 -- !query 13 output
 org.apache.spark.sql.AnalysisException
 cannot resolve 't.`a`' due to data type mismatch: cannot cast string to struct<s:string>; line 1 pos 7
@@ -119,7 +119,7 @@ cannot resolve 't.`a`' due to data type mismatch: cannot cast string to struct<s
 -- !query 14
 select cast(a as map<string, string>) from t
 -- !query 14 schema
-struct<>
+
 -- !query 14 output
 org.apache.spark.sql.AnalysisException
 cannot resolve 't.`a`' due to data type mismatch: cannot cast string to map<string,string>; line 1 pos 7

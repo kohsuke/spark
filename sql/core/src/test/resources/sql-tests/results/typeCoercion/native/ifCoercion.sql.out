@@ -77,7 +77,7 @@ struct<(IF(true, CAST(CAST(1 AS TINYINT) AS STRING), CAST(2 AS STRING))):string>
 -- !query 9
 SELECT IF(true, cast(1 as tinyint), cast('2' as binary)) FROM t
 -- !query 9 schema
-struct<>
+
 -- !query 9 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS TINYINT), CAST('2' AS BINARY)))' (tinyint and binary).; line 1 pos 7
@@ -86,7 +86,7 @@ cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST('2' AS BINARY)))' due to data
 -- !query 10
 SELECT IF(true, cast(1 as tinyint), cast(2 as boolean)) FROM t
 -- !query 10 schema
-struct<>
+
 -- !query 10 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS TINYINT), CAST(2 AS BOOLEAN)))' (tinyint and boolean).; line 1 pos 7
@@ -95,7 +95,7 @@ cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST(2 AS BOOLEAN)))' due to data 
 -- !query 11
 SELECT IF(true, cast(1 as tinyint), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 11 schema
-struct<>
+
 -- !query 11 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS TINYINT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (tinyint and timestamp).; line 1 pos 7
@@ -104,7 +104,7 @@ cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST('2017-12-11 09:30:00.0' AS TI
 -- !query 12
 SELECT IF(true, cast(1 as tinyint), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 12 schema
-struct<>
+
 -- !query 12 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS TINYINT), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS TINYINT), CAST('2017-12-11 09:30:00' AS DATE)))' (tinyint and date).; line 1 pos 7
@@ -177,7 +177,7 @@ struct<(IF(true, CAST(CAST(1 AS SMALLINT) AS STRING), CAST(2 AS STRING))):string
 -- !query 21
 SELECT IF(true, cast(1 as smallint), cast('2' as binary)) FROM t
 -- !query 21 schema
-struct<>
+
 -- !query 21 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS SMALLINT), CAST('2' AS BINARY)))' (smallint and binary).; line 1 pos 7
@@ -186,7 +186,7 @@ cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST('2' AS BINARY)))' due to dat
 -- !query 22
 SELECT IF(true, cast(1 as smallint), cast(2 as boolean)) FROM t
 -- !query 22 schema
-struct<>
+
 -- !query 22 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS SMALLINT), CAST(2 AS BOOLEAN)))' (smallint and boolean).; line 1 pos 7
@@ -195,7 +195,7 @@ cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST(2 AS BOOLEAN)))' due to data
 -- !query 23
 SELECT IF(true, cast(1 as smallint), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 23 schema
-struct<>
+
 -- !query 23 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS SMALLINT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (smallint and timestamp).; line 1 pos 7
@@ -204,7 +204,7 @@ cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST('2017-12-11 09:30:00.0' AS T
 -- !query 24
 SELECT IF(true, cast(1 as smallint), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 24 schema
-struct<>
+
 -- !query 24 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS SMALLINT), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS SMALLINT), CAST('2017-12-11 09:30:00' AS DATE)))' (smallint and date).; line 1 pos 7
@@ -277,7 +277,7 @@ struct<(IF(true, CAST(CAST(1 AS INT) AS STRING), CAST(2 AS STRING))):string>
 -- !query 33
 SELECT IF(true, cast(1 as int), cast('2' as binary)) FROM t
 -- !query 33 schema
-struct<>
+
 -- !query 33 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS INT), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS INT), CAST('2' AS BINARY)))' (int and binary).; line 1 pos 7
@@ -286,7 +286,7 @@ cannot resolve '(IF(true, CAST(1 AS INT), CAST('2' AS BINARY)))' due to data typ
 -- !query 34
 SELECT IF(true, cast(1 as int), cast(2 as boolean)) FROM t
 -- !query 34 schema
-struct<>
+
 -- !query 34 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS INT), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS INT), CAST(2 AS BOOLEAN)))' (int and boolean).; line 1 pos 7
@@ -295,7 +295,7 @@ cannot resolve '(IF(true, CAST(1 AS INT), CAST(2 AS BOOLEAN)))' due to data type
 -- !query 35
 SELECT IF(true, cast(1 as int), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 35 schema
-struct<>
+
 -- !query 35 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS INT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS INT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (int and timestamp).; line 1 pos 7
@@ -304,7 +304,7 @@ cannot resolve '(IF(true, CAST(1 AS INT), CAST('2017-12-11 09:30:00.0' AS TIMEST
 -- !query 36
 SELECT IF(true, cast(1 as int), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 36 schema
-struct<>
+
 -- !query 36 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS INT), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS INT), CAST('2017-12-11 09:30:00' AS DATE)))' (int and date).; line 1 pos 7
@@ -377,7 +377,7 @@ struct<(IF(true, CAST(CAST(1 AS BIGINT) AS STRING), CAST(2 AS STRING))):string>
 -- !query 45
 SELECT IF(true, cast(1 as bigint), cast('2' as binary)) FROM t
 -- !query 45 schema
-struct<>
+
 -- !query 45 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BIGINT), CAST('2' AS BINARY)))' (bigint and binary).; line 1 pos 7
@@ -386,7 +386,7 @@ cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST('2' AS BINARY)))' due to data 
 -- !query 46
 SELECT IF(true, cast(1 as bigint), cast(2 as boolean)) FROM t
 -- !query 46 schema
-struct<>
+
 -- !query 46 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BIGINT), CAST(2 AS BOOLEAN)))' (bigint and boolean).; line 1 pos 7
@@ -395,7 +395,7 @@ cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST(2 AS BOOLEAN)))' due to data t
 -- !query 47
 SELECT IF(true, cast(1 as bigint), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 47 schema
-struct<>
+
 -- !query 47 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BIGINT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (bigint and timestamp).; line 1 pos 7
@@ -404,7 +404,7 @@ cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST('2017-12-11 09:30:00.0' AS TIM
 -- !query 48
 SELECT IF(true, cast(1 as bigint), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 48 schema
-struct<>
+
 -- !query 48 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BIGINT), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BIGINT), CAST('2017-12-11 09:30:00' AS DATE)))' (bigint and date).; line 1 pos 7
@@ -477,7 +477,7 @@ struct<(IF(true, CAST(CAST(1 AS FLOAT) AS STRING), CAST(2 AS STRING))):string>
 -- !query 57
 SELECT IF(true, cast(1 as float), cast('2' as binary)) FROM t
 -- !query 57 schema
-struct<>
+
 -- !query 57 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS FLOAT), CAST('2' AS BINARY)))' (float and binary).; line 1 pos 7
@@ -486,7 +486,7 @@ cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST('2' AS BINARY)))' due to data t
 -- !query 58
 SELECT IF(true, cast(1 as float), cast(2 as boolean)) FROM t
 -- !query 58 schema
-struct<>
+
 -- !query 58 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS FLOAT), CAST(2 AS BOOLEAN)))' (float and boolean).; line 1 pos 7
@@ -495,7 +495,7 @@ cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST(2 AS BOOLEAN)))' due to data ty
 -- !query 59
 SELECT IF(true, cast(1 as float), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 59 schema
-struct<>
+
 -- !query 59 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS FLOAT), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (float and timestamp).; line 1 pos 7
@@ -504,7 +504,7 @@ cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST('2017-12-11 09:30:00.0' AS TIME
 -- !query 60
 SELECT IF(true, cast(1 as float), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 60 schema
-struct<>
+
 -- !query 60 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS FLOAT), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS FLOAT), CAST('2017-12-11 09:30:00' AS DATE)))' (float and date).; line 1 pos 7
@@ -577,7 +577,7 @@ struct<(IF(true, CAST(CAST(1 AS DOUBLE) AS STRING), CAST(2 AS STRING))):string>
 -- !query 69
 SELECT IF(true, cast(1 as double), cast('2' as binary)) FROM t
 -- !query 69 schema
-struct<>
+
 -- !query 69 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DOUBLE), CAST('2' AS BINARY)))' (double and binary).; line 1 pos 7
@@ -586,7 +586,7 @@ cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST('2' AS BINARY)))' due to data 
 -- !query 70
 SELECT IF(true, cast(1 as double), cast(2 as boolean)) FROM t
 -- !query 70 schema
-struct<>
+
 -- !query 70 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DOUBLE), CAST(2 AS BOOLEAN)))' (double and boolean).; line 1 pos 7
@@ -595,7 +595,7 @@ cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST(2 AS BOOLEAN)))' due to data t
 -- !query 71
 SELECT IF(true, cast(1 as double), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 71 schema
-struct<>
+
 -- !query 71 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DOUBLE), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (double and timestamp).; line 1 pos 7
@@ -604,7 +604,7 @@ cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST('2017-12-11 09:30:00.0' AS TIM
 -- !query 72
 SELECT IF(true, cast(1 as double), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 72 schema
-struct<>
+
 -- !query 72 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DOUBLE), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DOUBLE), CAST('2017-12-11 09:30:00' AS DATE)))' (double and date).; line 1 pos 7
@@ -677,7 +677,7 @@ struct<(IF(true, CAST(CAST(1 AS DECIMAL(10,0)) AS STRING), CAST(2 AS STRING))):s
 -- !query 81
 SELECT IF(true, cast(1 as decimal(10, 0)), cast('2' as binary)) FROM t
 -- !query 81 schema
-struct<>
+
 -- !query 81 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2' AS BINARY)))' (decimal(10,0) and binary).; line 1 pos 7
@@ -686,7 +686,7 @@ cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2' AS BINARY)))' due t
 -- !query 82
 SELECT IF(true, cast(1 as decimal(10, 0)), cast(2 as boolean)) FROM t
 -- !query 82 schema
-struct<>
+
 -- !query 82 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST(2 AS BOOLEAN)))' (decimal(10,0) and boolean).; line 1 pos 7
@@ -695,7 +695,7 @@ cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST(2 AS BOOLEAN)))' due to
 -- !query 83
 SELECT IF(true, cast(1 as decimal(10, 0)), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 83 schema
-struct<>
+
 -- !query 83 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (decimal(10,0) and timestamp).; line 1 pos 7
@@ -704,7 +704,7 @@ cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2017-12-11 09:30:00.0'
 -- !query 84
 SELECT IF(true, cast(1 as decimal(10, 0)), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 84 schema
-struct<>
+
 -- !query 84 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS DECIMAL(10,0)), CAST('2017-12-11 09:30:00' AS DATE)))' (decimal(10,0) and date).; line 1 pos 7
@@ -777,7 +777,7 @@ struct<(IF(true, CAST(1 AS STRING), CAST(2 AS STRING))):string>
 -- !query 93
 SELECT IF(true, cast(1 as string), cast('2' as binary)) FROM t
 -- !query 93 schema
-struct<>
+
 -- !query 93 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS STRING), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS STRING), CAST('2' AS BINARY)))' (string and binary).; line 1 pos 7
@@ -786,7 +786,7 @@ cannot resolve '(IF(true, CAST(1 AS STRING), CAST('2' AS BINARY)))' due to data 
 -- !query 94
 SELECT IF(true, cast(1 as string), cast(2 as boolean)) FROM t
 -- !query 94 schema
-struct<>
+
 -- !query 94 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS STRING), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS STRING), CAST(2 AS BOOLEAN)))' (string and boolean).; line 1 pos 7
@@ -811,7 +811,7 @@ struct<(IF(true, CAST(1 AS STRING), CAST(CAST(2017-12-11 09:30:00 AS DATE) AS ST
 -- !query 97
 SELECT IF(true, cast('1' as binary), cast(2 as tinyint)) FROM t
 -- !query 97 schema
-struct<>
+
 -- !query 97 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS TINYINT)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS TINYINT)))' (binary and tinyint).; line 1 pos 7
@@ -820,7 +820,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS TINYINT)))' due to data
 -- !query 98
 SELECT IF(true, cast('1' as binary), cast(2 as smallint)) FROM t
 -- !query 98 schema
-struct<>
+
 -- !query 98 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS SMALLINT)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS SMALLINT)))' (binary and smallint).; line 1 pos 7
@@ -829,7 +829,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS SMALLINT)))' due to dat
 -- !query 99
 SELECT IF(true, cast('1' as binary), cast(2 as int)) FROM t
 -- !query 99 schema
-struct<>
+
 -- !query 99 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS INT)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS INT)))' (binary and int).; line 1 pos 7
@@ -838,7 +838,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS INT)))' due to data typ
 -- !query 100
 SELECT IF(true, cast('1' as binary), cast(2 as bigint)) FROM t
 -- !query 100 schema
-struct<>
+
 -- !query 100 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS BIGINT)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS BIGINT)))' (binary and bigint).; line 1 pos 7
@@ -847,7 +847,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS BIGINT)))' due to data 
 -- !query 101
 SELECT IF(true, cast('1' as binary), cast(2 as float)) FROM t
 -- !query 101 schema
-struct<>
+
 -- !query 101 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS FLOAT)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS FLOAT)))' (binary and float).; line 1 pos 7
@@ -856,7 +856,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS FLOAT)))' due to data t
 -- !query 102
 SELECT IF(true, cast('1' as binary), cast(2 as double)) FROM t
 -- !query 102 schema
-struct<>
+
 -- !query 102 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS DOUBLE)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS DOUBLE)))' (binary and double).; line 1 pos 7
@@ -865,7 +865,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS DOUBLE)))' due to data 
 -- !query 103
 SELECT IF(true, cast('1' as binary), cast(2 as decimal(10, 0))) FROM t
 -- !query 103 schema
-struct<>
+
 -- !query 103 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS DECIMAL(10,0))))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS DECIMAL(10,0))))' (binary and decimal(10,0)).; line 1 pos 7
@@ -874,7 +874,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS DECIMAL(10,0))))' due t
 -- !query 104
 SELECT IF(true, cast('1' as binary), cast(2 as string)) FROM t
 -- !query 104 schema
-struct<>
+
 -- !query 104 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS STRING)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS STRING)))' (binary and string).; line 1 pos 7
@@ -891,7 +891,7 @@ struct<(IF(true, CAST(1 AS BINARY), CAST(2 AS BINARY))):binary>
 -- !query 106
 SELECT IF(true, cast('1' as binary), cast(2 as boolean)) FROM t
 -- !query 106 schema
-struct<>
+
 -- !query 106 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST(2 AS BOOLEAN)))' (binary and boolean).; line 1 pos 7
@@ -900,7 +900,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST(2 AS BOOLEAN)))' due to data
 -- !query 107
 SELECT IF(true, cast('1' as binary), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 107 schema
-struct<>
+
 -- !query 107 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (binary and timestamp).; line 1 pos 7
@@ -909,7 +909,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST('2017-12-11 09:30:00.0' AS T
 -- !query 108
 SELECT IF(true, cast('1' as binary), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 108 schema
-struct<>
+
 -- !query 108 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('1' AS BINARY), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST('1' AS BINARY), CAST('2017-12-11 09:30:00' AS DATE)))' (binary and date).; line 1 pos 7
@@ -918,7 +918,7 @@ cannot resolve '(IF(true, CAST('1' AS BINARY), CAST('2017-12-11 09:30:00' AS DAT
 -- !query 109
 SELECT IF(true, cast(1 as boolean), cast(2 as tinyint)) FROM t
 -- !query 109 schema
-struct<>
+
 -- !query 109 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS TINYINT)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS TINYINT)))' (boolean and tinyint).; line 1 pos 7
@@ -927,7 +927,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS TINYINT)))' due to data 
 -- !query 110
 SELECT IF(true, cast(1 as boolean), cast(2 as smallint)) FROM t
 -- !query 110 schema
-struct<>
+
 -- !query 110 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS SMALLINT)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS SMALLINT)))' (boolean and smallint).; line 1 pos 7
@@ -936,7 +936,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS SMALLINT)))' due to data
 -- !query 111
 SELECT IF(true, cast(1 as boolean), cast(2 as int)) FROM t
 -- !query 111 schema
-struct<>
+
 -- !query 111 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS INT)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS INT)))' (boolean and int).; line 1 pos 7
@@ -945,7 +945,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS INT)))' due to data type
 -- !query 112
 SELECT IF(true, cast(1 as boolean), cast(2 as bigint)) FROM t
 -- !query 112 schema
-struct<>
+
 -- !query 112 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS BIGINT)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS BIGINT)))' (boolean and bigint).; line 1 pos 7
@@ -954,7 +954,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS BIGINT)))' due to data t
 -- !query 113
 SELECT IF(true, cast(1 as boolean), cast(2 as float)) FROM t
 -- !query 113 schema
-struct<>
+
 -- !query 113 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS FLOAT)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS FLOAT)))' (boolean and float).; line 1 pos 7
@@ -963,7 +963,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS FLOAT)))' due to data ty
 -- !query 114
 SELECT IF(true, cast(1 as boolean), cast(2 as double)) FROM t
 -- !query 114 schema
-struct<>
+
 -- !query 114 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS DOUBLE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS DOUBLE)))' (boolean and double).; line 1 pos 7
@@ -972,7 +972,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS DOUBLE)))' due to data t
 -- !query 115
 SELECT IF(true, cast(1 as boolean), cast(2 as decimal(10, 0))) FROM t
 -- !query 115 schema
-struct<>
+
 -- !query 115 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS DECIMAL(10,0))))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS DECIMAL(10,0))))' (boolean and decimal(10,0)).; line 1 pos 7
@@ -981,7 +981,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS DECIMAL(10,0))))' due to
 -- !query 116
 SELECT IF(true, cast(1 as boolean), cast(2 as string)) FROM t
 -- !query 116 schema
-struct<>
+
 -- !query 116 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS STRING)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS STRING)))' (boolean and string).; line 1 pos 7
@@ -990,7 +990,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST(2 AS STRING)))' due to data t
 -- !query 117
 SELECT IF(true, cast(1 as boolean), cast('2' as binary)) FROM t
 -- !query 117 schema
-struct<>
+
 -- !query 117 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST('2' AS BINARY)))' (boolean and binary).; line 1 pos 7
@@ -1007,7 +1007,7 @@ true
 -- !query 119
 SELECT IF(true, cast(1 as boolean), cast('2017-12-11 09:30:00.0' as timestamp)) FROM t
 -- !query 119 schema
-struct<>
+
 -- !query 119 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST('2017-12-11 09:30:00.0' AS TIMESTAMP)))' (boolean and timestamp).; line 1 pos 7
@@ -1016,7 +1016,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST('2017-12-11 09:30:00.0' AS TI
 -- !query 120
 SELECT IF(true, cast(1 as boolean), cast('2017-12-11 09:30:00' as date)) FROM t
 -- !query 120 schema
-struct<>
+
 -- !query 120 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST('2017-12-11 09:30:00' AS DATE)))' due to data type mismatch: differing types in '(IF(true, CAST(1 AS BOOLEAN), CAST('2017-12-11 09:30:00' AS DATE)))' (boolean and date).; line 1 pos 7
@@ -1025,7 +1025,7 @@ cannot resolve '(IF(true, CAST(1 AS BOOLEAN), CAST('2017-12-11 09:30:00' AS DATE
 -- !query 121
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as tinyint)) FROM t
 -- !query 121 schema
-struct<>
+
 -- !query 121 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS TINYINT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS TINYINT)))' (timestamp and tinyint).; line 1 pos 7
@@ -1034,7 +1034,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS 
 -- !query 122
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as smallint)) FROM t
 -- !query 122 schema
-struct<>
+
 -- !query 122 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS SMALLINT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS SMALLINT)))' (timestamp and smallint).; line 1 pos 7
@@ -1043,7 +1043,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS 
 -- !query 123
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as int)) FROM t
 -- !query 123 schema
-struct<>
+
 -- !query 123 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS INT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS INT)))' (timestamp and int).; line 1 pos 7
@@ -1052,7 +1052,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS 
 -- !query 124
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as bigint)) FROM t
 -- !query 124 schema
-struct<>
+
 -- !query 124 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS BIGINT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS BIGINT)))' (timestamp and bigint).; line 1 pos 7
@@ -1061,7 +1061,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS 
 -- !query 125
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as float)) FROM t
 -- !query 125 schema
-struct<>
+
 -- !query 125 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS FLOAT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS FLOAT)))' (timestamp and float).; line 1 pos 7
@@ -1070,7 +1070,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS 
 -- !query 126
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as double)) FROM t
 -- !query 126 schema
-struct<>
+
 -- !query 126 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS DOUBLE)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS DOUBLE)))' (timestamp and double).; line 1 pos 7
@@ -1079,7 +1079,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS 
 -- !query 127
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as decimal(10, 0))) FROM t
 -- !query 127 schema
-struct<>
+
 -- !query 127 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS DECIMAL(10,0))))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS DECIMAL(10,0))))' (timestamp and decimal(10,0)).; line 1 pos 7
@@ -1096,7 +1096,7 @@ struct<(IF(true, CAST(CAST(2017-12-12 09:30:00.0 AS TIMESTAMP) AS STRING), CAST(
 -- !query 129
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast('2' as binary)) FROM t
 -- !query 129 schema
-struct<>
+
 -- !query 129 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST('2' AS BINARY)))' (timestamp and binary).; line 1 pos 7
@@ -1105,7 +1105,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST('2' A
 -- !query 130
 SELECT IF(true, cast('2017-12-12 09:30:00.0' as timestamp), cast(2 as boolean)) FROM t
 -- !query 130 schema
-struct<>
+
 -- !query 130 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00.0' AS TIMESTAMP), CAST(2 AS BOOLEAN)))' (timestamp and boolean).; line 1 pos 7
@@ -1130,7 +1130,7 @@ struct<(IF(true, CAST(2017-12-12 09:30:00.0 AS TIMESTAMP), CAST(CAST(2017-12-11 
 -- !query 133
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as tinyint)) FROM t
 -- !query 133 schema
-struct<>
+
 -- !query 133 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS TINYINT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS TINYINT)))' (date and tinyint).; line 1 pos 7
@@ -1139,7 +1139,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS TINYINT
 -- !query 134
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as smallint)) FROM t
 -- !query 134 schema
-struct<>
+
 -- !query 134 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS SMALLINT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS SMALLINT)))' (date and smallint).; line 1 pos 7
@@ -1148,7 +1148,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS SMALLIN
 -- !query 135
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as int)) FROM t
 -- !query 135 schema
-struct<>
+
 -- !query 135 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS INT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS INT)))' (date and int).; line 1 pos 7
@@ -1157,7 +1157,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS INT)))'
 -- !query 136
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as bigint)) FROM t
 -- !query 136 schema
-struct<>
+
 -- !query 136 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS BIGINT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS BIGINT)))' (date and bigint).; line 1 pos 7
@@ -1166,7 +1166,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS BIGINT)
 -- !query 137
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as float)) FROM t
 -- !query 137 schema
-struct<>
+
 -- !query 137 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS FLOAT)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS FLOAT)))' (date and float).; line 1 pos 7
@@ -1175,7 +1175,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS FLOAT))
 -- !query 138
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as double)) FROM t
 -- !query 138 schema
-struct<>
+
 -- !query 138 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS DOUBLE)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS DOUBLE)))' (date and double).; line 1 pos 7
@@ -1184,7 +1184,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS DOUBLE)
 -- !query 139
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as decimal(10, 0))) FROM t
 -- !query 139 schema
-struct<>
+
 -- !query 139 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS DECIMAL(10,0))))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS DECIMAL(10,0))))' (date and decimal(10,0)).; line 1 pos 7
@@ -1201,7 +1201,7 @@ struct<(IF(true, CAST(CAST(2017-12-12 09:30:00 AS DATE) AS STRING), CAST(2 AS ST
 -- !query 141
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast('2' as binary)) FROM t
 -- !query 141 schema
-struct<>
+
 -- !query 141 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST('2' AS BINARY)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST('2' AS BINARY)))' (date and binary).; line 1 pos 7
@@ -1210,7 +1210,7 @@ cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST('2' AS BINAR
 -- !query 142
 SELECT IF(true, cast('2017-12-12 09:30:00' as date), cast(2 as boolean)) FROM t
 -- !query 142 schema
-struct<>
+
 -- !query 142 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS BOOLEAN)))' due to data type mismatch: differing types in '(IF(true, CAST('2017-12-12 09:30:00' AS DATE), CAST(2 AS BOOLEAN)))' (date and boolean).; line 1 pos 7

@@ -140,7 +140,7 @@ struct<CAST(udf(cast(min(cast(udf(cast(a as string)) as int)) as string)) AS INT
 -- !query 16
 SELECT udf(a) FROM test_having HAVING udf(min(a)) < udf(max(a))
 -- !query 16 schema
-struct<>
+
 -- !query 16 output
 org.apache.spark.sql.AnalysisException
 grouping expressions sequence is empty, and 'default.test_having.`a`' is not an aggregate function. Wrap '(min(default.test_having.`a`) AS `min(a#x)`, max(default.test_having.`a`) AS `max(a#x)`)' in windowing function(s) or wrap 'default.test_having.`a`' in first() (or first_value) if you don't care which value you get.;
@@ -149,7 +149,7 @@ grouping expressions sequence is empty, and 'default.test_having.`a`' is not an 
 -- !query 17
 SELECT 1 AS one FROM test_having HAVING udf(a) > 1
 -- !query 17 schema
-struct<>
+
 -- !query 17 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`a`' given input columns: [one]; line 1 pos 44

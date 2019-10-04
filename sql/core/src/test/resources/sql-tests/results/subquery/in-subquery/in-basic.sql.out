@@ -38,7 +38,7 @@ struct<1:int>
 -- !query 4
 select 1 from tab_a where (a1, b1) not in (select (a2, b2) from tab_b)
 -- !query 4 schema
-struct<>
+
 -- !query 4 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '(named_struct('a1', tab_a.`a1`, 'b1', tab_a.`b1`) IN (listquery()))' due to data type mismatch: 

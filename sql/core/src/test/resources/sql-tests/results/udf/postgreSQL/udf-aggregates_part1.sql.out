@@ -367,7 +367,7 @@ group by ten
 having exists (select 1 from onek b
                where sum(distinct a.four + b.four) = udf(b.four))
 -- !query 41 schema
-struct<>
+
 -- !query 41 output
 org.apache.spark.sql.AnalysisException
 
@@ -381,7 +381,7 @@ select
   (select udf(max((select i.unique2 from tenk1 i where i.unique1 = o.unique1))))
 from tenk1 o
 -- !query 42 schema
-struct<>
+
 -- !query 42 output
 org.apache.spark.sql.AnalysisException
 cannot resolve '`o.unique1`' given input columns: [i.even, i.fivethous, i.four, i.hundred, i.odd, i.string4, i.stringu1, i.stringu2, i.ten, i.tenthous, i.thousand, i.twenty, i.two, i.twothousand, i.unique1, i.unique2]; line 2 pos 67

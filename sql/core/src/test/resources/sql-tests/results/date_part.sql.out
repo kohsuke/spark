@@ -397,7 +397,7 @@ struct<date_part('secs', t.`c`):decimal(8,6)>
 -- !query 49
 select date_part('not_supported', c) from t
 -- !query 49 schema
-struct<>
+
 -- !query 49 output
 org.apache.spark.sql.AnalysisException
 Literals of type 'not_supported' are currently not supported.;; line 1 pos 7
@@ -406,7 +406,7 @@ Literals of type 'not_supported' are currently not supported.;; line 1 pos 7
 -- !query 50
 select date_part(c, c) from t
 -- !query 50 schema
-struct<>
+
 -- !query 50 output
 org.apache.spark.sql.AnalysisException
 The field parameter needs to be a foldable string value.;; line 1 pos 7

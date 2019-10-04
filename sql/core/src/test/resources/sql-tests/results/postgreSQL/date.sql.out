@@ -198,7 +198,7 @@ struct<DATE '1999-01-18':date>
 -- !query 21
 SELECT date '1999 Jan 08'
 -- !query 21 schema
-struct<>
+
 -- !query 21 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -212,7 +212,7 @@ SELECT date '1999 Jan 08'
 -- !query 22
 SELECT date '1999 08 Jan'
 -- !query 22 schema
-struct<>
+
 -- !query 22 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -242,7 +242,7 @@ struct<DATE '1999-08-01':date>
 -- !query 25
 SELECT date '1999 01 08'
 -- !query 25 schema
-struct<>
+
 -- !query 25 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -256,7 +256,7 @@ SELECT date '1999 01 08'
 -- !query 26
 SELECT date '1999 08 01'
 -- !query 26 schema
-struct<>
+
 -- !query 26 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -278,7 +278,7 @@ struct<DATE '1999-01-08':date>
 -- !query 28
 SELECT date '1999 Jan 08'
 -- !query 28 schema
-struct<>
+
 -- !query 28 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -292,7 +292,7 @@ SELECT date '1999 Jan 08'
 -- !query 29
 SELECT date '1999 08 Jan'
 -- !query 29 schema
-struct<>
+
 -- !query 29 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -322,7 +322,7 @@ struct<DATE '1999-08-01':date>
 -- !query 32
 SELECT date '1999 01 08'
 -- !query 32 schema
-struct<>
+
 -- !query 32 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -336,7 +336,7 @@ SELECT date '1999 01 08'
 -- !query 33
 SELECT date '1999 08 01'
 -- !query 33 schema
-struct<>
+
 -- !query 33 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -366,7 +366,7 @@ struct<DATE '1999-01-18':date>
 -- !query 36
 SELECT date '1999 Jan 08'
 -- !query 36 schema
-struct<>
+
 -- !query 36 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -380,7 +380,7 @@ SELECT date '1999 Jan 08'
 -- !query 37
 SELECT date '1999 08 Jan'
 -- !query 37 schema
-struct<>
+
 -- !query 37 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -410,7 +410,7 @@ struct<DATE '1999-08-01':date>
 -- !query 40
 SELECT date '1999 01 08'
 -- !query 40 schema
-struct<>
+
 -- !query 40 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -424,7 +424,7 @@ SELECT date '1999 01 08'
 -- !query 41
 SELECT date '1999 08 01'
 -- !query 41 schema
-struct<>
+
 -- !query 41 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -454,7 +454,7 @@ struct<DATE '4714-11-23':date>
 -- !query 44
 SELECT date '5874897-12-31'
 -- !query 44 schema
-struct<>
+
 -- !query 44 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -468,7 +468,7 @@ SELECT date '5874897-12-31'
 -- !query 45
 SELECT date '5874898-01-01'
 -- !query 45 schema
-struct<>
+
 -- !query 45 output
 org.apache.spark.sql.catalyst.parser.ParseException
 

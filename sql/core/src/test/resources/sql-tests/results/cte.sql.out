@@ -21,7 +21,7 @@ struct<>
 -- !query 2
 WITH s AS (SELECT 1 FROM s) SELECT * FROM s
 -- !query 2 schema
-struct<>
+
 -- !query 2 output
 org.apache.spark.sql.AnalysisException
 Table or view not found: s; line 1 pos 25
@@ -31,7 +31,7 @@ Table or view not found: s; line 1 pos 25
 WITH r AS (SELECT (SELECT * FROM r))
 SELECT * FROM r
 -- !query 3 schema
-struct<>
+
 -- !query 3 output
 org.apache.spark.sql.AnalysisException
 Table or view not found: r; line 1 pos 33
@@ -50,7 +50,7 @@ struct<1:int>
 -- !query 5
 WITH s1 AS (SELECT 1 FROM s2), s2 AS (SELECT 1 FROM s1) SELECT * FROM s1, s2
 -- !query 5 schema
-struct<>
+
 -- !query 5 output
 org.apache.spark.sql.AnalysisException
 Table or view not found: s2; line 1 pos 26
@@ -129,7 +129,7 @@ struct<x:int,x:int>
 WITH t() AS (SELECT 1)
 SELECT * FROM t
 -- !query 11 schema
-struct<>
+
 -- !query 11 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
@@ -147,7 +147,7 @@ WITH
   t(x) AS (SELECT 2)
 SELECT * FROM t
 -- !query 12 schema
-struct<>
+
 -- !query 12 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
