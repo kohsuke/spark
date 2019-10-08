@@ -17,20 +17,19 @@
 
 package org.apache.spark.sql.kafka010
 
-import java.{util => ju}
+import java.{util, util => ju}
 import java.util.{Locale, UUID}
 
 import scala.collection.JavaConverters._
-
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.{ByteArrayDeserializer, ByteArraySerializer}
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.kafka010.KafkaConfigUpdater
-import org.apache.spark.sql.{AnalysisException, DataFrame, SaveMode, SQLContext}
+import org.apache.spark.sql.{AnalysisException, DataFrame, SQLContext, SaveMode}
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability, TableProvider}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{Batch, Scan, ScanBuilder}
 import org.apache.spark.sql.connector.read.streaming.{ContinuousStream, MicroBatchStream}
 import org.apache.spark.sql.connector.write.{BatchWrite, WriteBuilder}
@@ -106,6 +105,19 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       metadataPath,
       startingStreamOffsets,
       failOnDataLoss(caseInsensitiveParameters))
+  }
+
+  override def getTable(schema: StructType, properties: util.Map[String, String]): Table = {
+    throw new UnsupportedOperationException(
+      "Kafka source does not support user-specified schema/partitioning.")
+  }
+
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    throw new UnsupportedOperationException(
+      "Kafka source does not support user-specified schema/partitioning.")
   }
 
   override def getTable(options: CaseInsensitiveStringMap): KafkaTable = {

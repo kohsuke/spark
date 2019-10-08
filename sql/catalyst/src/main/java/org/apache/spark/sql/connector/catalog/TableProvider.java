@@ -17,7 +17,11 @@
 
 package org.apache.spark.sql.connector.catalog;
 
+import java.util.Map;
+
 import org.apache.spark.annotation.Evolving;
+import org.apache.spark.sql.connector.expressions.Transform;
+import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /**
@@ -43,4 +47,32 @@ public interface TableProvider {
    */
   // TODO: this should take a Map<String, String> as table properties.
   Table getTable(CaseInsensitiveStringMap options);
+
+  /**
+   * Return a {@link Table} instance with the given table schema and properties to do read/write.
+   * The returned table must report the same schema with the given one, or Spark will fail the
+   * operation.
+   *
+   * @param schema The schema of the table to load.
+   * @param properties The properties of the table to load. It should be sufficient to define and
+   *                   access a table. The properties map may be {@link CaseInsensitiveStringMap}.
+   */
+  Table getTable(
+    StructType schema,
+    Map<String, String> properties);
+
+  /**
+   * Return a {@link Table} instance with the given table schema, partitioning and properties to do
+   * read/write. The returned table must report the same schema and partitioning with the given
+   * ones, or Spark will fail the operation.
+   *
+   * @param schema The schema of the table to load.
+   * @param partitioning The data partitioning of the table to load.
+   * @param properties The properties of the table to load. It should be sufficient to define and
+   *                   access a table. The properties map may be {@link CaseInsensitiveStringMap}.
+   */
+  Table getTable(
+    StructType schema,
+    Transform[] partitioning,
+    Map<String, String> properties);
 }
