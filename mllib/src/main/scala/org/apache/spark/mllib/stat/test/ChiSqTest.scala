@@ -19,14 +19,18 @@ package org.apache.spark.mllib.stat.test
 
 import scala.collection.mutable
 
-import breeze.linalg.{DenseMatrix => BDM}
+import breeze.linalg.{DenseMatrix => BDM, DenseVector}
+import com.tdunning.math.stats.{MergingDigest, TDigest}
 import org.apache.commons.math3.distribution.ChiSquaredDistribution
+import org.joda.time.{DateTime, DateTimeZone}
+import org.slf4j.{Logger, LoggerFactory}
 
 import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.mllib.linalg.{Matrices, Matrix, Vector, Vectors}
 import org.apache.spark.mllib.regression.LabeledPoint
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Dataset, Encoder, Encoders, SparkSession}
 
 /**
  * Conduct the chi-squared test for the input RDDs using the specified method.
@@ -151,6 +155,8 @@ private[spark] object ChiSqTest extends Logging {
    */
   def chiSquared(observed: Vector,
       expected: Vector = Vectors.dense(Array.empty[Double]),
+      simulatePValue: Boolean = false,
+      numDraw: Int = 50000,
       methodName: String = PEARSON.name): ChiSqTestResult = {
 
     // Validate input arguments
@@ -195,7 +201,15 @@ private[spark] object ChiSqTest extends Logging {
       }
     }
     val df = size - 1
-    val pValue = 1.0 - new ChiSquaredDistribution(df).cumulativeProbability(statistic)
+    val pValue = if (simulatePValue && !expArr.isEmpty) {
+      val spark = SparkSession.getActiveSession.getOrElse(SparkSession.getDefaultSession.get)
+      val exp: DenseVector[Double] = DenseVector(expArr.map(_ * scale))
+      val digest = getChi2Digest(spark, exp, numDraw = numDraw)
+
+      1.0 - digest.cdf(statistic)
+    } else {
+      1.0 - new ChiSquaredDistribution(df).cumulativeProbability(statistic)
+    }
     new ChiSqTestResult(pValue, df, statistic, PEARSON.name, NullHypothesis.goodnessOfFit.toString)
   }
 
@@ -250,10 +264,104 @@ private[spark] object ChiSqTest extends Logging {
     if (df == 0) {
       // 1 column or 1 row. Constant distribution is independent of anything.
       // pValue = 1.0 and statistic = 0.0 in this case.
-      new ChiSqTestResult(1.0, 0, 0.0, methodName, NullHypothesis.independence.toString)
+      new ChiSqTestResult(1.0, 0, 0.0, methodName,
+        NullHypothesis.independence.toString)
     } else {
       val pValue = 1.0 - new ChiSquaredDistribution(df).cumulativeProbability(statistic)
       new ChiSqTestResult(pValue, df, statistic, methodName, NullHypothesis.independence.toString)
     }
+  }
+
+
+  val logger: Logger = LoggerFactory.getLogger(getClass)
+
+  /** Return a digest of the empirical chi2 distribution by monte-carlo simulating the expected
+    * distribution
+    *
+    * @param spark SparkSession
+    * @param exp A vector of expected counts for each category
+    * @param numDraw The number of monte-carlo draws to perform
+    * @param numSamplesPerPart number of samples each partition/executor will draw
+    * @param k TDigest compression factor
+    *
+    * @return A TDigest of the empirical distribution of the chi2 metric for exp
+    */
+  def getChi2Digest(
+                       spark: SparkSession,
+                       exp: DenseVector[Double],
+                       numDraw: Int = 50000,
+
+                       // 1073741824 = 2**30 -> ~10 minutes per digest
+                       numSamplesPerPart: Int = 1073741824 / 50,
+                       k: Int = 1024
+                     ): TDigest = {
+    import breeze.linalg.{argmax, sum}
+
+    val expSum = sum(exp)
+    val expNorm = exp / expSum
+    val expFrac = { // cumulative sum
+      val e = (0 to expNorm.size).map { i =>
+        sum(expNorm.slice(0, i))
+      }
+      e.slice(0, e.size - 1)
+        .zip(e.slice(1, e.size)) // boundaries for exp categories
+    }
+
+    // amount of CPU 'work' to do = constant * expSum * numDraw
+    val numPart =
+      scala.math.max(1, (expSum * numDraw / numSamplesPerPart).ceil.toInt)
+
+    logger.info(
+      s"Starting MC simulation for chi2 digest with k=$k, numDraw=$numDraw, " +
+        s"exp.length=${exp.length}, exp=$exp, expSum=$expSum, numPart=$numPart")
+
+    val drawRange: Dataset[java.lang.Long] = spark
+      .range(0, numDraw, 1, numPartitions = numPart)
+
+    // Probably LOTS of room for optimization building d, but this approach works...
+    val tic = DateTime.now(DateTimeZone.UTC)
+    implicit val enc: Encoder[MergingDigest] = Encoders.kryo[MergingDigest]
+
+    val d: TDigest = drawRange.mapPartitions { part =>
+        val d: MergingDigest = new MergingDigest(k)
+        logger.debug(s"building digest")
+
+        part.foreach { drawId => // do a draw
+          logger.debug(s"drawId=$drawId adding to digest")
+
+          val obs = DenseVector.zeros[Double](exp.size)
+
+          DenseVector.rand(expSum.toInt).foreach { r: Double =>
+            val i = argmax(
+              DenseVector(
+                expFrac.map { e =>
+                  if (r >= e._1 & r <= e._2) 1 else 0
+                }: _*
+              ))
+
+            obs(i) += 1
+          }
+
+          val chi2: Double = sum(breeze.numerics.pow(obs - exp, 2) / exp)
+          d.add(chi2)
+        }
+
+        logger.info(s"built digest with ${d.size()} values")
+
+        Seq(d).toIterator
+      }.reduce { (d1: MergingDigest, d2: MergingDigest) =>
+        logger.debug(
+          s"merging digests with ${d1.size()} values and ${d2.size()} values")
+        d1.add(d2)
+        d1
+      }
+
+    val toc = DateTime.now(DateTimeZone.UTC)
+
+    logger.info(
+      s"Finished building chi2 digest in ${(toc.getMillis - tic.getMillis) / 1000.0} seconds.")
+
+    d.compress()
+    d
   }
 }
