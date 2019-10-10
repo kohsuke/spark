@@ -287,36 +287,31 @@ private[spark] object ChiSqTest extends Logging {
     * @return A TDigest of the empirical distribution of the chi2 metric for exp
     */
   def getChi2Digest(
-                       spark: SparkSession,
-                       exp: DenseVector[Double],
-                       numDraw: Int = 50000,
+      spark: SparkSession,
+      exp: DenseVector[Double],
+      numDraw: Int = 50000,
 
-                       // 1073741824 = 2**30 -> ~10 minutes per digest
-                       numSamplesPerPart: Int = 1073741824 / 50,
-                       k: Int = 1024
-                     ): TDigest = {
+      // 1073741824 = 2**30 -> ~10 minutes per digest
+      numSamplesPerPart: Int = 1073741824 / 50,
+      k: Int = 1024): TDigest = {
+
     import breeze.linalg.{argmax, sum}
 
     val expSum = sum(exp)
     val expNorm = exp / expSum
     val expFrac = { // cumulative sum
-      val e = (0 to expNorm.size).map { i =>
-        sum(expNorm.slice(0, i))
-      }
-      e.slice(0, e.size - 1)
-        .zip(e.slice(1, e.size)) // boundaries for exp categories
+      val e = (0 to expNorm.size).map{ i => sum(expNorm.slice(0, i)) }
+      e.slice(0, e.size - 1).zip(e.slice(1, e.size)) // boundaries for exp categories
     }
 
     // amount of CPU 'work' to do = constant * expSum * numDraw
-    val numPart =
-      scala.math.max(1, (expSum * numDraw / numSamplesPerPart).ceil.toInt)
+    val numPart = scala.math.max(1, (expSum * numDraw / numSamplesPerPart).ceil.toInt)
 
     logger.info(
       s"Starting MC simulation for chi2 digest with k=$k, numDraw=$numDraw, " +
         s"exp.length=${exp.length}, exp=$exp, expSum=$expSum, numPart=$numPart")
 
-    val drawRange: Dataset[java.lang.Long] = spark
-      .range(0, numDraw, 1, numPartitions = numPart)
+    val drawRange: Dataset[java.lang.Long] = spark.range(0, numDraw, 1, numPartitions = numPart)
 
     // Probably LOTS of room for optimization building d, but this approach works...
     val tic = DateTime.now(DateTimeZone.UTC)
@@ -332,12 +327,7 @@ private[spark] object ChiSqTest extends Logging {
           val obs = DenseVector.zeros[Double](exp.size)
 
           DenseVector.rand(expSum.toInt).foreach { r: Double =>
-            val i = argmax(
-              DenseVector(
-                expFrac.map { e =>
-                  if (r >= e._1 & r <= e._2) 1 else 0
-                }: _*
-              ))
+            val i = argmax(DenseVector(expFrac.map{ e => if (r >= e._1 && r <= e._2) 1 else 0}: _*))
 
             obs(i) += 1
           }
@@ -350,16 +340,14 @@ private[spark] object ChiSqTest extends Logging {
 
         Seq(d).toIterator
       }.reduce { (d1: MergingDigest, d2: MergingDigest) =>
-        logger.debug(
-          s"merging digests with ${d1.size()} values and ${d2.size()} values")
+        logger.debug(s"merging digests with ${d1.size()} values and ${d2.size()} values")
         d1.add(d2)
         d1
       }
 
     val toc = DateTime.now(DateTimeZone.UTC)
-
-    logger.info(
-      s"Finished building chi2 digest in ${(toc.getMillis - tic.getMillis) / 1000.0} seconds.")
+    val dt = (toc.getMillis - tic.getMillis) / 1000.0
+    logger.info(s"Finished building chi2 digest in $dt seconds.")
 
     d.compress()
     d
