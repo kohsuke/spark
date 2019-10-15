@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, UnresolvedAttribute
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project}
-import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableAddColumnsStatement, AlterTableAlterColumnStatement, AlterTableDropColumnsStatement, AlterTableRenameColumnStatement, AlterTableSetLocationStatement, AlterTableSetPropertiesStatement, AlterTableUnsetPropertiesStatement, AlterViewSetPropertiesStatement, AlterViewUnsetPropertiesStatement, CreateTableAsSelectStatement, CreateTableStatement, DeleteFromStatement, DescribeColumnStatement, DescribeTableStatement, DropTableStatement, DropViewStatement, InsertIntoStatement, QualifiedColType, ReplaceTableAsSelectStatement, ReplaceTableStatement, ShowNamespacesStatement, ShowTablesStatement, UpdateTableStatement}
+import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableAddColumnsStatement, AlterTableAlterColumnStatement, AlterTableDropColumnsStatement, AlterTableRenameColumnStatement, AlterTableSetLocationStatement, AlterTableSetPropertiesStatement, AlterTableUnsetPropertiesStatement, AlterViewSetPropertiesStatement, AlterViewUnsetPropertiesStatement, CreateTableAsSelectStatement, CreateTableStatement, DeleteClause, DeleteFromStatement, DescribeColumnStatement, DescribeTableStatement, DropTableStatement, DropViewStatement, InsertClause, InsertIntoStatement, MergeIntoStatement, QualifiedColType, ReplaceTableAsSelectStatement, ReplaceTableStatement, ShowNamespacesStatement, ShowTablesStatement, UpdateClause, UpdateTableStatement}
 import org.apache.spark.sql.connector.expressions.{ApplyTransform, BucketTransform, DaysTransform, FieldReference, HoursTransform, IdentityTransform, LiteralValue, MonthsTransform, Transform, YearsTransform}
 import org.apache.spark.sql.types.{IntegerType, LongType, StringType, StructType, TimestampType}
 import org.apache.spark.unsafe.types.UTF8String
@@ -829,6 +829,192 @@ class DDLParserSuite extends AnalysisTest {
     }
 
     assert(exc.getMessage.contains("Columns aliases is not allowed in UPDATE."))
+  }
+
+  test("merge into table: basic") {
+    parseCompare(
+      """
+        |MERGE INTO testcat1.ns1.ns2.tbl AS target
+        |USING testcat2.ns1.ns2.tbl AS source
+        |ON target.col1 = source.col1
+        |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+        |WHEN MATCHED AND (target.col2='update') THEN UPDATE SET target.col2 = source.col2
+        |WHEN NOT MATCHED AND (target.col2='insert')
+        |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+      """.stripMargin,
+      MergeIntoStatement(
+        Seq("testcat1", "ns1", "ns2", "tbl"),
+        Some("target"),
+        Some(Seq("testcat2", "ns1", "ns2", "tbl")),
+        None,
+        Some("source"),
+        EqualTo(UnresolvedAttribute("target.col1"), UnresolvedAttribute("source.col1")),
+        Seq(
+          DeleteClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("delete")))),
+          UpdateClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("update"))),
+            Seq(Seq("target", "col2")),
+            Seq(UnresolvedAttribute("source.col2")))),
+        Seq(
+          InsertClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("insert"))),
+            Seq(Seq("target", "col1"), Seq("target", "col2")),
+            Seq(UnresolvedAttribute("source.col1"), UnresolvedAttribute("source.col2"))))))
+  }
+
+  test("merge into table: using subquery") {
+    parseCompare(
+      """
+        |MERGE INTO testcat1.ns1.ns2.tbl AS target
+        |USING (SELECT * FROM testcat2.ns1.ns2.tbl) AS source
+        |ON target.col1 = source.col1
+        |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+        |WHEN MATCHED AND (target.col2='update') THEN UPDATE SET target.col2 = source.col2
+        |WHEN NOT MATCHED AND (target.col2='insert')
+        |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+      """.stripMargin,
+      MergeIntoStatement(
+        Seq("testcat1", "ns1", "ns2", "tbl"),
+        Some("target"),
+        None,
+        Some(Project(Seq(UnresolvedStar(None)),
+          UnresolvedRelation(Seq("testcat2", "ns1", "ns2", "tbl")))),
+        Some("source"),
+        EqualTo(UnresolvedAttribute("target.col1"), UnresolvedAttribute("source.col1")),
+        Seq(
+          DeleteClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("delete")))),
+          UpdateClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("update"))),
+            Seq(Seq("target", "col2")),
+            Seq(UnresolvedAttribute("source.col2")))),
+        Seq(
+          InsertClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("insert"))),
+            Seq(Seq("target", "col1"), Seq("target", "col2")),
+            Seq(UnresolvedAttribute("source.col1"), UnresolvedAttribute("source.col2"))))))
+  }
+
+  test("merge into table: no additional condition") {
+    parseCompare(
+      """
+        |MERGE INTO testcat1.ns1.ns2.tbl AS target
+        |USING testcat2.ns1.ns2.tbl AS source
+        |ON target.col1 = source.col1
+        |WHEN MATCHED THEN UPDATE SET target.col2 = source.col2
+        |WHEN NOT MATCHED
+        |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+      """.stripMargin,
+      MergeIntoStatement(
+        Seq("testcat1", "ns1", "ns2", "tbl"),
+        Some("target"),
+        Some(Seq("testcat2", "ns1", "ns2", "tbl")),
+        None,
+        Some("source"),
+        EqualTo(UnresolvedAttribute("target.col1"), UnresolvedAttribute("source.col1")),
+        Seq(
+          UpdateClause(None,
+            Seq(Seq("target", "col2")),
+            Seq(UnresolvedAttribute("source.col2")))),
+        Seq(
+          InsertClause(None,
+            Seq(Seq("target", "col1"), Seq("target", "col2")),
+            Seq(UnresolvedAttribute("source.col1"), UnresolvedAttribute("source.col2"))))))
+  }
+
+  test("merge into table: star") {
+    parseCompare(
+      """
+        |MERGE INTO testcat1.ns1.ns2.tbl AS target
+        |USING testcat2.ns1.ns2.tbl AS source
+        |ON target.col1 = source.col1
+        |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+        |WHEN MATCHED AND (target.col2='update') THEN UPDATE SET *
+        |WHEN NOT MATCHED AND (target.col2='insert')
+        |THEN INSERT *
+      """.stripMargin,
+      MergeIntoStatement(
+        Seq("testcat1", "ns1", "ns2", "tbl"),
+        Some("target"),
+        Some(Seq("testcat2", "ns1", "ns2", "tbl")),
+        None,
+        Some("source"),
+        EqualTo(UnresolvedAttribute("target.col1"), UnresolvedAttribute("source.col1")),
+        Seq(
+          DeleteClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("delete")))),
+          UpdateClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("update"))),
+            Seq(Seq("*")),
+            Seq(UnresolvedStar(None)))),
+        Seq(
+          InsertClause(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("insert"))),
+            Seq(Seq("*")),
+            Seq(UnresolvedStar(None))))))
+  }
+
+  test("merge into table: columns aliases is not allowed - target table") {
+    val exc = intercept[ParseException] {
+      parsePlan(
+        """
+          |MERGE INTO testcat1.ns1.ns2.tbl AS target(c1, c2)
+          |USING testcat2.ns1.ns2.tbl AS source
+          |ON target.col1 = source.col1
+          |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+          |WHEN MATCHED AND (target.col2='update') THEN UPDATE SET target.col2 = source.col2
+          |WHEN NOT MATCHED AND (target.col2='insert')
+          |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+        """.stripMargin)
+    }
+
+    assert(exc.getMessage.contains("Columns aliases is not allowed in MERGE."))
+  }
+
+  test("merge into table: columns aliases is not allowed - source table") {
+    val exc = intercept[ParseException] {
+      parsePlan(
+        """
+          |MERGE INTO testcat1.ns1.ns2.tbl AS target
+          |USING testcat2.ns1.ns2.tbl AS source(c1, c2)
+          |ON target.col1 = source.col1
+          |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+          |WHEN MATCHED AND (target.col2='update') THEN UPDATE SET target.col2 = source.col2
+          |WHEN NOT MATCHED AND (target.col2='insert')
+          |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+        """.stripMargin)
+    }
+
+    assert(exc.getMessage.contains("Columns aliases is not allowed in MERGE."))
+  }
+
+  test("merge into table: at most two matched clauses") {
+    val exc = intercept[ParseException] {
+      parsePlan(
+        """
+          |MERGE INTO testcat1.ns1.ns2.tbl AS target
+          |USING testcat2.ns1.ns2.tbl AS source
+          |ON target.col1 = source.col1
+          |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+          |WHEN MATCHED AND (target.col2='update1') THEN UPDATE SET target.col2 = source.col2
+          |WHEN MATCHED AND (target.col2='update2') THEN UPDATE SET target.col2 = source.col2
+          |WHEN NOT MATCHED AND (target.col2='insert')
+          |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+        """.stripMargin)
+    }
+
+    assert(exc.getMessage.contains("There should be at most 2 'WHEN MATCHED' clauses."))
+  }
+
+  test("merge into table: at most one not matched clause") {
+    val exc = intercept[ParseException] {
+      parsePlan(
+        """
+          |MERGE INTO testcat1.ns1.ns2.tbl AS target
+          |USING testcat2.ns1.ns2.tbl AS source
+          |ON target.col1 = source.col1
+          |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+          |WHEN MATCHED AND (target.col2='update1') THEN UPDATE SET target.col2 = source.col2
+          |WHEN NOT MATCHED AND (target.col2='insert1')
+          |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+          |WHEN NOT MATCHED AND (target.col2='insert2')
+          |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+        """.stripMargin)
+    }
+
+    assert(exc.getMessage.contains("There should be at most 1 'WHEN NOT MATCHED' clause."))
   }
 
   test("show tables") {
