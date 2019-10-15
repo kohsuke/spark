@@ -599,7 +599,7 @@ class StructType(DataType):
             if isinstance(obj, dict):
                 return tuple(f.toInternal(obj.get(n)) if c else obj.get(n)
                              for n, f, c in zip(self.names, self.fields, self._needConversion))
-            elif isinstance(obj, Row):
+            elif isinstance(obj, Row) and getattr(obj, "__from_dict__", False):
                 return self.toInternal(obj.asDict())
             elif isinstance(obj, (tuple, list)):
                 return tuple(f.toInternal(v) if c else v
