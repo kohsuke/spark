@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.plans.logical
 
-import org.apache.spark.sql.catalyst.analysis.NamedRelation
+import org.apache.spark.sql.catalyst.analysis.{NamedRelation, Star}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.plans.DescribeTableSchema
 import org.apache.spark.sql.connector.catalog.{CatalogManager, Identifier, SupportsNamespaces, TableCatalog, TableChange}
@@ -278,6 +278,35 @@ case class UpdateTable(
     condition: Option[Expression]) extends Command with SupportsSubquery {
   override def children: Seq[LogicalPlan] = table :: Nil
 }
+
+/**
+ * The logical plan of the MERGE INTO command that works for v2 tables.
+ */
+case class MergeIntoTable(
+    targetTable: LogicalPlan,
+    sourceTable: LogicalPlan,
+    mergeCondition: Expression,
+    matchedActions: Seq[MergeAction],
+    notMatchedActions: Seq[MergeAction]) extends Command with SupportsSubquery {
+  override def children: Seq[LogicalPlan] =
+    Seq(targetTable, sourceTable) ++ Nil
+  override def output: Seq[Attribute] = Seq.empty
+}
+
+sealed abstract class MergeAction(
+    condition: Option[Expression])
+
+case class DeleteAction(deleteCondition: Option[Expression]) extends MergeAction(deleteCondition)
+
+case class UpdateAction(
+    updateCondition: Option[Expression],
+    columns: Seq[Expression],
+    values: Seq[Expression]) extends MergeAction(updateCondition)
+
+case class InsertAction(
+    insertCondition: Option[Expression],
+    columns: Seq[Expression],
+    values: Seq[Expression]) extends MergeAction(insertCondition)
 
 /**
  * The logical plan of the DROP TABLE command that works for v2 tables.
