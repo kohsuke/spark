@@ -155,6 +155,10 @@ private[ui] class ThriftServerPage(parent: ThriftServerTab) extends WebUIPage(""
       val dataRows = sessionList.sortBy(_.startTimestamp).reverse
       val headerRow = Seq("User", "IP", "Session ID", "Start Time", "Finish Time", "Duration",
         "Total Execute")
+      val tooltips = Seq(None, None, None, Some(THRIFT_SESSION_START_TIME),
+        Some(THRIFT_SESSION_FINISH_TIME), Some(THRIFT_SESSION_DURATION),
+        Some(THRIFT_SESSION_TOTAL_EXECUTE))
+      assert(headerRow.length == tooltips.length)
       def generateDataRow(session: SessionInfo): Seq[Node] = {
         val sessionLink = "%s/%s/session/?id=%s".format(
           UIUtils.prependBaseUri(request, parent.basePath), parent.prefix, session.sessionId)
@@ -169,7 +173,8 @@ private[ui] class ThriftServerPage(parent: ThriftServerTab) extends WebUIPage(""
           <td> {session.totalExecution.toString} </td>
         </tr>
       }
-      Some(UIUtils.listingTable(headerRow, generateDataRow, dataRows, true, None, Seq(null), false))
+      Some(UIUtils.listingTable(headerRow, generateDataRow, dataRows, true,
+        None, Seq(null), false, tooltipHeaders = tooltips))
     } else {
       None
     }
