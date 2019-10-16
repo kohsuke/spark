@@ -290,7 +290,6 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
     case l @ LogicalRelation(baseRelation: TableScan, _, _, _) =>
       RowDataSourceScanExec(
         l.output,
-        l.output.indices,
         Set.empty,
         Set.empty,
         toCatalystRDD(l, baseRelation.buildScan()),
@@ -362,8 +361,7 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         .map(relation.attributeMap)
 
       val scan = RowDataSourceScanExec(
-        relation.output,
-        requestedColumns.map(relation.output.indexOf),
+        requestedColumns,
         pushedFilters.toSet,
         handledFilters,
         scanBuilder(requestedColumns, candidatePredicates, pushedFilters),
@@ -384,8 +382,7 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         (projectSet ++ filterSet -- handledSet).map(relation.attributeMap).toSeq
 
       val scan = RowDataSourceScanExec(
-        relation.output,
-        requestedColumns.map(relation.output.indexOf),
+        requestedColumns,
         pushedFilters.toSet,
         handledFilters,
         scanBuilder(requestedColumns, candidatePredicates, pushedFilters),
@@ -403,14 +400,7 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
       relation: LogicalRelation,
       output: Seq[Attribute],
       rdd: RDD[Row]): RDD[InternalRow] = {
-    if (relation.relation.needConversion) {
-      val converters = RowEncoder(StructType.fromAttributes(output))
-      rdd.mapPartitions { iterator =>
-        iterator.map(converters.toRow)
-      }
-    } else {
-      rdd.asInstanceOf[RDD[InternalRow]]
-    }
+    DataSourceStrategy.toCatalystRDD(relation.relation, output, rdd)
   }
 
   /**
@@ -617,5 +607,22 @@ object DataSourceStrategy {
     val handledFilters = pushedFilters.toSet -- unhandledFilters
 
     (nonconvertiblePredicates ++ unhandledPredicates, pushedFilters, handledFilters)
+  }
+
+  /**
+   * Convert RDD of Row into RDD of InternalRow with objects in catalyst types
+   */
+  private[sql] def toCatalystRDD(
+      relation: BaseRelation,
+      output: Seq[Attribute],
+      rdd: RDD[Row]): RDD[InternalRow] = {
+    if (relation.needConversion) {
+      val converters = RowEncoder(StructType.fromAttributes(output))
+      rdd.mapPartitions { iterator =>
+        iterator.map(converters.toRow)
+      }
+    } else {
+      rdd.asInstanceOf[RDD[InternalRow]]
+    }
   }
 }
