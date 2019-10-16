@@ -265,6 +265,10 @@ object DateTimeUtils {
             return None
           }
         } else if (i == 5 || i == 6) {
+          print(" b is ")
+          print(b)
+          print(" i is")
+          println(i)
           if (b == 'Z') {
             segments(i) = currentSegmentValue
             currentSegmentValue = 0
@@ -286,7 +290,7 @@ object DateTimeUtils {
             i += 1
           }
         } else {
-          if (i < 9 && (b == ':' || b == ' ')) {
+          if ((b == ':' || b == ' ')) {
             segments(i) = currentSegmentValue
             currentSegmentValue = 0
             i += 1
@@ -303,6 +307,7 @@ object DateTimeUtils {
       j += 1
     }
 
+    println(i)
     segments(i) = currentSegmentValue
     if (!justTime && i == 0 && j != 4) {
       // year should have exact four digits
