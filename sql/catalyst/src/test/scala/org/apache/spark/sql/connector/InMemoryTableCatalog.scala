@@ -31,8 +31,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 class BasicInMemoryTableCatalog extends TableCatalog {
   import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 
-  protected val tables: util.Map[Identifier, InMemoryTable] =
-    new ConcurrentHashMap[Identifier, InMemoryTable]()
+  protected val tables: util.Map[Identifier, Table] =
+    new ConcurrentHashMap[Identifier, Table]()
 
   private val invalidatedTables: util.Set[Identifier] = ConcurrentHashMap.newKeySet()
 
