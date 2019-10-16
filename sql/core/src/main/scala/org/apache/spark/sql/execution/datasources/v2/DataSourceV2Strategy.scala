@@ -25,12 +25,13 @@ import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, Attri
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateNamespace, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropNamespace, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, RefreshTable, Repartition, ReplaceTable, ReplaceTableAsSelect, SetCatalogAndNamespace, ShowNamespaces, ShowTables}
 import org.apache.spark.sql.connector.catalog.{StagingTableCatalog, TableCapability}
-import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns}
+import org.apache.spark.sql.connector.read.{Scan, ScanBuilder, SupportsPushDownFilters, SupportsPushDownRequiredColumns, V1Scan}
 import org.apache.spark.sql.connector.read.streaming.{ContinuousStream, MicroBatchStream}
-import org.apache.spark.sql.execution.{FilterExec, ProjectExec, SparkPlan}
+import org.apache.spark.sql.execution.{FilterExec, ProjectExec, RowDataSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.datasources.DataSourceStrategy
 import org.apache.spark.sql.execution.streaming.continuous.{ContinuousCoalesceExec, WriteToContinuousDataSource, WriteToContinuousDataSourceExec}
 import org.apache.spark.sql.sources
+import org.apache.spark.sql.sources.{Filter, TableScan}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 object DataSourceV2Strategy extends Strategy with PredicateHelper {
@@ -42,7 +43,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
    */
   private def pushFilters(
       scanBuilder: ScanBuilder,
-      filters: Seq[Expression]): (Seq[Expression], Seq[Expression]) = {
+      filters: Seq[Expression]): (Seq[Filter], Seq[Expression]) = {
     scanBuilder match {
       case r: SupportsPushDownFilters =>
         // A map from translated data source leaf node filters to original catalyst filter
@@ -70,11 +71,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
         val postScanFilters = r.pushFilters(translatedFilters.toArray).map { filter =>
           DataSourceStrategy.rebuildExpressionFromFilter(filter, translatedFilterToExpr)
         }
-        // The filters which are marked as pushed to this data source
-        val pushedFilters = r.pushedFilters().map { filter =>
-          DataSourceStrategy.rebuildExpressionFromFilter(filter, translatedFilterToExpr)
-        }
-        (pushedFilters, untranslatableExprs ++ postScanFilters)
+        (r.pushedFilters(), untranslatableExprs ++ postScanFilters)
 
       case _ => (Nil, filters)
     }
@@ -83,7 +80,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
   /**
    * Applies column pruning to the data source, w.r.t. the references of the given expressions.
    *
-   * @return the created `ScanConfig`(since column pruning is the last step of operator pushdown),
+   * @return the physical plan (since column pruning is the last step of operator pushdown),
    *         and new output attributes after column pruning.
    */
   // TODO: nested column pruning.
@@ -136,12 +133,39 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
            |Output: ${output.mkString(", ")}
          """.stripMargin)
 
-      val batchExec = BatchScanExec(output, scan)
+      val (scanExec, needsUnsafeConversion) = scan match {
+        case v1Scan: V1Scan =>
+          val v1Relation = v1Scan.toV1Relation()
+          if (v1Relation.schema != output.toStructType) {
+            throw new IllegalArgumentException(
+              "The fallback v1 relation reports inconsistent schema:\n" +
+                "Schema of v2 scan:     " + output.toStructType + "\n" +
+                "Schema of v1 relation: " + v1Relation.schema)
+          }
+          val rdd = v1Relation match {
+            case s: TableScan => s.buildScan()
+            case _ =>
+              throw new IllegalArgumentException(
+                "`V1Scan.toV1Relation` must return a `TableScan` instance.")
+          }
+          val unsafeRowRDD = DataSourceStrategy.toCatalystRDD(v1Relation, output, rdd)
+          val dsScan = RowDataSourceScanExec(
+            output,
+            pushedFilters.toSet,
+            pushedFilters.toSet,
+            unsafeRowRDD,
+            v1Relation,
+            tableIdentifier = None)
+          (dsScan, false)
+        case _ =>
+          val batchScan = BatchScanExec(output, scan)
+          (batchScan, !batchScan.supportsColumnar)
+      }
 
       val filterCondition = postScanFilters.reduceLeftOption(And)
-      val withFilter = filterCondition.map(FilterExec(_, batchExec)).getOrElse(batchExec)
+      val withFilter = filterCondition.map(FilterExec(_, scanExec)).getOrElse(scanExec)
 
-      val withProjection = if (withFilter.output != project || !batchExec.supportsColumnar) {
+      val withProjection = if (withFilter.output != project || needsUnsafeConversion) {
         ProjectExec(project, withFilter)
       } else {
         withFilter
