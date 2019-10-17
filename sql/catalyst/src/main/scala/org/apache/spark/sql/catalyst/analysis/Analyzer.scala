@@ -37,7 +37,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules._
 import org.apache.spark.sql.catalyst.trees.TreeNodeRef
 import org.apache.spark.sql.catalyst.util.toPrettySQL
-import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogPlugin, CatalogV2Util, Identifier, LookupCatalog, Table, TableCatalog, TableChange, V1Table}
+import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogV2Util, Identifier, LookupCatalog, Table, TableCatalog, TableChange}
 import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTransform, Transform}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
 import org.apache.spark.sql.internal.SQLConf
@@ -681,10 +681,18 @@ class Analyzer(
           .map(v2Relation => i.copy(table = v2Relation))
           .getOrElse(i)
 
+      case desc @ DescribeTable(u: UnresolvedV2Relation, _) =>
+        CatalogV2Util.loadRelation(u.catalog, u.tableName)
+            .map(rel => desc.copy(table = rel))
+            .getOrElse(desc)
+
+      case alter @ AlterTable(_, _, u: UnresolvedV2Relation, _) =>
+        CatalogV2Util.loadRelation(u.catalog, u.tableName)
+            .map(rel => alter.copy(table = rel))
+            .getOrElse(alter)
+
       case u: UnresolvedV2Relation =>
-        CatalogV2Util.loadTable(u.catalog, u.tableName).map { table =>
-          DataSourceV2Relation.create(table)
-        }.getOrElse(u)
+        CatalogV2Util.loadRelation(u.catalog, u.tableName).getOrElse(u)
     }
   }
 
