@@ -17,10 +17,14 @@
 
 package org.apache.spark.sql.expressions
 
+import scala.reflect.runtime.universe.TypeTag
+
 import org.apache.spark.annotation.Stable
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.ScalaReflection
 import org.apache.spark.sql.catalyst.expressions.{Expression, ScalaUDF}
+import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, Complete}
+import org.apache.spark.sql.execution.aggregate.ScalaAggregator
 import org.apache.spark.sql.types.{AnyDataType, DataType}
 
 /**
@@ -129,6 +133,43 @@ private[sql] case class SparkUserDefinedFunction(
   }
 
   override def asNondeterministic(): SparkUserDefinedFunction = {
+    if (!deterministic) {
+      this
+    } else {
+      copy(deterministic = false)
+    }
+  }
+}
+
+case class UserDefinedAggregator[IN: TypeTag, BUF: TypeTag, OUT: TypeTag](
+    aggregator: Aggregator[IN, BUF, OUT],
+    name: Option[String] = None,
+    nullable: Boolean = true,
+    deterministic: Boolean = true) extends UserDefinedFunction {
+
+  @scala.annotation.varargs
+  def apply(exprs: Column*): Column = {
+    val aggregateExpression =
+      AggregateExpression(
+        ScalaAggregator[IN, BUF, OUT](exprs.map(_.expr), aggregator, nullable, deterministic),
+        Complete,
+        isDistinct = false)
+    Column(aggregateExpression)
+  }
+
+  override def withName(name: String): UserDefinedAggregator[IN, BUF, OUT] = {
+    copy(name = Option(name))
+  }
+
+  override def asNonNullable(): UserDefinedAggregator[IN, BUF, OUT] = {
+    if (!nullable) {
+      this
+    } else {
+      copy(nullable = false)
+    }
+  }
+
+  override def asNondeterministic(): UserDefinedAggregator[IN, BUF, OUT] = {
     if (!deterministic) {
       this
     } else {

@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.aggregate
 
+import scala.reflect.runtime.universe.TypeTag
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Column, Row}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
@@ -526,38 +528,36 @@ case class ScalaUDIA[T](
   override def nodeName: String = udia.getClass.getSimpleName
 }
 
-case class ScalaAggregator(
+case class ScalaAggregator[IN: TypeTag, BUF: TypeTag, OUT: TypeTag](
     children: Seq[Expression],
-    agg: Aggregator[Any, Any, Any],
-    // inputType: DataType,
+    agg: Aggregator[IN, BUF, OUT],
+    isNullable: Boolean = true,
+    isDeterministic: Boolean = true,
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0)
-  extends TypedImperativeAggregate[Any]
+  extends TypedImperativeAggregate[BUF]
   with NonSQLExpression
   with UserDefinedExpression
-  // with ImplicitCastInputTypes
+  with ImplicitCastInputTypes
   with Logging {
 
-  val outputEncoder = agg.outputEncoder.asInstanceOf[ExpressionEncoder[Any]]
-  val bufferEncoder = agg.bufferEncoder.asInstanceOf[ExpressionEncoder[Any]]
-  val bufferSerializer = bufferEncoder.namedExpressions
-  val bufferDeserializer = bufferEncoder.resolveAndBind().deserializer
+  // should I bind to a particular schema, like childrenSchema, here?
+  val inputEncoder = (ExpressionEncoder[IN]()).resolveAndBind()
+  val bufferEncoder = agg.bufferEncoder.asInstanceOf[ExpressionEncoder[BUF]]
+  val outputEncoder = agg.outputEncoder.asInstanceOf[ExpressionEncoder[OUT]]
 
-  def dataType: DataType = outputEncoder.objSerializer.dataType
+  val dataType: DataType = outputEncoder.objSerializer.dataType
 
-  // val inputTypes: Seq[DataType] = Seq(inputType)
+  val inputTypes: Seq[DataType] = inputEncoder.schema.map(_.dataType)
 
-  // does this have to be hard-coded?
-  def nullable: Boolean = true
+  def nullable: Boolean = isNullable
 
-  // Aggregator-based expressions appear to be always deterministic, which seems wrong.
-  // is there a way to not hardcode this to one value?
-  override lazy val deterministic: Boolean = true
+  override lazy val deterministic: Boolean = isDeterministic
 
-  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ScalaAggregator =
+  def withNewMutableAggBufferOffset(newMutableAggBufferOffset: Int): ScalaAggregator[IN, BUF, OUT] =
     copy(mutableAggBufferOffset = newMutableAggBufferOffset)
 
-  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ScalaAggregator =
+  def withNewInputAggBufferOffset(newInputAggBufferOffset: Int): ScalaAggregator[IN, BUF, OUT] =
     copy(inputAggBufferOffset = newInputAggBufferOffset)
 
   private[this] lazy val childrenSchema: StructType = {
@@ -565,48 +565,44 @@ case class ScalaAggregator(
       case (child, index) =>
         StructField(s"input$index", child.dataType, child.nullable, Metadata.empty)
     }
-    // This requirement for exactly one input is different than UDAF
-    assert(inputFields.length == 1)
     StructType(inputFields)
   }
 
-  private lazy val inputProjection = {
+  private[this] lazy val inputProjection = {
     val inputAttributes = childrenSchema.toAttributes
     log.debug(
       s"Creating MutableProj: $children, inputSchema: $inputAttributes.")
     MutableProjection.create(children, inputAttributes)
   }
 
-  private[this] lazy val inputToScalaConverters: Any => Any =
-    CatalystTypeConverters.createToScalaConverter(childrenSchema)
+  def createAggregationBuffer(): BUF = agg.zero
 
-  def createAggregationBuffer(): Any = agg.zero
-
-  def update(buffer: Any, input: InternalRow): Any = {
-    val inrow = inputToScalaConverters(inputProjection(input)).asInstanceOf[Row]
-    // note the requirement for exactly one input
-    agg.reduce(buffer, inrow.getAs[Any](0))
+  def update(buffer: BUF, input: InternalRow): BUF = {
+    val proj = inputProjection(input)
+    val a = inputEncoder.fromRow(proj)
+    agg.reduce(buffer, a)
   }
 
-  def merge(buffer: Any, input: Any): Any = agg.merge(buffer, input)
+  def merge(buffer: BUF, input: BUF): BUF = agg.merge(buffer, input)
 
   private[this] lazy val outputToCatalystConverter: Any => Any = {
     CatalystTypeConverters.createToCatalystConverter(dataType)
   }
 
+  def eval(buffer: BUF): Any = outputToCatalystConverter(agg.finish(buffer))
+
+  private[this] lazy val bufferSerializer = bufferEncoder.namedExpressions
+  private[this] lazy val bufferDeserializer = bufferEncoder.resolveAndBind().deserializer
   private[this] lazy val bufferObjToRow = UnsafeProjection.create(bufferSerializer)
   private[this] lazy val bufferRow = new UnsafeRow(bufferSerializer.length)
   private[this] lazy val bufferRowToObject =
     GenerateSafeProjection.generate(bufferDeserializer :: Nil)
 
-  def eval(buffer: Any): Any =
-    outputToCatalystConverter(agg.finish(buffer))
+  def serialize(agg: BUF): Array[Byte] = bufferObjToRow(InternalRow(agg)).getBytes
 
-  def serialize(agg: Any): Array[Byte] = bufferObjToRow(InternalRow(agg)).getBytes
-
-  def deserialize(storageFormat: Array[Byte]): Any = {
+  def deserialize(storageFormat: Array[Byte]): BUF = {
     bufferRow.pointTo(storageFormat, storageFormat.length)
-    bufferRowToObject(bufferRow).get(0, ObjectType(classOf[Any]))
+    bufferRowToObject(bufferRow).get(0, ObjectType(classOf[Any])).asInstanceOf[BUF]
   }
 
   override def toString: String =
