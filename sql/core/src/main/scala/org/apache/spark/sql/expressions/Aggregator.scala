@@ -105,17 +105,4 @@ abstract class Aggregator[-IN, BUF, OUT] extends Serializable {
 
     new TypedColumn[IN, OUT](expr, encoderFor[OUT])
   }
-
-  @scala.annotation.varargs
-  def apply(exprs: Column*): Column = {
-    val agg = this.asInstanceOf[Aggregator[Any, Any, Any]]
-    // can inputType be sanely assigned based purely on IN?
-    // val inputType = ObjectType(classOf[Any])
-    val aggregateExpression =
-      AggregateExpression(
-        ScalaAggregator(exprs.map(_.expr), agg),
-        Complete,
-        isDistinct = false)
-    Column(aggregateExpression)
-  }
 }
