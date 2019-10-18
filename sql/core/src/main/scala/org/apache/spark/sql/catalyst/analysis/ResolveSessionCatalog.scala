@@ -249,8 +249,10 @@ class ResolveSessionCatalog(
           orCreate = c.orCreate)
       }
 
-    case d @ DropTableStatement(SessionCatalog(catalog, tableName), ifExists, purge) =>
-      DropTableCommand(d.tableName.asTableIdentifier, ifExists, isView = false, purge = purge)
+    // DropTableStatement can be used for temporary views
+    case d @ DropTableStatement(CatalogAndIdentifierParts(catalog, tableName), ifExists, purge)
+        if isSessionCatalog(catalog) =>
+      DropTableCommand(tableName.asTableIdentifier, ifExists, isView = false, purge = purge)
 
     // DropViewStatement can be used for temporary views
     case DropViewStatement(CatalogAndIdentifierParts(catalog, viewName), ifExists)
