@@ -51,6 +51,14 @@ abstract class ParsedStatement extends LogicalPlan {
   final override lazy val resolved = false
 }
 
+abstract class ParsedTableStatement extends ParsedStatement {
+  def tableName: Seq[String]
+}
+
+abstract class ParsedViewStatement extends ParsedStatement {
+  def viewName: Seq[String]
+}
+
 /**
  * A CREATE TABLE command, as parsed from SQL.
  *
@@ -133,7 +141,7 @@ case class QualifiedColType(name: Seq[String], dataType: DataType, comment: Opti
  */
 case class AlterTableAddColumnsStatement(
     tableName: Seq[String],
-    columnsToAdd: Seq[QualifiedColType]) extends ParsedStatement
+    columnsToAdd: Seq[QualifiedColType]) extends ParsedTableStatement
 
 /**
  * ALTER TABLE ... CHANGE COLUMN command, as parsed from SQL.
@@ -142,7 +150,7 @@ case class AlterTableAlterColumnStatement(
     tableName: Seq[String],
     column: Seq[String],
     dataType: Option[DataType],
-    comment: Option[String]) extends ParsedStatement
+    comment: Option[String]) extends ParsedTableStatement
 
 /**
  * ALTER TABLE ... RENAME COLUMN command, as parsed from SQL.
@@ -150,21 +158,21 @@ case class AlterTableAlterColumnStatement(
 case class AlterTableRenameColumnStatement(
     tableName: Seq[String],
     column: Seq[String],
-    newName: String) extends ParsedStatement
+    newName: String) extends ParsedTableStatement
 
 /**
  * ALTER TABLE ... DROP COLUMNS command, as parsed from SQL.
  */
 case class AlterTableDropColumnsStatement(
     tableName: Seq[String],
-    columnsToDrop: Seq[Seq[String]]) extends ParsedStatement
+    columnsToDrop: Seq[Seq[String]]) extends ParsedTableStatement
 
 /**
  * ALTER TABLE ... SET TBLPROPERTIES command, as parsed from SQL.
  */
 case class AlterTableSetPropertiesStatement(
     tableName: Seq[String],
-    properties: Map[String, String]) extends ParsedStatement
+    properties: Map[String, String]) extends ParsedTableStatement
 
 /**
  * ALTER TABLE ... UNSET TBLPROPERTIES command, as parsed from SQL.
@@ -172,21 +180,21 @@ case class AlterTableSetPropertiesStatement(
 case class AlterTableUnsetPropertiesStatement(
     tableName: Seq[String],
     propertyKeys: Seq[String],
-    ifExists: Boolean) extends ParsedStatement
+    ifExists: Boolean) extends ParsedTableStatement
 
 /**
  * ALTER TABLE ... SET LOCATION command, as parsed from SQL.
  */
 case class AlterTableSetLocationStatement(
     tableName: Seq[String],
-    location: String) extends ParsedStatement
+    location: String) extends ParsedTableStatement
 
 /**
  * ALTER VIEW ... SET TBLPROPERTIES command, as parsed from SQL.
  */
 case class AlterViewSetPropertiesStatement(
     viewName: Seq[String],
-    properties: Map[String, String]) extends ParsedStatement
+    properties: Map[String, String]) extends ParsedViewStatement
 
 /**
  * ALTER VIEW ... UNSET TBLPROPERTIES command, as parsed from SQL.
@@ -194,7 +202,7 @@ case class AlterViewSetPropertiesStatement(
 case class AlterViewUnsetPropertiesStatement(
     viewName: Seq[String],
     propertyKeys: Seq[String],
-    ifExists: Boolean) extends ParsedStatement
+    ifExists: Boolean) extends ParsedViewStatement
 
 
 /**
@@ -203,14 +211,14 @@ case class AlterViewUnsetPropertiesStatement(
 case class DropTableStatement(
     tableName: Seq[String],
     ifExists: Boolean,
-    purge: Boolean) extends ParsedStatement
+    purge: Boolean) extends ParsedTableStatement
 
 /**
  * A DROP VIEW statement, as parsed from SQL.
  */
 case class DropViewStatement(
     viewName: Seq[String],
-    ifExists: Boolean) extends ParsedStatement
+    ifExists: Boolean) extends ParsedViewStatement
 
 /**
  * A DESCRIBE TABLE tbl_name statement, as parsed from SQL.
@@ -218,7 +226,7 @@ case class DropViewStatement(
 case class DescribeTableStatement(
     tableName: Seq[String],
     partitionSpec: TablePartitionSpec,
-    isExtended: Boolean) extends ParsedStatement
+    isExtended: Boolean) extends ParsedTableStatement
 
 /**
  * A DESCRIBE TABLE tbl_name col_name statement, as parsed from SQL.
@@ -226,7 +234,7 @@ case class DescribeTableStatement(
 case class DescribeColumnStatement(
     tableName: Seq[String],
     colNameParts: Seq[String],
-    isExtended: Boolean) extends ParsedStatement
+    isExtended: Boolean) extends ParsedTableStatement
 
 /**
  * A DELETE FROM statement, as parsed from SQL.
@@ -234,7 +242,7 @@ case class DescribeColumnStatement(
 case class DeleteFromStatement(
     tableName: Seq[String],
     tableAlias: Option[String],
-    condition: Option[Expression]) extends ParsedStatement
+    condition: Option[Expression]) extends ParsedTableStatement
 
 /**
  * A UPDATE tbl_name statement, as parsed from SQL.
@@ -244,7 +252,7 @@ case class UpdateTableStatement(
     tableAlias: Option[String],
     columns: Seq[Seq[String]],
     values: Seq[Expression],
-    condition: Option[Expression]) extends ParsedStatement
+    condition: Option[Expression]) extends ParsedTableStatement
 
 /**
  * An INSERT INTO statement, as parsed from SQL.
@@ -299,7 +307,7 @@ case class UseStatement(isNamespaceSet: Boolean, nameParts: Seq[String]) extends
 case class AnalyzeTableStatement(
     tableName: Seq[String],
     partitionSpec: Map[String, Option[String]],
-    noScan: Boolean) extends ParsedStatement
+    noScan: Boolean) extends ParsedTableStatement
 
 /**
  * An ANALYZE TABLE FOR COLUMNS statement, as parsed from SQL.
@@ -307,7 +315,7 @@ case class AnalyzeTableStatement(
 case class AnalyzeColumnStatement(
     tableName: Seq[String],
     columnNames: Option[Seq[String]],
-    allColumns: Boolean) extends ParsedStatement {
+    allColumns: Boolean) extends ParsedTableStatement {
   require(columnNames.isDefined ^ allColumns, "Parameter `columnNames` or `allColumns` are " +
     "mutually exclusive. Only one of them should be specified.")
 }

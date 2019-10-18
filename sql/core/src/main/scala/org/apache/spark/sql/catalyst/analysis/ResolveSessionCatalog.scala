@@ -252,7 +252,9 @@ class ResolveSessionCatalog(
     case d @ DropTableStatement(SessionCatalog(catalog, tableName), ifExists, purge) =>
       DropTableCommand(d.tableName.asTableIdentifier, ifExists, isView = false, purge = purge)
 
-    case DropViewStatement(SessionCatalog(catalog, viewName), ifExists) =>
+    // DropViewStatement can be used for temporary views
+    case DropViewStatement(CatalogAndIdentifierParts(catalog, viewName), ifExists)
+        if isSessionCatalog(catalog) =>
       DropTableCommand(viewName.asTableIdentifier, ifExists, isView = true, purge = false)
 
     case ShowTablesStatement(Some(SessionCatalog(catalog, nameParts)), pattern) =>
@@ -324,6 +326,8 @@ class ResolveSessionCatalog(
 
   object SessionCatalog {
     def unapply(nameParts: Seq[String]): Option[(CatalogPlugin, Seq[String])] = nameParts match {
+      case AsTemporaryViewIdentifier(i) if catalogManager.v1SessionCatalog.isTemporaryTable(i) =>
+        None
       case CatalogAndIdentifierParts(catalog, parts) if isSessionCatalog(catalog) =>
         Some(catalog -> parts)
       case _ => None

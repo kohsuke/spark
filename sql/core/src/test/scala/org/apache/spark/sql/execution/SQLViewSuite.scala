@@ -124,8 +124,8 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     val viewName = "testView"
     withTempView(viewName) {
       spark.range(10).createTempView(viewName)
-      assertNoSuchTable(s"ALTER VIEW $viewName SET TBLPROPERTIES ('p' = 'an')")
-      assertNoSuchTable(s"ALTER VIEW $viewName UNSET TBLPROPERTIES ('p')")
+      assertTempViewNotSupported(s"ALTER VIEW $viewName SET TBLPROPERTIES ('p' = 'an')")
+      assertTempViewNotSupported(s"ALTER VIEW $viewName UNSET TBLPROPERTIES ('p')")
     }
   }
 
@@ -175,6 +175,11 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     intercept[NoSuchTableException] {
       sql(query)
     }
+  }
+
+  private def assertTempViewNotSupported(query: String): Unit = {
+    val e = intercept[AnalysisException](sql(query))
+    assert(e.message.contains("'testView' is a temporary view"))
   }
 
   private def assertViewNotSupported(query: String): Unit = {

@@ -32,15 +32,8 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
   import org.apache.spark.sql.connector.catalog.CatalogV2Util._
 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
-    case unresolved @ UnresolvedRelation(nameParts) =>
-      nameParts match {
-        case AsTemporaryViewIdentifier(i) if catalogManager.v1SessionCatalog.isTemporaryTable(i) =>
-          unresolved
-        case NonSessionCatalog(catalog, tableName) =>
-          UnresolvedV2Relation(nameParts, catalog.asTableCatalog, tableName.asIdentifier)
-        case _ =>
-          unresolved
-      }
+    case UnresolvedRelation(nameParts @ NonSessionCatalog(catalog, tableName)) =>
+      UnresolvedV2Relation(nameParts, catalog.asTableCatalog, tableName.asIdentifier)
 
     case AlterTableAddColumnsStatement(
          nameParts @ NonSessionCatalog(catalog, tableName), cols) =>
@@ -206,6 +199,8 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
 
   object NonSessionCatalog {
     def unapply(nameParts: Seq[String]): Option[(CatalogPlugin, Seq[String])] = nameParts match {
+      case AsTemporaryViewIdentifier(i) if catalogManager.v1SessionCatalog.isTemporaryTable(i) =>
+        None
       case CatalogAndIdentifierParts(catalog, parts) if !isSessionCatalog(catalog) =>
         Some(catalog -> parts)
       case _ => None
