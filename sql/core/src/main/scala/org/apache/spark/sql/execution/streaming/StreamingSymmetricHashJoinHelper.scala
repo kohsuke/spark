@@ -18,11 +18,10 @@
 package org.apache.spark.sql.execution.streaming
 
 import scala.reflect.ClassTag
-import scala.util.control.NonFatal
 
-import org.apache.spark.{Partition, SparkContext}
+import org.apache.spark.{Partition, SparkContext, TaskContext}
 import org.apache.spark.internal.Logging
-import org.apache.spark.rdd.{RDD, ZippedPartitionsRDD2}
+import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition, ZippedPartitionsRDD2}
 import org.apache.spark.sql.catalyst.analysis.StreamingJoinHelper
 import org.apache.spark.sql.catalyst.expressions.{Add, And, Attribute, AttributeReference, AttributeSet, BoundReference, Cast, CheckOverflow, Expression, ExpressionSet, GreaterThan, GreaterThanOrEqual, LessThan, LessThanOrEqual, Literal, Multiply, NamedExpression, PreciseTimestampConversion, PredicateHelper, Subtract, TimeAdd, TimeSub, UnaryMinus}
 import org.apache.spark.sql.catalyst.plans.logical.EventTimeWatermark._
@@ -207,13 +206,13 @@ object StreamingSymmetricHashJoinHelper extends Logging {
    */
   class StateStoreAwareZipPartitionsRDD[A: ClassTag, B: ClassTag, V: ClassTag](
       sc: SparkContext,
-      f: (Iterator[A], Iterator[B]) => Iterator[V],
-      rdd1: RDD[A],
-      rdd2: RDD[B],
+      var f: (Int, Iterator[A], Int, Iterator[B]) => Iterator[V],
+      var rdd1: RDD[A],
+      var rdd2: RDD[B],
       stateInfo: StatefulOperatorStateInfo,
       stateStoreNames: Seq[String],
       @transient private val storeCoordinator: Option[StateStoreCoordinatorRef])
-      extends ZippedPartitionsRDD2[A, B, V](sc, f, rdd1, rdd2) {
+      extends ZippedPartitionsBaseRDD[V](sc, List(rdd1, rdd2)) {
 
     /**
      * Set the preferred location of each partition using the executor that has the related
@@ -224,6 +223,19 @@ object StreamingSymmetricHashJoinHelper extends Logging {
         val stateStoreProviderId = StateStoreProviderId(stateInfo, partition.index, storeName)
         storeCoordinator.flatMap(_.getLocation(stateStoreProviderId))
       }.distinct
+    }
+
+    override def compute(s: Partition, context: TaskContext): Iterator[V] = {
+      val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
+      f(partitions(0).index, rdd1.iterator(partitions(0), context), partitions(1).index,
+        rdd2.iterator(partitions(1), context))
+    }
+
+    override def clearDependencies(): Unit = {
+      super.clearDependencies()
+      rdd1 = null
+      rdd2 = null
+      f = null
     }
   }
 
@@ -239,7 +251,7 @@ object StreamingSymmetricHashJoinHelper extends Logging {
         stateInfo: StatefulOperatorStateInfo,
         storeNames: Seq[String],
         storeCoordinator: StateStoreCoordinatorRef
-      )(f: (Iterator[T], Iterator[U]) => Iterator[V]): RDD[V] = {
+      )(f: (Int, Iterator[T], Int, Iterator[U]) => Iterator[V]): RDD[V] = {
       new StateStoreAwareZipPartitionsRDD(
         dataRDD.sparkContext, f, dataRDD, dataRDD2, stateInfo, storeNames, Some(storeCoordinator))
     }

@@ -30,6 +30,7 @@ import org.apache.spark.sql.execution.streaming.{MemoryStream, StatefulOperatorS
 import org.apache.spark.sql.execution.streaming.state.{StateStore, StateStoreProviderId}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.TestSparkSession
+import org.apache.spark.sql.types._
 import org.apache.spark.util.Utils
 
 
@@ -369,7 +370,7 @@ class StreamingInnerJoinSuite extends StreamTest with StateStoreMetricsTest with
       val rdd1 = spark.sparkContext.makeRDD(1 to 10, numPartitions)
       val rdd2 = spark.sparkContext.makeRDD((1 to 10).map(_.toString), numPartitions)
       val rdd = rdd1.stateStoreAwareZipPartitions(rdd2, stateInfo, storeNames, coordinatorRef) {
-        (left, right) => left.zip(right)
+        (_, left, _, right) => left.zip(right)
       }
       require(rdd.partitions.length === numPartitions)
       for (partIndex <- 0 until numPartitions) {
@@ -730,8 +731,7 @@ class StreamStreamJoinSuite extends StreamTest with StateStoreMetricsTest with B
       "stream-join-sql-test-context",
       sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "1")))
 
-  test("SPARK-29438: stream-batch-join union stream-stream-join") {
-
+  test("SPARK-29438: ensure UNION doesn't lead stream-stream join to use shifted partition IDs") {
     val (input1, df1) = setupStream("left", 2)
     val (input2, df2) = setupStream("right", 3)
     val (input3, df3) = setupStream("left", 4)
@@ -746,7 +746,8 @@ class StreamStreamJoinSuite extends StreamTest with StateStoreMetricsTest with B
       MultiAddData(input1, 1, 2, 3, 4, 5)(input2, 3, 4, 5, 6, 7),
       CheckNewAnswer((1, 4, 1), (3, 6, 9), (4, 8, 12), (5, 10, 15)),
       // In this batch, there is no incoming data for df3, and it will generate a empty
-      // LocalRelation.
+      // LocalRelation, which leads partition ID for some tasks to be shifted while applying
+      // union, and StateStore throws exception. SPARK-29438 fixes it.
       MultiAddData(input1, 22)(input2, 22),
       CheckNewAnswer((22, 44, 66))
     )

@@ -206,11 +206,19 @@ case class StreamingSymmetricHashJoinExec(
   }
 
   private def processPartitions(
+      leftPartitionId: Int,
       leftInputIter: Iterator[InternalRow],
+      rightPartitionId: Int,
       rightInputIter: Iterator[InternalRow]): Iterator[InternalRow] = {
     if (stateInfo.isEmpty) {
       throw new IllegalStateException(s"Cannot execute join as state info was not specified\n$this")
     }
+
+    if (leftPartitionId != rightPartitionId) {
+      throw new IllegalStateException(s"Partition ID should be same in both side: " +
+        s"left $leftPartitionId , right $rightPartitionId")
+    }
+    val partitionId = leftPartitionId
 
     val numOutputRows = longMetric("numOutputRows")
     val numUpdatedStateRows = longMetric("numUpdatedStateRows")
@@ -228,10 +236,10 @@ case class StreamingSymmetricHashJoinExec(
       newPredicate(condition.bothSides.getOrElse(Literal(true)), left.output ++ right.output).eval _
     val leftSideJoiner = new OneSideHashJoiner(
       LeftSide, left.output, leftKeys, leftInputIter,
-      condition.leftSideOnly, postJoinFilter, stateWatermarkPredicates.left)
+      condition.leftSideOnly, postJoinFilter, stateWatermarkPredicates.left, partitionId)
     val rightSideJoiner = new OneSideHashJoiner(
       RightSide, right.output, rightKeys, rightInputIter,
-      condition.rightSideOnly, postJoinFilter, stateWatermarkPredicates.right)
+      condition.rightSideOnly, postJoinFilter, stateWatermarkPredicates.right, partitionId)
 
     //  Join one side input using the other side's buffered/state rows. Here is how it is done.
     //
@@ -380,6 +388,7 @@ case class StreamingSymmetricHashJoinExec(
    * @param stateWatermarkPredicate The state watermark predicate. See
    *                                [[StreamingSymmetricHashJoinExec]] for further description of
    *                                state watermarks.
+   * @param partitionId A partition ID of source RDD.
    */
   private class OneSideHashJoiner(
       joinSide: JoinSide,
@@ -388,14 +397,16 @@ case class StreamingSymmetricHashJoinExec(
       inputIter: Iterator[InternalRow],
       preJoinFilterExpr: Option[Expression],
       postJoinFilter: (InternalRow) => Boolean,
-      stateWatermarkPredicate: Option[JoinStateWatermarkPredicate]) {
+      stateWatermarkPredicate: Option[JoinStateWatermarkPredicate],
+      partitionId: Int) {
 
     // Filter the joined rows based on the given condition.
     val preJoinFilter =
       newPredicate(preJoinFilterExpr.getOrElse(Literal(true)), inputAttributes).eval _
 
     private val joinStateManager = new SymmetricHashJoinStateManager(
-      joinSide, inputAttributes, joinKeys, stateInfo, storeConf, hadoopConfBcast.value.value)
+      joinSide, inputAttributes, joinKeys, stateInfo, storeConf, hadoopConfBcast.value.value,
+      partitionId)
     private[this] val keyGenerator = UnsafeProjection.create(joinKeys, inputAttributes)
 
     private[this] val stateKeyWatermarkPredicateFunc = stateWatermarkPredicate match {

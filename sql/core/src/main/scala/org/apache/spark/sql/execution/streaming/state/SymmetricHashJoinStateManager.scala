@@ -42,6 +42,7 @@ import org.apache.spark.util.NextIterator
  * @param stateInfo             Information about how to retrieve the correct version of state
  * @param storeConf             Configuration for the state store.
  * @param hadoopConf            Hadoop configuration for reading state data from storage
+ * @param partitionId           A partition ID of source RDD.
  *
  * Internally, the key -> multiple values is stored in two [[StateStore]]s.
  * - Store 1 ([[KeyToNumValuesStore]]) maintains mapping between key -> number of values
@@ -65,7 +66,8 @@ class SymmetricHashJoinStateManager(
     joinKeys: Seq[Expression],
     stateInfo: Option[StatefulOperatorStateInfo],
     storeConf: StateStoreConf,
-    hadoopConf: Configuration) extends Logging {
+    hadoopConf: Configuration,
+    partitionId: Int) extends Logging {
 
   import SymmetricHashJoinStateManager._
 
@@ -322,7 +324,7 @@ class SymmetricHashJoinStateManager(
     /** Get the StateStore with the given schema */
     protected def getStateStore(keySchema: StructType, valueSchema: StructType): StateStore = {
       val storeProviderId = StateStoreProviderId(
-        stateInfo.get, TaskContext.getPartitionId(), getStateStoreName(joinSide, stateStoreType))
+        stateInfo.get, partitionId, getStateStoreName(joinSide, stateStoreType))
       val store = StateStore.get(
         storeProviderId, keySchema, valueSchema, None,
         stateInfo.get.storeVersion, storeConf, hadoopConf)
