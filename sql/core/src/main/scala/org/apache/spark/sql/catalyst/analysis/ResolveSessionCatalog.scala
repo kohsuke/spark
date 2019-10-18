@@ -145,8 +145,10 @@ class ResolveSessionCatalog(
         DeleteFromTable(aliased, condition)
       }
 
+    // DescribeTableStatement can be used for temporary views
     case DescribeTableStatement(
-         nameParts @ SessionCatalog(catalog, tableName), partitionSpec, isExtended) =>
+        nameParts @ CatalogAndIdentifierParts(catalog, tableName), partitionSpec, isExtended)
+        if isSessionCatalog(catalog) =>
       loadTable(catalog, tableName.asIdentifier).collect {
         case v1Table: V1Table =>
           DescribeTableCommand(tableName.asTableIdentifier, partitionSpec, isExtended)
