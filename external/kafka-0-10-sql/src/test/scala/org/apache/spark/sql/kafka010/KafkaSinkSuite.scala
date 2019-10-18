@@ -244,55 +244,36 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
   }
 
   test("streaming - write data with valid schema but wrong types") {
+    def assertWrongType(
+        input: MemoryStream[String],
+        selectExpr: Seq[String],
+        expectErrorMsg: String): Unit = {
+      var writer: StreamingQuery = null
+      var ex: Exception = null
+      try {
+        ex = intercept[StreamingQueryException] {
+          writer = createKafkaWriter(input.toDF())(withSelectExpr = selectExpr: _*)
+          input.addData("1", "2", "3", "4", "5")
+          writer.processAllAvailable()
+        }
+      } finally {
+        writer.stop()
+      }
+      assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(expectErrorMsg))
+    }
+
     val input = MemoryStream[String]
     val topic = newTopic()
     testUtils.createTopic(topic)
 
-    var writer: StreamingQuery = null
-    var ex: Exception = null
-    try {
-      /* topic field wrong type */
-      ex = intercept[StreamingQueryException] {
-        writer = createKafkaWriter(input.toDF())(
-          withSelectExpr = s"CAST('1' as INT) as topic", "value"
-        )
-        input.addData("1", "2", "3", "4", "5")
-        writer.processAllAvailable()
-      }
-    } finally {
-      writer.stop()
-    }
-    assert(ex.getMessage.toLowerCase(Locale.ROOT).contains("topic type must be a string"))
+    assertWrongType(input, Seq("CAST('1' as INT) as topic", "value"),
+      "topic attribute type must be a string")
 
-    try {
-      /* value field wrong type */
-      ex = intercept[StreamingQueryException] {
-        writer = createKafkaWriter(input.toDF())(
-          withSelectExpr = s"'$topic' as topic", "CAST(value as INT) as value"
-        )
-        input.addData("1", "2", "3", "4", "5")
-        writer.processAllAvailable()
-      }
-    } finally {
-      writer.stop()
-    }
-    assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(
-      "value attribute type must be a string or binary"))
+    assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
+      "value attribute type must be a string or binary")
 
-    try {
-      ex = intercept[StreamingQueryException] {
-        /* key field wrong type */
-        writer = createKafkaWriter(input.toDF())(
-          withSelectExpr = s"'$topic' as topic", "CAST(value as INT) as key", "value"
-        )
-        input.addData("1", "2", "3", "4", "5")
-        writer.processAllAvailable()
-      }
-    } finally {
-      writer.stop()
-    }
-    assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(
-      "key attribute type must be a string or binary"))
+    assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
+      "key attribute type must be a string or binary")
   }
 
   test("streaming - write to non-existing topic") {

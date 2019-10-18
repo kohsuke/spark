@@ -24,7 +24,7 @@ import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.catalyst.CatalystTypeConverters
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.QueryExecution
-import org.apache.spark.sql.types.{BinaryType, MapType, StringType}
+import org.apache.spark.sql.types.{BinaryType, DataType, MapType, StringType}
 import org.apache.spark.util.Utils
 
 /**
@@ -48,7 +48,7 @@ private[kafka010] object KafkaWriter extends Logging {
       schema: Seq[Attribute],
       kafkaParameters: ju.Map[String, Object],
       topic: Option[String] = None): Unit = {
-    schema.find(_.name == TOPIC_ATTRIBUTE_NAME).getOrElse(
+    validateAttribute(schema, TOPIC_ATTRIBUTE_NAME, Seq(StringType)) { () =>
       if (topic.isEmpty) {
         throw new AnalysisException(s"topic option required when no " +
           s"'$TOPIC_ATTRIBUTE_NAME' attribute is present. Use the " +
@@ -56,35 +56,20 @@ private[kafka010] object KafkaWriter extends Logging {
       } else {
         Literal.create(topic.get, StringType)
       }
-    ).dataType match {
-      case StringType => // good
-      case _ =>
-        throw new AnalysisException(s"Topic type must be a ${StringType.catalogString}")
     }
-    schema.find(_.name == KEY_ATTRIBUTE_NAME).getOrElse(
+
+    validateAttribute(schema, KEY_ATTRIBUTE_NAME, Seq(StringType, BinaryType)) { () =>
       Literal(null, StringType)
-    ).dataType match {
-      case StringType | BinaryType => // good
-      case _ =>
-        throw new AnalysisException(s"$KEY_ATTRIBUTE_NAME attribute type " +
-          s"must be a ${StringType.catalogString} or ${BinaryType.catalogString}")
     }
-    schema.find(_.name == VALUE_ATTRIBUTE_NAME).getOrElse(
+
+    validateAttribute(schema, VALUE_ATTRIBUTE_NAME, Seq(StringType, BinaryType)) { () =>
       throw new AnalysisException(s"Required attribute '$VALUE_ATTRIBUTE_NAME' not found")
-    ).dataType match {
-      case StringType | BinaryType => // good
-      case _ =>
-        throw new AnalysisException(s"$VALUE_ATTRIBUTE_NAME attribute type " +
-          s"must be a ${StringType.catalogString} or ${BinaryType.catalogString}")
     }
-    schema.find(_.name == HEADERS_ATTRIBUTE_NAME).getOrElse(
+
+    validateAttribute(schema, HEADERS_ATTRIBUTE_NAME,
+      Seq(KafkaRecordToRowConverter.headersType)) { () =>
       Literal(CatalystTypeConverters.convertToCatalyst(null),
         KafkaRecordToRowConverter.headersType)
-    ).dataType match {
-      case KafkaRecordToRowConverter.headersType => // good
-      case _ =>
-        throw new AnalysisException(s"$HEADERS_ATTRIBUTE_NAME attribute type " +
-          s"must be a ${KafkaRecordToRowConverter.headersType.catalogString}")
     }
   }
 
@@ -99,6 +84,18 @@ private[kafka010] object KafkaWriter extends Logging {
       val writeTask = new KafkaWriteTask(kafkaParameters, schema, topic)
       Utils.tryWithSafeFinally(block = writeTask.execute(iter))(
         finallyBlock = writeTask.close())
+    }
+  }
+
+  private def validateAttribute(
+      schema: Seq[Attribute],
+      attrName: String,
+      desired: Seq[DataType])(
+      defaultFn: () => Expression): Unit = {
+    val attr = schema.find(_.name == attrName).getOrElse(defaultFn())
+    if (!desired.exists(_.sameType(attr.dataType))) {
+      throw new AnalysisException(s"$attrName attribute type must be a " +
+        desired.map(_.catalogString).mkString(" or "))
     }
   }
 }

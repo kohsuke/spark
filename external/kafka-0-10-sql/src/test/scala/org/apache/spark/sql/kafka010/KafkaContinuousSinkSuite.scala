@@ -247,6 +247,13 @@ class KafkaContinuousSinkSuite extends KafkaContinuousTest {
   }
 
   test("streaming - write data with valid schema but wrong types") {
+    def assertWrongType(df: DataFrame, selectExpr: Seq[String], expectErrorMsg: String): Unit = {
+      val ex = intercept[AnalysisException] {
+        createKafkaWriter(df)(withSelectExpr = selectExpr: _*)
+      }
+      assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(expectErrorMsg))
+    }
+
     val inputTopic = newTopic()
     testUtils.createTopic(inputTopic, partitions = 1)
 
@@ -261,31 +268,14 @@ class KafkaContinuousSinkSuite extends KafkaContinuousTest {
     val topic = newTopic()
     testUtils.createTopic(topic)
 
-    val ex = intercept[AnalysisException] {
-      /* topic field wrong type */
-      createKafkaWriter(input.toDF())(
-        withSelectExpr = s"CAST('1' as INT) as topic", "value"
-      )
-    }
-    assert(ex.getMessage.toLowerCase(Locale.ROOT).contains("topic type must be a string"))
+    assertWrongType(input.toDF(), Seq("CAST('1' as INT) as topic", "value"),
+      "topic attribute type must be a string")
 
-    val ex2 = intercept[AnalysisException] {
-      /* value field wrong type */
-      createKafkaWriter(input.toDF())(
-        withSelectExpr = s"'$topic' as topic", "CAST(value as INT) as value"
-      )
-    }
-    assert(ex2.getMessage.toLowerCase(Locale.ROOT).contains(
-      "value attribute type must be a string or binary"))
+    assertWrongType(input.toDF(), Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
+      "value attribute type must be a string or binary")
 
-    val ex3 = intercept[AnalysisException] {
-      /* key field wrong type */
-      createKafkaWriter(input.toDF())(
-        withSelectExpr = s"'$topic' as topic", "CAST(value as INT) as key", "value"
-      )
-    }
-    assert(ex3.getMessage.toLowerCase(Locale.ROOT).contains(
-      "key attribute type must be a string or binary"))
+    assertWrongType(input.toDF(), Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
+      "key attribute type must be a string or binary")
   }
 
   test("streaming - write to non-existing topic") {
