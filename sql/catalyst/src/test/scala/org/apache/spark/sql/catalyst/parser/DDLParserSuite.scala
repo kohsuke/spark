@@ -961,6 +961,16 @@ class DDLParserSuite extends AnalysisTest {
       RepairTableStatement(Seq("a", "b", "c")))
   }
 
+  test("SHOW TBLPROPERTIES table") {
+    comparePlans(
+      parsePlan("SHOW TBLPROPERTIES a.b.c"),
+      ShowTablePropertiesStatement(Seq("a", "b", "c"), None))
+
+    comparePlans(
+      parsePlan("SHOW TBLPROPERTIES a.b.c (key)"),
+      ShowTablePropertiesStatement(Seq("a", "b", "c"), Some("key")))
+  }
+
   private case class TableSpec(
       name: Seq[String],
       schema: Option[StructType],
