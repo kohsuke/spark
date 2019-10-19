@@ -967,8 +967,8 @@ class DDLParserSuite extends AnalysisTest {
       ShowTablePropertiesStatement(Seq("a", "b", "c"), None))
 
     comparePlans(
-      parsePlan("SHOW TBLPROPERTIES a.b.c (key)"),
-      ShowTablePropertiesStatement(Seq("a", "b", "c"), Some("key")))
+      parsePlan("SHOW TBLPROPERTIES a.b.c('propKey1')"),
+      ShowTablePropertiesStatement(Seq("a", "b", "c"), Some("propKey1")))
   }
 
   private case class TableSpec(
