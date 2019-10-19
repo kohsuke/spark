@@ -314,7 +314,7 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
        """.stripMargin
 
     val runInsideLoop = expressions.exists {
-      case e: LambdaVariable => true
+      case _: LambdaVariable => true
       case _ => false
     }
     val extractValueCode = if (runInsideLoop) {
