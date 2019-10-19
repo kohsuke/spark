@@ -1221,7 +1221,7 @@ class DataSourceV2SQLSuite
       assert(e1.message.contains("SHOW TBLPROPERTIES is only supported with v1 tables"))
 
       val e2 = intercept[AnalysisException] {
-        sql(s"SHOW TBLPROPERTIES $t (key)")
+        sql(s"SHOW TBLPROPERTIES $t ('propKey1')")
       }
       assert(e2.message.contains("SHOW TBLPROPERTIES is only supported with v1 tables"))
     }
