@@ -190,7 +190,7 @@ statement
         (LIKE? pattern=STRING)?                                        #showTables
     | SHOW TABLE EXTENDED ((FROM | IN) db=errorCapturingIdentifier)?
         LIKE pattern=STRING partitionSpec?                             #showTable
-    | SHOW TBLPROPERTIES table=tableIdentifier
+    | SHOW TBLPROPERTIES table=multipartIdentifier
         ('(' key=tablePropertyKey ')')?                                #showTblProperties
     | SHOW COLUMNS (FROM | IN) tableIdentifier
         ((FROM | IN) db=errorCapturingIdentifier)?                     #showColumns

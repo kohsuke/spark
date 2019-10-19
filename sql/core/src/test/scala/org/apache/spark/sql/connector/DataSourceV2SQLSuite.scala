@@ -1210,6 +1210,23 @@ class DataSourceV2SQLSuite
     }
   }
 
+  test("SHOW TBLPROPERTIES") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      spark.sql(s"CREATE TABLE $t (id bigint, data string) USING foo")
+
+      val e1 = intercept[AnalysisException] {
+        sql(s"SHOW TBLPROPERTIES $t")
+      }
+      assert(e1.message.contains("SHOW TBLPROPERTIES is only supported with v1 tables"))
+
+      val e2 = intercept[AnalysisException] {
+        sql(s"SHOW TBLPROPERTIES $t (key)")
+      }
+      assert(e2.message.contains("SHOW TBLPROPERTIES is only supported with v1 tables"))
+    }
+  }
+
   private def assertAnalysisError(sqlStatement: String, expectedError: String): Unit = {
     val errMsg = intercept[AnalysisException] {
       sql(sqlStatement)

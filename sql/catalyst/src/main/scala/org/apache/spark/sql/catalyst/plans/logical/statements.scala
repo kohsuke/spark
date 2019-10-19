@@ -316,3 +316,10 @@ case class AnalyzeColumnStatement(
  * A REPAIR TABLE statement, as parsed from SQL
  */
 case class RepairTableStatement(tableName: Seq[String]) extends ParsedStatement
+
+/**
+ * A SHOW TBLPROPERTIES statement, as parsed from SQL
+ */
+case class ShowTablePropertiesStatement(
+    tableName: Seq[String],
+    propertyKey: Option[String]) extends ParsedStatement
