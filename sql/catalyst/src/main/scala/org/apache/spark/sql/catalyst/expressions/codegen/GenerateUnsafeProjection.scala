@@ -20,6 +20,7 @@ package org.apache.spark.sql.catalyst.expressions.codegen
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReferences
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
+import org.apache.spark.sql.catalyst.expressions.objects.LambdaVariable
 import org.apache.spark.sql.types._
 
 /**
@@ -301,6 +302,7 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
     // Evaluate all the subexpression.
     val evalSubexpr = ctx.subexprFunctionsCode
 
+
     val writeExpressions = writeExpressionsToBuffer(
       ctx, ctx.INPUT_ROW, exprEvals, exprSchemas, rowWriter, isTopLevel = true)
 
@@ -310,8 +312,19 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
          |$evalSubexpr
          |$writeExpressions
        """.stripMargin
+
+    val runInsideLoop = expressions.exists {
+      case e: LambdaVariable => true
+      case _ => false
+    }
+    val extractValueCode = if (runInsideLoop) {
+      s"$rowWriter.getRow().copy()"
+    } else {
+      s"$rowWriter.getRow()"
+    }
+
     // `rowWriter` is declared as a class field, so we can access it directly in methods.
-    ExprCode(code, FalseLiteral, JavaCode.expression(s"$rowWriter.getRow()", classOf[UnsafeRow]))
+    ExprCode(code, FalseLiteral, JavaCode.expression(extractValueCode, classOf[UnsafeRow]))
   }
 
   protected def canonicalize(in: Seq[Expression]): Seq[Expression] =
