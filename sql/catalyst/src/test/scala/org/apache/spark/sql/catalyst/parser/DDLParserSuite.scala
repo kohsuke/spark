@@ -961,6 +961,29 @@ class DDLParserSuite extends AnalysisTest {
       RepairTableStatement(Seq("a", "b", "c")))
   }
 
+  test("show columns") {
+    val sql1 = "SHOW COLUMNS FROM t1"
+    val sql2 = "SHOW COLUMNS IN db1.t1"
+    val sql3 = "SHOW COLUMNS FROM t1 IN db1"
+    val sql4 = "SHOW COLUMNS FROM db1.t1 IN db2"
+
+    val parsed1 = parsePlan(sql1)
+    val expected1 = ShowColumnsStatement(None, Seq("t1"))
+    val parsed2 = parsePlan(sql2)
+    val expected2 = ShowColumnsStatement(None, Seq("db1", "t1"))
+    val parsed3 = parsePlan(sql3)
+    val expected3 = ShowColumnsStatement(Some("db1"), Seq("t1"))
+    val parsed4 = parsePlan(sql4)
+    val expected4 = ShowColumnsStatement(Some("db2"), Seq("db1", "t1"))
+
+    comparePlans(parsed1, expected1)
+    comparePlans(parsed2, expected2)
+    comparePlans(parsed3, expected3)
+    comparePlans(parsed4, expected4)
+  }
+
+
+
   private case class TableSpec(
       name: Seq[String],
       schema: Option[StructType],
