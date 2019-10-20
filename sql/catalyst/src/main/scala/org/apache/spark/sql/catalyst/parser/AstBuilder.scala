@@ -2735,7 +2735,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
    *
    * The syntax of using this command in SQL is:
    * {{{
-   *   SHOW COLUMNS (FROM | IN) table_identifier [(FROM | IN) database];
+   *   SHOW COLUMNS (FROM | IN) multi_part_name [(FROM | IN) database];
    * }}}
    */
   override def visitShowColumns(ctx: ShowColumnsContext): LogicalPlan = withOrigin(ctx) {
