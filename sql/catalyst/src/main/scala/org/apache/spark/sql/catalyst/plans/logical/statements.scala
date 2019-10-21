@@ -316,3 +316,9 @@ case class AnalyzeColumnStatement(
  * A REPAIR TABLE statement, as parsed from SQL
  */
 case class RepairTableStatement(tableName: Seq[String]) extends ParsedStatement
+
+/**
+ * A SHOW PARTITIONS statement, as parsed from SQL
+ */
+case class ShowPartitionsStatement(tableName: Seq[String],
+    partitionSpec: Option[TablePartitionSpec]) extends ParsedStatement
