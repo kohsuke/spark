@@ -18,6 +18,7 @@
 package org.apache.spark.sql.vectorized;
 
 import org.apache.spark.sql.catalyst.util.MapData;
+import org.apache.spark.sql.types.MapType;
 
 /**
  * Map abstraction in {@link ColumnVector}.
@@ -48,6 +49,11 @@ public final class ColumnarMap extends MapData {
 
   @Override
   public ColumnarMap copy() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public MapData copyUnsafeData(MapType dataType) {
     throw new UnsupportedOperationException();
   }
 }
