@@ -202,7 +202,8 @@ object StreamingSymmetricHashJoinHelper extends Logging {
   /**
    * A custom RDD that allows partitions to be "zipped" together, while ensuring the tasks'
    * preferred location is based on which executors have the required join state stores already
-   * loaded. This is class is a modified version of [[ZippedPartitionsRDD2]].
+   * loaded. This class is a variant of [[ZippedPartitionsRDD2]] which only changes signature
+   * of `f`.
    */
   class StateStoreAwareZipPartitionsRDD[A: ClassTag, B: ClassTag, V: ClassTag](
       sc: SparkContext,
