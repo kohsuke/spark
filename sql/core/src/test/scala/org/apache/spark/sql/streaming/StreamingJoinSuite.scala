@@ -711,8 +711,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
   test("SPARK-29438: ensure UNION doesn't lead stream-stream join to use shifted partition IDs") {
     def constructUnionDf(desiredPartitionsForInput1: Int)
         : (MemoryStream[Int], MemoryStream[Int], MemoryStream[Int], DataFrame) = {
-      val input1 = MemoryStream[Int](Int.MaxValue, spark.sqlContext,
-        desiredPartitionsForInput1)
+      val input1 = MemoryStream[Int](desiredPartitionsForInput1)
       val df1 = input1.toDF
         .select(
           'value as "key",
