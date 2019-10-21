@@ -26,18 +26,19 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
-import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow, QualifiedTableName}
+import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow, QualifiedTableName, TableIdentifier, expressions}
 import org.apache.spark.sql.catalyst.CatalystTypeConverters.convertToScala
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
-import org.apache.spark.sql.catalyst.expressions
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{InsertIntoDir, InsertIntoStatement, LogicalPlan, Project}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogV2Util, Identifier}
 import org.apache.spark.sql.execution.{RowDataSourceScanExec, SparkPlan}
 import org.apache.spark.sql.execution.command._
+import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, FileDataSourceV2}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
@@ -220,6 +221,9 @@ case class DataSourceAnalysis(conf: SQLConf) extends Rule[LogicalPlan] with Cast
  * data source.
  */
 class FindDataSourceTable(sparkSession: SparkSession) extends Rule[LogicalPlan] {
+  private lazy val v2Catalog = sparkSession.sessionState.catalogManager
+      .catalog(CatalogManager.SESSION_CATALOG_NAME)
+
   private def readDataSourceTable(table: CatalogTable): LogicalPlan = {
     val qualifiedTableName = QualifiedTableName(table.database, table.identifier.table)
     val catalog = sparkSession.sessionState.catalog
@@ -243,16 +247,35 @@ class FindDataSourceTable(sparkSession: SparkSession) extends Rule[LogicalPlan] 
   override def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case i @ InsertIntoStatement(UnresolvedCatalogRelation(tableMeta), _, _, _, _)
         if DDLUtils.isDatasourceTable(tableMeta) =>
-      i.copy(table = readDataSourceTable(tableMeta))
+      if (DataSource.isV2Provider(tableMeta.provider.get, sparkSession.sessionState.conf)) {
+        CatalogV2Util.loadRelation(v2Catalog, v2Identifier(tableMeta.identifier))
+            .map(r => i.copy(table = r))
+            .getOrElse(i)
+      } else {
+        i.copy(table = readDataSourceTable(tableMeta))
+      }
 
     case i @ InsertIntoStatement(UnresolvedCatalogRelation(tableMeta), _, _, _, _) =>
       i.copy(table = DDLUtils.readHiveTable(tableMeta))
 
-    case UnresolvedCatalogRelation(tableMeta) if DDLUtils.isDatasourceTable(tableMeta) =>
-      readDataSourceTable(tableMeta)
+    case u @ UnresolvedCatalogRelation(tableMeta) if DDLUtils.isDatasourceTable(tableMeta) =>
+      if (DataSource.isV2Provider(tableMeta.provider.get, sparkSession.sessionState.conf)) {
+        CatalogV2Util.loadRelation(v2Catalog, v2Identifier(tableMeta.identifier)).getOrElse(u)
+      } else {
+        readDataSourceTable(tableMeta)
+      }
 
     case UnresolvedCatalogRelation(tableMeta) =>
       DDLUtils.readHiveTable(tableMeta)
+  }
+
+  def v2Identifier(ident: TableIdentifier): Identifier = {
+    ident match {
+      case TableIdentifier(table, Some(database)) =>
+        Identifier.of(Array(database), table)
+      case TableIdentifier(table, None) =>
+        Identifier.of(Array(), table)
+    }
   }
 }
 
