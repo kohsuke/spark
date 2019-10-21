@@ -63,8 +63,8 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
    */
   def copy(): InternalRow
 
-  def copyUnsafeData(dataTypeJson: String): InternalRow = {
-    val dataType = DataType.fromJson(dataTypeJson)
+  def copyUnsafeData(dataTypeCatalogString: String): InternalRow = {
+    val dataType = DataType.fromDDL(dataTypeCatalogString)
     assert(dataType.isInstanceOf[StructType])
     copyUnsafeData(dataType.asInstanceOf[StructType])
   }

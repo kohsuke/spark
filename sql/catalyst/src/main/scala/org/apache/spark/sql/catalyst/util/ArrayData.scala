@@ -68,8 +68,8 @@ abstract class ArrayData extends SpecializedGetters with Serializable {
 
   def copy(): ArrayData
 
-  def copyUnsafeData(dataTypeJson: String): ArrayData = {
-    val dataType = DataType.fromJson(dataTypeJson)
+  def copyUnsafeData(dataTypeCatalogString: String): ArrayData = {
+    val dataType = DataType.fromDDL(dataTypeCatalogString)
     assert(dataType.isInstanceOf[ArrayType])
     copyUnsafeData(dataType.asInstanceOf[ArrayType])
   }

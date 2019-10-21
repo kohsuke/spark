@@ -35,8 +35,8 @@ abstract class MapData extends Serializable {
 
   def copy(): MapData
 
-  def copyUnsafeData(dataTypeJson: String): MapData = {
-    val dataType = DataType.fromJson(dataTypeJson)
+  def copyUnsafeData(dataTypeCatalogString: String): MapData = {
+    val dataType = DataType.fromDDL(dataTypeCatalogString)
     assert(dataType.isInstanceOf[MapType])
     copyUnsafeData(dataType.asInstanceOf[MapType])
   }
