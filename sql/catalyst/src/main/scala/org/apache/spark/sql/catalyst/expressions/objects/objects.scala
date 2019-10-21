@@ -889,8 +889,7 @@ case class MapObjects private(
 
     // Make a copy of the unsafe data if the result contains any
     def makeCopyUnsafeData(dataType: DataType, value: String) = {
-      val typeToJson = StringEscapeUtils.escapeJava(StringEscapeUtils.escapeJson(dataType.json))
-      s"""${value}.copyUnsafeData("${typeToJson}")"""
+      s"""${value}.copyUnsafeData("${dataType.catalogString}")"""
     }
 
     val genFunctionValue: String = lambdaFunction.dataType match {
