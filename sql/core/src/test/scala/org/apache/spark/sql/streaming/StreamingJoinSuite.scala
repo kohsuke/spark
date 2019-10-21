@@ -29,6 +29,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 import org.apache.spark.sql.execution.streaming.{MemoryStream, StatefulOperatorStateInfo, StreamingSymmetricHashJoinHelper}
 import org.apache.spark.sql.execution.streaming.state.{StateStore, StateStoreProviderId}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.internal.SQLConf.AUTO_BROADCASTJOIN_THRESHOLD
 import org.apache.spark.sql.test.TestSparkSession
 import org.apache.spark.sql.types._
 import org.apache.spark.util.Utils
@@ -708,48 +709,32 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
       assertNumStateRows(total = 2, updated = 2)
     )
   }
-}
-
-class StreamStreamJoinSuite extends StreamTest with StateStoreMetricsTest with BeforeAndAfter {
-  import testImplicits._
-
-  private def setupStream(prefix: String, multiplier: Int): (MemoryStream[Int], DataFrame) = {
-    val input = MemoryStream[Int]
-    val df = input.toDF()
-      .select(
-        'value as "key",
-        'value.cast("timestamp") as s"time",
-        ('value * multiplier) as s"${prefix}Value")
-      .withWatermark(s"time", "10 seconds")
-
-    (input, df)
-  }
-
-  override def createSparkSession: TestSparkSession = new TestSparkSession(
-    new SparkContext(
-      "local[10]",
-      "stream-join-sql-test-context",
-      sparkConf.set("spark.sql.autoBroadcastJoinThreshold", "1")))
 
   test("SPARK-29438: ensure UNION doesn't lead stream-stream join to use shifted partition IDs") {
-    val (input1, df1) = setupStream("left", 2)
-    val (input2, df2) = setupStream("right", 3)
-    val (input3, df3) = setupStream("left", 4)
-    val df4 = Seq((1, 1, 1)).toDF("key", "time", "rightValue")
-    val joined1 = df1.join(df2, Seq("key", "time"), "left_outer")
-      .select('key, 'leftValue, 'rightValue)
-    val joined2 = df3.join(df4, "key").select('key, 'leftValue, 'rightValue)
-    val unionDf = joined2.union(joined1)
+    withSQLConf(AUTO_BROADCASTJOIN_THRESHOLD.key -> "1") {
+      val (input1, df1) = setupStream("left", 4)
+      val df2 = Seq((11, 11, 11)).toDF("key", "time", "rightValue")
+      val (input2, df3) = setupStream("left", 2)
+      val (input3, df4) = setupStream("right", 3)
+      val joined1 = df1.join(df2, "key").select('key, 'leftValue, 'rightValue)
+      val joined2 = df3
+        .join(
+          df4,
+          df3("key") === df4("key") && df3("leftTime") === df4("rightTime"),
+          "left_outer")
+        .select(df3("key"), 'leftValue, 'rightValue)
 
-    testStream(unionDf)(
-      AddData(input3, 1, 2, 3),
-      MultiAddData(input1, 1, 2, 3, 4, 5)(input2, 3, 4, 5, 6, 7),
-      CheckNewAnswer((1, 4, 1), (3, 6, 9), (4, 8, 12), (5, 10, 15)),
-      // In this batch, there is no incoming data for df3, and it will generate a empty
-      // LocalRelation, which leads partition ID for some tasks to be shifted while applying
-      // union, and StateStore throws exception. SPARK-29438 fixes it.
-      MultiAddData(input1, 22)(input2, 22),
-      CheckNewAnswer((22, 44, 66))
-    )
+      val unionDf = joined1.union(joined2)
+
+      testStream(unionDf)(
+        AddData(input1, 11, 12, 13),
+        MultiAddData(input2, 11, 12, 13, 14, 15)(input3, 13, 14, 15, 16, 17),
+        // This triggers empty batch which leads left side of union to have less partitions
+        // if the catalyst creates broadcast join for left side of union. It leads right side
+        // of union to have mismatched partition IDs if it relies on TaskContext.partitionId().
+        // SPARK-29438 fixes this issue to not rely on TaskContext.partitionId().
+        CheckNewAnswer(Row(11, 44, 11), Row(13, 26, 39), Row(14, 28, 42), Row(15, 30, 45))
+      )
+    }
   }
 }
