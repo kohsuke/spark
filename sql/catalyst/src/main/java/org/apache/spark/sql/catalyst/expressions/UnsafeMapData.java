@@ -29,6 +29,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 import org.apache.spark.sql.catalyst.util.MapData;
+import org.apache.spark.sql.types.MapType;
 import org.apache.spark.unsafe.Platform;
 
 import static org.apache.spark.unsafe.Platform.BYTE_ARRAY_OFFSET;
@@ -133,6 +134,11 @@ public final class UnsafeMapData extends MapData implements Externalizable, Kryo
       baseObject, baseOffset, mapDataCopy, Platform.BYTE_ARRAY_OFFSET, sizeInBytes);
     mapCopy.pointTo(mapDataCopy, Platform.BYTE_ARRAY_OFFSET, sizeInBytes);
     return mapCopy;
+  }
+
+  @Override
+  public MapData copyUnsafeData(MapType dataType) {
+    return copy();
   }
 
   @Override

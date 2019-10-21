@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql.catalyst.util
 
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.types.{ArrayType, DataType, MapType, StructType}
 
 /**
  * This is an internal data representation for map type in Spark SQL. This should not implement
@@ -33,6 +34,14 @@ abstract class MapData extends Serializable {
   def valueArray(): ArrayData
 
   def copy(): MapData
+
+  def copyUnsafeData(dataTypeJson: String): MapData = {
+    val dataType = DataType.fromJson(dataTypeJson)
+    assert(dataType.isInstanceOf[MapType])
+    copyUnsafeData(dataType.asInstanceOf[MapType])
+  }
+
+  def copyUnsafeData(dataType: MapType): MapData
 
   def foreach(keyType: DataType, valueType: DataType, f: (Any, Any) => Unit): Unit = {
     val length = numElements()
