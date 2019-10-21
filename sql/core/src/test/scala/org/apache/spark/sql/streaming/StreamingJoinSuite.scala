@@ -718,8 +718,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
       val (input3, df4) = setupStream("right", 3)
       val joined1 = df1.join(df2, "key").select('key, 'leftValue, 'rightValue)
       val joined2 = df3
-        .join(
-          df4,
+        .join(df4,
           df3("key") === df4("key") && df3("leftTime") === df4("rightTime"),
           "left_outer")
         .select(df3("key"), 'leftValue, 'rightValue)
