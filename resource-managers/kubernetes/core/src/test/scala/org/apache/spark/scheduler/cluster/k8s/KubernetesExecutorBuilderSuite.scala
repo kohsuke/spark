@@ -33,7 +33,7 @@ class KubernetesExecutorBuilderSuite extends PodBuilderSuite {
     sparkConf.set("spark.driver.host", "https://driver.host.com")
     val conf = KubernetesTestConf.createExecutorConf(sparkConf = sparkConf)
     val secMgr = new SecurityManager(sparkConf)
-    new KubernetesExecutorBuilder().buildFromFeatures(conf, secMgr, client).sparkPod
+    new KubernetesExecutorBuilder().buildFromFeatures(conf, secMgr, client)
   }
 
 }
