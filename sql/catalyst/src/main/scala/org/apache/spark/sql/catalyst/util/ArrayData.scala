@@ -68,6 +68,69 @@ abstract class ArrayData extends SpecializedGetters with Serializable {
 
   def copy(): ArrayData
 
+  def copyUnsafeData(dataTypeJson: String): ArrayData = {
+    val dataType = DataType.fromJson(dataTypeJson)
+    assert(dataType.isInstanceOf[ArrayType])
+    copyUnsafeData(dataType.asInstanceOf[ArrayType])
+  }
+
+  def copyUnsafeData(dataType: ArrayType): ArrayData = {
+    def updateRetIfNecessary(
+        ret: ArrayData,
+        field: AnyRef,
+        newField: AnyRef,
+        idx: Int): ArrayData = {
+      var newRet: ArrayData = ret
+      if (field.ne(newField)) {
+        if (newRet == null) newRet = this.copy()
+        if (newField != null) {
+          newRet.update(idx, newField)
+        } else {
+          newRet.setNullAt(idx)
+        }
+      }
+      newRet
+    }
+
+    var ret: ArrayData = null
+    dataType.elementType match {
+      case ty: StructType =>
+        val len = numElements()
+        var i = 0
+        while (i < len) {
+          val field = getStruct(i, ty.size)
+          val newField = field.copyUnsafeData(ty)
+          ret = updateRetIfNecessary(ret, field, newField, i)
+          i += 1
+        }
+        if (ret != null) ret else this
+
+      case ty: ArrayType =>
+        val len = numElements()
+        var i = 0
+        while (i < len) {
+          val field = getArray(i)
+          val newField = field.copyUnsafeData(ty)
+          ret = updateRetIfNecessary(ret, field, newField, i)
+          i += 1
+        }
+        if (ret != null) ret else this
+
+      case ty: MapType =>
+        val len = numElements()
+        var i = 0
+        while (i < len) {
+          val field = getMap(i)
+          val newField = field.copyUnsafeData(ty)
+          ret = updateRetIfNecessary(ret, field, newField, i)
+          i += 1
+        }
+        if (ret != null) ret else this
+
+      case _ => this
+    }
+  }
+
   def array: Array[Any]
 
   def toSeq[T](dataType: DataType): IndexedSeq[T] =

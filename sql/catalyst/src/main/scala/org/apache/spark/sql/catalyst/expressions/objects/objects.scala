@@ -24,6 +24,8 @@ import scala.collection.mutable.Builder
 import scala.reflect.ClassTag
 import scala.util.Try
 
+import org.apache.commons.text.StringEscapeUtils
+
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.serializer._
 import org.apache.spark.sql.Row
@@ -885,13 +887,16 @@ case class MapObjects private(
         )
     }
 
-    // Make a copy of the data if it's unsafe-backed
-    def makeCopyIfInstanceOf(clazz: Class[_ <: Any], value: String) =
-      s"$value instanceof ${clazz.getSimpleName}? ${value}.copy() : $value"
+    // Make a copy of the unsafe data if the result contains any
+    def makeCopyUnsafeData(dataType: DataType, value: String) = {
+      val typeToJson = StringEscapeUtils.escapeJava(StringEscapeUtils.escapeJson(dataType.json))
+      s"""${value}.copyUnsafeData("${typeToJson}")"""
+    }
+
     val genFunctionValue: String = lambdaFunction.dataType match {
-      case StructType(_) => makeCopyIfInstanceOf(classOf[UnsafeRow], genFunction.value)
-      case ArrayType(_, _) => makeCopyIfInstanceOf(classOf[UnsafeArrayData], genFunction.value)
-      case MapType(_, _, _) => makeCopyIfInstanceOf(classOf[UnsafeMapData], genFunction.value)
+      case ty: StructType => makeCopyUnsafeData(ty, genFunction.value)
+      case ty: ArrayType => makeCopyUnsafeData(ty, genFunction.value)
+      case ty: MapType => makeCopyUnsafeData(ty, genFunction.value)
       case _ => genFunction.value
     }
 

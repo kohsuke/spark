@@ -63,6 +63,53 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
    */
   def copy(): InternalRow
 
+  def copyUnsafeData(dataTypeJson: String): InternalRow = {
+    val dataType = DataType.fromJson(dataTypeJson)
+    assert(dataType.isInstanceOf[StructType])
+    copyUnsafeData(dataType.asInstanceOf[StructType])
+  }
+
+  def copyUnsafeData(dataType: StructType): InternalRow = {
+    def updateRetIfNecessary(
+        ret: InternalRow,
+        field: AnyRef,
+        newField: AnyRef,
+        idx: Int): InternalRow = {
+      var newRet: InternalRow = ret
+      if (field.ne(newField)) {
+        if (newRet == null) newRet = this.copy()
+        if (newField != null) {
+          newRet.update(idx, newField)
+        } else {
+          newRet.setNullAt(idx)
+        }
+      }
+      newRet
+    }
+
+    var ret: InternalRow = null
+    dataType.map(_.dataType).zipWithIndex.foreach {
+      case (ty: StructType, idx) =>
+        val field = getStruct(idx, ty.size)
+        val newField = field.copyUnsafeData(ty)
+        ret = updateRetIfNecessary(ret, field, newField, idx)
+
+      case (ty: ArrayType, idx) =>
+        val field = getArray(idx)
+        val newField = field.copyUnsafeData(ty)
+        ret = updateRetIfNecessary(ret, field, newField, idx)
+
+      case (ty: MapType, idx) =>
+        val field = getMap(idx)
+        val newField = field.copyUnsafeData(ty)
+        ret = updateRetIfNecessary(ret, field, newField, idx)
+
+      case _ =>
+    }
+
+    if (ret != null) ret else this
+  }
+
   /** Returns true if there are any NULL values in this row. */
   def anyNull: Boolean = {
     val len = numFields

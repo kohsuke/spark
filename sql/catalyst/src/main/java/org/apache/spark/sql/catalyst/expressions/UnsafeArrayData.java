@@ -366,6 +366,11 @@ public final class UnsafeArrayData extends ArrayData implements Externalizable, 
   }
 
   @Override
+  public ArrayData copyUnsafeData(ArrayType dataType) {
+    return copy();
+  }
+
+  @Override
   public boolean[] toBooleanArray() {
     boolean[] values = new boolean[numElements];
     Platform.copyMemory(

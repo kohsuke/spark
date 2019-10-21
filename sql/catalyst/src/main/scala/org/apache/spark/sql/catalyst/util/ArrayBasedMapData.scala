@@ -19,6 +19,8 @@ package org.apache.spark.sql.catalyst.util
 
 import java.util.{Map => JavaMap}
 
+import org.apache.spark.sql.types.{ArrayType, MapType}
+
 /**
  * A simple `MapData` implementation which is backed by 2 arrays.
  *
@@ -34,6 +36,22 @@ class ArrayBasedMapData(val keyArray: ArrayData, val valueArray: ArrayData) exte
 
   override def toString: String = {
     s"keys: $keyArray, values: $valueArray"
+  }
+
+  override def copyUnsafeData(dataType: MapType): MapData = {
+    val keyType = dataType.keyType
+    val valueType = dataType.valueType
+
+    val keyArr = keyArray
+    val valueArr = valueArray
+    val newKeyArray = keyArr.copyUnsafeData(ArrayType(keyType))
+    val newValueArray = valueArr.copyUnsafeData(ArrayType(valueType))
+
+    if (keyArr.ne(newKeyArray) || valueArr.ne(newValueArray)) {
+      new ArrayBasedMapData(newKeyArray, newValueArray)
+    } else {
+      this
+    }
   }
 }
 

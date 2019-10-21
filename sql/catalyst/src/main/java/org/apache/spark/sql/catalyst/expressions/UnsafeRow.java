@@ -468,6 +468,11 @@ public final class UnsafeRow extends InternalRow implements Externalizable, Kryo
     return rowCopy;
   }
 
+  @Override
+  public InternalRow copyUnsafeData(StructType dataType) {
+    return copy();
+  }
+
   /**
    * Creates an empty UnsafeRow from a byte array with specified numBytes and numFields.
    * The returned row is invalid until we call copyFrom on it.
