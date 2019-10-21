@@ -26,7 +26,7 @@ import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogPlugin, Lo
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, AlterTableSetLocationCommand, AlterTableSetPropertiesCommand, AlterTableUnsetPropertiesCommand, AnalyzeColumnCommand, AnalyzePartitionCommand, AnalyzeTableCommand, DescribeColumnCommand, DescribeTableCommand, DropTableCommand, ShowTablesCommand}
 import org.apache.spark.sql.execution.datasources.{CreateTable, DataSource}
-import org.apache.spark.sql.execution.datasources.v2.FileDataSourceV2
+import org.apache.spark.sql.execution.datasources.v2.{DataSourceV2Relation, FileDataSourceV2}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{HIVE_TYPE_STRING, HiveStringType, MetadataBuilder, StructField, StructType}
 
@@ -179,7 +179,7 @@ class ResolveSessionCatalog(
     // session catalog and the table provider is not v2.
     case c @ CreateTableStatement(
          SessionCatalog(catalog, tableName), _, _, _, _, _, _, _, _, _) =>
-      if (!isV2Provider(c.provider)) {
+      if (!DataSource.isV2Provider(c.provider, conf)) {
         val tableDesc = buildCatalogTable(c.tableName.asTableIdentifier, c.tableSchema,
           c.partitioning, c.bucketSpec, c.properties, c.provider, c.options, c.location,
           c.comment, c.ifNotExists)
@@ -198,7 +198,7 @@ class ResolveSessionCatalog(
 
     case c @ CreateTableAsSelectStatement(
          SessionCatalog(catalog, tableName), _, _, _, _, _, _, _, _, _) =>
-      if (!isV2Provider(c.provider)) {
+      if (!DataSource.isV2Provider(c.provider, conf)) {
         val tableDesc = buildCatalogTable(c.tableName.asTableIdentifier, new StructType,
           c.partitioning, c.bucketSpec, c.properties, c.provider, c.options, c.location,
           c.comment, c.ifNotExists)
@@ -220,7 +220,7 @@ class ResolveSessionCatalog(
     // session catalog and the table provider is not v2.
     case c @ ReplaceTableStatement(
          SessionCatalog(catalog, tableName), _, _, _, _, _, _, _, _, _) =>
-      if (!isV2Provider(c.provider)) {
+      if (!DataSource.isV2Provider(c.provider, conf)) {
         throw new AnalysisException("REPLACE TABLE is only supported with v2 tables.")
       } else {
         ReplaceTable(
@@ -235,7 +235,7 @@ class ResolveSessionCatalog(
 
     case c @ ReplaceTableAsSelectStatement(
          SessionCatalog(catalog, tableName), _, _, _, _, _, _, _, _, _) =>
-      if (!isV2Provider(c.provider)) {
+      if (!DataSource.isV2Provider(c.provider, conf)) {
         throw new AnalysisException("REPLACE TABLE AS SELECT is only supported with v2 tables.")
       } else {
         ReplaceTableAsSelect(
@@ -350,14 +350,5 @@ class ResolveSessionCatalog(
       cleanedDataType,
       nullable = true,
       builder.build())
-  }
-
-  private def isV2Provider(provider: String): Boolean = {
-    DataSource.lookupDataSourceV2(provider, conf) match {
-      // TODO(SPARK-28396): Currently file source v2 can't work with tables.
-      case Some(_: FileDataSourceV2) => false
-      case Some(_) => true
-      case _ => false
-    }
   }
 }

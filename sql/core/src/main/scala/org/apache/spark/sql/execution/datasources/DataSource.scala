@@ -730,6 +730,16 @@ object DataSource extends Logging {
     }
   }
 
+
+  def isV2Provider(provider: String, conf: SQLConf): Boolean = {
+    DataSource.lookupDataSourceV2(provider, conf) match {
+      // TODO(SPARK-28396): Currently file source v2 can't work with tables.
+      case Some(_: FileDataSourceV2) => false
+      case Some(_) => true
+      case _ => false
+    }
+  }
+
   /**
    * Checks and returns files in all the paths.
    */
