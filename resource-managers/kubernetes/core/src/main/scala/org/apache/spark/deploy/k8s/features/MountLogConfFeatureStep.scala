@@ -26,7 +26,6 @@ import io.fabric8.kubernetes.api.model.{ConfigMap, ConfigMapBuilder, ContainerBu
 import org.apache.spark.deploy.k8s.{Config, KubernetesConf, SparkPod}
 import org.apache.spark.deploy.k8s.Constants._
 import org.apache.spark.internal.Logging
-import org.apache.spark.launcher.SparkLauncher
 import org.apache.spark.launcher.SparkLauncher.{DRIVER_EXTRA_JAVA_OPTIONS, EXECUTOR_EXTRA_JAVA_OPTIONS}
 
 /**
@@ -42,9 +41,6 @@ class MountLogConfFeatureStep(conf: KubernetesConf)
   private val loggingConfURL: URL = this.getClass.getClassLoader.getResource(loggingConfigFileName)
 
   private val featureEnabled: Boolean = {
-    // TODO: Currently this feature is not supported for client mode in kubernetes.
-    conf.sparkConf.get(SparkLauncher.DEPLOY_MODE)
-      .equalsIgnoreCase("cluster") &&
       (loggingConfURL != null || useExistingConfigMap)
   }
   private val loggerJVMProp = s"$JAVA_OPT_FOR_LOGGING${loggingConfigFileName}"
@@ -67,9 +63,8 @@ class MountLogConfFeatureStep(conf: KubernetesConf)
       .build()
     } else {
       logDebug(
-        s"""
-           |Logging configuration not found and use existing config map was: $useExistingConfigMap.
-           |Logger not configured, going ahead with the defaults.""".stripMargin)
+        s"Logging configuration not found and use existing config map was: $useExistingConfigMap." +
+           "Spark logging not configured, going ahead with the defaults.")
       pod.pod
     }
 

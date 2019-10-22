@@ -22,17 +22,7 @@ import org.apache.spark.deploy.k8s.{Config, KubernetesTestConf, SparkPod}
 import org.apache.spark.launcher.SparkLauncher
 
 class MountLogConfFeatureStepSuite extends SparkFunSuite {
-
-  test("Don't enable mount logging conf feature, if client mode is selected.") {
-    val sparkConf = new SparkConf(false)
-      .set(SparkLauncher.DEPLOY_MODE, "client")
-    val conf = KubernetesTestConf.createDriverConf(sparkConf = sparkConf)
-    val step = new MountLogConfFeatureStep(conf)
-    val initPod = SparkPod.initialPod()
-    val configuredPod = step.configurePod(initPod)
-    assert(configuredPod == initPod, "Pod unchanged if client mode is selected.")
-  }
-
+  // TODO add more tests.
   test("Do not enable mount logging conf feature," +
     " if neither of logging configuration file or user defined config map is configured.") {
     val sparkConf = new SparkConf(false)
