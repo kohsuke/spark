@@ -267,13 +267,13 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
     testUtils.createTopic(topic)
 
     assertWrongType(input, Seq("CAST('1' as INT) as topic", "value"),
-      "topic attribute type must be a string")
+      "topic must be a string")
 
     assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
-      "value attribute type must be a string or binary")
+      "value must be a string or binary")
 
     assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
-      "key attribute type must be a string or binary")
+      "key must be a string or binary")
   }
 
   test("streaming - write to non-existing topic") {

@@ -94,8 +94,9 @@ private[kafka010] object KafkaWriter extends Logging {
       defaultFn: () => Expression): Unit = {
     val attr = schema.find(_.name == attrName).getOrElse(defaultFn())
     if (!desired.exists(_.sameType(attr.dataType))) {
-      throw new AnalysisException(s"$attrName attribute type must be a " +
-        desired.map(_.catalogString).mkString(" or "))
+      throw new AnalysisException(s"$attrName attribute unsupported type " +
+        s"${attr.dataType.catalogString}. $attrName must be a " +
+        s"${desired.map(_.catalogString).mkString(" or ")}")
     }
   }
 }

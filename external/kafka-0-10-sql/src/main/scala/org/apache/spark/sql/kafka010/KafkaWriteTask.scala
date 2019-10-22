@@ -120,16 +120,17 @@ private[kafka010] abstract class KafkaRowWriter(
     def assertDataType(attrName: String, desired: Seq[DataType], actual: DataType): Unit = {
       if (!desired.exists(_.sameType(actual))) {
         throw new IllegalStateException(s"$attrName attribute unsupported type " +
-          s"${actual.catalogString}")
+          s"${actual.catalogString}. $attrName must be a " +
+          s"${desired.map(_.catalogString).mkString(" or ")}")
       }
     }
 
-    val topicExpression = topic.map(Literal(_)).orElse {
-      inputSchema.find(_.name == KafkaWriter.TOPIC_ATTRIBUTE_NAME)
-    }.getOrElse {
-      throw new IllegalStateException(s"topic option required when no " +
-        s"'${KafkaWriter.TOPIC_ATTRIBUTE_NAME}' attribute is present")
-    }
+    val topicExpression = topic.map(Literal(_)).getOrElse(
+      expression(KafkaWriter.TOPIC_ATTRIBUTE_NAME) { () =>
+        throw new IllegalStateException(s"topic option required when no " +
+          s"'${KafkaWriter.TOPIC_ATTRIBUTE_NAME}' attribute is present")
+      }
+    )
     assertDataType(KafkaWriter.TOPIC_ATTRIBUTE_NAME, Seq(StringType), topicExpression.dataType)
 
     val keyExpression = expression(KafkaWriter.KEY_ATTRIBUTE_NAME)(() => Literal(null, BinaryType))

@@ -247,11 +247,11 @@ class KafkaContinuousSinkSuite extends KafkaContinuousTest {
   }
 
   test("streaming - write data with valid schema but wrong types") {
-    def assertWrongType(df: DataFrame, selectExpr: Seq[String], expectErrorMsg: String): Unit = {
+    def assertWrongType(df: DataFrame, selectExpr: Seq[String], expectedErrorMsg: String): Unit = {
       val ex = intercept[AnalysisException] {
         createKafkaWriter(df)(withSelectExpr = selectExpr: _*)
       }
-      assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(expectErrorMsg))
+      assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(expectedErrorMsg))
     }
 
     val inputTopic = newTopic()
@@ -265,17 +265,18 @@ class KafkaContinuousSinkSuite extends KafkaContinuousTest {
       .option("startingOffsets", "earliest")
       .load()
       .selectExpr("CAST(value as STRING) value")
+      .toDF()
     val topic = newTopic()
     testUtils.createTopic(topic)
 
-    assertWrongType(input.toDF(), Seq("CAST('1' as INT) as topic", "value"),
-      "topic attribute type must be a string")
+    assertWrongType(input, Seq("CAST('1' as INT) as topic", "value"),
+      "topic must be a string")
 
-    assertWrongType(input.toDF(), Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
-      "value attribute type must be a string or binary")
+    assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
+      "value must be a string or binary")
 
-    assertWrongType(input.toDF(), Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
-      "key attribute type must be a string or binary")
+    assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
+      "key must be a string or binary")
   }
 
   test("streaming - write to non-existing topic") {
