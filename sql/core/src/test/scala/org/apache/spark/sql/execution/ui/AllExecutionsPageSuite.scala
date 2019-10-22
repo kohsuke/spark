@@ -26,6 +26,7 @@ import scala.xml.Node
 import org.mockito.Mockito.{mock, when, RETURNS_SMART_NULLS}
 import org.scalatest.BeforeAndAfter
 
+import org.apache.spark.ui.UIUtils
 import org.apache.spark.scheduler.{JobFailed, SparkListenerJobEnd, SparkListenerJobStart}
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.execution.{SparkPlanInfo, SQLExecution}
@@ -73,8 +74,34 @@ class AllExecutionsPageSuite extends SharedSparkSession with BeforeAndAfter {
     map.put("failed.sort", Array("duration"))
     when(request.getParameterMap()).thenReturn(map)
     val html = renderSQLPage(request, tab, statusStore).toString().toLowerCase(Locale.ROOT)
-    assert(!html.contains("IllegalArgumentException"))
+    assert(!html.contains("illegalargumentexception"))
     assert(html.contains("duration"))
+  }
+
+  test("Display tooltips for SQL page") {
+    val statusStore = createStatusStore
+    val tab = mock(classOf[SQLTab], RETURNS_SMART_NULLS)
+    val request = mock(classOf[HttpServletRequest])
+
+    when(tab.sqlStore).thenReturn(statusStore)
+    when(tab.appName).thenReturn("testing")
+    when(tab.headerTabs).thenReturn(Seq.empty)
+    when(request.getParameter("failed.sort")).thenReturn("Duration")
+    val map = new util.HashMap[String, Array[String]]()
+    map.put("failed.sort", Array("duration"))
+    when(request.getParameterMap()).thenReturn(map)
+    val html = renderSQLPage(request, tab, statusStore).toString().toLowerCase(Locale.ROOT)
+    val headerNameWithTooltips = UIUtils.getHeaderNameWithTooltips()
+
+    assert(html.contains(headerNameWithTooltips("ID").toLowerCase(Locale.ROOT)))
+    assert(html.contains(headerNameWithTooltips("Submitted").toLowerCase(Locale.ROOT)))
+    assert(html.contains(headerNameWithTooltips("Description").toLowerCase(Locale.ROOT)))
+    assert(html.contains(headerNameWithTooltips("Duration").toLowerCase(Locale.ROOT)))
+    assert(html.contains(headerNameWithTooltips("Succeeded Job IDs").toLowerCase(Locale.ROOT)))
+    assert(html.contains(headerNameWithTooltips("Failed Job IDs").toLowerCase(Locale.ROOT)))
+    assert(html.contains(headerNameWithTooltips("Job IDs").toLowerCase(Locale.ROOT)))
+    assert(!html.contains(headerNameWithTooltips("Running Job IDs").toLowerCase(Locale.ROOT)))
+    assert(!html.contains("illegalargumentexception"))
   }
 
 

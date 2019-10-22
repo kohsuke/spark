@@ -572,4 +572,24 @@ private[spark] object UIUtils extends Logging {
   def buildErrorResponse(status: Response.Status, msg: String): Response = {
     Response.status(status).entity(msg).`type`(MediaType.TEXT_PLAIN).build()
   }
+
+  def getHeaderNameWithTooltips(): Map[String, String] = {
+    val headerNameWithTooltips: Map[String, String] = Map("ID" -> "Execution ID of the SQL query.",
+      "Duration" ->
+        "Difference between start time and close time.",
+      "Running Job IDs" ->
+        "Id's of running jobs.",
+      "Succeeded Job IDs" ->
+        "Id's of succeeded jobs.",
+      "Failed Job IDs" ->
+        "Id's of failed jobs.",
+      "Description" ->
+        ("Description of the SQL query. When click on the description link," +
+          " it will navigate to query details page."),
+      "Submitted" -> "Submitted",
+      "Job IDs" -> "Job IDs")
+
+    headerNameWithTooltips
+  }
+
 }
