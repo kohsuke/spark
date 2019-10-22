@@ -73,8 +73,33 @@ class AllExecutionsPageSuite extends SharedSparkSession with BeforeAndAfter {
     map.put("failed.sort", Array("duration"))
     when(request.getParameterMap()).thenReturn(map)
     val html = renderSQLPage(request, tab, statusStore).toString().toLowerCase(Locale.ROOT)
-    assert(!html.contains("IllegalArgumentException"))
+    assert(!html.contains("illegalargumentexception"))
     assert(html.contains("duration"))
+  }
+
+  test("SPARK-29453: correctly display tooltips for SQL Tab") {
+    val statusStore = createStatusStore
+    val tab = mock(classOf[SQLTab], RETURNS_SMART_NULLS)
+    val request = mock(classOf[HttpServletRequest])
+
+    when(tab.sqlStore).thenReturn(statusStore)
+    when(tab.appName).thenReturn("testing")
+    when(tab.headerTabs).thenReturn(Seq.empty)
+    when(request.getParameter("failed.sort")).thenReturn("Duration")
+    val map = new util.HashMap[String, Array[String]]()
+    map.put("failed.sort", Array("duration"))
+    when(request.getParameterMap()).thenReturn(map)
+    val html = renderSQLPage(request, tab, statusStore).toString().toLowerCase(Locale.ROOT)
+
+    assert(!html.contains("illegalargumentexception"))
+    assert(!html.contains("title=\"job ids\""))
+    assert(!html.contains(ToolTips.SQL_TAB_RUNNING_JOB_IDS.toLowerCase(Locale.ROOT)))
+    assert(html.contains(ToolTips.SQL_TAB_ID.toLowerCase(Locale.ROOT)))
+    assert(html.contains(ToolTips.SQL_TAB_DESCRIPTION.toLowerCase(Locale.ROOT)))
+    assert(html.contains(ToolTips.SQL_TAB_SUBMITTED.toLowerCase(Locale.ROOT)))
+    assert(html.contains(ToolTips.SQL_TAB_DURATION.toLowerCase(Locale.ROOT)))
+    assert(html.contains(ToolTips.SQL_TAB_SUCCEEDED_JOB_IDS.toLowerCase(Locale.ROOT)))
+    assert(html.contains(ToolTips.SQL_TAB_FAILED_JOB_IDS.toLowerCase(Locale.ROOT)))
   }
 
 
