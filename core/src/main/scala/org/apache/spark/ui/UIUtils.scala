@@ -572,4 +572,5 @@ private[spark] object UIUtils extends Logging {
   def buildErrorResponse(status: Response.Status, msg: String): Response = {
     Response.status(status).entity(msg).`type`(MediaType.TEXT_PLAIN).build()
   }
+
 }

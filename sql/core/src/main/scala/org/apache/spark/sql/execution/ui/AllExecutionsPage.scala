@@ -39,7 +39,6 @@ private[ui] class AllExecutionsPage(parent: SQLTab) extends WebUIPage("") with L
     val running = new mutable.ArrayBuffer[SQLExecutionUIData]()
     val completed = new mutable.ArrayBuffer[SQLExecutionUIData]()
     val failed = new mutable.ArrayBuffer[SQLExecutionUIData]()
-
     sqlStore.executionsList().foreach { e =>
       val isRunning = e.completionTime.isEmpty ||
         e.jobs.exists { case (_, status) => status == JobExecutionStatus.RUNNING }
@@ -290,6 +289,32 @@ private[ui] class ExecutionPagedTable(
         }
       }
 
+    var headerNameWithTooltips: Map[String, String] = Map("ID" -> "Execution ID of the SQL query.",
+      "Description" ->
+        ("Description of the SQL query. When click on the description link," +
+          " it will navigate to query details page."),
+      "Submitted" -> "Submitted",
+      "Duration" ->
+        "Difference between start time and close time.")
+
+      if (showRunningJobs && showSucceededJobs && showFailedJobs) {
+        headerNameWithTooltips += ("Running Job IDs" ->
+          "Id's of running jobs.",
+          "Succeeded Job IDs" ->
+            "Id's of succeeded jobs.",
+          "Failed Job IDs" ->
+            "Id's of failed jobs.")
+      } else if (showSucceededJobs && showFailedJobs) {
+        headerNameWithTooltips += ("Succeeded Job IDs" ->
+          "Id's of succeeded jobs.",
+          "Failed Job IDs" ->
+            "Id's of failed jobs.")
+      } else {
+        headerNameWithTooltips += ("Job IDs" -> "Job IDs")
+      }
+
+    assert(executionHeadersAndCssClasses.length == headerNameWithTooltips.size)
+
     val sortableColumnHeaders = executionHeadersAndCssClasses.filter {
       case (_, sortable) => sortable
     }.map { case (title, _) => title }
@@ -298,6 +323,11 @@ private[ui] class ExecutionPagedTable(
 
     val headerRow: Seq[Node] = {
       executionHeadersAndCssClasses.map { case (header, sortable) =>
+
+        val headerTooltip = {
+          headerNameWithTooltips(header)
+        }
+
         if (header == sortColumn) {
           val headerLink = Unparsed(
             parameterPath +
@@ -309,7 +339,8 @@ private[ui] class ExecutionPagedTable(
 
           <th>
             <a href={headerLink}>
-              {header}<span>
+              <span data-toggle="tooltip" data-placement="top" title={headerTooltip}>
+        {header}</span><span>
               &nbsp;{Unparsed(arrow)}
             </span>
             </a>
@@ -324,12 +355,16 @@ private[ui] class ExecutionPagedTable(
 
             <th>
               <a href={headerLink}>
-                {header}
+                <span data-toggle="tooltip" data-placement="top" title={headerTooltip}>
+                  {header}
+                </span>
               </a>
             </th>
           } else {
             <th>
-              {header}
+              <span data-toggle="tooltip" data-placement="top" title={headerTooltip}>
+                {header}
+              </span>
             </th>
           }
         }
@@ -339,6 +374,7 @@ private[ui] class ExecutionPagedTable(
       {headerRow}
     </thead>
   }
+
 
   override def row(executionTableRow: ExecutionTableRowData): Seq[Node] = {
     val executionUIData = executionTableRow.executionUIData
@@ -384,7 +420,8 @@ private[ui] class ExecutionPagedTable(
 
   private def descriptionCell(execution: SQLExecutionUIData): Seq[Node] = {
     val details = if (execution.details != null && execution.details.nonEmpty) {
-      <span onclick="this.parentNode.querySelector('.stage-details').classList.toggle('collapsed')"
+      <span
+      onclick="this.parentNode.querySelector('.stage-details').classList.toggle('collapsed')"
             class="expand-details">
         +details
       </span> ++
@@ -397,9 +434,16 @@ private[ui] class ExecutionPagedTable(
 
     val desc = if (execution.description != null && execution.description.nonEmpty) {
       <a href={executionURL(execution.executionId)} class="description-input">
-        {execution.description}</a>
+        <span
+        data-toggle="tooltip" data-placement="top" title="Click to navigate query details page.">
+          {execution.description}
+      </span></a>
     } else {
-      <a href={executionURL(execution.executionId)}>{execution.executionId}</a>
+      <a href={executionURL(execution.executionId)}>
+        <span
+        data-toggle="tooltip" data-placement="top" title="Click to navigate query details page.">
+          {execution.executionId}
+        </span></a>
     }
 
     <div>{desc}{details}</div>

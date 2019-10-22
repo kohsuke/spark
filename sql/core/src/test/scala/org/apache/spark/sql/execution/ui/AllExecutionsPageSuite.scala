@@ -77,7 +77,6 @@ class AllExecutionsPageSuite extends SharedSparkSession with BeforeAndAfter {
     assert(html.contains("duration"))
   }
 
-
   private def createStatusStore: SQLAppStatusStore = {
     val conf = sparkContext.conf
     kvstore = new ElementTrackingStore(new InMemoryStore, conf)
