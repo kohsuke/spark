@@ -25,15 +25,10 @@ from pyspark.ml.regression import LinearRegression
 from pyspark.ml.wrapper import _java2py, _py2java, JavaParams, JavaWrapper
 from pyspark.testing.mllibutils import MLlibTestCase
 from pyspark.testing.mlutils import SparkSessionTestCase
+from pyspark.testing.utils import eventually
 
 
 class JavaWrapperMemoryTests(SparkSessionTestCase):
-
-    @unittest.skipIf(
-        os.environ.get("PYSPARK_PIN_THREAD", "false").lower() == "true",
-        "When the thread is pinned between Python and JVM, detaching seems not "
-        "working. This is potentially a bug in Py4J and SPARK-18630 can be persistent when "
-        "PYSPARK_PIN_THREAD is enabled, skipping for now.")
     def test_java_object_gets_detached(self):
         df = self.spark.createDataFrame([(1.0, 2.0, Vectors.dense(1.0)),
                                          (0.0, 2.0, Vectors.sparse(1, [], []))],
@@ -56,19 +51,27 @@ class JavaWrapperMemoryTests(SparkSessionTestCase):
 
         model.__del__()
 
-        with self.assertRaisesRegexp(py4j.protocol.Py4JError, error_no_object):
-            model._java_obj.toString()
-        self.assertIn("LinearRegressionTrainingSummary", summary._java_obj.toString())
+        def condition():
+            with self.assertRaisesRegexp(py4j.protocol.Py4JError, error_no_object):
+                model._java_obj.toString()
+            self.assertIn("LinearRegressionTrainingSummary", summary._java_obj.toString())
+            return True
+
+        eventually(condition, timeout=10, catch_assertions=True)
 
         try:
             summary.__del__()
         except:
             pass
 
-        with self.assertRaisesRegexp(py4j.protocol.Py4JError, error_no_object):
-            model._java_obj.toString()
-        with self.assertRaisesRegexp(py4j.protocol.Py4JError, error_no_object):
-            summary._java_obj.toString()
+        def condition():
+            with self.assertRaisesRegexp(py4j.protocol.Py4JError, error_no_object):
+                model._java_obj.toString()
+            with self.assertRaisesRegexp(py4j.protocol.Py4JError, error_no_object):
+                summary._java_obj.toString()
+            return True
+
+        eventually(condition, timeout=10, catch_assertions=True)
 
 
 class WrapperTests(MLlibTestCase):
