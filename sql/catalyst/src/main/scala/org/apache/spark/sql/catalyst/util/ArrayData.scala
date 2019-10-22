@@ -83,11 +83,7 @@ abstract class ArrayData extends SpecializedGetters with Serializable {
       var newRet: ArrayData = ret
       if (field.ne(newField)) {
         if (newRet == null) newRet = this.copy()
-        if (newField != null) {
-          newRet.update(idx, newField)
-        } else {
-          newRet.setNullAt(idx)
-        }
+        newRet.update(idx, newField)
       }
       newRet
     }
@@ -98,9 +94,11 @@ abstract class ArrayData extends SpecializedGetters with Serializable {
         val len = numElements()
         var i = 0
         while (i < len) {
-          val field = getStruct(i, ty.size)
-          val newField = field.copyUnsafeData(ty)
-          ret = updateRetIfNecessary(ret, field, newField, i)
+          if (!isNullAt(i)) {
+            val field = getStruct(i, ty.size)
+            val newField = field.copyUnsafeData(ty)
+            ret = updateRetIfNecessary(ret, field, newField, i)
+          }
           i += 1
         }
         if (ret != null) ret else this
@@ -109,9 +107,11 @@ abstract class ArrayData extends SpecializedGetters with Serializable {
         val len = numElements()
         var i = 0
         while (i < len) {
-          val field = getArray(i)
-          val newField = field.copyUnsafeData(ty)
-          ret = updateRetIfNecessary(ret, field, newField, i)
+          if (!isNullAt(i)) {
+            val field = getArray(i)
+            val newField = field.copyUnsafeData(ty)
+            ret = updateRetIfNecessary(ret, field, newField, i)
+          }
           i += 1
         }
         if (ret != null) ret else this
@@ -120,9 +120,11 @@ abstract class ArrayData extends SpecializedGetters with Serializable {
         val len = numElements()
         var i = 0
         while (i < len) {
-          val field = getMap(i)
-          val newField = field.copyUnsafeData(ty)
-          ret = updateRetIfNecessary(ret, field, newField, i)
+          if (!isNullAt(i)) {
+            val field = getMap(i)
+            val newField = field.copyUnsafeData(ty)
+            ret = updateRetIfNecessary(ret, field, newField, i)
+          }
           i += 1
         }
         if (ret != null) ret else this

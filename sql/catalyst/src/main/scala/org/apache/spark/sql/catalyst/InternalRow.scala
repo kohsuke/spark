@@ -78,11 +78,7 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
       var newRet: InternalRow = ret
       if (field.ne(newField)) {
         if (newRet == null) newRet = this.copy()
-        if (newField != null) {
-          newRet.update(idx, newField)
-        } else {
-          newRet.setNullAt(idx)
-        }
+        newRet.update(idx, newField)
       }
       newRet
     }
@@ -90,19 +86,25 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
     var ret: InternalRow = null
     dataType.map(_.dataType).zipWithIndex.foreach {
       case (ty: StructType, idx) =>
-        val field = getStruct(idx, ty.size)
-        val newField = field.copyUnsafeData(ty)
-        ret = updateRetIfNecessary(ret, field, newField, idx)
+        if (!isNullAt(idx)) {
+          val field = getStruct(idx, ty.size)
+          val newField = field.copyUnsafeData(ty)
+          ret = updateRetIfNecessary(ret, field, newField, idx)
+        }
 
       case (ty: ArrayType, idx) =>
-        val field = getArray(idx)
-        val newField = field.copyUnsafeData(ty)
-        ret = updateRetIfNecessary(ret, field, newField, idx)
+        if (!isNullAt(idx)) {
+          val field = getArray(idx)
+          val newField = field.copyUnsafeData(ty)
+          ret = updateRetIfNecessary(ret, field, newField, idx)
+        }
 
       case (ty: MapType, idx) =>
-        val field = getMap(idx)
-        val newField = field.copyUnsafeData(ty)
-        ret = updateRetIfNecessary(ret, field, newField, idx)
+        if (!isNullAt(idx)) {
+          val field = getMap(idx)
+          val newField = field.copyUnsafeData(ty)
+          ret = updateRetIfNecessary(ret, field, newField, idx)
+        }
 
       case _ =>
     }
