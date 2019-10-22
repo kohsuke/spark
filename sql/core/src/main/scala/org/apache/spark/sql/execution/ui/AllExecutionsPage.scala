@@ -296,8 +296,23 @@ private[ui] class ExecutionPagedTable(
 
     require(sortableColumnHeaders.contains(sortColumn), s"Unknown column: $sortColumn")
 
+    def getHeaderTooltips(header: String): String = header match {
+      case "ID" => ToolTips.SQL_TAB_ID
+      case "Description" => ToolTips.SQL_TAB_DESCRIPTION
+      case "Submitted" => ToolTips.SQL_TAB_SUBMITTED
+      case "Duration" => ToolTips.SQL_TAB_DURATION
+      case "Running Job IDs" => ToolTips.SQL_TAB_RUNNING_JOB_IDS
+      case "Succeeded Job IDs" => ToolTips.SQL_TAB_SUCCEEDED_JOB_IDS
+      case "Failed Job IDs" => ToolTips.SQL_TAB_FAILED_JOB_IDS
+      case "Job IDs" => header
+      case unknownColumn => throw new IllegalArgumentException(s"Unknown column: $unknownColumn")
+    }
+
     val headerRow: Seq[Node] = {
       executionHeadersAndCssClasses.map { case (header, sortable) =>
+
+        val headerTooltip = getHeaderTooltips(header)
+
         if (header == sortColumn) {
           val headerLink = Unparsed(
             parameterPath +
@@ -309,7 +324,8 @@ private[ui] class ExecutionPagedTable(
 
           <th>
             <a href={headerLink}>
-              {header}<span>
+              <span data-toggle="tooltip" data-placement="top" title={headerTooltip}>
+        {header}</span><span>
               &nbsp;{Unparsed(arrow)}
             </span>
             </a>
@@ -324,12 +340,16 @@ private[ui] class ExecutionPagedTable(
 
             <th>
               <a href={headerLink}>
-                {header}
+                <span data-toggle="tooltip" data-placement="top" title={headerTooltip}>
+                  {header}
+                </span>
               </a>
             </th>
           } else {
             <th>
-              {header}
+              <span data-toggle="tooltip" data-placement="top" title={headerTooltip}>
+                {header}
+              </span>
             </th>
           }
         }
@@ -384,7 +404,8 @@ private[ui] class ExecutionPagedTable(
 
   private def descriptionCell(execution: SQLExecutionUIData): Seq[Node] = {
     val details = if (execution.details != null && execution.details.nonEmpty) {
-      <span onclick="this.parentNode.querySelector('.stage-details').classList.toggle('collapsed')"
+      <span
+      onclick="this.parentNode.querySelector('.stage-details').classList.toggle('collapsed')"
             class="expand-details">
         +details
       </span> ++
@@ -397,9 +418,16 @@ private[ui] class ExecutionPagedTable(
 
     val desc = if (execution.description != null && execution.description.nonEmpty) {
       <a href={executionURL(execution.executionId)} class="description-input">
-        {execution.description}</a>
+        <span
+        data-toggle="tooltip" data-placement="top" title="Click to navigate query details page.">
+          {execution.description}
+      </span></a>
     } else {
-      <a href={executionURL(execution.executionId)}>{execution.executionId}</a>
+      <a href={executionURL(execution.executionId)}>
+        <span
+        data-toggle="tooltip" data-placement="top" title="Click to navigate query details page.">
+          {execution.executionId}
+        </span></a>
     }
 
     <div>{desc}{details}</div>
