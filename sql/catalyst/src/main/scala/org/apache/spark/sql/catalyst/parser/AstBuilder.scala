@@ -2863,4 +2863,23 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   override def visitRefreshTable(ctx: RefreshTableContext): LogicalPlan = withOrigin(ctx) {
     RefreshTableStatement(visitMultipartIdentifier(ctx.multipartIdentifier()))
   }
+
+  /**
+   * A command for users to list the column names for a table.
+   * This function creates a [[ShowColumnsStatement]] logical plan.
+   *
+   * The syntax of using this command in SQL is:
+   * {{{
+   *   SHOW COLUMNS (FROM | IN)
+        ((tableName=errorCapturingIdentifier (FROM | IN) namespace=multipartIdentifier) |
+        table=multipartIdentifier)
+   * }}}
+   */
+  override def visitShowColumns(ctx: ShowColumnsContext): LogicalPlan = withOrigin(ctx) {
+    if (ctx.namespace != null) {
+      ShowColumnsStatement(visitMultipartIdentifier(ctx.namespace) :+ ctx.tableName.getText)
+    } else {
+      ShowColumnsStatement(visitMultipartIdentifier(ctx.table))
+    }
+  }
 }

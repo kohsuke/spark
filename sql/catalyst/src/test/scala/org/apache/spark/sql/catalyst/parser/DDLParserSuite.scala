@@ -1104,6 +1104,32 @@ class DDLParserSuite extends AnalysisTest {
       RefreshTableStatement(Seq("a", "b", "c")))
   }
 
+  test("show columns") {
+    val sql1 = "SHOW COLUMNS FROM t1"
+    val sql2 = "SHOW COLUMNS IN db2.db1.t1"
+    val sql3 = "SHOW COLUMNS FROM t1 IN db1"
+    val sql4 = "SHOW COLUMNS FROM t1 FROM db2.db1"
+    val sql5 = "SHOW COLUMNS FROM db1.t1 IN db2"
+
+    val parsed1 = parsePlan(sql1)
+    val expected1 = ShowColumnsStatement(Seq("t1"))
+    val parsed2 = parsePlan(sql2)
+    val expected2 = ShowColumnsStatement(Seq("db1", "t1"))
+    val parsed3 = parsePlan(sql3)
+    val parsed4 = parsePlan(sql4)
+    val expected4 = ShowColumnsStatement(Seq("db2", "db1", "t1"))
+
+    val e1 = intercept[AnalysisException] {
+      parsePlan(sql5)
+    }
+    assert(e1.message.contains("mismatched input"))
+
+    comparePlans(parsed1, expected1)
+    comparePlans(parsed2, expected4)
+    comparePlans(parsed3, expected2)
+    comparePlans(parsed4, expected4)
+  }
+
   private case class TableSpec(
       name: Seq[String],
       schema: Option[StructType],

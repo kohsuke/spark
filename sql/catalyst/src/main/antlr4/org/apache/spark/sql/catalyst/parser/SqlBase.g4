@@ -196,8 +196,10 @@ statement
         LIKE pattern=STRING partitionSpec?                             #showTable
     | SHOW TBLPROPERTIES table=tableIdentifier
         ('(' key=tablePropertyKey ')')?                                #showTblProperties
-    | SHOW COLUMNS (FROM | IN) tableIdentifier
-        ((FROM | IN) db=errorCapturingIdentifier)?                     #showColumns
+    | SHOW COLUMNS (FROM | IN)
+        ((tableName=errorCapturingIdentifier
+          (FROM | IN) namespace=multipartIdentifier) |
+        table=multipartIdentifier)                                     #showColumns
     | SHOW PARTITIONS multipartIdentifier partitionSpec?               #showPartitions
     | SHOW identifier? FUNCTIONS
         (LIKE? (qualifiedName | pattern=STRING))?                      #showFunctions
