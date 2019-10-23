@@ -50,12 +50,12 @@ class ChiSqTestSuite extends SparkFunSuite with MLlibTestSparkContext with Loggi
 
   test("simulated/empirical chi2 test") {
     val passResult: ChiSqTestResult =
-      ChiSqTest.chiSquared(observedGood, expected, simulatePValue = true)
+      ChiSqTest.chiSquared(observedGood, expected, simulatePValue = true, numDraw = 5000)
     assert(passResult.degreesOfFreedom === 1, "degreesOfFreedom calculated correctly")
     assert(passResult.pValue > 0.05, "pValue indicates that test passed")
 
     val failResult: ChiSqTestResult =
-      ChiSqTest.chiSquared(observedBad, expected, simulatePValue = true)
+      ChiSqTest.chiSquared(observedBad, expected, simulatePValue = true, numDraw = 5000)
     assert(failResult.degreesOfFreedom === 1, "degreesOfFreedom calculated correctly")
     assert(failResult.pValue < 0.05, "pValue indicates that test failed")
   }
