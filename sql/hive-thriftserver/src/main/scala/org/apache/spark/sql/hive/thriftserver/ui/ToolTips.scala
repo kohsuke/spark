@@ -41,4 +41,13 @@ private[ui] object ToolTips {
 
   val THRIFT_SESSION_DURATION =
     "Active duration of the session."
+
+  val THRIFT_SESSION_USER =
+    "User of the session."
+
+  val THRIFT_SESSION_IP =
+    "IP of the session."
+
+  val THRIFT_SESSION_ID =
+    "Session Id which links to the session information."
 }
