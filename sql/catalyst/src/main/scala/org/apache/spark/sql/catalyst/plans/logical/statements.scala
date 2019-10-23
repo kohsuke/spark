@@ -329,3 +329,12 @@ case class TruncateTableStatement(
  */
 case class ShowPartitionsStatement(tableName: Seq[String],
     partitionSpec: Option[TablePartitionSpec]) extends ParsedStatement
+
+/**
+ * A CREATE TABLE LIKE statement, as parsed from SQL
+ */
+case class CreateTableLikeStatement(
+    targetTable: Seq[String],
+    sourceTable: Seq[String],
+    location: Option[String],
+    ifNotExists: Boolean) extends ParsedStatement

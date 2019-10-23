@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogPlugin, LookupCatalog, TableChange, V1Table}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, AlterTableRecoverPartitionsCommand, AlterTableSetLocationCommand, AlterTableSetPropertiesCommand, AlterTableUnsetPropertiesCommand, AnalyzeColumnCommand, AnalyzePartitionCommand, AnalyzeTableCommand, DescribeColumnCommand, DescribeTableCommand, DropTableCommand, ShowPartitionsCommand, ShowTablesCommand, TruncateTableCommand}
+import org.apache.spark.sql.execution.command._
 import org.apache.spark.sql.execution.datasources.{CreateTable, DataSource}
 import org.apache.spark.sql.execution.datasources.v2.FileDataSourceV2
 import org.apache.spark.sql.internal.SQLConf
@@ -294,6 +294,11 @@ class ResolveSessionCatalog(
       ShowPartitionsCommand(
         v1TableName.asTableIdentifier,
         partitionSpec)
+
+    case CreateTableLikeStatement(targetTable, sourceTable, location, ifNotExists) =>
+      val v1targetTable = parseV1Table(targetTable, "CREATE TABLE LIKE").asTableIdentifier
+      val v1sourceTable = parseV1Table(sourceTable, "CREATE TABLE LIKE").asTableIdentifier
+      CreateTableLikeCommand(v1targetTable, v1sourceTable, location, ifNotExists)
   }
 
   private def parseV1Table(tableName: Seq[String], sql: String): Seq[String] = {

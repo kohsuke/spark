@@ -2759,4 +2759,20 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val partitionKeys = Option(ctx.partitionSpec).map(visitNonOptionalPartitionSpec)
     ShowPartitionsStatement(table, partitionKeys)
   }
+
+  /**
+   * Create a [[CreateTableLikeCommand]] command.
+   *
+   * For example:
+   * {{{
+   *   CREATE TABLE [IF NOT EXISTS] multi_part_table_name
+   *   LIKE existing_multi_part_table_name [locationSpec]
+   * }}}
+   */
+  override def visitCreateTableLike(ctx: CreateTableLikeContext): LogicalPlan = withOrigin(ctx) {
+    val targetTable = visitMultipartIdentifier(ctx.target)
+    val sourceTable = visitMultipartIdentifier(ctx.source)
+    val location = Option(ctx.locationSpec).map(visitLocationSpec)
+    CreateTableLikeStatement(targetTable, sourceTable, location, ctx.EXISTS != null)
+  }
 }
