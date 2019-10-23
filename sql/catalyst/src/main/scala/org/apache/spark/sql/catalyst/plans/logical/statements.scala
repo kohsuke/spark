@@ -316,3 +316,12 @@ case class AnalyzeColumnStatement(
  * A REPAIR TABLE statement, as parsed from SQL
  */
 case class RepairTableStatement(tableName: Seq[String]) extends ParsedStatement
+
+/**
+ * A CREATE TABLE LIKE statement, as parsed from SQL
+ */
+case class CreateTableLikeStatement(
+    targetTable: Seq[String],
+    sourceTable: Seq[String],
+    location: Option[String],
+    ifNotExists: Boolean) extends ParsedStatement
