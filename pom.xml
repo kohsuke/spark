@@ -688,6 +688,12 @@
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-graphite</artifactId>
         <version>${codahale.metrics.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.rabbitmq</groupId>
+            <artifactId>amqp-client</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
