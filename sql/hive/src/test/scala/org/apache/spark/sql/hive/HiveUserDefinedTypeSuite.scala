@@ -36,17 +36,16 @@ class HiveUserDefinedTypeSuite extends QueryTest {
 
   test("Support UDT in Hive UDF") {
     val functionName = "get_point_x"
-    val sql = spark.sql _
     try {
       val schema = new StructType().add("point", new ExamplePointUDT)
       val inputGenerator = RandomDataGenerator.forType(schema, nullable = false).get
       val input = inputGenerator.apply().asInstanceOf[Row]
       val df = spark.createDataFrame(Array(input).toList.asJava, schema)
       df.createOrReplaceTempView("src")
-      sql(s"CREATE FUNCTION $functionName AS '$functionClass'")
+      spark.sql(s"CREATE FUNCTION $functionName AS '$functionClass'")
 
       checkAnswer(
-        sql(s"SELECT $functionName(point) FROM src"),
+        spark.sql(s"SELECT $functionName(point) FROM src"),
         Row(input.getAs[ExamplePoint](0).x))
     } catch {
       case cause: Throwable => throw cause
