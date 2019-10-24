@@ -820,8 +820,6 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     }
   }
 
-
-
   /**
    * Create a [[CatalogStorageFormat]] for creating tables.
    *
