@@ -216,6 +216,11 @@ class ResolveSessionCatalog(
           ignoreIfExists = c.ifNotExists)
       }
 
+    case CreateTableLikeStatement(targetTable, sourceTable, location, ifNotExists) =>
+      val v1targetTable = parseV1Table(targetTable, "CREATE TABLE LIKE").asTableIdentifier
+      val v1sourceTable = parseV1Table(sourceTable, "CREATE TABLE LIKE").asTableIdentifier
+      CreateTableLikeCommand(v1targetTable, v1sourceTable, location, ifNotExists)
+
     case RefreshTableStatement(SessionCatalog(_, tableName)) =>
       RefreshTable(tableName.asTableIdentifier)
 
@@ -318,11 +323,6 @@ class ResolveSessionCatalog(
       ShowPartitionsCommand(
         v1TableName.asTableIdentifier,
         partitionSpec)
-
-    case CreateTableLikeStatement(targetTable, sourceTable, location, ifNotExists) =>
-      val v1targetTable = parseV1Table(targetTable, "CREATE TABLE LIKE").asTableIdentifier
-      val v1sourceTable = parseV1Table(sourceTable, "CREATE TABLE LIKE").asTableIdentifier
-      CreateTableLikeCommand(v1targetTable, v1sourceTable, location, ifNotExists)
   }
 
   private def parseV1Table(tableName: Seq[String], sql: String): Seq[String] = {

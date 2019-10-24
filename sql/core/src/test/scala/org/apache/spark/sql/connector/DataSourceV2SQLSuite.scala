@@ -1292,13 +1292,6 @@ class DataSourceV2SQLSuite
     }
   }
 
-  private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
-    val e = intercept[AnalysisException] {
-      sql(s"$sqlCommand $sqlParams")
-    }
-    assert(e.message.contains(s"$sqlCommand is only supported with v1 tables"))
-  }
-
   test("CREATE TABLE LIKE") {
     val targetTable = "testcat.ns1.ns2.tbl1"
     val sourceTable = "testcat.ns1.ns2.tbl2"
@@ -1313,14 +1306,20 @@ class DataSourceV2SQLSuite
       }
       assert(e2.message.contains("CREATE TABLE LIKE is only supported with v1 tables"))
 
-      withTempDir { tmpDir =>
-        val e3 = intercept[AnalysisException] {
-          sql(s"CREATE TABLE IF NOT EXISTS $targetTable LIKE " +
-            s"$sourceTable LOCATION '${tmpDir.toURI.toString}'")
-        }
-        assert(e3.message.contains("CREATE TABLE LIKE is only supported with v1 tables"))
+
+      val e3 = intercept[AnalysisException] {
+        sql(s"CREATE TABLE IF NOT EXISTS $targetTable LIKE " +
+          s"$sourceTable LOCATION 'AnyLocation'")
       }
+      assert(e3.message.contains("CREATE TABLE LIKE is only supported with v1 tables"))
     }
+  }
+  
+  private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
+    val e = intercept[AnalysisException] {
+      sql(s"$sqlCommand $sqlParams")
+    }
+    assert(e.message.contains(s"$sqlCommand is only supported with v1 tables"))
   }
 
   private def assertAnalysisError(sqlStatement: String, expectedError: String): Unit = {
