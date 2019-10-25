@@ -209,113 +209,40 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
     val topic = newTopic()
     testUtils.createTopic(topic)
 
-    /* No topic field or topic option */
-    var writer: StreamingQuery = null
-    var ex: Exception = try {
-      intercept[StreamingQueryException] {
-        writer = createKafkaWriter(input.toDF())(
-          withSelectExpr = "value as key", "value"
-        )
-        input.addData("1", "2", "3", "4", "5")
-        writer.processAllAvailable()
-      }
-    } finally {
-      if (writer != null) writer.stop()
-    }
-    assert(ex.getMessage
-      .toLowerCase(Locale.ROOT)
-      .contains("topic option required when no 'topic' attribute is present"))
-
-    ex = try {
-      /* No value field */
-      intercept[StreamingQueryException] {
-        writer = createKafkaWriter(input.toDF())(
-          withSelectExpr = s"'$topic' as topic", "value as key"
-        )
-        input.addData("1", "2", "3", "4", "5")
-        writer.processAllAvailable()
-      }
-    } finally {
-      if (writer != null) writer.stop()
-    }
-    assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(
-      "required attribute 'value' not found"))
+    assertWrongSchema(input, Seq("value as key", "value"),
+      "topic option required when no 'topic' attribute is present")
+    assertWrongSchema(input, Seq(s"'$topic' as topic", "value as key"),
+      "required attribute 'value' not found")
   }
 
   test("streaming - write data with valid schema but wrong types") {
-    def assertWrongType(
-        input: MemoryStream[String],
-        selectExpr: Seq[String],
-        expectErrorMsg: String): Unit = {
-      var writer: StreamingQuery = null
-      var ex: Exception = null
-      try {
-        ex = intercept[StreamingQueryException] {
-          writer = createKafkaWriter(input.toDF())(withSelectExpr = selectExpr: _*)
-          input.addData("1", "2", "3", "4", "5")
-          writer.processAllAvailable()
-        }
-      } finally {
-        writer.stop()
-      }
-      assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(expectErrorMsg))
-    }
-
     val input = MemoryStream[String]
     val topic = newTopic()
     testUtils.createTopic(topic)
 
-    assertWrongType(input, Seq("CAST('1' as INT) as topic", "value"),
+    assertWrongSchema(input, Seq("CAST('1' as INT) as topic", "value"),
       "topic must be a string")
-
-    assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
+    assertWrongSchema(input, Seq(s"'$topic' as topic", "CAST(value as INT) as value"),
       "value must be a string or binary")
-
-    assertWrongType(input, Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
+    assertWrongSchema(input, Seq(s"'$topic' as topic", "CAST(value as INT) as key", "value"),
       "key must be a string or binary")
   }
 
   test("streaming - write to non-existing topic") {
     val input = MemoryStream[String]
-    val topic = newTopic()
 
-    var writer: StreamingQuery = null
-    var ex: Exception = null
-    try {
-      ex = intercept[StreamingQueryException] {
-        writer = createKafkaWriter(input.toDF(), withTopic = Some(topic))()
-        input.addData("1", "2", "3", "4", "5")
-        writer.processAllAvailable()
-      }
-    } finally {
-      writer.stop()
+    runAndVerifyStreamingQueryException(input, "job aborted") {
+      createKafkaWriter(input.toDF(), withTopic = Some(newTopic()))()
     }
-    assert(ex.getCause.getCause.getMessage.toLowerCase(Locale.ROOT).contains("job aborted"))
   }
 
   test("streaming - exception on config serializer") {
     val input = MemoryStream[String]
-    var writer: StreamingQuery = null
-    var ex: Exception = null
-    ex = intercept[StreamingQueryException] {
-      writer = createKafkaWriter(
-        input.toDF(),
-        withOptions = Map("kafka.key.serializer" -> "foo"))()
-      input.addData("1")
-      writer.processAllAvailable()
-    }
-    assert(ex.getCause.getMessage.toLowerCase(Locale.ROOT).contains(
-      "kafka option 'key.serializer' is not supported"))
 
-    ex = intercept[StreamingQueryException] {
-      writer = createKafkaWriter(
-        input.toDF(),
-        withOptions = Map("kafka.value.serializer" -> "foo"))()
-      input.addData("1")
-      writer.processAllAvailable()
-    }
-    assert(ex.getCause.getMessage.toLowerCase(Locale.ROOT).contains(
-      "kafka option 'value.serializer' is not supported"))
+    assertWrongOption(input, Map("kafka.key.serializer" -> "foo"),
+      "kafka option 'key.serializer' is not supported")
+    assertWrongOption(input, Map("kafka.value.serializer" -> "foo"),
+      "kafka option 'value.serializer' is not supported")
   }
 
   private def createKafkaWriter(
@@ -341,6 +268,41 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
       withOptions.foreach(opt => stream.option(opt._1, opt._2))
     }
     stream.start()
+  }
+
+  private def runAndVerifyStreamingQueryException(
+      input: MemoryStream[String],
+      expectErrorMsg: String)(
+      writerFn: => StreamingQuery): Unit = {
+    var writer: StreamingQuery = null
+    val ex: Exception = try {
+      intercept[StreamingQueryException] {
+        writer = writerFn
+        input.addData("1", "2", "3", "4", "5")
+        writer.processAllAvailable()
+      }
+    } finally {
+      if (writer != null) writer.stop()
+    }
+    assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(expectErrorMsg))
+  }
+
+  private def assertWrongSchema(
+      input: MemoryStream[String],
+      selectExpr: Seq[String],
+      expectErrorMsg: String): Unit = {
+    runAndVerifyStreamingQueryException(input, expectErrorMsg) {
+      createKafkaWriter(input.toDF())(withSelectExpr = selectExpr: _*)
+    }
+  }
+
+  private def assertWrongOption(
+      input: MemoryStream[String],
+      options: Map[String, String],
+      expectErrorMsg: String): Unit = {
+    runAndVerifyStreamingQueryException(input, expectErrorMsg) {
+      createKafkaWriter(input.toDF(), withOptions = options)()
+    }
   }
 }
 
