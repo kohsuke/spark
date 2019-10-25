@@ -1314,7 +1314,7 @@ class DataSourceV2SQLSuite
       assert(e3.message.contains("CREATE TABLE LIKE is only supported with v1 tables"))
     }
   }
-  
+
   private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
     val e = intercept[AnalysisException] {
       sql(s"$sqlCommand $sqlParams")
