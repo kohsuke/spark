@@ -48,28 +48,13 @@ private[kafka010] object KafkaWriter extends Logging {
       schema: Seq[Attribute],
       kafkaParameters: ju.Map[String, Object],
       topic: Option[String] = None): Unit = {
-    validateAttribute(schema, TOPIC_ATTRIBUTE_NAME, Seq(StringType)) { () =>
-      if (topic.isEmpty) {
-        throw new AnalysisException(s"topic option required when no " +
-          s"'$TOPIC_ATTRIBUTE_NAME' attribute is present. Use the " +
-          s"${KafkaSourceProvider.TOPIC_OPTION_KEY} option for setting a topic.")
-      } else {
-        Literal.create(topic.get, StringType)
-      }
-    }
-
-    validateAttribute(schema, KEY_ATTRIBUTE_NAME, Seq(StringType, BinaryType)) { () =>
-      Literal(null, StringType)
-    }
-
-    validateAttribute(schema, VALUE_ATTRIBUTE_NAME, Seq(StringType, BinaryType)) { () =>
-      throw new AnalysisException(s"Required attribute '$VALUE_ATTRIBUTE_NAME' not found")
-    }
-
-    validateAttribute(schema, HEADERS_ATTRIBUTE_NAME,
-      Seq(KafkaRecordToRowConverter.headersType)) { () =>
-      Literal(CatalystTypeConverters.convertToCatalyst(null),
-        KafkaRecordToRowConverter.headersType)
+    try {
+      topicExpression(schema, topic)
+      keyExpression(schema)
+      valueExpression(schema)
+      headersExpression(schema)
+    } catch {
+      case e: IllegalStateException => throw new AnalysisException(e.getMessage)
     }
   }
 
@@ -87,16 +72,44 @@ private[kafka010] object KafkaWriter extends Logging {
     }
   }
 
-  private def validateAttribute(
+  def topicExpression(schema: Seq[Attribute], topic: Option[String] = None): Expression = {
+    topic.map(Literal(_)).getOrElse(
+      expression(schema, TOPIC_ATTRIBUTE_NAME, Seq(StringType)) {
+        throw new IllegalStateException(s"topic option required when no " +
+          s"'${TOPIC_ATTRIBUTE_NAME}' attribute is present. Use the " +
+          s"${KafkaSourceProvider.TOPIC_OPTION_KEY} option for setting a topic.")
+      }
+    )
+  }
+
+  def keyExpression(schema: Seq[Attribute]): Expression = {
+    expression(schema, KEY_ATTRIBUTE_NAME, Seq(StringType, BinaryType))(
+      Literal(null, BinaryType))
+  }
+
+  def valueExpression(schema: Seq[Attribute]): Expression = {
+    expression(schema, VALUE_ATTRIBUTE_NAME, Seq(StringType, BinaryType)) {
+      throw new IllegalStateException(s"Required attribute '${VALUE_ATTRIBUTE_NAME}' not found")
+    }
+  }
+
+  def headersExpression(schema: Seq[Attribute]): Expression = {
+    expression(schema, HEADERS_ATTRIBUTE_NAME, Seq(KafkaRecordToRowConverter.headersType))(
+      Literal(CatalystTypeConverters.convertToCatalyst(null),
+        KafkaRecordToRowConverter.headersType))
+  }
+
+  private def expression(
       schema: Seq[Attribute],
       attrName: String,
       desired: Seq[DataType])(
-      defaultFn: () => Expression): Unit = {
-    val attr = schema.find(_.name == attrName).getOrElse(defaultFn())
-    if (!desired.exists(_.sameType(attr.dataType))) {
-      throw new AnalysisException(s"$attrName attribute unsupported type " +
-        s"${attr.dataType.catalogString}. $attrName must be a " +
+      default: => Expression): Expression = {
+    val expr = schema.find(_.name == attrName).getOrElse(default)
+    if (!desired.exists(_.sameType(expr.dataType))) {
+      throw new IllegalStateException(s"$attrName attribute unsupported type " +
+        s"${expr.dataType.catalogString}. $attrName must be a " +
         s"${desired.map(_.catalogString).mkString(" or ")}")
     }
+    expr
   }
 }

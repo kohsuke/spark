@@ -113,50 +113,12 @@ private[kafka010] abstract class KafkaRowWriter(
   }
 
   private def createProjection = {
-    def expression(attrName: String)(defaultFn: () => Expression): Expression = {
-      inputSchema.find(_.name == attrName).getOrElse(defaultFn())
-    }
-
-    def assertDataType(attrName: String, desired: Seq[DataType], actual: DataType): Unit = {
-      if (!desired.exists(_.sameType(actual))) {
-        throw new IllegalStateException(s"$attrName attribute unsupported type " +
-          s"${actual.catalogString}. $attrName must be a " +
-          s"${desired.map(_.catalogString).mkString(" or ")}")
-      }
-    }
-
-    val topicExpression = topic.map(Literal(_)).getOrElse(
-      expression(KafkaWriter.TOPIC_ATTRIBUTE_NAME) { () =>
-        throw new IllegalStateException(s"topic option required when no " +
-          s"'${KafkaWriter.TOPIC_ATTRIBUTE_NAME}' attribute is present")
-      }
-    )
-    assertDataType(KafkaWriter.TOPIC_ATTRIBUTE_NAME, Seq(StringType), topicExpression.dataType)
-
-    val keyExpression = expression(KafkaWriter.KEY_ATTRIBUTE_NAME)(() => Literal(null, BinaryType))
-    assertDataType(KafkaWriter.KEY_ATTRIBUTE_NAME, Seq(StringType, BinaryType),
-      keyExpression.dataType)
-
-    val valueExpression = expression(KafkaWriter.VALUE_ATTRIBUTE_NAME) { () =>
-      throw new IllegalStateException("Required attribute " +
-        s"'${KafkaWriter.VALUE_ATTRIBUTE_NAME}' not found")
-    }
-    assertDataType(KafkaWriter.VALUE_ATTRIBUTE_NAME, Seq(StringType, BinaryType),
-      valueExpression.dataType)
-
-    val headersExpression = expression(KafkaWriter.HEADERS_ATTRIBUTE_NAME) { () =>
-      Literal(CatalystTypeConverters.convertToCatalyst(null),
-        KafkaRecordToRowConverter.headersType)
-    }
-    assertDataType(KafkaWriter.HEADERS_ATTRIBUTE_NAME, Seq(KafkaRecordToRowConverter.headersType),
-      headersExpression.dataType)
-
     UnsafeProjection.create(
       Seq(
-        topicExpression,
-        Cast(keyExpression, BinaryType),
-        Cast(valueExpression, BinaryType),
-        headersExpression
+        KafkaWriter.topicExpression(inputSchema, topic),
+        Cast(KafkaWriter.keyExpression(inputSchema), BinaryType),
+        Cast(KafkaWriter.valueExpression(inputSchema), BinaryType),
+        KafkaWriter.headersExpression(inputSchema)
       ),
       inputSchema
     )

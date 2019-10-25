@@ -211,9 +211,8 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
 
     /* No topic field or topic option */
     var writer: StreamingQuery = null
-    var ex: Exception = null
-    try {
-      ex = intercept[StreamingQueryException] {
+    var ex: Exception = try {
+      intercept[StreamingQueryException] {
         writer = createKafkaWriter(input.toDF())(
           withSelectExpr = "value as key", "value"
         )
@@ -221,15 +220,15 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
         writer.processAllAvailable()
       }
     } finally {
-      writer.stop()
+      if (writer != null) writer.stop()
     }
     assert(ex.getMessage
       .toLowerCase(Locale.ROOT)
       .contains("topic option required when no 'topic' attribute is present"))
 
-    try {
+    ex = try {
       /* No value field */
-      ex = intercept[StreamingQueryException] {
+      intercept[StreamingQueryException] {
         writer = createKafkaWriter(input.toDF())(
           withSelectExpr = s"'$topic' as topic", "value as key"
         )
@@ -237,7 +236,7 @@ class KafkaSinkStreamingSuite extends KafkaSinkSuiteBase with StreamTest {
         writer.processAllAvailable()
       }
     } finally {
-      writer.stop()
+      if (writer != null) writer.stop()
     }
     assert(ex.getMessage.toLowerCase(Locale.ROOT).contains(
       "required attribute 'value' not found"))
