@@ -1319,7 +1319,6 @@ class DataSourceV2SQLSuite
         s"$sourceTable LOCATION 'AnyLocation'")
     }
     assert(e3.message.contains("CREATE TABLE LIKE is only supported with v1 tables"))
-
   }
 
   private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
