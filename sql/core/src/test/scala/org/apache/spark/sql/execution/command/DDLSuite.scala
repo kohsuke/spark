@@ -2078,23 +2078,6 @@ abstract class DDLSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  test("show columns - negative test") {
-    // When case sensitivity is true, the user supplied database name in table identifier
-    // should match the supplied database name in case sensitive way.
-    withSQLConf(SQLConf.CASE_SENSITIVE.key -> "true") {
-      withTempDatabase { db =>
-        val tabName = s"$db.showcolumn"
-        withTable(tabName) {
-          sql(s"CREATE TABLE $tabName(col1 int, col2 string) USING parquet ")
-          val message = intercept[AnalysisException] {
-            sql(s"SHOW COLUMNS IN $db.showcolumn FROM ${db.toUpperCase(Locale.ROOT)}")
-          }.getMessage
-          assert(message.contains("SHOW COLUMNS with conflicting databases"))
-        }
-      }
-    }
-  }
-
   test("SPARK-18009 calling toLocalIterator on commands") {
     import scala.collection.JavaConverters._
     val df = sql("show databases")
