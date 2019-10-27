@@ -1358,6 +1358,28 @@ class DataSourceV2SQLSuite
     }
   }
 
+  test("SHOW COLUMNS") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      spark.sql(s"CREATE TABLE $t (id bigint, data string) USING foo")
+
+      val e1 = intercept[AnalysisException] {
+        sql(s"SHOW COLUMNS FROM $t")
+      }
+      assert(e1.message.contains("SHOW COLUMNS is only supported with v1 tables"))
+
+      val e2 = intercept[AnalysisException] {
+        sql(s"SHOW COLUMNS IN $t")
+      }
+      assert(e2.message.contains("SHOW COLUMNS is only supported with v1 tables"))
+
+      val e3 = intercept[AnalysisException] {
+        sql(s"SHOW COLUMNS FROM tbl IN testcat.ns1.ns2")
+      }
+      assert(e3.message.contains("SHOW COLUMNS is only supported with v1 tables"))
+    }
+  }
+
   private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
     val e = intercept[AnalysisException] {
       sql(s"$sqlCommand $sqlParams")

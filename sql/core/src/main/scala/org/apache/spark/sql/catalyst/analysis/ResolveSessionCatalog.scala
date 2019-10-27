@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.{CatalogManager, CatalogPlugin, LookupCatalog, TableChange, V1Table}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, AlterTableRecoverPartitionsCommand, AlterTableSetLocationCommand, AlterTableSetPropertiesCommand, AlterTableUnsetPropertiesCommand, AnalyzeColumnCommand, AnalyzePartitionCommand, AnalyzeTableCommand, CacheTableCommand, CreateDatabaseCommand, DescribeColumnCommand, DescribeTableCommand, DropDatabaseCommand, DropTableCommand, LoadDataCommand, ShowCreateTableCommand, ShowPartitionsCommand, ShowTablesCommand, TruncateTableCommand, UncacheTableCommand}
+import org.apache.spark.sql.execution.command.{AlterTableAddColumnsCommand, AlterTableRecoverPartitionsCommand, AlterTableSetLocationCommand, AlterTableSetPropertiesCommand, AlterTableUnsetPropertiesCommand, AnalyzeColumnCommand, AnalyzePartitionCommand, AnalyzeTableCommand, CacheTableCommand, CreateDatabaseCommand, DescribeColumnCommand, DescribeTableCommand, DropDatabaseCommand, DropTableCommand, LoadDataCommand, ShowColumnsCommand, ShowCreateTableCommand, ShowPartitionsCommand, ShowTablesCommand, TruncateTableCommand, UncacheTableCommand}
 import org.apache.spark.sql.execution.datasources.{CreateTable, DataSource, RefreshTable}
 import org.apache.spark.sql.execution.datasources.v2.FileDataSourceV2
 import org.apache.spark.sql.internal.SQLConf
@@ -338,6 +338,19 @@ class ResolveSessionCatalog(
       ShowPartitionsCommand(
         v1TableName.asTableIdentifier,
         partitionSpec)
+
+    case ShowColumnsStatement(table, namespace) =>
+      val sql = "SHOW COLUMNS"
+      val v1TableName = parseV1Table(table, sql)
+      val db = namespace.map(parseV1Namespace(sql)).map(_.head)
+      ShowColumnsCommand(db, v1TableName.asTableIdentifier)
+  }
+
+  private def parseV1Namespace(sql: String)(namespace: Seq[String]): Seq[String] = {
+    namespace match {
+      case SessionCatalog(_, parts) if (parts.length == 1) => parts
+      case _ => throw new AnalysisException(s"$sql is only supported with v1 tables.")
+    }
   }
 
   private def parseV1Table(tableName: Seq[String], sql: String): Seq[String] = {
