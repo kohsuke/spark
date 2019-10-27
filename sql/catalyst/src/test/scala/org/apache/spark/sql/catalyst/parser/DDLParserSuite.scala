@@ -1120,6 +1120,37 @@ class DDLParserSuite extends AnalysisTest {
       RefreshTableStatement(Seq("a", "b", "c")))
   }
 
+  test("show columns") {
+    val sql1 = "SHOW COLUMNS FROM t1"
+    val sql2 = "SHOW COLUMNS IN db2.db1.t1"
+    val sql3 = "SHOW COLUMNS FROM t1 IN db1"
+    val sql4 = "SHOW COLUMNS FROM t1 FROM db2.db1"
+    val sql5 = "SHOW COLUMNS FROM db1.t1 IN db1"
+    val sql6 = "SHOW COLUMNS FROM db1.t1 IN db1.db2"
+
+    val parsed1 = parsePlan(sql1)
+    val expected1 = ShowColumnsStatement(Seq("t1"), None)
+    val parsed2 = parsePlan(sql2)
+    val expected2 = ShowColumnsStatement(Seq("db2", "db1", "t1"), None)
+    val parsed3 = parsePlan(sql3)
+    val expected3 = ShowColumnsStatement(Seq("t1"), Some(Seq("db1")))
+    val parsed4 = parsePlan(sql4)
+    val expected4 = ShowColumnsStatement(Seq("t1"), Some(Seq("db2", "db1")))
+    val parsed5 = parsePlan(sql5)
+    val expected5 = ShowColumnsStatement(Seq("db1", "t1"), Some(Seq("db1")))
+
+    val e1 = intercept[AnalysisException] {
+      parsePlan(sql6)
+    }
+    assert(e1.message.contains("If namespace is defined, table can not be multipart: db1.t1"))
+
+    comparePlans(parsed1, expected1)
+    comparePlans(parsed2, expected2)
+    comparePlans(parsed3, expected3)
+    comparePlans(parsed4, expected4)
+    comparePlans(parsed5, expected5)
+  }
+
   private case class TableSpec(
       name: Seq[String],
       schema: Option[StructType],
