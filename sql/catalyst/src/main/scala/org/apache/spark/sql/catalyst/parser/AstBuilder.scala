@@ -437,6 +437,29 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   }
 
   /**
+   * Create a partition specification map with filters.
+   */
+  override def visitDropPartitionSpec(
+      ctx: DropPartitionSpecContext): Seq[Expression] = withOrigin(ctx) {
+    ctx.dropPartitionVal().asScala.map { pFilter =>
+      if (pFilter.constant() == null || pFilter.comparisonOperator() == null) {
+        throw new ParseException(s"Invalid partition spec: ${pFilter.getText}", ctx)
+      }
+      // We cannot use UnresolvedAttribute because resolution is performed after Analysis, when
+      // running the command.
+      val partition = PartitioningAttribute(pFilter.identifier().getText)
+      val value = Literal(visitStringConstant(pFilter.constant()))
+      val operator = pFilter.comparisonOperator().getChild(0).asInstanceOf[TerminalNode]
+      val comparison = buildComparison(partition, value, operator)
+      if (comparison.isInstanceOf[EqualNullSafe]) {
+        throw new ParseException(
+          "'<=>' operator is not supported in ALTER TABLE ... DROP PARTITION.", ctx)
+      }
+      comparison
+    }
+  }
+
+  /**
    * Convert a constant of any type into a string. This is typically used in DDL commands, and its
    * main purpose is to prevent slight differences due to back to back conversions i.e.:
    * String -> Literal -> String.
@@ -1258,6 +1281,23 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val left = expression(ctx.left)
     val right = expression(ctx.right)
     val operator = ctx.comparisonOperator().getChild(0).asInstanceOf[TerminalNode]
+    buildComparison(left, right, operator)
+  }
+
+  /**
+   * Creates a comparison expression. The following comparison operators are supported:
+   * - Equal: '=' or '=='
+   * - Null-safe Equal: '<=>'
+   * - Not Equal: '<>' or '!='
+   * - Less than: '<'
+   * - Less then or Equal: '<='
+   * - Greater than: '>'
+   * - Greater then or Equal: '>='
+   */
+  private def buildComparison(
+      left: Expression,
+      right: Expression,
+      operator: TerminalNode): Expression = {
     operator.getSymbol.getType match {
       case SqlBaseParser.EQ =>
         EqualTo(left, right)
