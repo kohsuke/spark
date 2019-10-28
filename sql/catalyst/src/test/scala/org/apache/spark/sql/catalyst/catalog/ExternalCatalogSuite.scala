@@ -393,43 +393,45 @@ abstract class ExternalCatalogSuite extends SparkFunSuite with BeforeAndAfterEac
   }
 
   test("create/drop partitions in managed tables with location") {
-    val catalog = newBasicCatalog()
-    val table = CatalogTable(
-      identifier = TableIdentifier("tbl", Some("db1")),
-      tableType = CatalogTableType.MANAGED,
-      storage = CatalogStorageFormat.empty,
-      schema = new StructType()
-        .add("col1", "int")
-        .add("col2", "string")
-        .add("partCol1", "int")
-        .add("partCol2", "string"),
-      provider = Some(defaultProvider),
-      partitionColumnNames = Seq("partCol1", "partCol2"))
-    catalog.createTable(table, ignoreIfExists = false)
+    Seq(true, false).foreach { batchDrop =>
+      val catalog = newBasicCatalog()
+      val table = CatalogTable(
+        identifier = TableIdentifier("tbl", Some("db1")),
+        tableType = CatalogTableType.MANAGED,
+        storage = CatalogStorageFormat.empty,
+        schema = new StructType()
+          .add("col1", "int")
+          .add("col2", "string")
+          .add("partCol1", "int")
+          .add("partCol2", "string"),
+        provider = Some(defaultProvider),
+        partitionColumnNames = Seq("partCol1", "partCol2"))
+      catalog.createTable(table, ignoreIfExists = false)
 
-    val newLocationPart1 = newUriForDatabase()
-    val newLocationPart2 = newUriForDatabase()
+      val newLocationPart1 = newUriForDatabase()
+      val newLocationPart2 = newUriForDatabase()
 
-    val partition1 =
-      CatalogTablePartition(Map("partCol1" -> "1", "partCol2" -> "2"),
-        storageFormat.copy(locationUri = Some(newLocationPart1)))
-    val partition2 =
-      CatalogTablePartition(Map("partCol1" -> "3", "partCol2" -> "4"),
-        storageFormat.copy(locationUri = Some(newLocationPart2)))
-    catalog.createPartitions("db1", "tbl", Seq(partition1), ignoreIfExists = false)
-    catalog.createPartitions("db1", "tbl", Seq(partition2), ignoreIfExists = false)
+      val partition1 =
+        CatalogTablePartition(Map("partCol1" -> "1", "partCol2" -> "2"),
+          storageFormat.copy(locationUri = Some(newLocationPart1)))
+      val partition2 =
+        CatalogTablePartition(Map("partCol1" -> "3", "partCol2" -> "4"),
+          storageFormat.copy(locationUri = Some(newLocationPart2)))
+      catalog.createPartitions("db1", "tbl", Seq(partition1), ignoreIfExists = false)
+      catalog.createPartitions("db1", "tbl", Seq(partition2), ignoreIfExists = false)
 
-    assert(exists(newLocationPart1))
-    assert(exists(newLocationPart2))
+      assert(exists(newLocationPart1))
+      assert(exists(newLocationPart2))
 
-    // the corresponding directory is dropped.
-    catalog.dropPartitions("db1", "tbl", Seq(partition1.spec),
-      ignoreIfNotExists = false, purge = false, retainData = false)
-    assert(!exists(newLocationPart1))
+      // the corresponding directory is dropped.
+      catalog.dropPartitions("db1", "tbl", Seq(partition1.spec),
+        ignoreIfNotExists = false, purge = false, retainData = false, batchDrop)
+      assert(!exists(newLocationPart1))
 
-    // all the remaining directories are dropped.
-    catalog.dropTable("db1", "tbl", ignoreIfNotExists = false, purge = false)
-    assert(!exists(newLocationPart2))
+      // all the remaining directories are dropped.
+      catalog.dropTable("db1", "tbl", ignoreIfNotExists = false, purge = false)
+      assert(!exists(newLocationPart2))
+    }
   }
 
   test("list partition names") {
@@ -519,43 +521,51 @@ abstract class ExternalCatalogSuite extends SparkFunSuite with BeforeAndAfterEac
   }
 
   test("drop partitions") {
-    val catalog = newBasicCatalog()
-    assert(catalogPartitionsEqual(catalog, "db2", "tbl2", Seq(part1, part2)))
-    catalog.dropPartitions(
-      "db2", "tbl2", Seq(part1.spec), ignoreIfNotExists = false, purge = false, retainData = false)
-    assert(catalogPartitionsEqual(catalog, "db2", "tbl2", Seq(part2)))
-    resetState()
-    val catalog2 = newBasicCatalog()
-    assert(catalogPartitionsEqual(catalog2, "db2", "tbl2", Seq(part1, part2)))
-    catalog2.dropPartitions(
-      "db2", "tbl2", Seq(part1.spec, part2.spec), ignoreIfNotExists = false, purge = false,
-      retainData = false)
-    assert(catalog2.listPartitions("db2", "tbl2").isEmpty)
+    Seq(true, false).foreach { batchDrop =>
+      val catalog = newBasicCatalog()
+      assert(catalogPartitionsEqual(catalog, "db2", "tbl2", Seq(part1, part2)))
+      catalog.dropPartitions(
+        "db2", "tbl2", Seq(part1.spec), ignoreIfNotExists = false, purge = false,
+        retainData = false, supportBatch = batchDrop)
+      assert(catalogPartitionsEqual(catalog, "db2", "tbl2", Seq(part2)))
+      resetState()
+      val catalog2 = newBasicCatalog()
+      assert(catalogPartitionsEqual(catalog2, "db2", "tbl2", Seq(part1, part2)))
+      catalog2.dropPartitions(
+        "db2", "tbl2", Seq(part1.spec, part2.spec), ignoreIfNotExists = false, purge = false,
+        retainData = false, supportBatch = batchDrop)
+      assert(catalog2.listPartitions("db2", "tbl2").isEmpty)
+    }
   }
 
   test("drop partitions when database/table does not exist") {
-    val catalog = newBasicCatalog()
-    intercept[AnalysisException] {
-      catalog.dropPartitions(
-        "does_not_exist", "tbl1", Seq(), ignoreIfNotExists = false, purge = false,
-        retainData = false)
-    }
-    intercept[AnalysisException] {
-      catalog.dropPartitions(
-        "db2", "does_not_exist", Seq(), ignoreIfNotExists = false, purge = false,
-        retainData = false)
+    Seq(true, false).foreach { batchDrop =>
+      val catalog = newBasicCatalog()
+      intercept[AnalysisException] {
+        catalog.dropPartitions(
+          "does_not_exist", "tbl1", Seq(), ignoreIfNotExists = false, purge = false,
+          retainData = false, supportBatch = batchDrop)
+      }
+      intercept[AnalysisException] {
+        catalog.dropPartitions(
+          "db2", "does_not_exist", Seq(), ignoreIfNotExists = false, purge = false,
+          retainData = false, supportBatch = batchDrop)
+      }
     }
   }
 
   test("drop partitions that do not exist") {
-    val catalog = newBasicCatalog()
-    intercept[AnalysisException] {
+    Seq(true, false).foreach { batchDrop =>
+      val catalog = newBasicCatalog()
+      intercept[AnalysisException] {
+        catalog.dropPartitions(
+          "db2", "tbl2", Seq(part3.spec), ignoreIfNotExists = false, purge = false,
+          retainData = false, supportBatch = batchDrop)
+      }
       catalog.dropPartitions(
-        "db2", "tbl2", Seq(part3.spec), ignoreIfNotExists = false, purge = false,
-        retainData = false)
+        "db2", "tbl2", Seq(part3.spec), ignoreIfNotExists = true, purge = false, retainData = false,
+        supportBatch = batchDrop)
     }
-    catalog.dropPartitions(
-      "db2", "tbl2", Seq(part3.spec), ignoreIfNotExists = true, purge = false, retainData = false)
   }
 
   test("get partition") {
@@ -857,70 +867,77 @@ abstract class ExternalCatalogSuite extends SparkFunSuite with BeforeAndAfterEac
   }
 
   test("create/drop/rename partitions should create/delete/rename the directory") {
-    val catalog = newBasicCatalog()
-    val table = CatalogTable(
-      identifier = TableIdentifier("tbl", Some("db1")),
-      tableType = CatalogTableType.MANAGED,
-      storage = CatalogStorageFormat.empty,
-      schema = new StructType()
-        .add("col1", "int")
-        .add("col2", "string")
-        .add("partCol1", "int")
-        .add("partCol2", "string"),
-      provider = Some(defaultProvider),
-      partitionColumnNames = Seq("partCol1", "partCol2"))
-    catalog.createTable(table, ignoreIfExists = false)
+    Seq(true, false).foreach { batchDrop =>
+      val catalog = newBasicCatalog()
+      val table = CatalogTable(
+        identifier = TableIdentifier("tbl", Some("db1")),
+        tableType = CatalogTableType.MANAGED,
+        storage = CatalogStorageFormat.empty,
+        schema = new StructType()
+          .add("col1", "int")
+          .add("col2", "string")
+          .add("partCol1", "int")
+          .add("partCol2", "string"),
+        provider = Some(defaultProvider),
+        partitionColumnNames = Seq("partCol1", "partCol2"))
+      catalog.createTable(table, ignoreIfExists = false)
 
-    val tableLocation = catalog.getTable("db1", "tbl").location
+      val tableLocation = catalog.getTable("db1", "tbl").location
 
-    val part1 = CatalogTablePartition(Map("partCol1" -> "1", "partCol2" -> "2"), storageFormat)
-    val part2 = CatalogTablePartition(Map("partCol1" -> "3", "partCol2" -> "4"), storageFormat)
-    val part3 = CatalogTablePartition(Map("partCol1" -> "5", "partCol2" -> "6"), storageFormat)
+      val part1 = CatalogTablePartition(Map("partCol1" -> "1", "partCol2" -> "2"), storageFormat)
+      val part2 = CatalogTablePartition(Map("partCol1" -> "3", "partCol2" -> "4"), storageFormat)
+      val part3 = CatalogTablePartition(Map("partCol1" -> "5", "partCol2" -> "6"), storageFormat)
 
-    catalog.createPartitions("db1", "tbl", Seq(part1, part2), ignoreIfExists = false)
-    assert(exists(tableLocation, "partCol1=1", "partCol2=2"))
-    assert(exists(tableLocation, "partCol1=3", "partCol2=4"))
+      catalog.createPartitions("db1", "tbl", Seq(part1, part2), ignoreIfExists = false)
+      assert(exists(tableLocation, "partCol1=1", "partCol2=2"))
+      assert(exists(tableLocation, "partCol1=3", "partCol2=4"))
 
-    catalog.renamePartitions("db1", "tbl", Seq(part1.spec), Seq(part3.spec))
-    assert(!exists(tableLocation, "partCol1=1", "partCol2=2"))
-    assert(exists(tableLocation, "partCol1=5", "partCol2=6"))
+      catalog.renamePartitions("db1", "tbl", Seq(part1.spec), Seq(part3.spec))
+      assert(!exists(tableLocation, "partCol1=1", "partCol2=2"))
+      assert(exists(tableLocation, "partCol1=5", "partCol2=6"))
 
-    catalog.dropPartitions("db1", "tbl", Seq(part2.spec, part3.spec), ignoreIfNotExists = false,
-      purge = false, retainData = false)
-    assert(!exists(tableLocation, "partCol1=3", "partCol2=4"))
-    assert(!exists(tableLocation, "partCol1=5", "partCol2=6"))
+      catalog.dropPartitions("db1", "tbl", Seq(part2.spec, part3.spec), ignoreIfNotExists = false,
+        purge = false, retainData = false, supportBatch = batchDrop)
+      assert(!exists(tableLocation, "partCol1=3", "partCol2=4"))
+      assert(!exists(tableLocation, "partCol1=5", "partCol2=6"))
 
-    val tempPath = Utils.createTempDir()
-    // create partition with existing directory is OK.
-    val partWithExistingDir = CatalogTablePartition(
-      Map("partCol1" -> "7", "partCol2" -> "8"),
-      CatalogStorageFormat(
-        Some(tempPath.toURI),
-        None, None, None, false, Map.empty))
-    catalog.createPartitions("db1", "tbl", Seq(partWithExistingDir), ignoreIfExists = false)
+      val tempPath = Utils.createTempDir()
+      // create partition with existing directory is OK.
+      val partWithExistingDir = CatalogTablePartition(
+        Map("partCol1" -> "7", "partCol2" -> "8"),
+        CatalogStorageFormat(
+          Some(tempPath.toURI),
+          None, None, None, false, Map.empty))
+      catalog.createPartitions("db1", "tbl", Seq(partWithExistingDir), ignoreIfExists = false)
 
-    tempPath.delete()
-    // create partition with non-existing directory will create that directory.
-    val partWithNonExistingDir = CatalogTablePartition(
-      Map("partCol1" -> "9", "partCol2" -> "10"),
-      CatalogStorageFormat(
-        Some(tempPath.toURI),
-        None, None, None, false, Map.empty))
-    catalog.createPartitions("db1", "tbl", Seq(partWithNonExistingDir), ignoreIfExists = false)
-    assert(tempPath.exists())
+      tempPath.delete()
+      // create partition with non-existing directory will create that directory.
+      val partWithNonExistingDir = CatalogTablePartition(
+        Map("partCol1" -> "9", "partCol2" -> "10"),
+        CatalogStorageFormat(
+          Some(tempPath.toURI),
+          None, None, None, false, Map.empty))
+      catalog.createPartitions("db1", "tbl", Seq(partWithNonExistingDir), ignoreIfExists = false)
+      assert(tempPath.exists())
+    }
   }
 
   test("drop partition from external table should not delete the directory") {
-    val catalog = newBasicCatalog()
-    catalog.createPartitions("db2", "tbl1", Seq(part1), ignoreIfExists = false)
+    Seq(true, false).foreach { batchDrop =>
+      val catalog = newBasicCatalog()
+      catalog.createPartitions("db2", "tbl1", Seq(part1), ignoreIfExists = false)
 
-    val partPath = new Path(catalog.getPartition("db2", "tbl1", part1.spec).location)
-    val fs = partPath.getFileSystem(new Configuration)
-    assert(fs.exists(partPath))
+      val partPath = new Path(catalog.getPartition("db2", "tbl1", part1.spec).location)
+      val fs = partPath.getFileSystem(new Configuration)
+      assert(fs.exists(partPath))
 
-    catalog.dropPartitions(
-      "db2", "tbl1", Seq(part1.spec), ignoreIfNotExists = false, purge = false, retainData = false)
-    assert(fs.exists(partPath))
+      catalog.dropPartitions(
+        "db2", "tbl1", Seq(part1.spec), ignoreIfNotExists = false,
+        purge = false,
+        retainData = false,
+        supportBatch = batchDrop)
+      assert(fs.exists(partPath))
+    }
   }
 }
 
