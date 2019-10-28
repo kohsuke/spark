@@ -20,6 +20,7 @@ package org.apache.spark.sql.hive.client
 import java.io.{File, PrintStream}
 import java.lang.{Iterable => JIterable}
 import java.nio.charset.StandardCharsets.UTF_8
+import java.util
 import java.util.{Locale, Map => JMap}
 import java.util.concurrent.TimeUnit._
 
@@ -28,13 +29,13 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.hive.common.StatsSetupConst
+import org.apache.hadoop.hive.common.{ObjectPair, StatsSetupConst}
 import org.apache.hadoop.hive.conf.HiveConf
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars
 import org.apache.hadoop.hive.metastore.{IMetaStoreClient, TableType => HiveTableType}
 import org.apache.hadoop.hive.metastore.api.{Database => HiveDatabase, Table => MetaStoreApiTable}
-import org.apache.hadoop.hive.metastore.api.{FieldSchema, Order, SerDeInfo, StorageDescriptor}
-import org.apache.hadoop.hive.ql.Driver
+import org.apache.hadoop.hive.metastore.api.{FieldSchema, MetaException, NoSuchObjectException, Order, SerDeInfo, StorageDescriptor}
+import org.apache.hadoop.hive.ql.{Driver, ExpressionBuilder, Utilities}
 import org.apache.hadoop.hive.ql.metadata.{Hive, HiveException, Partition => HivePartition, Table => HiveTable}
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer.HIVE_COLUMN_ORDER_ASC
 import org.apache.hadoop.hive.ql.processors._
@@ -43,6 +44,7 @@ import org.apache.hadoop.hive.serde.serdeConstants
 import org.apache.hadoop.hive.serde2.MetadataTypedColumnsetSerDe
 import org.apache.hadoop.hive.serde2.`lazy`.LazySimpleSerDe
 import org.apache.hadoop.security.UserGroupInformation
+import org.apache.thrift.TException
 
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.internal.Logging
@@ -623,7 +625,23 @@ private[hive] class HiveClientImpl(
       ignoreIfNotExists: Boolean,
       purge: Boolean,
       retainData: Boolean): Unit = withHiveState {
-    // TODO: figure out how to drop multiple partitions in one call
+
+    // TODO(weixiuli): Spark can NOT support dropPartitions call with batch
+    // when HiveShim version is < v1_2.
+    if (version.fullVersion >= hive.v1_2.fullVersion) {
+      dropPartitionsWithBatch(db, table, specs, ignoreIfNotExists, purge, retainData)
+    } else {
+      dropPartitionsOneByOne(db, table, specs, ignoreIfNotExists, purge, retainData)
+    }
+  }
+
+  def dropPartitionsOneByOne(
+      db: String,
+      table: String,
+      specs: Seq[TablePartitionSpec],
+      ignoreIfNotExists: Boolean,
+      purge: Boolean,
+      retainData: Boolean): Unit = withHiveState {
     val hiveTable = client.getTable(db, table, true /* throw exception */)
     // do the check at first and collect all the matching partitions
     val matchingParts =
@@ -661,6 +679,44 @@ private[hive] class HiveClientImpl(
           throw e
       }
       droppedParts += partition
+    }
+  }
+
+  def dropPartitionsWithBatch(
+      db: String,
+      table: String,
+      specs: Seq[TablePartitionSpec],
+      ignoreIfNotExists: Boolean,
+      purge: Boolean,
+      retainData: Boolean): Unit = withHiveState {
+    val hiveTable = client.getTable(db, table, true /* throw exception */)
+    val partExprs = new util.ArrayList[ObjectPair[Integer, Array[Byte]]]
+    val maxBatches = sparkConf.getInt(s"spark.sql.dropPartition.maxBatches", 200)
+    try {
+      specs.map { s =>
+        assert(s.values.forall(_.nonEmpty), s"partition spec '$s' is invalid")
+        s
+      }.distinct.map { spec =>
+        partExprs.add(new ObjectPair[Integer, Array[Byte]](spec.size,
+          Utilities.serializeExpressionToKryo
+          (new ExpressionBuilder(hiveTable.getTTable, spec.asJava).build)))
+        if (partExprs.size() == maxBatches) {
+          shim.dropPartitions(client, db, table, partExprs, !retainData, purge, ignoreIfNotExists)
+          partExprs.clear()
+        }
+      }
+      if (partExprs.size() > 0) {
+        shim.dropPartitions(client, db, table, partExprs, !retainData, purge, ignoreIfNotExists)
+      }
+    } catch {
+      case e: NoSuchObjectException =>
+        throw new AnalysisException(
+          "NoSuchObjectException while dropping partition." + e.getMessage)
+      case e: MetaException =>
+        throw new MetaException("MetaException while dropping partition." + e.getMessage)
+      case e: TException =>
+        throw new TException(
+          "TException while dropping partition.", e)
     }
   }
 

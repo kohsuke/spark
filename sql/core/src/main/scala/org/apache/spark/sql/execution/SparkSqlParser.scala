@@ -540,7 +540,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     }
     AlterTableDropPartitionCommand(
       visitTableIdentifier(ctx.tableIdentifier),
-      ctx.partitionSpec.asScala.map(visitNonOptionalPartitionSpec),
+      ctx.dropPartitionSpec().asScala.map(visitDropPartitionSpec),
       ifExists = ctx.EXISTS != null,
       purge = ctx.PURGE != null,
       retainData = false)

@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.dsl.plans
 import org.apache.spark.sql.catalyst.dsl.plans.DslLogicalPlan
-import org.apache.spark.sql.catalyst.expressions.JsonTuple
+import org.apache.spark.sql.catalyst.expressions.{EqualTo, Expression, JsonTuple, PartitioningAttribute}
 import org.apache.spark.sql.catalyst.parser.ParseException
 import org.apache.spark.sql.catalyst.plans.logical.{Generate, InsertIntoDir, LogicalPlan, Project, ScriptTransformation}
 import org.apache.spark.sql.execution.SparkSqlParser
@@ -656,20 +656,57 @@ class DDLParserSuite extends AnalysisTest with SharedSparkSession {
     assertUnsupported(sql2_view)
 
     val tableIdent = TableIdentifier("table_name", None)
+    val dtAttr = PartitioningAttribute("dt")
+    val countryAttr = PartitioningAttribute("country")
+    //    val predicateEqual = (a: Expression, b: Expression) => a = b
     val expected1_table = AlterTableDropPartitionCommand(
       tableIdent,
       Seq(
-        Map("dt" -> "2008-08-08", "country" -> "us"),
-        Map("dt" -> "2009-09-09", "country" -> "uk")),
+        Seq(EqualTo(dtAttr, "2008-08-08"), EqualTo(countryAttr, "us")),
+        Seq(EqualTo(dtAttr, "2009-09-09"), EqualTo(countryAttr, "uk"))),
       ifExists = true,
       purge = false,
       retainData = false)
     val expected2_table = expected1_table.copy(ifExists = false)
     val expected1_purge = expected1_table.copy(purge = true)
 
-    comparePlans(parsed1_table, expected1_table)
-    comparePlans(parsed2_table, expected2_table)
-    comparePlans(parsed1_purge, expected1_purge)
+    comparePlans(parsed1_table.canonicalized, expected1_table.canonicalized)
+    comparePlans(parsed2_table.canonicalized, expected2_table.canonicalized)
+    comparePlans(parsed1_purge.canonicalized, expected1_purge.canonicalized)
+  }
+
+  test("SPARK-23866: Support any comparison operator in ALTER TABLE ... DROP PARTITION") {
+    val sql1_table =
+      """
+        |ALTER TABLE table_name DROP IF EXISTS PARTITION
+        |(dt='2008-08-08', country='us'), PARTITION (dt='2009-09-09', country='uk')
+      """.stripMargin
+    val tableIdent = TableIdentifier("table_name", None)
+    Seq((">", (a: Expression, b: Expression) => a > b),
+      (">=", (a: Expression, b: Expression) => a >= b),
+      ("<", (a: Expression, b: Expression) => a < b),
+      ("<=", (a: Expression, b: Expression) => a <= b),
+      ("<>", (a: Expression, b: Expression) => a =!= b),
+      ("!=", (a: Expression, b: Expression) => a =!= b)).foreach { case (op, predicateGen) =>
+      val genPlan = parser.parsePlan(sql1_table.replace("=", op))
+      val dtAttr = PartitioningAttribute("dt")
+      val countryAttr = PartitioningAttribute("country")
+      val expectedPlan = AlterTableDropPartitionCommand(
+        tableIdent,
+        Seq(
+          Seq(predicateGen(dtAttr, "2008-08-08"), predicateGen(countryAttr, "us")),
+          Seq(predicateGen(dtAttr, "2009-09-09"), predicateGen(countryAttr, "uk"))),
+        ifExists = true,
+        purge = false,
+        retainData = false)
+      comparePlans(genPlan.canonicalized, expectedPlan.canonicalized)
+    }
+
+    // SPARK-23866: <=> is not supported
+    intercept("ALTER TABLE table_name DROP PARTITION (dt <=> 'a')", "operator is not supported in")
+
+    // SPARK-23866: Invalid partition specification
+    intercept("ALTER TABLE table_name DROP PARTITION (dt)", "Invalid partition spec:")
   }
 
   test("alter table: archive partition (not supported)") {
