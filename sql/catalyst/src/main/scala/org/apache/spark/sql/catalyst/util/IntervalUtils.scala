@@ -119,4 +119,13 @@ object IntervalUtils {
       case _: IllegalArgumentException => null
     }
   }
+
+  def legacyCastStringToInterval(str: String): CalendarInterval = {
+    val trimmed = str.trim
+    if (trimmed.startsWith("interval")) {
+      safeFromString(trimmed.drop(8))
+    } else {
+      safeFromString(trimmed)
+    }
+  }
 }

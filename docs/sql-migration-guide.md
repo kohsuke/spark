@@ -9,9 +9,9 @@ license: |
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
- 
+
      http://www.apache.org/licenses/LICENSE-2.0
- 
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -217,6 +217,8 @@ license: |
   For example `SELECT timestamp 'tomorrow';`.
 
   - Since Spark 3.0, the `size` function returns `NULL` for the `NULL` input. In Spark version 2.4 and earlier, this function gives `-1` for the same input. To restore the behavior before Spark 3.0, you can set `spark.sql.legacy.sizeOfNull` to `true`.
+
+  - Since Spark 3.0, when casting string to interval type, strings with leading "interval" such as "interval 1 day" will be treated as invalid and the cast returns null. In Spark version 2.4 and earlier, the leading "interval" is allowed and required. To allow the leading "interval", you can set `spark.sql.legacy.allowLeadingIntervalStringInCast` to true.
 
 ## Upgrading from Spark SQL 2.4 to 2.4.1
 

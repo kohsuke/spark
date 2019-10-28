@@ -102,20 +102,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   }
 
   override def visitSingleInterval(ctx: SingleIntervalContext): CalendarInterval = {
-    withOrigin(ctx) {
-      val units = ctx.intervalUnit().asScala.map {
-        u => normalizeInternalUnit(u.getText.toLowerCase(Locale.ROOT))
-      }.toArray
-      val values = ctx.intervalValue().asScala.map(getIntervalValue).toArray
-      try {
-        CalendarInterval.fromUnitStrings(units, values)
-      } catch {
-        case i: IllegalArgumentException =>
-          val e = new ParseException(i.getMessage, ctx)
-          e.setStackTrace(i.getStackTrace)
-          throw e
-      }
-    }
+    withOrigin(ctx)(visitMultiUnitsInterval(ctx.multiUnitsInterval))
   }
 
   /* ********************************************************************************************
@@ -1930,69 +1917,71 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   }
 
   /**
-   * Create a [[CalendarInterval]] literal expression. An interval expression can contain multiple
-   * unit value pairs, for instance: interval 2 months 2 days.
+   * Creates a [[CalendarInterval]] literal expression with multiple units, e.g. 1 YEAR 2 DAYS.
    */
-  override def visitInterval(ctx: IntervalContext): Literal = withOrigin(ctx) {
-    val intervals = ctx.intervalField.asScala.map(visitIntervalField)
-    validate(intervals.nonEmpty, "at least one time unit should be given for interval literal", ctx)
-    Literal(intervals.reduce(_.add(_)))
+  override def visitMultiUnitsInterval(ctx: MultiUnitsIntervalContext): CalendarInterval = {
+    withOrigin(ctx) {
+      val units = ctx.intervalUnit().asScala.map { unit =>
+        val u = unit.getText.toLowerCase(Locale.ROOT)
+        // Handle plural forms, e.g: yearS/monthS/weekS/dayS/hourS/minuteS/hourS/...
+        if (u.endsWith("s")) u.substring(0, u.length - 1) else u
+      }.toArray
+
+      val values = ctx.intervalValue().asScala.map { value =>
+        if (value.STRING() != null) {
+          string(value.STRING())
+        } else {
+          value.getText
+        }
+      }.toArray
+
+      try {
+        CalendarInterval.fromUnitStrings(units, values)
+      } catch {
+        case i: IllegalArgumentException =>
+          val e = new ParseException(i.getMessage, ctx)
+          e.setStackTrace(i.getStackTrace)
+          throw e
+      }
+    }
   }
 
   /**
-   * Create a [[CalendarInterval]] for a unit value pair. Two unit configuration types are
-   * supported:
-   * - Single unit.
-   * - From-To unit ('YEAR TO MONTH', 'DAY TO HOUR', 'DAY TO MINUTE', 'DAY TO SECOND',
-   * 'HOUR TO MINUTE', 'HOUR TO SECOND' and 'MINUTE TO SECOND' are supported).
+   * Creates a [[CalendarInterval]] literal expression with the unit TO unit syntax,
+   * e.g. '2-1' YEAR TO MONTH.
    */
-  override def visitIntervalField(ctx: IntervalFieldContext): CalendarInterval = withOrigin(ctx) {
-    import ctx._
-    val s = getIntervalValue(value)
-    try {
-      val unitText = unit.getText.toLowerCase(Locale.ROOT)
-      val interval = (unitText, Option(to).map(_.getText.toLowerCase(Locale.ROOT))) match {
-        case (u, None) =>
-          CalendarInterval.fromUnitStrings(Array(normalizeInternalUnit(u)), Array(s))
-        case ("year", Some("month")) =>
-          CalendarInterval.fromYearMonthString(s)
-        case ("day", Some("hour")) =>
-          CalendarInterval.fromDayTimeString(s, "day", "hour")
-        case ("day", Some("minute")) =>
-          CalendarInterval.fromDayTimeString(s, "day", "minute")
-        case ("day", Some("second")) =>
-          CalendarInterval.fromDayTimeString(s, "day", "second")
-        case ("hour", Some("minute")) =>
-          CalendarInterval.fromDayTimeString(s, "hour", "minute")
-        case ("hour", Some("second")) =>
-          CalendarInterval.fromDayTimeString(s, "hour", "second")
-        case ("minute", Some("second")) =>
-          CalendarInterval.fromDayTimeString(s, "minute", "second")
-        case (from, Some(t)) =>
-          throw new ParseException(s"Intervals FROM $from TO $t are not supported.", ctx)
+  override def visitUnitToUnitInterval(ctx: UnitToUnitIntervalContext): CalendarInterval = {
+    withOrigin(ctx) {
+      val value = string(ctx.STRING())
+      try {
+        val interval = (ctx.from.getText, ctx.to.getText) match {
+          case ("YEAR", "MONTH") =>
+            CalendarInterval.fromYearMonthString(value)
+          case ("DAY", "HOUR") =>
+            CalendarInterval.fromDayTimeString(value, "day", "hour")
+          case ("DAY", "MINUTE") =>
+            CalendarInterval.fromDayTimeString(value, "day", "minute")
+          case ("DAY", "SECOND") =>
+            CalendarInterval.fromDayTimeString(value, "day", "second")
+          case ("HOUR", "MINUTE") =>
+            CalendarInterval.fromDayTimeString(value, "hour", "minute")
+          case ("HOUR", "SECOND") =>
+            CalendarInterval.fromDayTimeString(value, "hour", "second")
+          case ("MINUTE", "SECOND") =>
+            CalendarInterval.fromDayTimeString(value, "minute", "second")
+          case (from, to) =>
+            throw new ParseException(s"Intervals $from TO $to are not supported.", ctx)
+        }
+        validate(interval != null, "No interval can be constructed", ctx)
+        interval
+      } catch {
+        // Handle Exceptions thrown by CalendarInterval
+        case e: IllegalArgumentException =>
+          val pe = new ParseException(e.getMessage, ctx)
+          pe.setStackTrace(e.getStackTrace)
+          throw pe
       }
-      validate(interval != null, "No interval can be constructed", ctx)
-      interval
-    } catch {
-      // Handle Exceptions thrown by CalendarInterval
-      case e: IllegalArgumentException =>
-        val pe = new ParseException(e.getMessage, ctx)
-        pe.setStackTrace(e.getStackTrace)
-        throw pe
     }
-  }
-
-  private def getIntervalValue(value: IntervalValueContext): String = {
-    if (value.STRING() != null) {
-      string(value.STRING())
-    } else {
-      value.getText
-    }
-  }
-
-  // Handle plural forms, e.g: yearS/monthS/weekS/dayS/hourS/minuteS/hourS/...
-  private def normalizeInternalUnit(s: String): String = {
-    if (s.endsWith("s")) s.substring(0, s.length - 1) else s
   }
 
   /* ********************************************************************************************
