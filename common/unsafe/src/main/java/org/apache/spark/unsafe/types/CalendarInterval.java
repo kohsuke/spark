@@ -81,7 +81,7 @@ public final class CalendarInterval implements Serializable {
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder("interval");
+    StringBuilder sb = new StringBuilder();
 
     if (months != 0) {
       appendUnit(sb, months / 12, "year");
