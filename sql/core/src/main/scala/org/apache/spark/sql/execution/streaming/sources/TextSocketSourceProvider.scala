@@ -27,6 +27,7 @@ import scala.util.{Failure, Success, Try}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability, TableProvider}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read.{Scan, ScanBuilder}
 import org.apache.spark.sql.connector.read.streaming.{ContinuousStream, MicroBatchStream}
 import org.apache.spark.sql.execution.streaming.continuous.TextSocketContinuousStream
@@ -54,38 +55,65 @@ class TextSocketSourceProvider extends TableProvider with DataSourceRegister wit
     }
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
-    checkParameters(options)
-    new TextSocketTable(
-      options.get("host"),
-      options.getInt("port", -1),
-      options.getInt("numPartitions", SparkSession.active.sparkContext.defaultParallelism),
-      options.getBoolean("includeTimestamp", false))
-  }
-
-  /** String that represents the format that this data source provider uses. */
-  override def shortName(): String = "socket"
-}
-
-class TextSocketTable(host: String, port: Int, numPartitions: Int, includeTimestamp: Boolean)
-  extends Table with SupportsRead {
-
-  override def name(): String = s"Socket[$host:$port]"
-
-  override def schema(): StructType = {
-    if (includeTimestamp) {
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    if (options.getBoolean("includeTimestamp", false)) {
       TextSocketReader.SCHEMA_TIMESTAMP
     } else {
       TextSocketReader.SCHEMA_REGULAR
     }
   }
 
+  override def inferPartitioning(
+      schema: StructType, options: CaseInsensitiveStringMap): Array[Transform] = {
+    Array.empty
+  }
+
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    val options = new CaseInsensitiveStringMap(properties)
+    val actualSchema = inferSchema(options)
+    if (schema != actualSchema) {
+      throw new IllegalArgumentException(
+        s"""
+          |Specified schema does not match the actual table schema of text socket source:
+          |Specified schema:    $schema
+          |Actual table schema: $actualSchema
+        """.stripMargin)
+    }
+
+    if (partitioning.nonEmpty) {
+      throw new IllegalArgumentException("text socket source does not support partitioning.")
+    }
+
+    checkParameters(options)
+    new TextSocketTable(
+      schema,
+      options.get("host"),
+      options.getInt("port", -1),
+      options.getInt("numPartitions", SparkSession.active.sparkContext.defaultParallelism))
+  }
+
+  /** String that represents the format that this data source provider uses. */
+  override def shortName(): String = "socket"
+}
+
+class TextSocketTable(
+    override val schema: StructType,
+    host: String,
+    port: Int,
+    numPartitions: Int)
+  extends Table with SupportsRead {
+
+  override def name(): String = s"Socket[$host:$port]"
+
   override def capabilities(): util.Set[TableCapability] = {
     Set(TableCapability.MICRO_BATCH_READ, TableCapability.CONTINUOUS_READ).asJava
   }
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = () => new Scan {
-    override def readSchema(): StructType = schema()
+    override def readSchema(): StructType = schema
 
     override def toMicroBatchStream(checkpointLocation: String): MicroBatchStream = {
       new TextSocketMicroBatchStream(host, port, numPartitions)
