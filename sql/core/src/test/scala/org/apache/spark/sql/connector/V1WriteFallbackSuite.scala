@@ -176,15 +176,27 @@ class InMemoryV1Provider
   extends TableProvider
   with DataSourceRegister
   with CreatableRelationProvider {
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 
-    InMemoryV1Provider.tables.getOrElse(options.get("name"), {
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    new StructType()
+  }
+
+  override def inferPartitioning(
+      schema: StructType, options: CaseInsensitiveStringMap): Array[Transform] = {
+    Array.empty
+  }
+
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    InMemoryV1Provider.tables.getOrElse(properties.get("name"), {
       new InMemoryTableWithV1Fallback(
         "InMemoryTableWithV1Fallback",
         new StructType(),
         Array.empty,
-        options.asCaseSensitiveMap()
-      )
+        properties)
     })
   }
 
@@ -198,17 +210,15 @@ class InMemoryV1Provider
     val _sqlContext = sqlContext
 
     val partitioning = parameters.get(DataSourceUtils.PARTITIONING_COLUMNS_KEY).map { value =>
-      DataSourceUtils.decodePartitioningColumns(value).map { partitioningColumn =>
-        IdentityTransform(FieldReference(partitioningColumn))
-      }
-    }.getOrElse(Nil)
+      DataSourceUtils.decodePartitioningColumns(value).asTransforms
+    }.getOrElse(Array.empty)
 
     val tableName = parameters("name")
     val tableOpt = InMemoryV1Provider.tables.get(tableName)
     val table = tableOpt.getOrElse(new InMemoryTableWithV1Fallback(
       "InMemoryTableWithV1Fallback",
       data.schema.asNullable,
-      partitioning.toArray,
+      partitioning,
       Map.empty[String, String].asJava
     ))
     if (tableOpt.isEmpty) {
