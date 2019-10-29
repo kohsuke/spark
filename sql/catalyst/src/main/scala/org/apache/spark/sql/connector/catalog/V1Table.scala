@@ -20,11 +20,10 @@ package org.apache.spark.sql.connector.catalog
 import java.util
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.catalog.CatalogTable
-import org.apache.spark.sql.connector.expressions.{LogicalExpressions, Transform}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
 
 /**
@@ -67,17 +66,8 @@ private[sql] case class V1Table(v1Table: CatalogTable) extends Table {
   override lazy val schema: StructType = v1Table.schema
 
   override lazy val partitioning: Array[Transform] = {
-    val partitions = new mutable.ArrayBuffer[Transform]()
-
-    v1Table.partitionColumnNames.foreach { col =>
-      partitions += LogicalExpressions.identity(col)
-    }
-
-    v1Table.bucketSpec.foreach { spec =>
-      partitions += LogicalExpressions.bucket(spec.numBuckets, spec.bucketColumnNames: _*)
-    }
-
-    partitions.toArray
+    import CatalogV2Implicits._
+    v1Table.partitionColumnNames.asTransforms ++ v1Table.bucketSpec.map(_.asTransform)
   }
 
   override def name: String = v1Table.identifier.quoted

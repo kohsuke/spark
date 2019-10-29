@@ -105,9 +105,9 @@ final class DataFrameWriterV2[T] private[sql](table: String, ds: Dataset[T])
       case Hours(attr: Attribute) =>
         LogicalExpressions.hours(attr.name)
       case Bucket(Literal(numBuckets: Int, IntegerType), attr: Attribute) =>
-        LogicalExpressions.bucket(numBuckets, attr.name)
+        LogicalExpressions.bucket(numBuckets, Array(LogicalExpressions.reference(Seq(attr.name))))
       case attr: Attribute =>
-        LogicalExpressions.identity(attr.name)
+        LogicalExpressions.identity(LogicalExpressions.reference(Seq(attr.name)))
       case expr =>
         throw new AnalysisException(s"Invalid partition transformation: ${expr.sql}")
     }
