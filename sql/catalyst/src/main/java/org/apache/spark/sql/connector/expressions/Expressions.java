@@ -82,8 +82,10 @@ public class Expressions {
    * @return a logical bucket transform with name "bucket"
    */
   public static Transform bucket(int numBuckets, String... columns) {
-    return LogicalExpressions.bucket(numBuckets,
-        JavaConverters.asScalaBuffer(Arrays.asList(columns)).toSeq());
+    NamedReference[] references = Arrays.stream(columns)
+      .map(Expressions::column)
+      .toArray(NamedReference[]::new);
+    return LogicalExpressions.bucket(numBuckets, references);
   }
 
   /**
@@ -97,7 +99,7 @@ public class Expressions {
    * @return a logical identity transform with name "identity"
    */
   public static Transform identity(String column) {
-    return LogicalExpressions.identity(column);
+    return LogicalExpressions.identity(Expressions.column(column));
   }
 
   /**
