@@ -22,7 +22,8 @@ import java.util
 import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability, TableProvider}
+import org.apache.spark.sql.connector.catalog.{SupportsDirectWrite, SupportsWrite, Table, TableCapability, TableProvider}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.write.{BatchWrite, DataWriter, DataWriterFactory, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.connector.write.streaming.{StreamingDataWriterFactory, StreamingWrite}
 import org.apache.spark.sql.sources.DataSourceRegister
@@ -33,9 +34,24 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
  * This is no-op datasource. It does not do anything besides consuming its input.
  * This can be useful for benchmarking or to cache data without any additional overhead.
  */
-class NoopDataSource extends TableProvider with DataSourceRegister {
+class NoopDataSource extends TableProvider with SupportsDirectWrite with DataSourceRegister {
   override def shortName(): String = "noop"
-  override def getTable(options: CaseInsensitiveStringMap): Table = NoopTable
+
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    new StructType()
+  }
+
+  override def inferPartitioning(
+      schema: StructType, options: CaseInsensitiveStringMap): Array[Transform] = {
+    Array.empty
+  }
+
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    NoopTable
+  }
 }
 
 private[noop] object NoopTable extends Table with SupportsWrite {

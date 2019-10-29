@@ -176,15 +176,26 @@ class InMemoryV1Provider
   extends TableProvider
   with DataSourceRegister
   with CreatableRelationProvider {
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
 
-    InMemoryV1Provider.tables.getOrElse(options.get("name"), {
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
+    new StructType()
+  }
+
+  override def inferPartitioning(
+      schema: StructType, options: CaseInsensitiveStringMap): Array[Transform] = {
+    Array.empty
+  }
+
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    InMemoryV1Provider.tables.getOrElse(properties.get("name"), {
       new InMemoryTableWithV1Fallback(
         "InMemoryTableWithV1Fallback",
         new StructType(),
         Array.empty,
-        options.asCaseSensitiveMap()
-      )
+        properties)
     })
   }
 

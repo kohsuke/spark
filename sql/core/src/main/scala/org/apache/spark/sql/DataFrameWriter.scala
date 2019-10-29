@@ -25,10 +25,10 @@ import org.apache.spark.annotation.Stable
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{EliminateSubqueryAliases, NoSuchTableException, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.catalog._
-import org.apache.spark.sql.catalyst.expressions.Literal
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Literal}
 import org.apache.spark.sql.catalyst.plans.logical.{AppendData, CreateTableAsSelect, InsertIntoStatement, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, ReplaceTableAsSelect}
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.connector.catalog.{CatalogPlugin, Identifier, SupportsWrite, TableCatalog, TableProvider, V1Table}
+import org.apache.spark.sql.connector.catalog.{CatalogPlugin, Identifier, SupportsDirectWrite, SupportsWrite, TableCatalog, TableProvider, V1Table}
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.{BucketTransform, FieldReference, IdentityTransform, LiteralValue, Transform}
 import org.apache.spark.sql.execution.SQLExecution
@@ -258,7 +258,17 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
       val dsOptions = new CaseInsensitiveStringMap(options.asJava)
 
       import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
-      provider.getTable(dsOptions) match {
+
+      val table = provider match {
+        case p: SupportsDirectWrite =>
+          import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
+          val partitioning = partitioningColumns.getOrElse(Nil).asTransforms
+          p.getTable(df.schema, partitioning, dsOptions)
+        case _ =>
+          DataSourceV2Utils.getTableFromProvider(provider, dsOptions, userSpecifiedSchema = None)
+      }
+
+      table match {
         case table: SupportsWrite if table.supports(BATCH_WRITE) =>
           if (partitioningColumns.nonEmpty) {
             throw new AnalysisException("Cannot write data to TableProvider implementation " +

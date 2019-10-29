@@ -307,8 +307,10 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
           source = provider, conf = df.sparkSession.sessionState.conf)
         val options = sessionOptions ++ extraOptions
         val dsOptions = new CaseInsensitiveStringMap(options.asJava)
+        val table = DataSourceV2Utils.getTableFromProvider(
+          provider, dsOptions, userSpecifiedSchema = None)
         import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
-        provider.getTable(dsOptions) match {
+        table match {
           case table: SupportsWrite if table.supports(STREAMING_WRITE) =>
             table
           case _ => createV1Sink()

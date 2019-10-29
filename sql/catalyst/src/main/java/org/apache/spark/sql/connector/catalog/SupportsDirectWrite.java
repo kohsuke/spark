@@ -15,34 +15,9 @@
  * limitations under the License.
  */
 
-package test.org.apache.spark.sql.connector;
+package org.apache.spark.sql.connector.catalog;
 
-import org.apache.spark.sql.connector.TestingV2Source;
-import org.apache.spark.sql.connector.read.Batch;
-import org.apache.spark.sql.connector.read.PartitionReaderFactory;
-import org.apache.spark.sql.connector.read.Scan;
-import org.apache.spark.sql.connector.read.ScanBuilder;
-import org.apache.spark.sql.types.StructType;
+import org.apache.spark.annotation.Evolving;
 
-abstract class JavaSimpleScanBuilder implements ScanBuilder, Scan, Batch {
-
-  @Override
-  public Scan build() {
-    return this;
-  }
-
-  @Override
-  public Batch toBatch() {
-    return this;
-  }
-
-  @Override
-  public StructType readSchema() {
-    return TestingV2Source.schema();
-  }
-
-  @Override
-  public PartitionReaderFactory createReaderFactory() {
-    return new JavaSimpleReaderFactory();
-  }
-}
+@Evolving
+public interface SupportsDirectWrite extends TableProvider {}

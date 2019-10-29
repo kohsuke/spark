@@ -125,6 +125,9 @@ class KafkaSourceProviderSuite extends SparkFunSuite {
 
   private def getKafkaDataSourceScan(options: CaseInsensitiveStringMap): Scan = {
     val provider = new KafkaSourceProvider()
-    provider.getTable(options).newScanBuilder(options).build()
+    val schema = provider.inferSchema(options)
+    val partitioning = provider.inferPartitioning(schema, options)
+    provider.getTable(schema, partitioning, options.asCaseSensitiveMap())
+      .newScanBuilder(options).build()
   }
 }
