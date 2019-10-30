@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.util
 
-import java.util.regex.Pattern
+import java.math.{BigDecimal, RoundingMode}
 
 import scala.util.control.NonFatal
 
@@ -260,26 +260,50 @@ object IntervalUtils {
       try {
         units(i) match {
           case "year" =>
-            months = Math.addExact(months, Math.multiplyExact(values(i).toInt, 12))
+            months = new BigDecimal(values(i)).multiply(new BigDecimal(MONTHS_PER_YEAR))
+              .setScale(0, RoundingMode.DOWN)
+              .intValueExact
           case "month" =>
-            months = Math.addExact(months, values(i).toInt)
+            val m = new BigDecimal(values(i))
+            microseconds = m.remainder(BigDecimal.ONE).multiply(new BigDecimal(MICROS_PER_MONTH))
+              .setScale(0, RoundingMode.DOWN)
+              .longValueExact
+            months = Math.addExact(months, m.setScale(0, RoundingMode.DOWN).intValueExact)
           case "week" =>
-            val weeksUs = Math.multiplyExact(values(i).toLong, 7 * DateTimeUtils.MICROS_PER_DAY)
-            microseconds = Math.addExact(microseconds, weeksUs)
+            microseconds = Math.addExact(
+              microseconds,
+              new BigDecimal(values(i)).multiply(new BigDecimal(7 * DateTimeUtils.MICROS_PER_DAY))
+                .setScale(0, RoundingMode.DOWN)
+                .longValueExact)
           case "day" =>
-            val daysUs = Math.multiplyExact(values(i).toLong, DateTimeUtils.MICROS_PER_DAY)
-            microseconds = Math.addExact(microseconds, daysUs)
+            microseconds = Math.addExact(
+              microseconds,
+              new BigDecimal(values(i)).multiply(new BigDecimal(DateTimeUtils.MICROS_PER_DAY))
+                .setScale(0, RoundingMode.DOWN)
+                .longValueExact)
           case "hour" =>
-            val hoursUs = Math.multiplyExact(values(i).toLong, MICROS_PER_HOUR)
-            microseconds = Math.addExact(microseconds, hoursUs)
+            microseconds = Math.addExact(
+              microseconds,
+              new BigDecimal(values(i)).multiply(new BigDecimal(MICROS_PER_HOUR))
+                .setScale(0, RoundingMode.DOWN)
+                .longValueExact)
           case "minute" =>
-            val minutesUs = Math.multiplyExact(values(i).toLong, MICROS_PER_MINUTE)
-            microseconds = Math.addExact(microseconds, minutesUs)
+            microseconds = Math.addExact(
+              microseconds,
+              new BigDecimal(values(i)).multiply(new BigDecimal(MICROS_PER_MINUTE))
+                .setScale(0, RoundingMode.DOWN)
+                .longValueExact)
           case "second" =>
-            microseconds = Math.addExact(microseconds, parseSecondNano(values(i)))
+            microseconds = Math.addExact(
+              microseconds,
+              new BigDecimal(values(i)).multiply(new BigDecimal(DateTimeUtils.MICROS_PER_SECOND))
+                .setScale(0, RoundingMode.DOWN).longValueExact)
           case "millisecond" =>
-            val millisUs = Math.multiplyExact(values(i).toLong, DateTimeUtils.MICROS_PER_MILLIS)
-            microseconds = Math.addExact(microseconds, millisUs)
+            microseconds = Math.addExact(
+              microseconds,
+              new BigDecimal(values(i)).multiply(new BigDecimal(DateTimeUtils.MICROS_PER_MILLIS))
+                .setScale(0, RoundingMode.DOWN)
+                .longValueExact)
           case "microsecond" =>
             microseconds = Math.addExact(microseconds, values(i).toLong)
         }
@@ -290,31 +314,5 @@ object IntervalUtils {
       i += 1
     }
     new CalendarInterval(months, microseconds)
-  }
-
-  /**
-   * Parse second_nano string in ss.nnnnnnnnn format to microseconds
-   */
-  private def parseSecondNano(secondNano: String): Long = {
-    def parseSeconds(secondsStr: String): Long = {
-      toLongWithRange(
-        "second",
-        secondsStr,
-        Long.MinValue / DateTimeUtils.MICROS_PER_SECOND,
-        Long.MaxValue / DateTimeUtils.MICROS_PER_SECOND) * DateTimeUtils.MICROS_PER_SECOND
-    }
-    def parseNanos(nanosStr: String): Long = {
-      toLongWithRange("nanosecond", nanosStr, 0L, 999999999L) / DateTimeUtils.NANOS_PER_MICROS
-    }
-
-    secondNano.split("\\.") match {
-      case Array(secondsStr) => parseSeconds(secondsStr)
-      case Array("", nanosStr) => parseNanos(nanosStr)
-      case Array(secondsStr, nanosStr) =>
-        Math.addExact(parseSeconds(secondsStr), parseNanos(nanosStr))
-      case _ =>
-        throw new IllegalArgumentException(
-          "Interval string does not match second-nano format of ss.nnnnnnnnn")
-    }
   }
 }
