@@ -189,6 +189,16 @@ case class AlterTableRecoverPartitionsStatement(
     tableName: Seq[String]) extends ParsedStatement
 
 /**
+ * ALTER TABLE ... DROP PARTITION command, as parsed from SQL
+ */
+case class AlterTableDropPartitionStatement(
+    tableName: Seq[String],
+    specs: Seq[TablePartitionSpec],
+    ifExists: Boolean,
+    purge: Boolean,
+    retainData: Boolean) extends ParsedStatement
+
+/**
  * ALTER VIEW ... SET TBLPROPERTIES command, as parsed from SQL.
  */
 case class AlterViewSetPropertiesStatement(
