@@ -18,6 +18,8 @@
 package org.apache.spark.unsafe.types;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,6 +33,7 @@ public final class CalendarInterval implements Serializable {
   public static final long MICROS_PER_HOUR = MICROS_PER_MINUTE * 60;
   public static final long MICROS_PER_DAY = MICROS_PER_HOUR * 24;
   public static final long MICROS_PER_WEEK = MICROS_PER_DAY * 7;
+  public static final long MICROS_PER_MONTH = MICROS_PER_DAY * 30;
 
   private static Pattern yearMonthPattern = Pattern.compile(
     "^([+|-])?(\\d+)-(\\d+)$");
@@ -159,6 +162,16 @@ public final class CalendarInterval implements Serializable {
     return result;
   }
 
+  /**
+   * Parse interval string in from:
+   * '1.41 year 2.51 month 2.21 week 15.24 day 3.31 hour 5.38 minute 12.34 second 2.1 millisecond'
+   *
+   * The year interval part only take affect on year and month, the rest of it will be omitted.
+   *
+   * The rest of month interval part will turn into microseconds.
+   *
+   * All the others will turn into microseconds.
+   */
   public static CalendarInterval fromUnitStrings(String[] units, String[] values)
       throws IllegalArgumentException {
     assert units.length == values.length;
@@ -169,39 +182,58 @@ public final class CalendarInterval implements Serializable {
       try {
         switch (units[i]) {
           case "year":
-            months = Math.addExact(months, Math.multiplyExact(Integer.parseInt(values[i]), 12));
+            months = new BigDecimal(values[i]).multiply(new BigDecimal(12))
+              .setScale(0,RoundingMode.DOWN)
+              .intValueExact();
             break;
           case "month":
-            months = Math.addExact(months, Integer.parseInt(values[i]));
+            BigDecimal m = new BigDecimal(values[i]);
+            microseconds = m.remainder(BigDecimal.ONE).multiply(new BigDecimal(MICROS_PER_MONTH))
+              .setScale(0,RoundingMode.DOWN)
+              .longValueExact();
+            months = Math.addExact(months, m.setScale(0,RoundingMode.DOWN).intValueExact());
             break;
           case "week":
             microseconds = Math.addExact(
               microseconds,
-              Math.multiplyExact(Long.parseLong(values[i]), MICROS_PER_WEEK));
+              new BigDecimal(values[i]).multiply(new BigDecimal(MICROS_PER_WEEK))
+                .setScale(0,RoundingMode.DOWN)
+                .longValueExact());
             break;
           case "day":
             microseconds = Math.addExact(
               microseconds,
-              Math.multiplyExact(Long.parseLong(values[i]), MICROS_PER_DAY));
+              new BigDecimal(values[i]).multiply(new BigDecimal(MICROS_PER_DAY))
+                .setScale(0,RoundingMode.DOWN)
+                .longValueExact());
             break;
           case "hour":
             microseconds = Math.addExact(
               microseconds,
-              Math.multiplyExact(Long.parseLong(values[i]), MICROS_PER_HOUR));
+              new BigDecimal(values[i]).multiply(new BigDecimal(MICROS_PER_HOUR))
+                .setScale(0,RoundingMode.DOWN)
+                .longValueExact());
             break;
           case "minute":
             microseconds = Math.addExact(
               microseconds,
-              Math.multiplyExact(Long.parseLong(values[i]), MICROS_PER_MINUTE));
+              new BigDecimal(values[i]).multiply(new BigDecimal(MICROS_PER_MINUTE))
+                .setScale(0,RoundingMode.DOWN)
+                .longValueExact());
             break;
           case "second": {
-            microseconds = Math.addExact(microseconds, parseSecondNano(values[i]));
+            microseconds = Math.addExact(microseconds,
+              new BigDecimal(values[i]).multiply(new BigDecimal(MICROS_PER_SECOND))
+              .setScale(0,RoundingMode.DOWN)
+              .longValueExact());
             break;
           }
           case "millisecond":
             microseconds = Math.addExact(
               microseconds,
-              Math.multiplyExact(Long.parseLong(values[i]), MICROS_PER_MILLI));
+              new BigDecimal(values[i]).multiply(new BigDecimal(MICROS_PER_MILLI))
+                .setScale(0,RoundingMode.DOWN)
+                .longValueExact());
             break;
           case "microsecond":
             microseconds = Math.addExact(microseconds, Long.parseLong(values[i]));
@@ -212,27 +244,6 @@ public final class CalendarInterval implements Serializable {
       }
     }
     return new CalendarInterval(months, microseconds);
-  }
-
-  /**
-   * Parse second_nano string in ss.nnnnnnnnn format to microseconds
-   */
-  public static long parseSecondNano(String secondNano) throws IllegalArgumentException {
-    String[] parts = secondNano.split("\\.");
-    if (parts.length == 1) {
-      return toLongWithRange("second", parts[0], Long.MIN_VALUE / MICROS_PER_SECOND,
-        Long.MAX_VALUE / MICROS_PER_SECOND) * MICROS_PER_SECOND;
-
-    } else if (parts.length == 2) {
-      long seconds = parts[0].equals("") ? 0L : toLongWithRange("second", parts[0],
-        Long.MIN_VALUE / MICROS_PER_SECOND, Long.MAX_VALUE / MICROS_PER_SECOND);
-      long nanos = toLongWithRange("nanosecond", parts[1], 0L, 999999999L);
-      return seconds * MICROS_PER_SECOND + nanos / 1000L;
-
-    } else {
-      throw new IllegalArgumentException(
-        "Interval string does not match second-nano format of ss.nnnnnnnnn");
-    }
   }
 
   public final int months;
