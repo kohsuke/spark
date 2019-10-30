@@ -581,7 +581,7 @@ struct<>
 -- !query 62 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 37)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 37)
 
 == SQL ==
 select interval '10-9' year to month '2-1' year to month
@@ -595,7 +595,7 @@ struct<>
 -- !query 63 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 37)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 37)
 
 == SQL ==
 select interval '10-9' year to month '12:11:10' hour to second
@@ -609,7 +609,7 @@ struct<>
 -- !query 64 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 40)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 40)
 
 == SQL ==
 select interval '1 15:11' day to minute '12:11:10' hour to second
@@ -623,7 +623,7 @@ struct<>
 -- !query 65 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit TO unit statement in the interval literal syntax(line 1, pos 23)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 23)
 
 == SQL ==
 select interval 1 year '2-1' year to month
@@ -637,7 +637,7 @@ struct<>
 -- !query 66 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit TO unit statement in the interval literal syntax(line 1, pos 23)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 23)
 
 == SQL ==
 select interval 1 year '12:11:10' hour to second
@@ -651,7 +651,7 @@ struct<>
 -- !query 67 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 37)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 37)
 
 == SQL ==
 select interval '10-9' year to month '1' year
@@ -665,7 +665,7 @@ struct<>
 -- !query 68 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 42)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 42)
 
 == SQL ==
 select interval '12:11:10' hour to second '1' year
@@ -687,7 +687,7 @@ struct<>
 -- !query 70 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 37)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 37)
 
 == SQL ==
 select interval '10-9' year to month '2-1' year to month
@@ -701,7 +701,7 @@ struct<>
 -- !query 71 output
 org.apache.spark.sql.catalyst.parser.ParseException
 
-Can only have a single unit-TO-unit statement in the interval literal syntax(line 1, pos 28)
+Can only have a single from-to unit in the interval literal syntax(line 1, pos 28)
 
 == SQL ==
 select '10-9' year to month '2-1' year to month

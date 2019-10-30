@@ -1927,16 +1927,16 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   }
 
   /**
-   * Create a [[CalendarInterval]] literal expression. An interval expression can contain multiple
-   * unit value pairs, for instance: interval 2 months 2 days. Or a unit-TO-unit statement, for
-   * instance: interval '1-2' year to month.
+   * Create a [[CalendarInterval]] literal expression. Two syntaxes are supported:
+   * - multiple unit value pairs, for instance: interval 2 months 2 days.
+   * - from-to unit, for instance: interval '1-2' year to month.
    */
   override def visitInterval(ctx: IntervalContext): Literal = withOrigin(ctx) {
     if (ctx.errorCapturingMultiUnitsInterval != null) {
       val innerCtx = ctx.errorCapturingMultiUnitsInterval
       if (innerCtx.unitToUnitInterval != null) {
         throw new ParseException(
-          "Can only have a single unit TO unit statement in the interval literal syntax",
+          "Can only have a single from-to unit in the interval literal syntax",
           innerCtx.unitToUnitInterval)
       }
       Literal(visitMultiUnitsInterval(innerCtx.multiUnitsInterval), CalendarIntervalType)
@@ -1946,7 +1946,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       if (innerCtx.error1 != null || innerCtx.error2 != null) {
         val errorCtx = if (innerCtx.error1 != null) innerCtx.error1 else innerCtx.error2
         throw new ParseException(
-          "Can only have a single unit-TO-unit statement in the interval literal syntax",
+          "Can only have a single from-to unit in the interval literal syntax",
           errorCtx)
       }
       Literal(visitUnitToUnitInterval(innerCtx.body), CalendarIntervalType)
@@ -1984,7 +1984,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   }
 
   /**
-   * Creates a [[CalendarInterval]] with a unit-TO-unit statement, e.g. '2-1' YEAR TO MONTH.
+   * Creates a [[CalendarInterval]] with from-to unit, e.g. '2-1' YEAR TO MONTH.
    */
   override def visitUnitToUnitInterval(ctx: UnitToUnitIntervalContext): CalendarInterval = {
     withOrigin(ctx) {
