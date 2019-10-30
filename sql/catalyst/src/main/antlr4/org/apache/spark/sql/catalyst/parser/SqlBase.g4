@@ -761,8 +761,8 @@ booleanValue
     ;
 
 interval
-    : {ansi}? INTERVAL? (errorCapturingMultiUnitsInterval | errorCapturingUnitToUnitInterval)
-    | {!ansi}? INTERVAL (errorCapturingMultiUnitsInterval | errorCapturingUnitToUnitInterval)
+    : INTERVAL (errorCapturingMultiUnitsInterval | errorCapturingUnitToUnitInterval)?
+    | {ansi}? (errorCapturingMultiUnitsInterval | errorCapturingUnitToUnitInterval)
     ;
 
 errorCapturingMultiUnitsInterval
