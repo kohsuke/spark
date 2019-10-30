@@ -23,7 +23,7 @@ import org.apache.spark.annotation.Since
 import org.apache.spark.ml.{Estimator, Model}
 import org.apache.spark.ml.linalg._
 import org.apache.spark.ml.param._
-import org.apache.spark.ml.param.shared.{HasInputCol, HasOutputCol}
+import org.apache.spark.ml.param.shared.{HasAggregationDepth, HasInputCol, HasOutputCol}
 import org.apache.spark.ml.util._
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.sql._
@@ -34,7 +34,8 @@ import org.apache.spark.sql.types.{StructField, StructType}
 /**
  * Params for [[RobustScaler]] and [[RobustScalerModel]].
  */
-private[feature] trait RobustScalerParams extends Params with HasInputCol with HasOutputCol {
+private[feature] trait RobustScalerParams extends Params with HasInputCol with HasOutputCol
+  with HasAggregationDepth {
 
   /**
    * Lower quantile to calculate quantile range, shared by all features
@@ -168,15 +169,18 @@ class RobustScaler (override val uid: String)
       } else {
         Iterator.single(agg.map(_.compress))
       }
-    }.treeReduce { (agg1, agg2) =>
-      require(agg1.length == agg2.length)
-      var i = 0
-      while (i < agg1.length) {
-        agg1(i) = agg1(i).merge(agg2(i))
-        i += 1
-      }
-      agg1
-    }
+    }.treeReduce(
+      (agg1, agg2) => {
+        require(agg1.length == agg2.length)
+        var i = 0
+        while (i < agg1.length) {
+          agg1(i) = agg1(i).merge(agg2(i))
+          i += 1
+        }
+        agg1
+      },
+      depth = $(aggregationDepth)
+    )
 
     val (range, median) = summaries.map { s =>
       (s.query($(upper)).get - s.query($(lower)).get,
