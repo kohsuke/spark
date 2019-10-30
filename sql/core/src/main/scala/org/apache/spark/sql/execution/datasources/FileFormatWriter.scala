@@ -21,6 +21,7 @@ import java.util.{Date, UUID}
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.FileAlreadyExistsException
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
@@ -281,6 +282,10 @@ object FileFormatWriter extends Logging {
     } catch {
       case e: FetchFailedException =>
         throw e
+      case f: FileAlreadyExistsException =>
+        // If any output file to write already exists, it does not make sense to re-run this task.
+        // We throw the exception and let Executor throw ExceptionFailure to about the job.
+        throw new TaskOutputFileAlreadyExistException(f)
       case t: Throwable =>
         throw new SparkException("Task failed while writing rows.", t)
     }
