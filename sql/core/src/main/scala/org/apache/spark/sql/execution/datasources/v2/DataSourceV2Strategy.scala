@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.datasources.v2
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
-import org.apache.spark.sql.{AnalysisException, Strategy}
+import org.apache.spark.sql.{AnalysisException, SparkSession, Strategy}
 import org.apache.spark.sql.catalyst.expressions.{And, AttributeReference, AttributeSet, Expression, PredicateHelper, SubqueryExpression}
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
 import org.apache.spark.sql.catalyst.plans.logical.{AlterTable, AppendData, CreateNamespace, CreateTableAsSelect, CreateV2Table, DeleteFromTable, DescribeTable, DropNamespace, DropTable, LogicalPlan, OverwriteByExpression, OverwritePartitionsDynamic, RefreshTable, Repartition, ReplaceTable, ReplaceTableAsSelect, SetCatalogAndNamespace, ShowNamespaces, ShowTables}
@@ -34,7 +34,7 @@ import org.apache.spark.sql.sources
 import org.apache.spark.sql.sources.{Filter, TableScan}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-object DataSourceV2Strategy extends Strategy with PredicateHelper {
+class DataSourceV2Strategy(session: SparkSession) extends Strategy with PredicateHelper {
 
   /**
    * Pushes down filters to the data source reader
@@ -135,7 +135,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
 
       val (scanExec, needsUnsafeConversion) = scan match {
         case v1Scan: V1Scan =>
-          val v1Relation = v1Scan.toV1Relation()
+          val v1Relation = v1Scan.toV1Relation(session.sqlContext)
           if (v1Relation.schema != output.toStructType) {
             throw new IllegalArgumentException(
               "The fallback v1 relation reports inconsistent schema:\n" +
@@ -151,6 +151,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
           val unsafeRowRDD = DataSourceStrategy.toCatalystRDD(v1Relation, output, rdd)
           val dsScan = RowDataSourceScanExec(
             output,
+            output.map(relation.output.indexOf),
             pushedFilters.toSet,
             pushedFilters.toSet,
             unsafeRowRDD,
