@@ -1374,7 +1374,7 @@ class DataSourceV2SQLSuite
     }
   }
 
- test("ALTER TABLE RECOVER PARTITIONS") {
+  test("ALTER TABLE RECOVER PARTITIONS") {
     val t = "testcat.ns1.ns2.tbl"
     withTable(t) {
       spark.sql(s"CREATE TABLE $t (id bigint, data string) USING foo")
@@ -1383,7 +1383,7 @@ class DataSourceV2SQLSuite
       }
       assert(e.message.contains("ALTER TABLE RECOVER PARTITIONS is only supported with v1 tables"))
     }
- }
+  }
 
   test("ALTER TABLE DROP PARTITIONS") {
     val t = "testcat.ns1.ns2.tbl"
