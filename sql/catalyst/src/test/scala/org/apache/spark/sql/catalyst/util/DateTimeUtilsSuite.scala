@@ -373,13 +373,15 @@ class DateTimeUtilsSuite extends SparkFunSuite with Matchers {
   test("timestamp add months") {
     val ts1 = date(1997, 2, 28, 10, 30, 0)
     val ts2 = date(2000, 2, 28, 10, 30, 0, 123000)
-    assert(timestampAddInterval(ts1, 36, 0, 123000, defaultZoneId) === ts2)
+    assert(timestampAddInterval(ts1, new CalendarInterval(36, 0, 123000), defaultZoneId) === ts2)
 
     val ts3 = date(1997, 2, 27, 16, 0, 0, 0, TimeZonePST)
     val ts4 = date(2000, 2, 27, 16, 0, 0, 123000, TimeZonePST)
     val ts5 = date(2000, 2, 28, 0, 0, 0, 123000, TimeZoneGMT)
-    assert(timestampAddInterval(ts3, 36, 0, 123000, TimeZonePST.toZoneId) === ts4)
-    assert(timestampAddInterval(ts3, 36, 0, 123000, TimeZoneGMT.toZoneId) === ts5)
+    assert(timestampAddInterval(
+      ts3, new CalendarInterval(36, 0, 123000), TimeZonePST.toZoneId) === ts4)
+    assert(timestampAddInterval(
+      ts3, new CalendarInterval(36, 0, 123000), TimeZoneGMT.toZoneId) === ts5)
   }
 
   test("timestamp add days") {
@@ -396,16 +398,22 @@ class DateTimeUtilsSuite extends SparkFunSuite with Matchers {
 
     // transit from Pacific Standard Time to Pacific Daylight Time
     assert(timestampAddInterval(
-      ts1, 0, 0, 23 * CalendarInterval.MICROS_PER_HOUR, TimeZonePST.toZoneId) === ts2)
-    assert(timestampAddInterval(ts1, 0, 1, 0, TimeZonePST.toZoneId) === ts2)
+      ts1,
+      new CalendarInterval(0, 0, 23 * CalendarInterval.MICROS_PER_HOUR),
+      TimeZonePST.toZoneId) === ts2)
+    assert(timestampAddInterval(ts1, new CalendarInterval(0, 1, 0), TimeZonePST.toZoneId) === ts2)
     // just a normal day
     assert(timestampAddInterval(
-      ts3, 0, 0, 24 * CalendarInterval.MICROS_PER_HOUR, TimeZonePST.toZoneId) === ts4)
-    assert(timestampAddInterval(ts3, 0, 1, 0, TimeZonePST.toZoneId) === ts4)
+      ts3,
+      new CalendarInterval(0, 0, 24 * CalendarInterval.MICROS_PER_HOUR),
+      TimeZonePST.toZoneId) === ts4)
+    assert(timestampAddInterval(ts3, new CalendarInterval(0, 1, 0), TimeZonePST.toZoneId) === ts4)
     // transit from Pacific Daylight Time to Pacific Standard Time
     assert(timestampAddInterval(
-      ts5, 0, 0, 25 * CalendarInterval.MICROS_PER_HOUR, TimeZonePST.toZoneId) === ts6)
-    assert(timestampAddInterval(ts5, 0, 1, 0, TimeZonePST.toZoneId) === ts6)
+      ts5,
+      new CalendarInterval(0, 0, 25 * CalendarInterval.MICROS_PER_HOUR),
+      TimeZonePST.toZoneId) === ts6)
+    assert(timestampAddInterval(ts5, new CalendarInterval(0, 1, 0), TimeZonePST.toZoneId) === ts6)
   }
 
   test("monthsBetween") {

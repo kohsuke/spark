@@ -2652,7 +2652,7 @@ object Sequence {
           arr(i) = fromLong(t / scale)
           i += 1
           t = timestampAddInterval(
-            startMicros, i * stepMonths, i * stepDays, i * stepMicros, zoneId)
+            startMicros, new CalendarInterval(i * stepMonths, i * stepDays, i * stepMicros), zoneId)
         }
 
         // truncate array to the correct length
@@ -2715,7 +2715,10 @@ object Sequence {
          |    $arr[$i] = ($elemType) ($t / ${scale}L);
          |    $i += 1;
          |    $t = org.apache.spark.sql.catalyst.util.DateTimeUtils.timestampAddInterval(
-         |       $startMicros, $i * $stepMonths, $i * $stepDays, $i * $stepMicros, $zid);
+         |       $startMicros,
+         |       new org.apache.spark.unsafe.types.CalendarInterval(
+         |         $i * $stepMonths, $i * $stepDays, $i * $stepMicros),
+         |       $zid);
          |  }
          |
          |  if ($arr.length > $i) {
