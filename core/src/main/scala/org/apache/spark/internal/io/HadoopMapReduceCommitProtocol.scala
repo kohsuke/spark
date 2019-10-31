@@ -281,7 +281,7 @@ class HadoopMapReduceCommitProtocol(
       committer, taskContext, attemptId.getJobID.getId, attemptId.getTaskID.getId)
     if (dynamicPartitionOverwrite) {
       val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
-      for (stagingTaskFile <- stagingTaskFiles) {
+      stagingTaskFiles.foreach { stagingTaskFile =>
         val fileName = stagingTaskFile.getName
         val taskPartitionPath = getPartitionPath(stagingTaskFile)
         val destFile = new Path(new Path(stagingDir, taskPartitionPath), fileName)
