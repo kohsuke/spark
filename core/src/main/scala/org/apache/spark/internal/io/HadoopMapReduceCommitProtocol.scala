@@ -91,6 +91,34 @@ class HadoopMapReduceCommitProtocol(
    */
   private def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
+  /**
+   * The working path for tasks when dynamicPartitionOverwrite=true.
+   */
+  private def stagingWorkingPath = new Path(stagingDir, "_temporary")
+
+  /**
+   * Get a staging path for a task when dynamicPartitionOverwrite=true.
+   */
+  private def stagingTaskPath(dir: Option[String], taskContext: TaskAttemptContext): Path = {
+    val attemptID = taskContext.getTaskAttemptID.getId
+    new Path(stagingWorkingPath, Array(dir.get, attemptID).mkString("/"))
+  }
+
+  /**
+   * Tracks the staging task files when dynamicPartitionOverwrite=true.
+   */
+  @transient private var stagingTaskFiles: mutable.Set[Path] = null
+
+  /**
+   * Get responding partition path for a task when dynamicPartitionOverwrite=true.
+   */
+  private def getPartitionPath(stagingTaskFile: Path): String = {
+    assert(dynamicPartitionOverwrite)
+    val absStagingPartitionPath = stagingTaskFile.getParent.getParent.toUri.getRawPath
+    val absStagingWorkingPath = stagingWorkingPath.toUri.getRawPath
+    absStagingPartitionPath.substring(absStagingWorkingPath.length + 1)
+  }
+
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
     val format = context.getOutputFormatClass.getConstructor().newInstance()
     // If OutputFormat is Configurable, we should set conf to it.
@@ -118,7 +146,13 @@ class HadoopMapReduceCommitProtocol(
     }
 
     dir.map { d =>
-      new Path(new Path(stagingDir, d), filename).toString
+      if (dynamicPartitionOverwrite) {
+        val tempFile = new Path(stagingTaskPath(dir, taskContext), filename)
+        stagingTaskFiles += tempFile
+        tempFile.toString
+      } else {
+        new Path(new Path(stagingDir, d), filename).toString
+      }
     }.getOrElse {
       new Path(stagingDir, filename).toString
     }
@@ -236,6 +270,7 @@ class HadoopMapReduceCommitProtocol(
     committer.setupTask(taskContext)
     addedAbsPathFiles = mutable.Map[String, String]()
     partitionPaths = mutable.Set[String]()
+    stagingTaskFiles = mutable.Set[Path]()
   }
 
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
@@ -243,6 +278,15 @@ class HadoopMapReduceCommitProtocol(
     logTrace(s"Commit task ${attemptId}")
     SparkHadoopMapRedUtil.commitTask(
       committer, taskContext, attemptId.getJobID.getId, attemptId.getTaskID.getId)
+    if (dynamicPartitionOverwrite) {
+      val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
+      for (stagingTaskFile <- stagingTaskFiles) {
+        val fileName = stagingTaskFile.getName
+        val taskPartitionPath = getPartitionPath(stagingTaskFile)
+        val destFile = new Path(new Path(stagingDir, taskPartitionPath), fileName)
+        fs.rename(stagingTaskFile, destFile)
+      }
+    }
     new TaskCommitMessage(addedAbsPathFiles.toMap -> partitionPaths.toSet)
   }
 
