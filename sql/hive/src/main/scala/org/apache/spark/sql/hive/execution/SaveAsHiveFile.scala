@@ -81,7 +81,8 @@ private[hive] trait SaveAsHiveFile extends DataWritingCommand {
     val committer = FileCommitProtocol.instantiate(
       sparkSession.sessionState.conf.fileCommitProtocolClass,
       jobId = java.util.UUID.randomUUID().toString,
-      outputPath = outputLocation)
+      outputPath = outputLocation,
+      customizeOutputPath = !customPartitionLocations.isEmpty)
 
     FileFormatWriter.write(
       sparkSession = sparkSession,
