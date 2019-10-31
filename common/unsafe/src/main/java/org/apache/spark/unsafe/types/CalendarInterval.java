@@ -19,10 +19,12 @@ package org.apache.spark.unsafe.types;
 
 import java.io.Serializable;
 
+import scala.math.Ordered;
+
 /**
  * The internal representation of interval type.
  */
-public final class CalendarInterval implements Serializable {
+public final class CalendarInterval implements Serializable, Ordered<CalendarInterval> {
   public static final long MICROS_PER_MILLI = 1000L;
   public static final long MICROS_PER_SECOND = MICROS_PER_MILLI * 1000;
   public static final long MICROS_PER_MINUTE = MICROS_PER_SECOND * 60;
@@ -70,6 +72,23 @@ public final class CalendarInterval implements Serializable {
   @Override
   public int hashCode() {
     return 31 * months + (int) microseconds;
+  }
+
+  @Override
+  public int compare(CalendarInterval that) {
+    int mc = this.months - that.months;
+    if (mc == 0) {
+      long mic = this.microseconds - that.microseconds;
+      if (mic == 0) {
+        return 0;
+      } else if (mic > 0) {
+        return 1;
+      } else {
+        return -1;
+      }
+    } else {
+      return mc;
+    }
   }
 
   @Override
