@@ -142,6 +142,9 @@ class RobustScaler (override val uid: String)
   /** @group setParam */
   def setWithScaling(value: Boolean): this.type = set(withScaling, value)
 
+  /** @group expertSetParam */
+  def setAggregationDepth(value: Int): this.type = set(aggregationDepth, value)
+
   override def fit(dataset: Dataset[_]): RobustScalerModel = {
     transformSchema(dataset.schema, logging = true)
 
