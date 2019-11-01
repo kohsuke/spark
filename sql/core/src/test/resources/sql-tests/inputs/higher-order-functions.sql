@@ -11,10 +11,10 @@ select upper(x -> x) as v;
 select transform(zs, z -> z) as v from nested;
 
 -- Transform an array
-select transform(ys, y -> y * y) as v from nested;
+select transform(ys, y1 -> y1 * y1) as v from nested;
 
 -- Transform an array with index
-select transform(ys, (y, i) -> y + i) as v from nested;
+select transform(ys, (y1, i) -> y1 + i) as v from nested;
 
 -- Transform an array with reference
 select transform(zs, z -> concat(ys, z)) as v from nested;
@@ -26,16 +26,16 @@ select transform(ys, 0) as v from nested;
 select transform(cast(null as array<int>), x -> x + 1) as v;
 
 -- Filter.
-select filter(ys, y -> y > 30) as v from nested;
+select filter(ys, y1 -> y1 > 30) as v from nested;
 
 -- Filter a null array
-select filter(cast(null as array<int>), y -> true) as v;
+select filter(cast(null as array<int>), y1 -> true) as v;
 
 -- Filter nested arrays
 select transform(zs, z -> filter(z, zz -> zz > 50)) as v from nested;
 
 -- Aggregate.
-select aggregate(ys, 0, (y, a) -> y + a + x) as v from nested;
+select aggregate(ys, 0, (y1, a) -> y1 + a + x) as v from nested;
 
 -- Aggregate average.
 select aggregate(ys, (0 as sum, 0 as n), (acc, x) -> (acc.sum + x, acc.n + 1), acc -> acc.sum / acc.n) as v from nested;
@@ -44,22 +44,22 @@ select aggregate(ys, (0 as sum, 0 as n), (acc, x) -> (acc.sum + x, acc.n + 1), a
 select transform(zs, z -> aggregate(z, 1, (acc, val) -> acc * val * size(z))) as v from nested;
 
 -- Aggregate a null array
-select aggregate(cast(null as array<int>), 0, (a, y) -> a + y + 1, a -> a + 2) as v;
+select aggregate(cast(null as array<int>), 0, (a, y1) -> a + y1 + 1, a -> a + 2) as v;
 
 -- Check for element existence
-select exists(ys, y -> y > 30) as v from nested;
+select exists(ys, y1 -> y1 > 30) as v from nested;
 
 -- Check for element existence in a null array
-select exists(cast(null as array<int>), y -> y > 30) as v;
+select exists(cast(null as array<int>), y1 -> y1 > 30) as v;
 
 -- Zip with array
 select zip_with(ys, zs, (a, b) -> a + size(b)) as v from nested;
 
 -- Zip with array with concat
-select zip_with(array('a', 'b', 'c'), array('d', 'e', 'f'), (x, y) -> concat(x, y)) as v;
+select zip_with(array('a', 'b', 'c'), array('d', 'e', 'f'), (x, y1) -> concat(x, y1)) as v;
 
 -- Zip with array coalesce
-select zip_with(array('a'), array('d', null, 'f'), (x, y) -> coalesce(x, y)) as v;
+select zip_with(array('a'), array('d', null, 'f'), (x, y1) -> coalesce(x, y1)) as v;
 
 create or replace temporary view nested as values
   (1, map(1, 1, 2, 2, 3, 3)),
@@ -83,3 +83,8 @@ select transform_values(ys, (k, v) -> v + 1) as v from nested;
 
 -- Transform values in a map using values
 select transform_values(ys, (k, v) -> k + v) as v from nested;
+
+-- non reverse keywords can not be used to generate high order func
+select transform(ys, cost -> cost * cost);
+select transform(ys, (cost, i) -> cost + i) as v from nested;
+
