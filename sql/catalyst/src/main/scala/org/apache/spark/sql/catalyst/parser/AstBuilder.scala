@@ -36,8 +36,8 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.{First, Last}
 import org.apache.spark.sql.catalyst.parser.SqlBaseParser._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
+import org.apache.spark.sql.catalyst.util.{IntervalUnit, IntervalUtils}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.{getZoneId, stringToDate, stringToTimestamp}
-import org.apache.spark.sql.catalyst.util.IntervalUtils
 import org.apache.spark.sql.connector.expressions.{ApplyTransform, BucketTransform, DaysTransform, Expression => V2Expression, FieldReference, HoursTransform, IdentityTransform, LiteralValue, MonthsTransform, Transform, YearsTransform}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -50,6 +50,7 @@ import org.apache.spark.util.random.RandomSampler
  */
 class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging {
   import ParserUtils._
+  import IntervalUnit._
 
   def this() = this(new SQLConf())
 
@@ -103,11 +104,9 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
 
   override def visitSingleInterval(ctx: SingleIntervalContext): CalendarInterval = {
     withOrigin(ctx) {
-      val units = ctx.intervalUnit().asScala.map {
-        u => normalizeInternalUnit(u.getText.toLowerCase(Locale.ROOT))
-      }.toArray
-      val values = ctx.intervalValue().asScala.map(getIntervalValue).toArray
       try {
+        val units = ctx.intervalUnit().asScala.map(u => IntervalUnit.fromString(u.getText)).toArray
+        val values = ctx.intervalValue().asScala.map(getIntervalValue).toArray
         IntervalUtils.fromUnitStrings(units, values)
       } catch {
         case i: IllegalArgumentException =>
@@ -1960,24 +1959,23 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     import ctx._
     val s = getIntervalValue(value)
     try {
-      val unitText = unit.getText.toLowerCase(Locale.ROOT)
-      val interval = (unitText, Option(to).map(_.getText.toLowerCase(Locale.ROOT))) match {
+      val ut = IntervalUnit.fromStringStrict(unit.getText)
+      val interval = (ut, Option(to).map(u => IntervalUnit.fromStringStrict(u.getText))) match {
         case (u, None) =>
-          IntervalUtils.fromUnitStrings(Array(normalizeInternalUnit(u)), Array(s))
-        case ("year", Some("month")) =>
-          IntervalUtils.fromYearMonthString(s)
-        case ("day", Some("hour")) =>
-          IntervalUtils.fromDayTimeString(s, "day", "hour")
-        case ("day", Some("minute")) =>
-          IntervalUtils.fromDayTimeString(s, "day", "minute")
-        case ("day", Some("second")) =>
-          IntervalUtils.fromDayTimeString(s, "day", "second")
-        case ("hour", Some("minute")) =>
-          IntervalUtils.fromDayTimeString(s, "hour", "minute")
-        case ("hour", Some("second")) =>
-          IntervalUtils.fromDayTimeString(s, "hour", "second")
-        case ("minute", Some("second")) =>
-          IntervalUtils.fromDayTimeString(s, "minute", "second")
+          IntervalUtils.fromUnitStrings(Array(u), Array(s))
+        case (IntervalUnit.YEAR, Some(IntervalUnit.MONTH)) => IntervalUtils.fromYearMonthString(s)
+        case (IntervalUnit.DAY, Some(IntervalUnit.HOUR)) =>
+          IntervalUtils.fromDayTimeString(s, IntervalUnit.DAY, IntervalUnit.HOUR)
+        case (IntervalUnit.DAY, Some(IntervalUnit.MINUTE)) =>
+          IntervalUtils.fromDayTimeString(s, IntervalUnit.DAY, IntervalUnit.MINUTE)
+        case (IntervalUnit.DAY, Some(IntervalUnit.SECOND)) =>
+          IntervalUtils.fromDayTimeString(s, IntervalUnit.DAY, IntervalUnit.SECOND)
+        case (IntervalUnit.HOUR, Some(IntervalUnit.MINUTE)) =>
+          IntervalUtils.fromDayTimeString(s, IntervalUnit.HOUR, IntervalUnit.MINUTE)
+        case (IntervalUnit.HOUR, Some(IntervalUnit.SECOND)) =>
+          IntervalUtils.fromDayTimeString(s, IntervalUnit.HOUR, IntervalUnit.SECOND)
+        case (IntervalUnit.MINUTE, Some(IntervalUnit.SECOND)) =>
+          IntervalUtils.fromDayTimeString(s, IntervalUnit.MINUTE, IntervalUnit.SECOND)
         case (from, Some(t)) =>
           throw new ParseException(s"Intervals FROM $from TO $t are not supported.", ctx)
       }
@@ -1998,11 +1996,6 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     } else {
       value.getText
     }
-  }
-
-  // Handle plural forms, e.g: yearS/monthS/weekS/dayS/hourS/minuteS/hourS/...
-  private def normalizeInternalUnit(s: String): String = {
-    if (s.endsWith("s")) s.substring(0, s.length - 1) else s
   }
 
   /* ********************************************************************************************
