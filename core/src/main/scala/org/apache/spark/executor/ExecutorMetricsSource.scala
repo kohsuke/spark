@@ -22,8 +22,7 @@ import com.codahale.metrics.{Gauge, MetricRegistry}
 import org.apache.spark.metrics.ExecutorMetricType
 import org.apache.spark.metrics.source.Source
 
-private[spark]
-class ExecutorMetricsSource extends Source {
+private[spark] class ExecutorMetricsSource extends Source {
 
   override val metricRegistry = new MetricRegistry()
   override val sourceName = "ExecutorMetrics"
