@@ -50,7 +50,6 @@ import org.apache.spark.util.random.RandomSampler
  */
 class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging {
   import ParserUtils._
-  import IntervalUnit._
 
   def this() = this(new SQLConf())
 
