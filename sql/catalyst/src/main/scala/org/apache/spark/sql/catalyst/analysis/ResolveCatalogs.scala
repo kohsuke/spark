@@ -207,6 +207,10 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
 
     case ShowCurrentNamespaceStatement() =>
       ShowCurrentNamespace(catalogManager)
+
+    case ShowTablePropertiesStatement(NonSessionCatalog(catalog, tableName), propertyKey) =>
+      ShowTblproperties(catalog.asTableCatalog, tableName.asIdentifier, propertyKey)
+
   }
 
   object NonSessionCatalog {

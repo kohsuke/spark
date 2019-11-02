@@ -421,6 +421,11 @@ class ResolveSessionCatalog(
         serdeClassName,
         serdeProperties,
         partitionSpec)
+
+    case ShowTablePropertiesStatement(SessionCatalog(_, tableName), propertyKey) =>
+      ShowTablePropertiesCommand(
+        tableName.asTableIdentifier,
+        propertyKey)
   }
 
   private def parseV1Table(tableName: Seq[String], sql: String): Seq[String] = {
