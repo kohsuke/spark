@@ -15,23 +15,27 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.hive.thriftserver.ui
+package org.apache.spark.sql.hive.thriftserver
 
 import org.apache.spark.SparkConf
+import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.SparkListener
-import org.apache.spark.sql.hive.thriftserver.HistoryHiveThriftServer2Listener
+import org.apache.spark.sql.hive.thriftserver.ui.{HistoryHiveThriftServer2Listener, ThriftServerTab}
 import org.apache.spark.status.{AppHistoryServerPlugin, ElementTrackingStore}
 import org.apache.spark.ui.SparkUI
 
-class ThriftServerHistoryServerPlugin extends AppHistoryServerPlugin {
+class ThriftServerHistoryServerPlugin extends AppHistoryServerPlugin with Logging {
+  var listener: HiveThriftServer2Listener = new HistoryHiveThriftServer2Listener()
+
   override def createListeners(conf: SparkConf, store: ElementTrackingStore): Seq[SparkListener] = {
-    Seq(new HistoryHiveThriftServer2Listener(conf))
+    Seq(listener)
   }
 
   override def setupUI(ui: SparkUI): Unit = {
-    val sqlStatusStore = new SQLAppStatusStore(ui.store.store)
-    if (sqlStatusStore.executionsCount() > 0) {
-      new ThriftServerTab(sqlStatusStore)
+    logError("listener is active size is" + listener.info.sessionList.size)
+    if (listener != null) {
+      new ThriftServerTab(listener, ui)
+      // }
     }
   }
 }
