@@ -30,6 +30,7 @@ import scala.io.Source
 import scala.xml.Node
 
 import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.util.concurrent.MoreExecutors
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.hdfs.DistributedFileSystem
@@ -157,6 +158,8 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
   private val diskManager = storePath.map { path =>
     new HistoryServerDiskManager(conf, path, listing, clock)
   }
+
+  private val fileCompactor = new EventLogFileCompactor(conf, hadoopConf, fs)
 
   private val blacklist = new ConcurrentHashMap[String, Long]
 
@@ -961,8 +964,10 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     } replayBus.addListener(listener)
 
     try {
+      logInfo(s"Compacting ${reader.rootPath}...")
+      val newEventLogFiles = fileCompactor.compact(reader.listEventLogFiles)
       logInfo(s"Parsing ${reader.rootPath} to re-build UI...")
-      parseAppEventLogs(reader.listEventLogFiles, replayBus, !reader.completed)
+      parseAppEventLogs(newEventLogFiles, replayBus, !reader.completed)
       trackingStore.close(false)
       logInfo(s"Finished parsing ${reader.rootPath}")
     } catch {
@@ -1167,14 +1172,14 @@ private[history] case class LogInfo(
     appId: Option[String],
     attemptId: Option[String],
     fileSize: Long,
-    lastIndex: Option[Long],
+    @JsonDeserialize(contentAs = classOf[java.lang.Long]) lastIndex: Option[Long],
     isComplete: Boolean)
 
 private[history] class AttemptInfoWrapper(
     val info: ApplicationAttemptInfo,
     val logPath: String,
     val fileSize: Long,
-    val lastIndex: Option[Long],
+    @JsonDeserialize(contentAs = classOf[java.lang.Long]) val lastIndex: Option[Long],
     val adminAcls: Option[String],
     val viewAcls: Option[String],
     val adminAclsGroups: Option[String],
