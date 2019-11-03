@@ -134,7 +134,7 @@ private[ui] class ThriftServerPage(parent: ThriftServerTab) extends WebUIPage(""
 
   /** Generate stats of batch sessions of the thrift server program */
   private def generateSessionStatsTable(request: HttpServletRequest): Seq[Node] = {
-    val numSessions = listener.getSessionList.size
+    val numSessions = store.getSessionList.size
     val table = if (numSessions > 0) {
 
       val sessionTableTag = "sessionstat"
@@ -164,7 +164,7 @@ private[ui] class ThriftServerPage(parent: ThriftServerTab) extends WebUIPage(""
         Some(new SessionStatsPagedTable(
           request,
           parent,
-          listener.getSessionList,
+          store.getSessionList,
           "sqlserver",
           UIUtils.prependBaseUri(request, parent.basePath),
           parameterOtherTable,
