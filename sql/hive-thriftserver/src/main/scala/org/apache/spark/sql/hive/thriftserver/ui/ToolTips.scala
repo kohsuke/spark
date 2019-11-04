@@ -29,4 +29,25 @@ private[ui] object ToolTips {
 
   val THRIFT_SERVER_DURATION =
     "Difference between start time and close time"
+
+  val THRIFT_SESSION_TOTAL_EXECUTE =
+    "Number of operations submitted in this session."
+
+  val THRIFT_SESSION_START_TIME =
+    "Session Start time,on launching the session."
+
+  val THRIFT_SESSION_FINISH_TIME =
+    "Session end time, after closing the session."
+
+  val THRIFT_SESSION_DURATION =
+    "Active duration of the session."
+
+  val THRIFT_SESSION_USER =
+    "User of the session."
+
+  val THRIFT_SESSION_IP =
+    "IP of the session."
+
+  val THRIFT_SESSION_ID =
+    "Session Id which links to the session information."
 }
