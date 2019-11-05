@@ -103,11 +103,9 @@ case class LocalShuffleReaderExec(child: QueryStageExec) extends UnaryExecNode {
 
   override def output: Seq[Attribute] = child.output
 
-  override def doCanonicalize(): SparkPlan = child.canonicalized
-
   override def outputPartitioning: Partitioning = {
 
-    def tryReserveChildPartitioning(stage: ShuffleQueryStageExec): Partitioning = {
+    def tryPreserveChildPartitioning(stage: ShuffleQueryStageExec): Partitioning = {
       val initialPartitioning = stage.plan.child.outputPartitioning
       if (initialPartitioning.isInstanceOf[UnknownPartitioning]) {
         UnknownPartitioning(stage.plan.shuffleDependency.rdd.partitions.length)
@@ -118,9 +116,9 @@ case class LocalShuffleReaderExec(child: QueryStageExec) extends UnaryExecNode {
 
     child match {
       case stage: ShuffleQueryStageExec =>
-        tryReserveChildPartitioning(stage)
+        tryPreserveChildPartitioning(stage)
       case ReusedQueryStageExec(_, stage: ShuffleQueryStageExec, _) =>
-        tryReserveChildPartitioning(stage)
+        tryPreserveChildPartitioning(stage)
     }
   }
 
