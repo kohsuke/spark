@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.util.IntervalUtils.{fromDayTimeString, fromString, fromYearMonthString}
 import org.apache.spark.unsafe.types.CalendarInterval
-import org.apache.spark.unsafe.types.CalendarInterval._
+import org.apache.spark.unsafe.types.IntervalConstants._
 
 class IntervalUtilsSuite extends SparkFunSuite {
 
