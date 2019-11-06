@@ -20,7 +20,7 @@ package org.apache.spark.deploy.history
 import java.io.{File, FileNotFoundException, IOException}
 import java.nio.file.Files
 import java.util.{Date, ServiceLoader}
-import java.util.concurrent.{ConcurrentHashMap, ExecutorService, Future, TimeUnit}
+import java.util.concurrent.{Callable, ConcurrentHashMap, ExecutorService, Future, TimeUnit}
 import java.util.zip.{ZipEntry, ZipOutputStream}
 
 import scala.collection.JavaConverters._
@@ -28,7 +28,6 @@ import scala.collection.mutable
 import scala.io.Source
 import scala.util.Try
 import scala.xml.Node
-
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.google.common.io.ByteStreams
 import com.google.common.util.concurrent.MoreExecutors
@@ -37,7 +36,6 @@ import org.apache.hadoop.hdfs.{DFSInputStream, DistributedFileSystem}
 import org.apache.hadoop.hdfs.protocol.HdfsConstants
 import org.apache.hadoop.security.AccessControlException
 import org.fusesource.leveldbjni.internal.NativeDB
-
 import org.apache.spark.{SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
@@ -532,12 +530,11 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
         logDebug(s"New/updated attempts found: ${updated.size} ${updated.map(_.rootPath)}")
       }
 
-      updated.flatMap { entry =>
+      updated.foreach { entry =>
+        processing(entry.rootPath)
         try {
-          processing(entry.rootPath)
-          val task: Future[Unit] = replayExecutor.submit(
-            () => mergeApplicationListing(entry, newLastScanTime, true))
-          Some(task -> entry.rootPath)
+          val task: Runnable = () => mergeApplicationListing(entry, newLastScanTime, true)
+          replayExecutor.submit(task)
         } catch {
           // let the iteration over the updated entries break, since an exception on
           // replayExecutor.submit (..) indicates the ExecutorService is unable
