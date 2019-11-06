@@ -682,6 +682,12 @@ private[history] class FsHistoryProvider(conf: SparkConf, clock: Clock)
     } finally {
       endProcessing(reader.rootPath)
       pendingReplayTasksCount.decrementAndGet()
+
+      val isExpired = scanTime + conf.get(MAX_LOG_AGE_S) * 1000 > clock.getTimeMillis()
+      if (isExpired) {
+        listing.delete(classOf[LogInfo], reader.rootPath.toString)
+        deleteLog(fs, reader.rootPath)
+      }
     }
   }
 
