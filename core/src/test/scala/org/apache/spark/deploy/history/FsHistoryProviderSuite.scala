@@ -1283,6 +1283,25 @@ class FsHistoryProviderSuite extends SparkFunSuite with Matchers with Logging {
     assert(deserializedOldObj.isComplete === false)
   }
 
+  test("SPARK-29755 LogInfo should be serialized/deserialized by jackson properly") {
+    val serializer = new KVStoreScalaSerializer()
+
+    val logInfoWithIndexAsNone = LogInfo("dummy", 0, LogType.EventLogs, Some("appId"),
+      Some("attemptId"), 100, None, false)
+    val logInfoWithIndexAsNoneAfterSerde = serializer.deserialize(
+      serializer.serialize(logInfoWithIndexAsNone), classOf[LogInfo])
+    assert(logInfoWithIndexAsNone === logInfoWithIndexAsNoneAfterSerde)
+    assert(logInfoWithIndexAsNoneAfterSerde.lastIndex.isEmpty)
+
+    val logInfoWithIndex = LogInfo("dummy", 0, LogType.EventLogs, Some("appId"),
+      Some("attemptId"), 100, Some(3), false)
+    val logInfoWithIndexAfterSerde = serializer.deserialize(
+      serializer.serialize(logInfoWithIndex), classOf[LogInfo])
+    assert(logInfoWithIndex === logInfoWithIndexAfterSerde)
+    assert(logInfoWithIndexAfterSerde.lastIndex.isDefined &&
+      3 === logInfoWithIndexAfterSerde.lastIndex.get)
+  }
+
   /**
    * Asks the provider to check for logs and calls a function to perform checks on the updated
    * app list. Example:
