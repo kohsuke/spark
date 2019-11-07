@@ -97,6 +97,30 @@ class ErrorParserSuite extends AnalysisTest {
         |CHANGE COLUMN
         |test-col TYPE BIGINT
       """.stripMargin, 4, 4, 5, msg + " test-col")
+    intercept(
+      """
+        |ALTER TABLE t
+        |RENAME COLUMN
+        |test-col TO test
+      """.stripMargin, 4, 4, 5, msg + " test-col")
+    intercept(
+      """
+        |ALTER TABLE t
+        |RENAME COLUMN
+        |test TO test-col
+      """.stripMargin, 4, 12, 13, msg + " test-col")
+    intercept(
+      """
+        |ALTER TABLE t
+        |DROP COLUMN
+        |test-col, test
+      """.stripMargin, 4, 4, 5, msg + " test-col")
+    intercept(
+      """
+        |CREATE FUNCTION
+        |test-func AS org.test.func
+      """.stripMargin, 3, 4, 5, msg + " test-func")
+    intercept("DROP FUNCTION test-func", 1, 18, 19, msg + " test-func")
     intercept("CREATE TABLE test (attri-bute INT)", 1, 24, 25, msg + " attri-bute")
     intercept(
       """
