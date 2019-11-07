@@ -44,6 +44,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.CalendarInterval
 
 class SQLQuerySuite extends QueryTest with SharedSparkSession {
+
   import testImplicits._
 
   setupTestData()
@@ -62,7 +63,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     def getFunctions(pattern: String): Seq[Row] = {
       StringUtils.filterPattern(
         spark.sessionState.catalog.listFunctions("default").map(_._1.funcName)
-        ++ FunctionsCommand.virtualOperators, pattern)
+          ++ FunctionsCommand.virtualOperators, pattern)
         .map(Row(_))
     }
 
@@ -153,14 +154,17 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     def unindentAndTrim(s: String): String = {
       s.replaceAll("\n\\s+", "\n").trim
     }
+
     val beginSqlStmtRe = "  > ".r
     val endSqlStmtRe = ";\n".r
+
     def checkExampleSyntax(example: String): Unit = {
       val beginStmtNum = beginSqlStmtRe.findAllIn(example).length
       val endStmtNum = endSqlStmtRe.findAllIn(example).length
       assert(beginStmtNum === endStmtNum,
         "The number of ` > ` does not match to the number of `;`")
     }
+
     val exampleRe = """^(.+);\n(?s)(.+)$""".r
     val ignoreSet = Set(
       // One of examples shows getting the current timestamp
@@ -238,12 +242,12 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
   }
 
   test("self join with alias in agg") {
-      Seq(1, 2, 3)
-        .map(i => (i, i.toString))
-        .toDF("int", "str")
-        .groupBy("str")
-        .agg($"str", count("str").as("strCount"))
-        .createOrReplaceTempView("df")
+    Seq(1, 2, 3)
+      .map(i => (i, i.toString))
+      .toDF("int", "str")
+      .groupBy("str")
+      .agg($"str", count("str").as("strCount"))
+      .createOrReplaceTempView("df")
 
     checkAnswer(
       sql(
@@ -291,17 +295,17 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     // Since the ID is only materialized once, then all of the records
     // should come from the cache, not by re-computing. Otherwise, the ID
     // will be different
-    assert(d0.map(_(0)) === d2.map(_(0)))
-    assert(d0.map(_(1)) === d2.map(_(1)))
+    assert(d0.map(_ (0)) === d2.map(_ (0)))
+    assert(d0.map(_ (1)) === d2.map(_ (1)))
 
-    assert(d1.map(_(0)) === d2.map(_(0)))
-    assert(d1.map(_(1)) === d2.map(_(1)))
+    assert(d1.map(_ (0)) === d2.map(_ (0)))
+    assert(d1.map(_ (1)) === d2.map(_ (1)))
   }
 
   test("grouping on nested fields") {
     spark.read
       .json(Seq("""{"nested": {"attribute": 1}, "value": 2}""").toDS())
-     .createOrReplaceTempView("rows")
+      .createOrReplaceTempView("rows")
 
     checkAnswer(
       sql(
@@ -428,7 +432,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           |FROM testData3x
           |GROUP BY value
         """.stripMargin,
-        (1 to 100).map(i => Row(i.toString, i*3, i, i, i, 3, 1)))
+        (1 to 100).map(i => Row(i.toString, i * 3, i, i, i, 3, 1)))
       testCodeGen(
         "SELECT max(key), min(key), avg(key), count(key), count(distinct key) FROM testData3x",
         Row(100, 1, 50.5, 300, 100) :: Nil)
@@ -616,10 +620,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       testData.take(10).toSeq)
 
     checkAnswer(
-      sql("""
-        |with q1 as (select * from testData where key= '5'),
-        |q2 as (select * from testData where key = '4')
-        |select * from q1 union all select * from q2""".stripMargin),
+      sql(
+        """
+          |with q1 as (select * from testData where key= '5'),
+          |q2 as (select * from testData where key = '4')
+          |select * from q1 union all select * from q2""".stripMargin),
       Row(5, "5") :: Row(4, "4") :: Nil)
 
   }
@@ -747,14 +752,14 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       checkAnswer(
         sql(
           """
-          |SELECT * FROM
-          |  (SELECT * FROM testdata2 WHERE a = 1) x JOIN
-          |  (SELECT * FROM testdata2 WHERE a = 1) y
-          |WHERE x.a = y.a""".stripMargin),
+            |SELECT * FROM
+            |  (SELECT * FROM testdata2 WHERE a = 1) x JOIN
+            |  (SELECT * FROM testdata2 WHERE a = 1) y
+            |WHERE x.a = y.a""".stripMargin),
         Row(1, 1, 1, 1) ::
-        Row(1, 1, 1, 2) ::
-        Row(1, 2, 1, 1) ::
-        Row(1, 2, 1, 2) :: Nil)
+          Row(1, 1, 1, 2) ::
+          Row(1, 2, 1, 1) ::
+          Row(1, 2, 1, 2) :: Nil)
     }
   }
 
@@ -834,11 +839,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           |    ON leftTable.N = rightTable.N
         """.stripMargin),
       Row(1, "A", null, null) ::
-      Row(2, "B", null, null) ::
-      Row(3, "C", 3, "C") ::
-      Row (4, "D", 4, "D") ::
-      Row(null, null, 5, "E") ::
-      Row(null, null, 6, "F") :: Nil)
+        Row(2, "B", null, null) ::
+        Row(3, "C", 3, "C") ::
+        Row(4, "D", 4, "D") ::
+        Row(null, null, 5, "E") ::
+        Row(null, null, 6, "F") :: Nil)
   }
 
   test("SPARK-11111 null-safe join should not use cartesian product") {
@@ -865,11 +870,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT * FROM lowerCaseData INNER JOIN subset1 ON subset1.n = lowerCaseData.n"),
       Row(3, "c", 3) ::
-      Row(4, "d", 4) :: Nil)
+        Row(4, "d", 4) :: Nil)
     checkAnswer(
       sql("SELECT * FROM lowerCaseData INNER JOIN subset2 ON subset2.n = lowerCaseData.n"),
       Row(1, "a", 1) ::
-      Row(2, "b", 2) :: Nil)
+        Row(2, "b", 2) :: Nil)
   }
 
   test("mixed-case keywords") {
@@ -882,11 +887,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           |    oN leftTable.N = rightTable.N
         """.stripMargin),
       Row(1, "A", null, null) ::
-      Row(2, "B", null, null) ::
-      Row(3, "C", 3, "C") ::
-      Row(4, "D", 4, "D") ::
-      Row(null, null, 5, "E") ::
-      Row(null, null, 6, "F") :: Nil)
+        Row(2, "B", null, null) ::
+        Row(3, "C", 3, "C") ::
+        Row(4, "D", 4, "D") ::
+        Row(null, null, 5, "E") ::
+        Row(null, null, 6, "F") :: Nil)
   }
 
   test("select with table name as qualifier") {
@@ -956,14 +961,14 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT * FROM lowerCaseData UNION SELECT * FROM upperCaseData"),
       Row(1, "A") :: Row(1, "a") :: Row(2, "B") :: Row(2, "b") :: Row(3, "C") :: Row(3, "c") ::
-      Row(4, "D") :: Row(4, "d") :: Row(5, "E") :: Row(6, "F") :: Nil)
+        Row(4, "D") :: Row(4, "d") :: Row(5, "E") :: Row(6, "F") :: Nil)
     checkAnswer(
       sql("SELECT * FROM lowerCaseData UNION SELECT * FROM lowerCaseData"),
       Row(1, "a") :: Row(2, "b") :: Row(3, "c") :: Row(4, "d") :: Nil)
     checkAnswer(
       sql("SELECT * FROM lowerCaseData UNION ALL SELECT * FROM lowerCaseData"),
       Row(1, "a") :: Row(1, "a") :: Row(2, "b") :: Row(2, "b") :: Row(3, "c") :: Row(3, "c") ::
-      Row(4, "d") :: Row(4, "d") :: Nil)
+        Row(4, "d") :: Row(4, "d") :: Nil)
   }
 
   test("UNION with column mismatches") {
@@ -971,7 +976,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT n,l FROM lowerCaseData UNION SELECT N as x1, L as x2 FROM upperCaseData"),
       Row(1, "A") :: Row(1, "a") :: Row(2, "B") :: Row(2, "b") :: Row(3, "C") :: Row(3, "c") ::
-      Row(4, "D") :: Row(4, "d") :: Row(5, "E") :: Row(6, "F") :: Nil)
+        Row(4, "D") :: Row(4, "d") :: Row(5, "E") :: Row(6, "F") :: Nil)
     // Column type mismatches are not allowed, forcing a type coercion.
     checkAnswer(
       sql("SELECT n FROM lowerCaseData UNION SELECT L FROM upperCaseData"),
@@ -987,9 +992,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT * FROM lowerCaseData EXCEPT SELECT * FROM upperCaseData"),
       Row(1, "a") ::
-      Row(2, "b") ::
-      Row(3, "c") ::
-      Row(4, "d") :: Nil)
+        Row(2, "b") ::
+        Row(3, "c") ::
+        Row(4, "d") :: Nil)
     checkAnswer(
       sql("SELECT * FROM lowerCaseData EXCEPT SELECT * FROM lowerCaseData"), Nil)
     checkAnswer(
@@ -1010,9 +1015,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT * FROM lowerCaseData INTERSECT SELECT * FROM lowerCaseData"),
       Row(1, "a") ::
-      Row(2, "b") ::
-      Row(3, "c") ::
-      Row(4, "d") :: Nil)
+        Row(2, "b") ::
+        Row(3, "c") ::
+        Row(4, "d") :: Nil)
     checkAnswer(
       sql("SELECT * FROM lowerCaseData INTERSECT SELECT * FROM upperCaseData"), Nil)
   }
@@ -1114,9 +1119,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
   test("apply schema") {
     val schema1 = StructType(
       StructField("f1", IntegerType, false) ::
-      StructField("f2", StringType, false) ::
-      StructField("f3", BooleanType, false) ::
-      StructField("f4", IntegerType, true) :: Nil)
+        StructField("f2", StringType, false) ::
+        StructField("f3", BooleanType, false) ::
+        StructField("f4", IntegerType, true) :: Nil)
 
     val rowRDD1 = unparsedStrings.map { r =>
       val values = r.split(",").map(_.trim)
@@ -1131,22 +1136,22 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT * FROM applySchema1"),
       Row(1, "A1", true, null) ::
-      Row(2, "B2", false, null) ::
-      Row(3, "C3", true, null) ::
-      Row(4, "D4", true, 2147483644) :: Nil)
+        Row(2, "B2", false, null) ::
+        Row(3, "C3", true, null) ::
+        Row(4, "D4", true, 2147483644) :: Nil)
 
     checkAnswer(
       sql("SELECT f1, f4 FROM applySchema1"),
       Row(1, null) ::
-      Row(2, null) ::
-      Row(3, null) ::
-      Row(4, 2147483644) :: Nil)
+        Row(2, null) ::
+        Row(3, null) ::
+        Row(4, 2147483644) :: Nil)
 
     val schema2 = StructType(
       StructField("f1", StructType(
         StructField("f11", IntegerType, false) ::
-        StructField("f12", BooleanType, false) :: Nil), false) ::
-      StructField("f2", MapType(StringType, IntegerType, true), false) :: Nil)
+          StructField("f12", BooleanType, false) :: Nil), false) ::
+        StructField("f2", MapType(StringType, IntegerType, true), false) :: Nil)
 
     val rowRDD2 = unparsedStrings.map { r =>
       val values = r.split(",").map(_.trim)
@@ -1161,16 +1166,16 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT * FROM applySchema2"),
       Row(Row(1, true), Map("A1" -> null)) ::
-      Row(Row(2, false), Map("B2" -> null)) ::
-      Row(Row(3, true), Map("C3" -> null)) ::
-      Row(Row(4, true), Map("D4" -> 2147483644)) :: Nil)
+        Row(Row(2, false), Map("B2" -> null)) ::
+        Row(Row(3, true), Map("C3" -> null)) ::
+        Row(Row(4, true), Map("D4" -> 2147483644)) :: Nil)
 
     checkAnswer(
       sql("SELECT f1.f11, f2['D4'] FROM applySchema2"),
       Row(1, null) ::
-      Row(2, null) ::
-      Row(3, null) ::
-      Row(4, 2147483644) :: Nil)
+        Row(2, null) ::
+        Row(3, null) ::
+        Row(4, 2147483644) :: Nil)
 
     // The value of a MapType column can be a mutable map.
     val rowRDD3 = unparsedStrings.map { r =>
@@ -1187,9 +1192,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql("SELECT f1.f11, f2['D4'] FROM applySchema3"),
       Row(1, null) ::
-      Row(2, null) ::
-      Row(3, null) ::
-      Row(4, 2147483644) :: Nil)
+        Row(2, null) ::
+        Row(3, null) ::
+        Row(4, 2147483644) :: Nil)
   }
 
   test("SPARK-3423 BETWEEN") {
@@ -1211,7 +1216,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-17863: SELECT distinct does not work correctly if order by missing attribute") {
     checkAnswer(
-      sql("""select distinct struct.a, struct.b
+      sql(
+        """select distinct struct.a, struct.b
           |from (
           |  select named_struct('a', 1, 'b', 2, 'c', 3) as struct
           |  union all
@@ -1221,13 +1227,14 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       Row(1, 2) :: Nil)
 
     val error = intercept[AnalysisException] {
-      sql("""select distinct struct.a, struct.b
-            |from (
-            |  select named_struct('a', 1, 'b', 2, 'c', 3) as struct
-            |  union all
-            |  select named_struct('a', 1, 'b', 2, 'c', 4) as struct) tmp
-            |order by struct.a, struct.b
-            |""".stripMargin)
+      sql(
+        """select distinct struct.a, struct.b
+          |from (
+          |  select named_struct('a', 1, 'b', 2, 'c', 3) as struct
+          |  union all
+          |  select named_struct('a', 1, 'b', 2, 'c', 4) as struct) tmp
+          |order by struct.a, struct.b
+          |""".stripMargin)
     }
     assert(error.message contains "cannot resolve '`struct.a`' given input columns: [a, b]")
 
@@ -1251,9 +1258,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     val schemaWithMeta = new StructType(Array(
       schema("id"), schema("name").copy(metadata = metadata), schema("age")))
     val personWithMeta = spark.createDataFrame(person.rdd, schemaWithMeta)
+
     def validateMetadata(rdd: DataFrame): Unit = {
       assert(rdd.schema("name").metadata.getString(docKey) == docValue)
     }
+
     personWithMeta.createOrReplaceTempView("personWithMeta")
     validateMetadata(personWithMeta.select($"name"))
     validateMetadata(personWithMeta.select($"name"))
@@ -1339,12 +1348,12 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-4154 Query does not work if it has 'not between' in Spark SQL and HQL") {
     checkAnswer(sql("SELECT key FROM testData WHERE key not between 0 and 10 order by key"),
-        (11 to 100).map(i => Row(i)))
+      (11 to 100).map(i => Row(i)))
   }
 
   test("SPARK-4207 Query which has syntax like 'not like' is not working in Spark SQL") {
     checkAnswer(sql("SELECT key FROM testData WHERE value not like '100%' order by key"),
-        (1 to 99).map(i => Row(i)))
+      (1 to 99).map(i => Row(i)))
   }
 
   test("SPARK-4322 Grouping field with struct field as sub expression") {
@@ -1382,7 +1391,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     rdd2.toDF().createOrReplaceTempView("nulldata2")
     checkAnswer(sql("SELECT nulldata1.key FROM nulldata1 join " +
       "nulldata2 on nulldata1.value <=> nulldata2.value"),
-        (1 to 2).map(i => Row(i)))
+      (1 to 2).map(i => Row(i)))
   }
 
   test("Multi-column COUNT(DISTINCT ...)") {
@@ -1480,30 +1489,30 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     checkAnswer(
       sql(
         """
-            |SELECT a, sum(b)
-            |FROM orderByData
-            |GROUP BY a
-            |ORDER BY sum(b) + 1
+          |SELECT a, sum(b)
+          |FROM orderByData
+          |GROUP BY a
+          |ORDER BY sum(b) + 1
           """.stripMargin),
       Row("4", 3) :: Row("1", 7) :: Row("3", 11) :: Row("2", 15) :: Nil)
 
     checkAnswer(
       sql(
         """
-            |SELECT count(*)
-            |FROM orderByData
-            |GROUP BY a
-            |ORDER BY count(*)
+          |SELECT count(*)
+          |FROM orderByData
+          |GROUP BY a
+          |ORDER BY count(*)
           """.stripMargin),
       Row(2) :: Row(2) :: Row(2) :: Row(2) :: Nil)
 
     checkAnswer(
       sql(
         """
-            |SELECT a
-            |FROM orderByData
-            |GROUP BY a
-            |ORDER BY a, count(*), sum(b)
+          |SELECT a
+          |FROM orderByData
+          |GROUP BY a
+          |ORDER BY a, count(*), sum(b)
           """.stripMargin),
       Row("1") :: Row("2") :: Row("3") :: Row("4") :: Nil)
   }
@@ -1557,7 +1566,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     import org.apache.spark.unsafe.types.CalendarInterval
 
     val df = sql("select interval 3 years -3 month 7 week 123 microseconds")
-    checkAnswer(df, Row(new CalendarInterval(12 * 3 - 3, 7 * 7, 123 )))
+    checkAnswer(df, Row(new CalendarInterval(12 * 3 - 3, 7 * 7, 123)))
     withTempPath(f => {
       // Currently we don't yet support saving out values of interval data type.
       val e = intercept[AnalysisException] {
@@ -1651,22 +1660,22 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         intercept[AnalysisException] {
           spark.sql(
             s"""
-              |CREATE TEMPORARY VIEW db.t
-              |USING parquet
-              |OPTIONS (
-              |  path '$path'
-              |)
+               |CREATE TEMPORARY VIEW db.t
+               |USING parquet
+               |OPTIONS (
+               |  path '$path'
+               |)
              """.stripMargin)
         }.getMessage
 
         // If you use backticks to quote the name then it's OK.
         spark.sql(
           s"""
-            |CREATE TEMPORARY VIEW `db.t`
-            |USING parquet
-            |OPTIONS (
-            |  path '$path'
-            |)
+             |CREATE TEMPORARY VIEW `db.t`
+             |USING parquet
+             |OPTIONS (
+             |  path '$path'
+             |)
            """.stripMargin)
         checkAnswer(spark.table("`db.t`"), df)
       }
@@ -1924,8 +1933,8 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     withSQLConf(SQLConf.SUPPORT_QUOTED_REGEX_COLUMN_NAME.key -> "false") {
       val specialCharacterPath = sql(
         """
-        | SELECT struct(`col$.a_`, `a.b.c.`) as `r&&b.c` FROM
-        |   (SELECT struct(a, b) as `col$.a_`, struct(b, a) as `a.b.c.` FROM testData2) tmp
+          | SELECT struct(`col$.a_`, `a.b.c.`) as `r&&b.c` FROM
+          |   (SELECT struct(a, b) as `col$.a_`, struct(b, a) as `a.b.c.` FROM testData2) tmp
       """.stripMargin)
       withTempView("specialCharacterTable") {
         specialCharacterPath.createOrReplaceTempView("specialCharacterTable")
@@ -1933,9 +1942,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           specialCharacterPath.select($"`r&&b.c`.*"),
           nestedStructData.select($"record.*"))
         checkAnswer(
-        sql(
-          "SELECT `r&&b.c`.`col$.a_` FROM specialCharacterTable"),
-        nestedStructData.select($"record.r1"))
+          sql(
+            "SELECT `r&&b.c`.`col$.a_` FROM specialCharacterTable"),
+          nestedStructData.select($"record.r1"))
         checkAnswer(
           sql("SELECT `r&&b.c`.`a.b.c.` FROM specialCharacterTable"),
           nestedStructData.select($"record.r2"))
@@ -2067,12 +2076,13 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     // NullPropagation rule: COUNT(v) got replaced with COUNT(1) because the output column of
     // UNION was incorrectly considered non-nullable:
     checkAnswer(
-      sql("""SELECT count(v) FROM (
-            |  SELECT v FROM (
-            |    SELECT 'foo' AS v UNION ALL
-            |    SELECT NULL AS v
-            |  ) my_union WHERE isnull(v)
-            |) my_subview""".stripMargin),
+      sql(
+        """SELECT count(v) FROM (
+          |  SELECT v FROM (
+          |    SELECT 'foo' AS v UNION ALL
+          |    SELECT NULL AS v
+          |  ) my_union WHERE isnull(v)
+          |) my_subview""".stripMargin),
       Seq(Row(0)))
   }
 
@@ -2195,7 +2205,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
   }
 
   test("SPARK-15327: fail to compile generated code with complex data structure") {
-    withTempDir{ dir =>
+    withTempDir { dir =>
       val json =
         """
           |{"h": {"b": {"c": [{"e": "adfgd"}], "a": [{"e": "testing", "count": 3}],
@@ -2650,7 +2660,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     withTable("_tbl") {
       sql("CREATE TABLE `_tbl`(i INT) USING parquet")
       sql("INSERT INTO `_tbl` VALUES (1), (2), (3)")
-      checkAnswer( sql("SELECT * FROM `_tbl`"), Row(1) :: Row(2) :: Row(3) :: Nil)
+      checkAnswer(sql("SELECT * FROM `_tbl`"), Row(1) :: Row(2) :: Row(3) :: Nil)
     }
   }
 
@@ -2827,11 +2837,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     val df = sql(query)
     val physical = df.queryExecution.sparkPlan
     val aggregateExpressions = physical.collectFirst {
-      case agg : HashAggregateExec => agg.aggregateExpressions
-      case agg : SortAggregateExec => agg.aggregateExpressions
+      case agg: HashAggregateExec => agg.aggregateExpressions
+      case agg: SortAggregateExec => agg.aggregateExpressions
     }
-    assert (aggregateExpressions.isDefined)
-    assert (aggregateExpressions.get.size == 1)
+    assert(aggregateExpressions.isDefined)
+    assert(aggregateExpressions.get.size == 1)
     checkAnswer(df, Row(1, 3, 4) :: Row(2, 3, 4) :: Row(3, 3, 4) :: Nil)
   }
 
@@ -2840,11 +2850,11 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     val df = sql(query)
     val physical = df.queryExecution.sparkPlan
     val aggregateExpressions = physical.collectFirst {
-      case agg : HashAggregateExec => agg.aggregateExpressions
-      case agg : SortAggregateExec => agg.aggregateExpressions
+      case agg: HashAggregateExec => agg.aggregateExpressions
+      case agg: SortAggregateExec => agg.aggregateExpressions
     }
-    assert (aggregateExpressions.isDefined)
-    assert (aggregateExpressions.get.size == 2)
+    assert(aggregateExpressions.isDefined)
+    assert(aggregateExpressions.get.size == 2)
   }
 
   test("SPARK-22356: overlapped columns between data and partition schema in data source tables") {
@@ -2920,9 +2930,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
     withView("spark_25084") {
       val count = 1000
       val df = spark.range(count)
-      val columns = (0 until 400).map{ i => s"id as id$i" }
+      val columns = (0 until 400).map { i => s"id as id$i" }
       val distributeExprs = (0 until 100).map(c => s"id$c").mkString(",")
-      df.selectExpr(columns : _*).createTempView("spark_25084")
+      df.selectExpr(columns: _*).createTempView("spark_25084")
       assert(
         spark.sql(s"select * from spark_25084 distribute by ($distributeExprs)").count === count)
     }
@@ -3266,9 +3276,9 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-29239: Subquery should not cause NPE when eliminating subexpression") {
     withSQLConf(SQLConf.WHOLESTAGE_CODEGEN_ENABLED.key -> "false",
-        SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false",
-        SQLConf.CODEGEN_FACTORY_MODE.key -> "CODEGEN_ONLY",
-        SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConvertToLocalRelation.ruleName) {
+      SQLConf.SUBQUERY_REUSE_ENABLED.key -> "false",
+      SQLConf.CODEGEN_FACTORY_MODE.key -> "CODEGEN_ONLY",
+      SQLConf.OPTIMIZER_EXCLUDED_RULES.key -> ConvertToLocalRelation.ruleName) {
       withTempView("t1", "t2") {
         sql("create temporary view t1 as select * from values ('val1a', 10L) as t1(t1a, t1b)")
         sql("create temporary view t2 as select * from values ('val3a', 110L) as t2(t2a, t2b)")
@@ -3302,6 +3312,15 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           |) t3
           |ON t1.x=t3.x
         """.stripMargin).collect()
+    }
+  }
+
+  test("SPARK-29860: Fix dataType mismatch issue for InSubquery") {
+    withTable("ta", "tb") {
+      sql("create table ta(id Decimal(18,0)) using parquet")
+      sql("create table tb(id Decimal(19,0)) using parquet")
+      sql("select * from ta where id in (select id from tb)").collect()
+      sql("select * from tb where id in (select id from ta)").collect()
     }
   }
 }
