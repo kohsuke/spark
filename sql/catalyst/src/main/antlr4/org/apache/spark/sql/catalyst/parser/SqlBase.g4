@@ -222,7 +222,7 @@ statement
           '(' sourceQuery=query')') sourceAlias=tableAlias
         ON mergeCondition=booleanExpression
         (matchedClause)*
-        (notMatchedClause)*                                           #mergeIntoTable
+        (notMatchedClause)*                                            #mergeIntoTable
     | unsupportedHiveNativeCommands .*?                                #failNativeCommand
     ;
 

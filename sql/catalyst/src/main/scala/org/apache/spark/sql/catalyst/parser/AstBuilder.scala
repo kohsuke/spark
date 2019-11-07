@@ -463,8 +463,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
             }
           UpdateAction(
             if (clause.matchedCond != null) Some(expression(clause.matchedCond)) else None,
-            setColumns,
-            setValues)
+            setColumns.zip(setValues).map(kv => Assignment(kv._1, kv._2)))
         } else {
           // It should not be here.
           throw new ParseException(
@@ -489,10 +488,13 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
                   .asScala.map(attr => UnresolvedAttribute(visitQualifiedName(attr))),
                   clause.notMatchedAction().values.expression().asScala.map(expression))
             }
+          if (setColumns.size != setValues.size) {
+            throw new ParseException("The number of inserted values cannot match the fields.",
+              clause.notMatchedAction())
+          }
           InsertAction(
             if (clause.notMatchedCond != null) Some(expression(clause.notMatchedCond)) else None,
-            setColumns,
-            setValues)
+            setColumns.zip(setValues).map(kv => Assignment(kv._1, kv._2)))
         } else {
           // It should not be here.
           throw new ParseException(

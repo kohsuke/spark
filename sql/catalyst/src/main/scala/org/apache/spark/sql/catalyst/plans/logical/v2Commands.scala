@@ -305,9 +305,7 @@ case class MergeIntoTable(
     mergeCondition: Expression,
     matchedActions: Seq[MergeAction],
     notMatchedActions: Seq[MergeAction]) extends Command with SupportsSubquery {
-  override def children: Seq[LogicalPlan] =
-    Seq(targetTable, sourceTable) ++ Nil
-  override def output: Seq[Attribute] = Seq.empty
+  override def children: Seq[LogicalPlan] = Seq(targetTable, sourceTable)
   override lazy val resolved: Boolean = expressions.forall(_.resolved) && childrenResolved &&
       matchedActions.forall(_.resolved) && notMatchedActions.forall(_.resolved)
 }
@@ -320,20 +318,25 @@ sealed abstract class MergeAction(
   override def children: Seq[Expression] = condition.toSeq
 }
 
-case class DeleteAction(deleteCondition: Option[Expression]) extends MergeAction(deleteCondition)
+case class DeleteAction(condition: Option[Expression]) extends MergeAction(condition)
 
 case class UpdateAction(
-    updateCondition: Option[Expression],
-    columns: Seq[Expression],
-    values: Seq[Expression]) extends MergeAction(updateCondition) {
-  override def children: Seq[Expression] = updateCondition.toSeq ++ columns ++ values
+    condition: Option[Expression],
+    assignments: Seq[Assignment]) extends MergeAction(condition) {
+  override def children: Seq[Expression] = condition.toSeq ++ assignments
 }
 
 case class InsertAction(
-    insertCondition: Option[Expression],
-    columns: Seq[Expression],
-    values: Seq[Expression]) extends MergeAction(insertCondition) {
-  override def children: Seq[Expression] = insertCondition.toSeq ++ columns ++ values
+    condition: Option[Expression],
+    assignments: Seq[Assignment]) extends MergeAction(condition) {
+  override def children: Seq[Expression] = condition.toSeq ++ assignments
+}
+
+case class Assignment(key: Expression, value: Expression) extends Expression with Unevaluable {
+  override def foldable: Boolean = false
+  override def nullable: Boolean = false
+  override def dataType: DataType = null
+  override def children: Seq[Expression] = key ::  value :: Nil
 }
 
 /**
