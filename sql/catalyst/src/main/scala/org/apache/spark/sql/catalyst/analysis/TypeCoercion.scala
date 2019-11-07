@@ -93,6 +93,14 @@ object TypeCoercion {
       Some(t2)
     case (t1: DecimalType, t2: IntegralType) if t1.isWiderThan(t2) =>
       Some(t1)
+    case (t1: DecimalType, t2: DecimalType) =>
+      // Handle two decimal type here and don't allow precision loss.
+      val widerType = DecimalPrecision.widerDecimalType(t1, t2)
+      if (widerType.isWiderThan(t1) && widerType.isWiderThan(t2)) {
+        Some(widerType)
+      } else {
+        None
+      }
 
     // Promote numeric types to the highest of the two
     case (t1: NumericType, t2: NumericType)
