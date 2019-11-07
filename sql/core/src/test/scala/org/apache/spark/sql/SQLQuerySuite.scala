@@ -3304,6 +3304,24 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         """.stripMargin).collect()
     }
   }
+
+  test("SPARK-29860: Fix dataType mismatch issue for InSubquery") {
+    withTable("ta", "tb", "tc") {
+      sql("create table ta(id Decimal(18,0)) using parquet")
+      sql("create table tb(id Decimal(19,0)) using parquet")
+      sql("create table tc(id Decimal(17,2)) using parquet")
+      sql("insert into table ta values(cast(1 as Decimal(18, 0)))")
+      sql("insert into table tb values(cast(1 as Decimal(19, 0)))")
+      sql("insert into table tc values(cast(1 as Decimal(17, 2)))")
+      sql("insert into table tc values(cast(1.23 as Decimal(17, 2)))")
+      val df1 = sql("select id from ta where id in (select id from tb)")
+      checkAnswer(df1, Array(Row(new java.math.BigDecimal(1))))
+      val df2 = sql("select id from tb where id in (select id from ta)")
+      checkAnswer(df2, Array(Row(new java.math.BigDecimal(1))))
+      val df3 = sql("select id from ta where id in (select id from tc)")
+      checkAnswer(df3, Array(Row(new java.math.BigDecimal(1))))
+    }
+  }
 }
 
 case class Foo(bar: Option[String])
