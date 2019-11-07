@@ -397,7 +397,7 @@ object IntervalUtils {
       ""
     }
 
-    val dayPart = if (interval.days!= 0) interval.days.toString else ""
+    val dayPart = if (interval.days != 0) interval.days.toString else ""
 
     val timePart = if (interval.microseconds != 0) {
       val sb = new StringBuilder()
