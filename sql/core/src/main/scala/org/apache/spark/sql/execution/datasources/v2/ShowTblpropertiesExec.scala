@@ -21,38 +21,31 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
-import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, GenericRowWithSchema}
-import org.apache.spark.sql.connector.catalog.{Identifier, TableCatalog}
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.catalyst.expressions.{Attribute, GenericRowWithSchema}
+import org.apache.spark.sql.connector.catalog.Table;
 
 /**
  * Physical plan node for showing tblproperties.
  */
 case class ShowTblpropertiesExec(
     output: Seq[Attribute],
-    catalog: TableCatalog,
-    ident: Identifier,
+    catalogTable: Table,
     propertyKey: Option[String]) extends V2CommandExec {
 
   override protected def run(): Seq[InternalRow] = {
     import scala.collection.JavaConverters._
-    val rows = new ArrayBuffer[InternalRow]()
     val encoder = RowEncoder(schema).resolveAndBind()
 
-    if (catalog.tableExists(ident)) {
-      val catalogTable = catalog.loadTable(ident)
-      val properties = catalogTable.properties.asScala
-      propertyKey match {
-        case Some(p) =>
-          val propValue = properties
-            .getOrElse(p, s"Table ${catalogTable.name} does not have property: $p")
-          rows += encoder.toRow(new GenericRowWithSchema(Array(p, propValue), schema)).copy()
-        case None =>
-          properties.keys.map(k =>
-            rows += encoder.toRow(new GenericRowWithSchema(Array(k, properties(k)), schema)).copy())
-      }
+    val properties = catalogTable.properties.asScala
+    propertyKey match {
+      case Some(p) =>
+        val propValue = properties
+          .getOrElse(p, s"Table ${catalogTable.name} does not have property: $p")
+        Seq(encoder.toRow(new GenericRowWithSchema(Array(p, propValue), schema)).copy())
+      case None =>
+        properties.keys.map(k =>
+          encoder.toRow(new GenericRowWithSchema(Array(k, properties(k)), schema)).copy()).toSeq
     }
-    rows
   }
 
 }

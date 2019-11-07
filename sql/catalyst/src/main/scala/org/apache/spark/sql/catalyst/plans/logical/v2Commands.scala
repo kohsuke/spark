@@ -375,9 +375,8 @@ case class ShowCurrentNamespace(catalogManager: CatalogManager) extends Command 
 /**
  * The logical plan of the SHOW TBLPROPERTIES command that works for v2 catalogs.
  */
-case class ShowTblproperties(
-    catalog: TableCatalog,
-    ident: Identifier,
+case class ShowTableProperties(
+    table: NamedRelation,
     propertyKey: Option[String]) extends Command{
   override val output: Seq[Attribute] = Seq(
     AttributeReference("key", StringType, nullable = false)(),
