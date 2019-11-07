@@ -3304,6 +3304,26 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
         """.stripMargin).collect()
     }
   }
+
+  test("SPARK-29860: Fix dataType mismatch issue for InSubquery") {
+    withTempView("ta", "tb", "tc", "td") {
+      sql("create temporary view ta as select * from values(cast(1 as Decimal(8, 0))) as ta(id)")
+      sql("create temporary view tb as select * from values(cast(1 as Decimal(9, 0))) as tb(id)")
+      sql("create temporary view tc as select * from values(cast(1 as Decimal(7, 2))), " +
+        "cast(1.23 as Decimal(7,2)) as tc(id)")
+      sql("create temporary view td as select * from values(cast(1 as Decimal(38, 31))) as td(id)")
+      val df1 = sql("select id from ta where id in (select id from tb)")
+      checkAnswer(df1, Array(Row(new java.math.BigDecimal(1))))
+      val df2 = sql("select id from tb where id in (select id from ta)")
+      checkAnswer(df2, Array(Row(new java.math.BigDecimal(1))))
+      val df3 = sql("select id from ta where id in (select id from tc)")
+      checkAnswer(df3, Array(Row(new java.math.BigDecimal(1))))
+      val msg = intercept[AnalysisException] {
+        sql("select id from ta where id in (select id from td)")
+      }.message
+      assert(msg.contains("cannot resolve '(ta.`id` IN (listquery()))' due to data type mismatch"))
+    }
+  }
 }
 
 case class Foo(bar: Option[String])
