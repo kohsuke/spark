@@ -127,7 +127,8 @@ abstract class QueryStageExec extends LeafExecNode {
  */
 case class ShuffleQueryStageExec(
     override val id: Int,
-    override val plan: ShuffleExchangeExec) extends QueryStageExec {
+    override val plan: ShuffleExchangeExec,
+    var skewedPartitions: mutable.HashSet[Int] = mutable.HashSet.empty) extends QueryStageExec {
 
   @transient lazy val mapOutputStatisticsFuture: Future[MapOutputStatistics] = {
     if (plan.inputRDD.getNumPartitions == 0) {
@@ -176,6 +177,15 @@ object ShuffleQueryStageExec {
   def isShuffleQueryStageExec(plan: SparkPlan): Boolean = plan match {
     case r: ReusedQueryStageExec => isShuffleQueryStageExec(r.plan)
     case _: ShuffleQueryStageExec => true
+    case _ => false
+  }
+
+  /**
+   * Return true if the QueryStageExec is skewed.
+   */
+  def isSkewedShuffleQueryStageExec(stage: QueryStageExec): Boolean = stage match {
+    case s: ShuffleQueryStageExec if (s.id == -1) => true
+    case ReusedQueryStageExec(_, s: ShuffleQueryStageExec, _) if (s.id == -1) => true
     case _ => false
   }
 }
