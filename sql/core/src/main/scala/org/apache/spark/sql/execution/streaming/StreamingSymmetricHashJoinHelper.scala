@@ -207,7 +207,7 @@ object StreamingSymmetricHashJoinHelper extends Logging {
    */
   class StateStoreAwareZipPartitionsRDD[A: ClassTag, B: ClassTag, V: ClassTag](
       sc: SparkContext,
-      var f: (Int, Iterator[A], Int, Iterator[B]) => Iterator[V],
+      var f: (Int, Iterator[A], Iterator[B]) => Iterator[V],
       var rdd1: RDD[A],
       var rdd2: RDD[B],
       stateInfo: StatefulOperatorStateInfo,
@@ -228,7 +228,13 @@ object StreamingSymmetricHashJoinHelper extends Logging {
 
     override def compute(s: Partition, context: TaskContext): Iterator[V] = {
       val partitions = s.asInstanceOf[ZippedPartitionsPartition].partitions
-      f(partitions(0).index, rdd1.iterator(partitions(0), context), partitions(1).index,
+      if (partitions(0).index != partitions(1).index) {
+        throw new IllegalStateException(s"Partition ID should be same in both side: " +
+          s"left ${partitions(0).index} , right ${partitions(1).index}")
+      }
+
+      val partitionId = partitions(0).index
+      f(partitionId, rdd1.iterator(partitions(0), context), partitionId,
         rdd2.iterator(partitions(1), context))
     }
 
@@ -252,7 +258,7 @@ object StreamingSymmetricHashJoinHelper extends Logging {
         stateInfo: StatefulOperatorStateInfo,
         storeNames: Seq[String],
         storeCoordinator: StateStoreCoordinatorRef
-      )(f: (Int, Iterator[T], Int, Iterator[U]) => Iterator[V]): RDD[V] = {
+      )(f: (Int, Iterator[T], Iterator[U]) => Iterator[V]): RDD[V] = {
       new StateStoreAwareZipPartitionsRDD(
         dataRDD.sparkContext, f, dataRDD, dataRDD2, stateInfo, storeNames, Some(storeCoordinator))
     }

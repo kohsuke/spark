@@ -206,19 +206,12 @@ case class StreamingSymmetricHashJoinExec(
   }
 
   private def processPartitions(
-      leftPartitionId: Int,
+      partitionId: Int,
       leftInputIter: Iterator[InternalRow],
-      rightPartitionId: Int,
       rightInputIter: Iterator[InternalRow]): Iterator[InternalRow] = {
     if (stateInfo.isEmpty) {
       throw new IllegalStateException(s"Cannot execute join as state info was not specified\n$this")
     }
-
-    if (leftPartitionId != rightPartitionId) {
-      throw new IllegalStateException(s"Partition ID should be same in both side: " +
-        s"left $leftPartitionId , right $rightPartitionId")
-    }
-    val partitionId = leftPartitionId
 
     val numOutputRows = longMetric("numOutputRows")
     val numUpdatedStateRows = longMetric("numUpdatedStateRows")
