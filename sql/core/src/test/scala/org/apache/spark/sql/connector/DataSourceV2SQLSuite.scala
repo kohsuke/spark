@@ -1495,6 +1495,21 @@ class DataSourceV2SQLSuite
     }
   }
 
+  test("SHOW TBLPROPERTIES(key): v2 table, key not found") {
+    val t = "testcat.ns1.ns2.tbl"
+    withTable(t) {
+      val nonExistingKey = "nonExistingKey"
+      spark.sql(s"CREATE TABLE $t (id bigint, data string) USING foo " +
+        s"TBLPROPERTIES ('owner'='andrew', 'status'='new')")
+
+      val tbl1 = sql(s"SHOW TBLPROPERTIES $t ('$nonExistingKey')")
+
+      val expected = Seq(Row(nonExistingKey, s"Table $t does not have property: $nonExistingKey"))
+
+      assert(expected === tbl1.collect())
+    }
+  }
+
   private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
     val e = intercept[AnalysisException] {
       sql(s"$sqlCommand $sqlParams")
