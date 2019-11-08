@@ -341,17 +341,20 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     throw new ParseException("INSERT OVERWRITE DIRECTORY is not supported", ctx)
   }
 
+  // We do not allow columns aliases in some cases.
+  private def notAllowColumnAliases(ctx: TableAliasContext, msg: String): Unit = {
+    if (ctx.identifierList() != null) {
+      throw new ParseException(msg, ctx.identifierList())
+    }
+  }
+
   override def visitDeleteFromTable(
       ctx: DeleteFromTableContext): LogicalPlan = withOrigin(ctx) {
 
     val tableId = visitMultipartIdentifier(ctx.multipartIdentifier)
     val tableAlias = if (ctx.tableAlias() != null) {
       val ident = ctx.tableAlias().strictIdentifier()
-      // We do not allow columns aliases after table alias.
-      if (ctx.tableAlias().identifierList() != null) {
-        throw new ParseException("Columns aliases is not allowed in DELETE.",
-          ctx.tableAlias().identifierList())
-      }
+      notAllowColumnAliases(ctx.tableAlias(), "Columns aliases are not allowed in DELETE.")
       if (ident != null) Some(ident.getText) else None
     } else {
       None
@@ -369,11 +372,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val tableId = visitMultipartIdentifier(ctx.multipartIdentifier)
     val tableAlias = if (ctx.tableAlias() != null) {
       val ident = ctx.tableAlias().strictIdentifier()
-      // We do not allow columns aliases after table alias.
-      if (ctx.tableAlias().identifierList() != null) {
-        throw new ParseException("Columns aliases is not allowed in UPDATE.",
-          ctx.tableAlias().identifierList())
-      }
+      notAllowColumnAliases(ctx.tableAlias(), "Columns aliases are not allowed in UPDATE.")
       if (ident != null) Some(ident.getText) else None
     } else {
       None
@@ -395,13 +394,10 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       predicate)
   }
 
-  private def withAssignments(
-      assignCtx: SqlBaseParser.AssignmentListContext): (Seq[Expression], Seq[Expression]) =
+  private def withAssignments(assignCtx: SqlBaseParser.AssignmentListContext): Seq[Assignment] =
     withOrigin(assignCtx) {
       assignCtx.assignment().asScala.map { assign =>
-        (UnresolvedAttribute(visitQualifiedName(assign.key)), expression(assign.value))
-      }.foldLeft(Seq[Expression](), Seq[Expression]()) {
-        case (a, b) => (a._1 :+ b._1, a._2 :+ b._2)
+        Assignment(UnresolvedAttribute(visitQualifiedName(assign.key)), expression(assign.value))
       }
     }
 
@@ -409,11 +405,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val targetTable = UnresolvedRelation(visitMultipartIdentifier(ctx.target))
     val targetTableAlias = if (ctx.targetAlias != null) {
       val ident = ctx.targetAlias.strictIdentifier()
-      // We do not allow columns aliases after table alias.
-      if (ctx.targetAlias.identifierList() != null) {
-        throw new ParseException("Columns aliases is not allowed in MERGE.",
-          ctx.targetAlias.identifierList())
-      }
+      notAllowColumnAliases(ctx.targetAlias, "Columns aliases are not allowed in MERGE.")
       if (ident != null) Some(ident.getText) else None
     } else {
       None
@@ -430,11 +422,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     }
     val sourceTableAlias = if (ctx.sourceAlias != null) {
       val ident = ctx.sourceAlias.strictIdentifier()
-      // We do not allow columns aliases after table alias.
-      if (ctx.sourceAlias.identifierList() != null) {
-        throw new ParseException("Columns aliases is not allowed in MERGE.",
-          ctx.sourceAlias.identifierList())
-      }
+      notAllowColumnAliases(ctx.sourceAlias, "Columns aliases are not allowed in MERGE.")
       if (ident != null) Some(ident.getText) else None
     } else {
       None
@@ -455,15 +443,13 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
           DeleteAction(
             if (clause.matchedCond != null) Some(expression(clause.matchedCond)) else None)
         } else if (clause.matchedAction().UPDATE() != null) {
-          val (setColumns, setValues): (Seq[Expression], Seq[Expression]) =
-            if (clause.matchedAction().ASTERISK() != null) {
-              (Seq(UnresolvedStar(None)), Seq(UnresolvedStar(None)))
-            } else {
-              withAssignments(clause.matchedAction().assignmentList())
-            }
-          UpdateAction(
-            if (clause.matchedCond != null) Some(expression(clause.matchedCond)) else None,
-            setColumns.zip(setValues).map(kv => Assignment(kv._1, kv._2)))
+          val condition =
+            if (clause.matchedCond != null) Some(expression(clause.matchedCond)) else None
+          if (clause.matchedAction().ASTERISK() != null) {
+            UpdateAction(condition, Seq())
+          } else {
+            UpdateAction(condition, withAssignments(clause.matchedAction().assignmentList()))
+          }
         } else {
           // It should not be here.
           throw new ParseException(
@@ -480,21 +466,20 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val notMatchedActions = notMatchedClauses.asScala.map {
       clause => {
         if (clause.notMatchedAction().INSERT() != null) {
-          val (setColumns, setValues): (Seq[Expression], Seq[Expression]) =
-            if (clause.notMatchedAction().ASTERISK() != null) {
-              (Seq(UnresolvedStar(None)), Seq(UnresolvedStar(None)))
-            } else {
-              (clause.notMatchedAction().columns.qualifiedName()
-                  .asScala.map(attr => UnresolvedAttribute(visitQualifiedName(attr))),
-                  clause.notMatchedAction().values.expression().asScala.map(expression))
+          val condition =
+            if (clause.notMatchedCond != null) Some(expression(clause.notMatchedCond)) else None
+          if (clause.notMatchedAction().ASTERISK() != null) {
+            InsertAction(condition, Seq())
+          } else {
+            val columns = clause.notMatchedAction().columns.qualifiedName()
+                .asScala.map(attr => UnresolvedAttribute(visitQualifiedName(attr)))
+            val values = clause.notMatchedAction().values.expression().asScala.map(expression)
+            if (columns.size != values.size) {
+              throw new ParseException("The number of inserted values cannot match the fields.",
+                clause.notMatchedAction())
             }
-          if (setColumns.size != setValues.size) {
-            throw new ParseException("The number of inserted values cannot match the fields.",
-              clause.notMatchedAction())
+            InsertAction(condition, columns.zip(values).map(kv => Assignment(kv._1, kv._2)))
           }
-          InsertAction(
-            if (clause.notMatchedCond != null) Some(expression(clause.notMatchedCond)) else None,
-            setColumns.zip(setValues).map(kv => Assignment(kv._1, kv._2)))
         } else {
           // It should not be here.
           throw new ParseException(

@@ -306,8 +306,6 @@ case class MergeIntoTable(
     matchedActions: Seq[MergeAction],
     notMatchedActions: Seq[MergeAction]) extends Command with SupportsSubquery {
   override def children: Seq[LogicalPlan] = Seq(targetTable, sourceTable)
-  override lazy val resolved: Boolean = expressions.forall(_.resolved) && childrenResolved &&
-      matchedActions.forall(_.resolved) && notMatchedActions.forall(_.resolved)
 }
 
 sealed abstract class MergeAction(
