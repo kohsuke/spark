@@ -1205,28 +1205,27 @@ class Analyzer(
         q.mapExpressions(resolveExpressionTopDown(_, q))
     }
 
-    def resolveAssignments(assignments: Seq[Assignment],
+    def resolveAssignments(
+        assignments: Seq[Assignment],
         mergeInto: MergeIntoTable): Seq[Assignment] = {
-      assignments.head.key match {
-        case s: Star =>
-          s.expand(mergeInto.targetTable, resolver)
-              .zip(s.expand(mergeInto.sourceTable, resolver)).map {
-            kv => Assignment(kv._1, kv._2)
-          }
-        case _ =>
-          assignments.map {
-            assign =>
-              val resolvedKey = assign.key match {
-                case c if !c.resolved => resolveExpressionTopDown(c, mergeInto.targetTable)
-                case o => o
-              }
-              val resolvedValue = assign.value match {
-                // The update values may contain target and/or source references.
-                case c if !c.resolved => resolveExpressionTopDown(c, mergeInto)
-                case o => o
-              }
-              Assignment(resolvedKey, resolvedValue)
-          }
+      if (assignments.isEmpty) {
+        val expandedColumns = UnresolvedStar(None).expand(mergeInto.targetTable, resolver)
+        val expandedValues = UnresolvedStar(None).expand(mergeInto.sourceTable, resolver)
+        expandedColumns.zip(expandedValues).map(kv => Assignment(kv._1, kv._2))
+      } else {
+        assignments.map {
+          assign =>
+            val resolvedKey = assign.key match {
+              case c if !c.resolved => resolveExpressionTopDown(c, mergeInto.targetTable)
+              case o => o
+            }
+            val resolvedValue = assign.value match {
+              // The update values may contain target and/or source references.
+              case c if !c.resolved => resolveExpressionTopDown(c, mergeInto)
+              case o => o
+            }
+            Assignment(resolvedKey, resolvedValue)
+        }
       }
     }
 
