@@ -3074,7 +3074,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
    * corresponding values are returned.
    * The syntax of using this command in SQL is:
    * {{{
-   *   SHOW TBLPROPERTIES table_name[('propertyKey')];
+   *   SHOW TBLPROPERTIES multi_part_name[('propertyKey')];
    * }}}
    */
   override def visitShowTblProperties(

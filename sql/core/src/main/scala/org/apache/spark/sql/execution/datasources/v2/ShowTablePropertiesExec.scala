@@ -17,17 +17,15 @@
 
 package org.apache.spark.sql.execution.datasources.v2
 
-import scala.collection.mutable.ArrayBuffer
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.encoders.RowEncoder
 import org.apache.spark.sql.catalyst.expressions.{Attribute, GenericRowWithSchema}
-import org.apache.spark.sql.connector.catalog.Table;
+import org.apache.spark.sql.connector.catalog.Table
 
 /**
- * Physical plan node for showing tblproperties.
+ * Physical plan node for showing table properties.
  */
-case class ShowTblpropertiesExec(
+case class ShowTablePropertiesExec(
     output: Seq[Attribute],
     catalogTable: Table,
     propertyKey: Option[String]) extends V2CommandExec {
@@ -47,5 +45,4 @@ case class ShowTblpropertiesExec(
           encoder.toRow(new GenericRowWithSchema(Array(k, properties(k)), schema)).copy()).toSeq
     }
   }
-
 }

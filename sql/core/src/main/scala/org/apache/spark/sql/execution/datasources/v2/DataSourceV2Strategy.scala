@@ -214,7 +214,7 @@ object DataSourceV2Strategy extends Strategy with PredicateHelper {
       ShowCurrentNamespaceExec(r.output, r.catalogManager) :: Nil
 
     case r @ ShowTableProperties(DataSourceV2Relation(table, _, _), propertyKey) =>
-      ShowTblpropertiesExec(r.output, table, propertyKey) :: Nil
+      ShowTablePropertiesExec(r.output, table, propertyKey) :: Nil
 
     case _ => Nil
   }

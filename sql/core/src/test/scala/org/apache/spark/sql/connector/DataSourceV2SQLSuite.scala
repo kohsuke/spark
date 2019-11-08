@@ -1461,7 +1461,7 @@ class DataSourceV2SQLSuite
       spark.sql(s"CREATE TABLE $t (id bigint, data string) USING $provider " +
         s"TBLPROPERTIES ('owner'='$owner', 'status'='$status')")
 
-      val tbl1 = sql(s"SHOW TBLPROPERTIES $t")
+      val properties = sql(s"SHOW TBLPROPERTIES $t")
 
       val schema = new StructType()
         .add("key", StringType, nullable = false)
@@ -1472,9 +1472,8 @@ class DataSourceV2SQLSuite
         Row("provider", provider),
         Row("status", status))
 
-      assert(tbl1.schema === schema)
-      assert(expected === tbl1.collect())
-
+      assert(properties.schema === schema)
+      assert(expected === properties.collect())
     }
   }
 
@@ -1487,11 +1486,11 @@ class DataSourceV2SQLSuite
       spark.sql(s"CREATE TABLE $t (id bigint, data string) USING $provider " +
         s"TBLPROPERTIES ('owner'='$owner', 'status'='$status')")
 
-      val tbl1 = sql(s"SHOW TBLPROPERTIES $t ('status')")
+      val properties = sql(s"SHOW TBLPROPERTIES $t ('status')")
 
       val expected = Seq(Row("status", status))
 
-      assert(expected === tbl1.collect())
+      assert(expected === properties.collect())
     }
   }
 
@@ -1502,11 +1501,11 @@ class DataSourceV2SQLSuite
       spark.sql(s"CREATE TABLE $t (id bigint, data string) USING foo " +
         s"TBLPROPERTIES ('owner'='andrew', 'status'='new')")
 
-      val tbl1 = sql(s"SHOW TBLPROPERTIES $t ('$nonExistingKey')")
+      val properties = sql(s"SHOW TBLPROPERTIES $t ('$nonExistingKey')")
 
       val expected = Seq(Row(nonExistingKey, s"Table $t does not have property: $nonExistingKey"))
 
-      assert(expected === tbl1.collect())
+      assert(expected === properties.collect())
     }
   }
 
