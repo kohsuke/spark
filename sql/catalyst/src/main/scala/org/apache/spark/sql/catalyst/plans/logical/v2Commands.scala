@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.plans.logical
 
-import org.apache.spark.sql.catalyst.analysis.{NamedRelation, Star}
+import org.apache.spark.sql.catalyst.analysis.{NamedRelation, Star, UnresolvedException}
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference, Expression, Unevaluable}
 import org.apache.spark.sql.catalyst.plans.DescribeTableSchema
 import org.apache.spark.sql.connector.catalog.{CatalogManager, Identifier, SupportsNamespaces, TableCatalog, TableChange}
@@ -312,7 +312,7 @@ sealed abstract class MergeAction(
     condition: Option[Expression]) extends Expression with Unevaluable {
   override def foldable: Boolean = false
   override def nullable: Boolean = false
-  override def dataType: DataType = null
+  override def dataType: DataType = throw new UnresolvedException(this, "nullable")
   override def children: Seq[Expression] = condition.toSeq
 }
 
@@ -333,7 +333,7 @@ case class InsertAction(
 case class Assignment(key: Expression, value: Expression) extends Expression with Unevaluable {
   override def foldable: Boolean = false
   override def nullable: Boolean = false
-  override def dataType: DataType = null
+  override def dataType: DataType = throw new UnresolvedException(this, "nullable")
   override def children: Seq[Expression] = key ::  value :: Nil
 }
 

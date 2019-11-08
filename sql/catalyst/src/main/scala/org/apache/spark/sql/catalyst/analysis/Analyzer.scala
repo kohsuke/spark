@@ -1209,22 +1209,21 @@ class Analyzer(
         assignments: Seq[Assignment],
         mergeInto: MergeIntoTable): Seq[Assignment] = {
       if (assignments.isEmpty) {
-        val expandedColumns = UnresolvedStar(None).expand(mergeInto.targetTable, resolver)
-        val expandedValues = UnresolvedStar(None).expand(mergeInto.sourceTable, resolver)
+        val expandedColumns = mergeInto.targetTable.output
+        val expandedValues = mergeInto.sourceTable.output
         expandedColumns.zip(expandedValues).map(kv => Assignment(kv._1, kv._2))
       } else {
-        assignments.map {
-          assign =>
-            val resolvedKey = assign.key match {
-              case c if !c.resolved => resolveExpressionTopDown(c, mergeInto.targetTable)
-              case o => o
-            }
-            val resolvedValue = assign.value match {
-              // The update values may contain target and/or source references.
-              case c if !c.resolved => resolveExpressionTopDown(c, mergeInto)
-              case o => o
-            }
-            Assignment(resolvedKey, resolvedValue)
+        assignments.map { assign =>
+          val resolvedKey = assign.key match {
+            case c if !c.resolved => resolveExpressionTopDown(c, mergeInto.targetTable)
+            case o => o
+          }
+          val resolvedValue = assign.value match {
+            // The update values may contain target and/or source references.
+            case c if !c.resolved => resolveExpressionTopDown(c, mergeInto)
+            case o => o
+          }
+          Assignment(resolvedKey, resolvedValue)
         }
       }
     }

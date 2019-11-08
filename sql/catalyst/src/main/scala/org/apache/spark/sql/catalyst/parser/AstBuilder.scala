@@ -341,24 +341,23 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     throw new ParseException("INSERT OVERWRITE DIRECTORY is not supported", ctx)
   }
 
-  // We do not allow columns aliases in some cases.
-  private def notAllowColumnAliases(ctx: TableAliasContext, msg: String): Unit = {
-    if (ctx.identifierList() != null) {
-      throw new ParseException(msg, ctx.identifierList())
+  private def getTableAliasWithoutColumnAlias(
+      ctx: TableAliasContext, op: String): Option[String] = {
+    if (ctx == null) {
+      None
+    } else {
+      val ident = ctx.strictIdentifier()
+      if (ctx.identifierList() != null) {
+        throw new ParseException(s"Columns aliases are not allowed in $op.", ctx.identifierList())
+      }
+      if (ident != null) Some(ident.getText) else None
     }
   }
 
   override def visitDeleteFromTable(
       ctx: DeleteFromTableContext): LogicalPlan = withOrigin(ctx) {
-
     val tableId = visitMultipartIdentifier(ctx.multipartIdentifier)
-    val tableAlias = if (ctx.tableAlias() != null) {
-      val ident = ctx.tableAlias().strictIdentifier()
-      notAllowColumnAliases(ctx.tableAlias(), "Columns aliases are not allowed in DELETE.")
-      if (ident != null) Some(ident.getText) else None
-    } else {
-      None
-    }
+    val tableAlias = getTableAliasWithoutColumnAlias(ctx.tableAlias(), "DELETE")
     val predicate = if (ctx.whereClause() != null) {
       Some(expression(ctx.whereClause().booleanExpression()))
     } else {
@@ -370,15 +369,9 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
 
   override def visitUpdateTable(ctx: UpdateTableContext): LogicalPlan = withOrigin(ctx) {
     val tableId = visitMultipartIdentifier(ctx.multipartIdentifier)
-    val tableAlias = if (ctx.tableAlias() != null) {
-      val ident = ctx.tableAlias().strictIdentifier()
-      notAllowColumnAliases(ctx.tableAlias(), "Columns aliases are not allowed in UPDATE.")
-      if (ident != null) Some(ident.getText) else None
-    } else {
-      None
-    }
+    val tableAlias = getTableAliasWithoutColumnAlias(ctx.tableAlias(), "UPDATE")
     val (attrs, values) = ctx.setClause().assignmentList().assignment().asScala.map {
-      kv => visitQualifiedName(kv.key) -> expression(kv.value)
+      kv => visitMultipartIdentifier(kv.key) -> expression(kv.value)
     }.unzip
     val predicate = if (ctx.whereClause() != null) {
       Some(expression(ctx.whereClause().booleanExpression()))
@@ -397,19 +390,14 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
   private def withAssignments(assignCtx: SqlBaseParser.AssignmentListContext): Seq[Assignment] =
     withOrigin(assignCtx) {
       assignCtx.assignment().asScala.map { assign =>
-        Assignment(UnresolvedAttribute(visitQualifiedName(assign.key)), expression(assign.value))
+        Assignment(UnresolvedAttribute(visitMultipartIdentifier(assign.key)),
+          expression(assign.value))
       }
     }
 
   override def visitMergeIntoTable(ctx: MergeIntoTableContext): LogicalPlan = withOrigin(ctx) {
     val targetTable = UnresolvedRelation(visitMultipartIdentifier(ctx.target))
-    val targetTableAlias = if (ctx.targetAlias != null) {
-      val ident = ctx.targetAlias.strictIdentifier()
-      notAllowColumnAliases(ctx.targetAlias, "Columns aliases are not allowed in MERGE.")
-      if (ident != null) Some(ident.getText) else None
-    } else {
-      None
-    }
+    val targetTableAlias = getTableAliasWithoutColumnAlias(ctx.targetAlias, "MERGE")
     val aliasedTarget = targetTableAlias.map(SubqueryAlias(_, targetTable)).getOrElse(targetTable)
 
     val sourceTableOrQuery = if (ctx.source != null) {
@@ -420,13 +408,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
       throw new ParseException("Empty source for merge: you should specify a source" +
           " table/subquery in merge.", ctx.source)
     }
-    val sourceTableAlias = if (ctx.sourceAlias != null) {
-      val ident = ctx.sourceAlias.strictIdentifier()
-      notAllowColumnAliases(ctx.sourceAlias, "Columns aliases are not allowed in MERGE.")
-      if (ident != null) Some(ident.getText) else None
-    } else {
-      None
-    }
+    val sourceTableAlias = getTableAliasWithoutColumnAlias(ctx.sourceAlias, "MERGE")
     val aliasedSource =
       sourceTableAlias.map(SubqueryAlias(_, sourceTableOrQuery)).getOrElse(sourceTableOrQuery)
 
@@ -471,8 +453,8 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
           if (clause.notMatchedAction().ASTERISK() != null) {
             InsertAction(condition, Seq())
           } else {
-            val columns = clause.notMatchedAction().columns.qualifiedName()
-                .asScala.map(attr => UnresolvedAttribute(visitQualifiedName(attr)))
+            val columns = clause.notMatchedAction().columns.multipartIdentifier()
+                .asScala.map(attr => UnresolvedAttribute(visitMultipartIdentifier(attr)))
             val values = clause.notMatchedAction().values.expression().asScala.map(expression)
             if (columns.size != values.size) {
               throw new ParseException("The number of inserted values cannot match the fields.",

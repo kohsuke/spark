@@ -501,7 +501,7 @@ matchedAction
 
 notMatchedAction
     : INSERT ASTERISK
-    | INSERT '(' columns=qualifiedNameList ')' VALUES values=valueList
+    | INSERT '(' columns=multipartIdentifierList ')' VALUES values=valueList
     ;
 
 assignmentList
@@ -509,7 +509,7 @@ assignmentList
     ;
 
 assignment
-    : key=qualifiedName EQ value=expression
+    : key=multipartIdentifier EQ value=expression
     ;
 
 whereClause
@@ -660,6 +660,10 @@ rowFormat
       (MAP KEYS TERMINATED BY keysTerminatedBy=STRING)?
       (LINES TERMINATED BY linesSeparatedBy=STRING)?
       (NULL DEFINED AS nullDefinedAs=STRING)?                                       #rowFormatDelimited
+    ;
+
+multipartIdentifierList
+    : multipartIdentifier (',' multipartIdentifier)*
     ;
 
 multipartIdentifier
