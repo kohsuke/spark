@@ -369,7 +369,7 @@ class StreamingInnerJoinSuite extends StreamTest with StateStoreMetricsTest with
       val rdd1 = spark.sparkContext.makeRDD(1 to 10, numPartitions)
       val rdd2 = spark.sparkContext.makeRDD((1 to 10).map(_.toString), numPartitions)
       val rdd = rdd1.stateStoreAwareZipPartitions(rdd2, stateInfo, storeNames, coordinatorRef) {
-        (_, left, _, right) => left.zip(right)
+        (_, left, right) => left.zip(right)
       }
       require(rdd.partitions.length === numPartitions)
       for (partIndex <- 0 until numPartitions) {
