@@ -300,9 +300,9 @@ case class ArrayTransform(
     "values (including NULL), the query will fail and raise an error.",
   examples = """
     Examples:
-      > SELECT _FUNC_(array(5, 6, 1), (x, y) -> f(x, y));
+      > SELECT _FUNC_(array(5, 6, 1), (left, right) => ArraySort.comparator(left, right)));
        [1,5,6]
-      > SELECT _FUNC_(array('bc', 'ab', 'dc'), (x, y) -> f(x, y));
+      > SELECT _FUNC_(array('bc', 'ab', 'dc'), (left, right) => ArraySort.comparator(left, right)));
        ["dc", "bc", "ab"]
       > SELECT _FUNC_(array('b', 'd', null, 'c', 'a'));
        ["d", "c", "b", "a", null]
