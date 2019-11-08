@@ -99,6 +99,10 @@ case class AdaptiveSparkPlanExec(
     // This rule must be executed before `ReduceNumShufflePartitions`, as local shuffle readers
     // can't change number of partitions.
     OptimizeLocalShuffleReader(conf),
+    // Here the 'OptimizeSkewedPartitions' rule should be executed
+    // before 'ReduceNumShufflePartitions', as the skewed partition handled
+    // in 'OptimizeSkewedPartitions' rule, should be omitted in 'ReduceNumShufflePartitions'.
+    OptimizeSkewedPartitions(conf),
     ReduceNumShufflePartitions(conf),
     ApplyColumnarRulesAndInsertTransitions(session.sessionState.conf,
       session.sessionState.columnarRules),

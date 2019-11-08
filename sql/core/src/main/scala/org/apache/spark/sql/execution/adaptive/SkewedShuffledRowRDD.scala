@@ -22,69 +22,62 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLShuffleReadMetricsReporter}
 
-
 /**
- * The [[Partition]] used by [[LocalShuffledRowRDD]]. A pre-shuffle partition
- * (identified by `preShufflePartitionIndex`) contains a range of post-shuffle partitions
- * (`startPostShufflePartitionIndex` to `endPostShufflePartitionIndex - 1`, inclusive).
+ * The [[Partition]] used by [[SkewedShuffledRowRDD]]. A post-shuffle partition
+ * (identified by `postShufflePartitionIndex`) contains a range of pre-shuffle partitions
+ * (`preShufflePartitionIndex` from `startMapId` to `endMapId - 1`, inclusive).
  */
-private final class LocalShuffledRowRDDPartition(
-    val preShufflePartitionIndex: Int) extends Partition {
-  override val index: Int = preShufflePartitionIndex
+private final class SkewedShuffledRowRDDPartition(
+    val postShufflePartitionIndex: Int,
+    val preShufflePartitionIndex: Int,
+    val startMapId: Int,
+    val endMapId: Int) extends Partition{
+  override val index: Int = postShufflePartitionIndex
 }
 
 /**
  * This is a specialized version of [[org.apache.spark.sql.execution.ShuffledRowRDD]]. This is used
- * in Spark SQL adaptive execution when a shuffle join is converted to broadcast join at runtime
- * because the map output of one input table is small enough for broadcast. This RDD represents the
- * data of another input table of the join that reads from shuffle. Each partition of the RDD reads
- * the whole data from just one mapper output locally. So actually there is no data transferred
- * from the network.
-
- * This RDD takes a [[ShuffleDependency]] (`dependency`).
+ * in Spark SQL adaptive execution to solve data skew issues. This RDD includes rearranged
+ * partitions from mappers.
  *
- * The `dependency` has the parent RDD of this RDD, which represents the dataset before shuffle
- * (i.e. map output). Elements of this RDD are (partitionId, Row) pairs.
- * Partition ids should be in the range [0, numPartitions - 1].
- * `dependency.partitioner.numPartitions` is the number of pre-shuffle partitions. (i.e. the number
- * of partitions of the map output). The post-shuffle partition number is the same to the parent
- * RDD's partition number.
+ * This RDD takes a [[ShuffleDependency]] (`dependency`), a partitionIndex
+ * and the range of startMapId to endMapId.
+ *
  */
-class LocalShuffledRowRDD(
+class SkewedShuffledRowRDD(
      var dependency: ShuffleDependency[Int, InternalRow, InternalRow],
+     partitionIndex: Int,
+     startMapId: Int,
+     endMapId: Int,
      metrics: Map[String, SQLMetric])
   extends RDD[InternalRow](dependency.rdd.context, Nil) {
 
-  private[this] val numReducers = dependency.partitioner.numPartitions
-  private[this] val numMappers = dependency.rdd.partitions.length
-
   override def getDependencies: Seq[Dependency[_]] = List(dependency)
-
   override def getPartitions: Array[Partition] = {
-
-    Array.tabulate[Partition](numMappers) { i =>
-      new LocalShuffledRowRDDPartition(i)
+    Array.tabulate[Partition](1) { i =>
+      new SkewedShuffledRowRDDPartition(i, partitionIndex, startMapId, endMapId)
     }
   }
 
   override def getPreferredLocations(partition: Partition): Seq[String] = {
     val tracker = SparkEnv.get.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
-    tracker.getMapLocation(dependency, partition.index, partition.index + 1)
+    val skewedPartition = partition.asInstanceOf[SkewedShuffledRowRDDPartition]
+    tracker.getMapLocation(dependency, skewedPartition.startMapId, skewedPartition.endMapId)
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[InternalRow] = {
-    val localRowPartition = split.asInstanceOf[LocalShuffledRowRDDPartition]
-    val mapIndex = localRowPartition.index
+    val skewedPartition = split.asInstanceOf[SkewedShuffledRowRDDPartition]
+
     val tempMetrics = context.taskMetrics().createTempShuffleReadMetrics()
     // `SQLShuffleReadMetricsReporter` will update its own metrics for SQL exchange operator,
     // as well as the `tempMetrics` for basic shuffle metrics.
     val sqlMetricsReporter = new SQLShuffleReadMetricsReporter(tempMetrics, metrics)
 
-    val reader = SparkEnv.get.shuffleManager.getReaderForOneMapper(
+    val reader = SparkEnv.get.shuffleManager.getReaderForRangeMapper(
       dependency.shuffleHandle,
-      mapIndex,
-      0,
-      numReducers,
+      skewedPartition.preShufflePartitionIndex,
+      skewedPartition.startMapId,
+      skewedPartition.endMapId,
       context,
       sqlMetricsReporter)
     reader.read().asInstanceOf[Iterator[Product2[Int, InternalRow]]].map(_._2)
@@ -95,4 +88,3 @@ class LocalShuffledRowRDD(
     dependency = null
   }
 }
-
