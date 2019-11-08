@@ -300,12 +300,18 @@ case class ArrayTransform(
     "values (including NULL), the query will fail and raise an error.",
   examples = """
     Examples:
-      > SELECT _FUNC_(array(5, 6, 1), (x, y) -> f(x, y));
+      > SELECT _FUNC_(array(5, 6, 1), (left, right) ->
+        If(And(IsNull(left), IsNull(right)), 0,
+          If(IsNull(left), 1, If(IsNull(right), -1,
+           If(LessThan(left, right), -1, If(GreaterThan(left, right), 1, 0)))));
        [1,5,6]
-      > SELECT _FUNC_(array('bc', 'ab', 'dc'), (x, y) -> f(x, y));
+      > SELECT _FUNC_(array('bc', 'ab', 'dc'), (left, right) ->
+        If(And(IsNull(left), IsNull(right)), 0,
+          If(IsNull(left), 1, If(IsNull(right), -1,
+           If(LessThan(left, right), -1, If(GreaterThan(left, right), 1, 0)))));
        ["dc", "bc", "ab"]
       > SELECT _FUNC_(array('b', 'd', null, 'c', 'a'));
-       ["d", "c", "b", "a", null]
+       ["a", "b", "c", "d", null]
   """,
   since = "2.4.0")
 case class ArraySort(
@@ -319,7 +325,6 @@ case class ArraySort(
     argument.dataType.asInstanceOf[ArrayType].elementType
 
   override def dataType: ArrayType = argument.dataType.asInstanceOf[ArrayType]
-
   override def checkInputDataTypes(): TypeCheckResult = {
     checkArgumentDataTypes() match {
       case TypeCheckResult.TypeCheckSuccess =>
