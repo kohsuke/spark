@@ -297,12 +297,12 @@ case class ArrayTransform(
     "representing two nullable elements of the array." +
     "It returns -1, 0, or 1 as the first nullable element is less than, equal to, or greater " +
     "than the second nullable element. If the comparator function returns other " +
-    "values (including NULL), the query will fail and raise an error.",
+    "values (including NULL), the query will fail and raise an error",
   examples = """
     Examples:
-      > SELECT _FUNC_(array(5, 6, 1), (x, y) -> f(x, y));
+      > SELECT _FUNC_(array(5, 6, 1), (left, right) => ArraySort.comparator(left, right)));
        [1,5,6]
-      > SELECT _FUNC_(array('bc', 'ab', 'dc'), (x, y) -> f(x, y));
+      > SELECT _FUNC_(array('bc', 'ab', 'dc'), (left, right) => ArraySort.comparator(left, right)));
        ["dc", "bc", "ab"]
       > SELECT _FUNC_(array('b', 'd', null, 'c', 'a'));
        ["d", "c", "b", "a", null]
@@ -319,7 +319,6 @@ case class ArraySort(
     argument.dataType.asInstanceOf[ArrayType].elementType
 
   override def dataType: ArrayType = argument.dataType.asInstanceOf[ArrayType]
-
   override def checkInputDataTypes(): TypeCheckResult = {
     checkArgumentDataTypes() match {
       case TypeCheckResult.TypeCheckSuccess =>
