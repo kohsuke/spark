@@ -319,7 +319,6 @@ case class ArraySort(
     argument.dataType.asInstanceOf[ArrayType].elementType
 
   override def dataType: ArrayType = argument.dataType.asInstanceOf[ArrayType]
-
   override def checkInputDataTypes(): TypeCheckResult = {
     checkArgumentDataTypes() match {
       case TypeCheckResult.TypeCheckSuccess =>
