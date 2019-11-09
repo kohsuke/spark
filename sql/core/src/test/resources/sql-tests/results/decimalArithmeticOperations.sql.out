@@ -328,11 +328,11 @@ NULL
 
 
 -- !query 39
-set spark.sql.ansi.enabled=true
+set spark.sql.dialect.spark.ansi.enabled=true
 -- !query 39 schema
 struct<key:string,value:string>
 -- !query 39 output
-spark.sql.ansi.enabled	true
+spark.sql.dialect.spark.ansi.enabled	true
 
 
 -- !query 40
