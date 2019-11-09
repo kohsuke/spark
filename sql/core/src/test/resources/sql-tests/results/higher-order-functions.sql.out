@@ -273,11 +273,11 @@ struct<v:array<int>>
 
 
 -- !query 29
-set spark.sql.ansi.enabled=true
+set spark.sql.dialect.spark.ansi.enabled=true
 -- !query 29 schema
 struct<key:string,value:string>
 -- !query 29 output
-spark.sql.ansi.enabled	true
+spark.sql.dialect.spark.ansi.enabled	true
 
 
 -- !query 30
@@ -309,8 +309,8 @@ select transform(ys, (all, i) -> all + i) as v from values (array(32, 97)) as t(
 
 
 -- !query 32
-set spark.sql.ansi.enabled=false
+set spark.sql.dialect.spark.ansi.enabled=false
 -- !query 32 schema
 struct<key:string,value:string>
 -- !query 32 output
-spark.sql.ansi.enabled	false
+spark.sql.dialect.spark.ansi.enabled	false

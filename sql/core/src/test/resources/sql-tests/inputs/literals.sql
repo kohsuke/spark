@@ -144,7 +144,7 @@ select interval 1 year '12:11:10' hour to second;
 select interval '10-9' year to month '1' year;
 select interval '12:11:10' hour to second '1' year;
 -- malformed interval literal with ansi mode
-SET spark.sql.ansi.enabled=true;
+SET spark.sql.dialect.spark.ansi.enabled=true;
 select interval;
 select interval 1 fake_unit;
 select interval 1 year to month;
