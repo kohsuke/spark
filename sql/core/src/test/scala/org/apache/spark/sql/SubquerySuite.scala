@@ -1555,7 +1555,7 @@ class SubquerySuite extends QueryTest with SharedSparkSession {
           """
             SELECT
               (SELECT min(a.key) FROM testData AS a JOIN testData AS b ON b.key = a.key),
-              (SELECT max(a.key) FROM testData AS a JOIN testData AS b ON b.key = a.key)
+              (SELECT max(a.key) FROM testData AS a JOIN testData2 AS b ON b.a = a.key)
           """.stripMargin)
 
         val plan2 = df2.queryExecution.executedPlan
@@ -1566,8 +1566,8 @@ class SubquerySuite extends QueryTest with SharedSparkSession {
         }
 
         if (reuse) {
-          assert(exchangeIds2.size == 3, "Exchange reusing not working correctly")
-          assert(reusedExchangeIds2.size == 3, "Exchange reusing not working correctly")
+          assert(exchangeIds2.size == 4, "Exchange reusing not working correctly")
+          assert(reusedExchangeIds2.size == 2, "Exchange reusing not working correctly")
           assert(reusedExchangeIds2.forall(exchangeIds2.contains(_)),
             "ReusedExchangeExec should reuse an existing exchange")
         } else {
