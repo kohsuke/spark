@@ -3,11 +3,11 @@
 
 
 -- !query 0
-SET spark.sql.dialect.spark.ansi.enabled=true
+SET spark.sql.dialect.ansi.enabled=true
 -- !query 0 schema
 struct<key:string,value:string>
 -- !query 0 output
-spark.sql.dialect.spark.ansi.enabled	true
+spark.sql.dialect.ansi.enabled	true
 
 
 -- !query 1
@@ -432,8 +432,8 @@ select date '2012-01-01' + (a + 1) day from t
 
 
 -- !query 34
-SET spark.sql.dialect.spark.ansi.enabled=false
+SET spark.sql.dialect.ansi.enabled=false
 -- !query 34 schema
 struct<key:string,value:string>
 -- !query 34 output
-spark.sql.dialect.spark.ansi.enabled	false
+spark.sql.dialect.ansi.enabled	false

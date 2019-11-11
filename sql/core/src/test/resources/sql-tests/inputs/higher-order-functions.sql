@@ -88,7 +88,7 @@ select transform_values(ys, (k, v) -> k + v) as v from nested;
 select transform(ys, all -> all * all) as v from values (array(32, 97)) as t(ys);
 select transform(ys, (all, i) -> all + i) as v from values (array(32, 97)) as t(ys);
 
-set spark.sql.dialect.spark.ansi.enabled=true;
+set spark.sql.dialect.ansi.enabled=true;
 select transform(ys, all -> all * all) as v from values (array(32, 97)) as t(ys);
 select transform(ys, (all, i) -> all + i) as v from values (array(32, 97)) as t(ys);
-set spark.sql.dialect.spark.ansi.enabled=false;
+set spark.sql.dialect.ansi.enabled=false;

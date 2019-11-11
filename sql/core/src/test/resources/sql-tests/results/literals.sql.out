@@ -254,10 +254,12 @@ pattern%	no-pattern\%	pattern\%	pattern\\%
 select '\'', '"', '\n', '\r', '\t', 'Z'
 -- !query 27 schema
 struct<':string,":string,
-:string,:string,	:string,Z:string>
+:string,
+:string,	:string,Z:string>
 -- !query 27 output
 '	"	
-				Z
+	
+			Z
 
 
 -- !query 28
@@ -729,11 +731,11 @@ select interval '12:11:10' hour to second '1' year
 
 
 -- !query 73
-SET spark.sql.dialect.spark.ansi.enabled=true
+SET spark.sql.dialect.ansi.enabled=true
 -- !query 73 schema
 struct<key:string,value:string>
 -- !query 73 output
-spark.sql.dialect.spark.ansi.enabled	true
+spark.sql.dialect.ansi.enabled	true
 
 
 -- !query 74
