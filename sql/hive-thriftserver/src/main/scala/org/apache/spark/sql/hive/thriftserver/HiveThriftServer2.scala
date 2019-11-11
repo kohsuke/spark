@@ -67,17 +67,11 @@ object HiveThriftServer2 extends Logging {
     liveListenerBus.addToStatusQueue(listener)
     uiTab = if (sc.getConf.get(UI_ENABLED)) {
       Some(new ThriftServerTab(new HiveThriftServer2AppStatusStore(kvStore, Some(listener)),
-        getSparkUI(sqlContext.sparkContext)))
+        ThriftServerTab.getSparkUI(sc)))
     } else {
       None
     }
     server
-  }
-
-  def getSparkUI(sparkContext: SparkContext): SparkUI = {
-    sparkContext.ui.getOrElse {
-      throw new SparkException("Parent SparkUI to attach this tab to not found!")
-    }
   }
 
   def main(args: Array[String]): Unit = {
@@ -117,7 +111,7 @@ object HiveThriftServer2 extends Logging {
       liveListenerBus.addToStatusQueue(listener)
       uiTab = if (sc.getConf.get(UI_ENABLED)) {
         Some(new ThriftServerTab(new HiveThriftServer2AppStatusStore(kvStore, Some(listener)),
-          getSparkUI(sc)))
+          ThriftServerTab.getSparkUI(sc)))
       } else {
         None
       }

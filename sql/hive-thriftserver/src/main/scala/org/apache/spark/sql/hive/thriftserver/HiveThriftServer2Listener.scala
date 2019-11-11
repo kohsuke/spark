@@ -127,7 +127,7 @@ private[thriftserver] class HiveThriftServer2Listener(
           exec.startTimestamp, exec.userName)
         liveExec.jobId += jobId.toString
         liveExec.groupId = groupId
-        updateLiveStore(liveExec)
+        updateLiveStore(liveExec, true)
         executionList.remove(liveExec.execId)
       }
     }
@@ -150,16 +150,15 @@ private[thriftserver] class HiveThriftServer2Listener(
   private def processEventSessionCreated(e: SparkListenerSessionCreated): Unit = {
     val session = getOrCreateSession(e.sessionId, e.startTime, e.ip, e.userName)
     sessionList.put(e.sessionId, session)
-    updateLiveStore(session)
+    updateLiveStore(session, true)
   }
 
   private def processEventSessionClosed(e: SparkListenerSessionClosed): Unit = {
     val session = sessionList.get(e.sessionId)
     session.finishTimestamp = e.finishTime
-    updateLiveStore(session)
-    if (live) {
-      sessionList.remove(e.sessionId)
-    }
+    updateLiveStore(session, true)
+    sessionList.remove(e.sessionId)
+
   }
 
   private def processEventStatementStart(e: SparkListenerStatementStart): Unit = {
@@ -175,7 +174,7 @@ private[thriftserver] class HiveThriftServer2Listener(
     sessionList.get(e.sessionId).totalExecution += 1
     executionList.get(e.id).groupId = e.groupId
     updateLiveStore(executionList.get(e.id))
-    updateLiveStore(sessionList.get(e.sessionId))
+    updateLiveStore(sessionList.get(e.sessionId), true)
   }
 
   private def processEventStatementParsed(e: SparkListenerStatementParsed): Unit = {
@@ -206,10 +205,8 @@ private[thriftserver] class HiveThriftServer2Listener(
   private def processEventOperationClosed(e: SparkListenerOperationClosed): Unit = {
     executionList.get(e.id).closeTimestamp = e.closeTime
     executionList.get(e.id).state = ExecutionState.CLOSED
-    updateLiveStore(executionList.get(e.id))
-    if (live) {
-      executionList.remove(e.id)
-    }
+    updateLiveStore(executionList.get(e.id), true)
+    executionList.remove(e.id)
   }
 
 
@@ -265,8 +262,8 @@ private[thriftserver] class HiveThriftServer2Listener(
     entity.write(kvstore, now)
   }
 
-  def updateLiveStore(session: LiveEntity): Unit = {
-    if (live) {
+  def updateLiveStore(session: LiveEntity, force: Boolean = false): Unit = {
+    if (live || force == true) {
       session.write(kvstore, System.nanoTime())
     }
   }
@@ -293,7 +290,7 @@ private[thriftserver] class HiveThriftServer2Listener(
     if (countToDelete <= 0L) {
       return
     }
-    val view = kvstore.view(classOf[ExecutionInfo])
+    val view = kvstore.view(classOf[ExecutionInfo]).index("finishTime").first(0L)
     val toDelete = KVUtils.viewToSeq(view, countToDelete.toInt) { j =>
       j.finishTimestamp != 0
     }
@@ -305,7 +302,7 @@ private[thriftserver] class HiveThriftServer2Listener(
     if (countToDelete <= 0L) {
       return
     }
-    val view = kvstore.view(classOf[SessionInfo])
+    val view = kvstore.view(classOf[SessionInfo]).index("finishTime").first(0L)
     val toDelete = KVUtils.viewToSeq(view, countToDelete.toInt) { j =>
       j.finishTimestamp != 0L
     }
