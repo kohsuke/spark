@@ -55,11 +55,11 @@ case class ReusedExchangeExec(override val output: Seq[Attribute], child: Exchan
   extends LeafExecNode {
 
   override def equals(that: Any): Boolean = that match {
-    case ReusedExchangeExec(output, child) => this.child == output && this.child.eq(child)
+    case ReusedExchangeExec(output, child) => this.output == output && this.child.id == child.id
     case _ => false
   }
 
-  override def hashCode: Int = Objects.hash(output, child)
+  override def hashCode: Int = Objects.hash(output, child.id.asInstanceOf[AnyRef])
 
   override def supportsColumnar: Boolean = child.supportsColumnar
 
