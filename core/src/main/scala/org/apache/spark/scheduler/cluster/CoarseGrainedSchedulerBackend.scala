@@ -191,7 +191,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         updateDelegationTokens(newDelegationTokens)
 
       case DecommissionExecutor(executorId) =>
-        logError(s"Decommissioning executor ${executorId}")
+        println(s"Received decommission executor message ${executorId}.")
         decommissionExecutor(executorId)
 
       case RemoveExecutor(executorId, reason) =>
@@ -413,18 +413,21 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
      * Mark a given executor as decommissioned and stop making resource offers for it.
      */
     private def decommissionExecutor(executorId: String): Boolean = {
+      println(s"Received decommission request for ${executorId}")
       val shouldDisable = CoarseGrainedSchedulerBackend.this.synchronized {
         // Only bother decommissioning executors which are alive.
         if (executorIsAlive(executorId)) {
+          println(s"Decommissioning executor $executorId")
           executorsPendingDecommission += executorId
           true
         } else {
+          println("Not decommissioning dead executor")
           false
         }
       }
 
       if (shouldDisable) {
-        logInfo(s"Decommissioning executor $executorId.")
+        println(s"Asking scheduler to decommission executor $executorId.")
         scheduler.executorDecommission(executorId)
       }
       shouldDisable
@@ -561,10 +564,13 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
    * Called by subclasses when notified of a decommissioning worker.
    */
   private[spark] def decommissionExecutor(executorId: String): Unit = {
+    println(s"CGSB Asked to decommission ${executorId}")
     // Only log the failure since we don't care about the result.
     driverEndpoint.ask[Boolean](DecommissionExecutor(executorId)).onFailure { case t =>
+      println(s"Failed to decom? ${t.getMessage}")
       logError(t.getMessage, t)
     }(ThreadUtils.sameThread)
+    println("Done!")
   }
 
   def sufficientResourcesRegistered(): Boolean = true
