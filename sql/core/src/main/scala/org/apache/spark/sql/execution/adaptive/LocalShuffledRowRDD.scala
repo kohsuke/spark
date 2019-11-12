@@ -80,9 +80,10 @@ class LocalShuffledRowRDD(
     // as well as the `tempMetrics` for basic shuffle metrics.
     val sqlMetricsReporter = new SQLShuffleReadMetricsReporter(tempMetrics, metrics)
 
-    val reader = SparkEnv.get.shuffleManager.getReaderForOneMapper(
+    val reader = SparkEnv.get.shuffleManager.getReaderForRange(
       dependency.shuffleHandle,
       mapIndex,
+      mapIndex + 1,
       0,
       numReducers,
       context,
