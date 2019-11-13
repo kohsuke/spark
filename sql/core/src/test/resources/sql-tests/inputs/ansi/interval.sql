@@ -1,6 +1,3 @@
--- Turns on ANSI mode
-SET spark.sql.ansi.enabled=true;
-
 select
   '1' second,
   2  seconds,
@@ -183,6 +180,3 @@ create temporary view t as select * from values (1), (2) as t(a);
 select date '2012-01-01' + interval (a + 1) day from t;
 
 select date '2012-01-01' + (a + 1) day from t;
-
--- Turns off ANSI mode
-SET spark.sql.ansi.enabled=false;
