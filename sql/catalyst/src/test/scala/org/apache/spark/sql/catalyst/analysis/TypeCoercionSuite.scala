@@ -395,7 +395,7 @@ class TypeCoercionSuite extends AnalysisTest {
     widenTest(LongType, DoubleType, Some(DoubleType))
 
     // No up-casting for fixed-precision decimal (this is handled by arithmetic rules)
-    widenTest(DecimalType(2, 1), DecimalType(3, 2), None)
+    widenTest(DecimalType(2, 1), DecimalType(3, 2), Some(DecimalType(3, 2)))
     widenTest(DecimalType(2, 1), DoubleType, None)
     widenTest(DecimalType(2, 1), IntegerType, None)
     widenTest(DoubleType, DecimalType(2, 1), None)
