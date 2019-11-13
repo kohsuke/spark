@@ -443,8 +443,7 @@ private[ui] class SessionStatsPagedTable(
     val sessionTableHeaders =
       Seq("User", "IP", "Session ID", "Start Time", "Finish Time", "Duration", "Total Execute")
 
-    val tooltips = Seq(Some(THRIFT_SESSION_USER), Some(THRIFT_SESSION_IP),
-      Some(THRIFT_SESSION_ID), Some(THRIFT_SESSION_START_TIME),
+    val tooltips = Seq(None, None, None, Some(THRIFT_SESSION_START_TIME),
       Some(THRIFT_SESSION_FINISH_TIME), Some(THRIFT_SESSION_DURATION),
       Some(THRIFT_SESSION_TOTAL_EXECUTE))
     assert(sessionTableHeaders.length == tooltips.length)
