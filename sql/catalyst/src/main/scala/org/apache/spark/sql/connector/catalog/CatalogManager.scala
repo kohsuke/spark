@@ -23,7 +23,7 @@ import scala.util.control.NonFatal
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 
 /**
  * A thread-safe manager for [[CatalogPlugin]]s. It tracks all the registered catalogs, and allow
@@ -45,9 +45,13 @@ class CatalogManager(
 
   private val catalogs = mutable.HashMap.empty[String, CatalogPlugin]
 
+  private val globalTempDB = conf.getConf(StaticSQLConf.GLOBAL_TEMP_DATABASE)
+
   def catalog(name: String): CatalogPlugin = synchronized {
     if (name.equalsIgnoreCase(SESSION_CATALOG_NAME)) {
       v2SessionCatalog
+    } else if (name.equalsIgnoreCase(globalTempDB)) {
+      throw new IllegalArgumentException(s"'$globalTempDB' is a reserved catalog name.")
     } else {
       catalogs.getOrElseUpdate(name, Catalogs.load(name, conf))
     }

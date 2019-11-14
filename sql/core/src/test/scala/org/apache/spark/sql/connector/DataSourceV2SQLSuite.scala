@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.analysis.{CannotReplaceMissingTableExceptio
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.catalog.CatalogManager.SESSION_CATALOG_NAME
 import org.apache.spark.sql.execution.datasources.v2.V2SessionCatalog
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.internal.SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION
 import org.apache.spark.sql.sources.SimpleScanSource
 import org.apache.spark.sql.types.{BooleanType, LongType, StringType, StructType}
@@ -1674,6 +1674,20 @@ class DataSourceV2SQLSuite
       val expected = Seq(Row(nonExistingKey, s"Table $t does not have property: $nonExistingKey"))
 
       assert(expected === properties.collect())
+    }
+  }
+
+  test("global temp view should not be masked by v2 catalog") {
+    val globalTempDB = spark.sessionState.conf.getConf(StaticSQLConf.GLOBAL_TEMP_DATABASE)
+    spark.conf.set(s"spark.sql.catalog.$globalTempDB", classOf[InMemoryTableCatalog].getName)
+    val e = intercept[IllegalArgumentException] {
+      sql(s"create table $globalTempDB.t(id int) USING foo")
+    }
+    assert(e.getMessage.contains(s"'$globalTempDB' is a reserved catalog name"))
+
+    withTempView("v") {
+      spark.range(10).createGlobalTempView("v")
+      checkAnswer(spark.table(s"$globalTempDB.v"), spark.range(10).toDF())
     }
   }
 
