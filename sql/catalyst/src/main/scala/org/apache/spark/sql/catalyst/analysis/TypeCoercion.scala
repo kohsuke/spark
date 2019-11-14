@@ -93,14 +93,6 @@ object TypeCoercion {
       Some(t2)
     case (t1: DecimalType, t2: IntegralType) if t1.isWiderThan(t2) =>
       Some(t1)
-    case (t1: DecimalType, t2: DecimalType) =>
-      // Handle two DecimalType with no loss of precision.
-      val widerType = DecimalPrecision.widerDecimalType(t1, t2)
-      if (widerType.isWiderThan(t1) && widerType.isWiderThan(t2)) {
-        Some(widerType)
-      } else {
-        None
-      }
 
     // Promote numeric types to the highest of the two
     case (t1: NumericType, t2: NumericType)
@@ -482,6 +474,7 @@ object TypeCoercion {
 
         val commonTypes = lhs.zip(rhs).flatMap { case (l, r) =>
           findCommonTypeForBinaryComparison(l.dataType, r.dataType, conf)
+            .orElse(findWiderTypeForDecimal(l.dataType, r.dataType))
             .orElse(findTightestCommonType(l.dataType, r.dataType))
         }
 
