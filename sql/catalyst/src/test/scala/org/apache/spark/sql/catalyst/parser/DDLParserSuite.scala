@@ -20,7 +20,7 @@ package org.apache.spark.sql.catalyst.parser
 import java.util.Locale
 
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar}
+import org.apache.spark.sql.catalyst.analysis.{AnalysisTest, UnresolvedAlias, UnresolvedAttribute, UnresolvedRelation, UnresolvedStar, UnresolvedSubqueryColumnAliases}
 import org.apache.spark.sql.catalyst.catalog.BucketSpec
 import org.apache.spark.sql.catalyst.expressions.{EqualTo, Literal}
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -784,6 +784,16 @@ class DDLParserSuite extends AnalysisTest {
         Some(EqualTo(UnresolvedAttribute("t.a"), Literal(2)))))
   }
 
+  test("delete from table: cte") {
+    parseCompare("WITH c(a) AS (SELECT 2) DELETE FROM testcat.ns1.ns2.tbl AS t WHERE t.a = c.a",
+      With(DeleteFromTable(
+        SubqueryAlias("t", UnresolvedRelation(Seq("testcat", "ns1", "ns2", "tbl"))),
+        Some(EqualTo(UnresolvedAttribute("t.a"), UnresolvedAttribute("c.a")))),
+        Seq("c" -> SubqueryAlias("c", UnresolvedSubqueryColumnAliases(Seq("a"),
+          Project(Seq(UnresolvedAlias(Literal(2), None)), OneRowRelation()))))
+      ))
+  }
+
   test("delete from table: columns aliases is not allowed") {
     val exc = intercept[ParseException] {
       parsePlan("DELETE FROM testcat.ns1.ns2.tbl AS t(a,b,c,d) WHERE d = 2")
@@ -830,6 +840,26 @@ class DDLParserSuite extends AnalysisTest {
     }
 
     assert(exc.getMessage.contains("Columns aliases are not allowed in UPDATE."))
+  }
+
+  test("update table: cte") {
+    parseCompare(
+      """
+        |WITH c(a, b) AS
+        |  (SELECT 'Robert', 32)
+        |UPDATE testcat.ns1.ns2.tbl AS t
+        |SET t.a=c.a, t.b=c.b
+        |WHERE t.c=2
+      """.stripMargin,
+      With(UpdateTable(
+        SubqueryAlias("t", UnresolvedRelation(Seq("testcat", "ns1", "ns2", "tbl"))),
+        Seq(Assignment(UnresolvedAttribute("t.a"), UnresolvedAttribute("c.a")),
+          Assignment(UnresolvedAttribute("t.b"), UnresolvedAttribute("c.b"))),
+        Some(EqualTo(UnresolvedAttribute("t.c"), Literal(2)))),
+        Seq("c" -> SubqueryAlias("c", UnresolvedSubqueryColumnAliases(Seq("a", "b"),
+          Project(Seq(UnresolvedAlias(Literal("Robert"), None), UnresolvedAlias(Literal(32), None)),
+            OneRowRelation()))))
+    ))
   }
 
   test("merge into table: basic") {
@@ -882,6 +912,35 @@ class DDLParserSuite extends AnalysisTest {
   }
 
   test("merge into table: cte") {
+    parseCompare(
+      """
+        |WITH source(col1, col2) AS
+        | (SELECT * FROM testcat2.ns1.ns2.tbl)
+        |MERGE INTO testcat1.ns1.ns2.tbl AS target
+        |USING source
+        |ON target.col1 = source.col1
+        |WHEN MATCHED AND (target.col2='delete') THEN DELETE
+        |WHEN MATCHED AND (target.col2='update') THEN UPDATE SET target.col2 = source.col2
+        |WHEN NOT MATCHED AND (target.col2='insert')
+        |THEN INSERT (target.col1, target.col2) values (source.col1, source.col2)
+      """.stripMargin,
+      With(MergeIntoTable(
+        SubqueryAlias("target", UnresolvedRelation(Seq("testcat1", "ns1", "ns2", "tbl"))),
+        UnresolvedRelation(Seq("source")),
+        EqualTo(UnresolvedAttribute("target.col1"), UnresolvedAttribute("source.col1")),
+        Seq(DeleteAction(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("delete")))),
+          UpdateAction(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("update"))),
+            Seq(Assignment(UnresolvedAttribute("target.col2"),
+              UnresolvedAttribute("source.col2"))))),
+        Seq(InsertAction(Some(EqualTo(UnresolvedAttribute("target.col2"), Literal("insert"))),
+          Seq(Assignment(UnresolvedAttribute("target.col1"), UnresolvedAttribute("source.col1")),
+            Assignment(UnresolvedAttribute("target.col2"), UnresolvedAttribute("source.col2")))))),
+        Seq("source" -> SubqueryAlias("source", UnresolvedSubqueryColumnAliases(Seq("col1", "col2"),
+          Project(Seq(UnresolvedStar(None)),
+            UnresolvedRelation(Seq("testcat2", "ns1", "ns2", "tbl"))))))))
+  }
+
+  test("merge into table: cte in source table") {
     parseCompare(
       """
         |MERGE INTO testcat1.ns1.ns2.tbl AS target
