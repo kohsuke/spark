@@ -167,7 +167,11 @@ class PCAModel private[ml] (
 
   @Since("1.5.0")
   override def transformSchema(schema: StructType): StructType = {
-    validateAndTransformSchema(schema)
+    var outputSchema = validateAndTransformSchema(schema)
+    if ($(outputCol).nonEmpty) {
+      outputSchema = SchemaUtils.updateAttributeGroupSize(schema, $(outputCol), pc.numRows)
+    }
+    outputSchema
   }
 
   @Since("1.5.0")
@@ -181,7 +185,7 @@ class PCAModel private[ml] (
 
   @Since("3.0.0")
   override def toString: String = {
-    s"PCAModel: uid=$uid, k=${$(k)}"
+    s"PCAModel: uid=$uid, k=${pc.numCols}, numFeatures=${pc.numRows}"
   }
 }
 
