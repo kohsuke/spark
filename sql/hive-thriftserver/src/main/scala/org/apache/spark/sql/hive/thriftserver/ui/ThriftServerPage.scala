@@ -485,13 +485,13 @@ private[ui] class SessionStatsPagedTable(
             <th width={colWidthAttr}>
               <a href={headerLink}>
                 {
-                    if (tooltip.nonEmpty) {
-                        <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
-                          {header}
-                         </span>
-                    } else {
-                        {header}
-                    }
+                  if (tooltip.nonEmpty) {
+                    <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
+                      {header}
+                    </span>
+                  } else {
+                      {header}
+                  }
                 }
               </a>
             </th>

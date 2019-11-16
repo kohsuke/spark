@@ -41,6 +41,6 @@ private[ui] object ToolTips {
 
   val THRIFT_SESSION_DURATION =
     "Total duration the session has been active, from the time session" +
-      " was lauched till it was closed."
+      " was started till it was closed."
 
 }
