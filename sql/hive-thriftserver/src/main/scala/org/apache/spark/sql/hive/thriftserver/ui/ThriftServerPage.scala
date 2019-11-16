@@ -459,42 +459,42 @@ private[ui] class SessionStatsPagedTable(
               s"&$sessionStatsTableTag.pageSize=$pageSize" +
               s"#$sessionStatsTableTag")
           val arrow = if (desc) "&#x25BE;" else "&#x25B4;" // UP or DOWN
-          if (tooltip.nonEmpty) {
             <th width={colWidthAttr}>
               <a href={headerLink}>
-                <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
-                  {header}&nbsp;{Unparsed(arrow)}
-                </span>
+                {
+                  if (tooltip.nonEmpty) {
+                    <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
+                      {header}&nbsp;{Unparsed(arrow)}
+                    </span>
+                  } else {
+                    <span>
+                      {header}&nbsp;{Unparsed(arrow)}
+                    </span>
+                  }
+                }
               </a>
             </th>
-          } else {
-            <th width={colWidthAttr}>
-              <a href={headerLink}>
-                {header}&nbsp;{Unparsed(arrow)}
-              </a>
-            </th>
-          }
+
         } else {
           val headerLink = Unparsed(
             parameterPath +
               s"&$sessionStatsTableTag.sort=${URLEncoder.encode(header, UTF_8.name())}" +
               s"&$sessionStatsTableTag.pageSize=$pageSize" +
               s"#$sessionStatsTableTag")
-          if (tooltip.nonEmpty) {
+
             <th width={colWidthAttr}>
               <a href={headerLink}>
-                <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
-                  {header}
-                </span>
+                {
+                    if (tooltip.nonEmpty) {
+                        <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
+                          {header}
+                         </span>
+                    }else {
+                        {header}
+                    }
+                }
               </a>
             </th>
-          } else {
-            <th width={colWidthAttr}>
-              <a href={headerLink}>
-                {header}
-              </a>
-            </th>
-          }
         }
       }
     }

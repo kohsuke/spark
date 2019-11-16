@@ -34,12 +34,13 @@ private[ui] object ToolTips {
     "Number of operations submitted in this session."
 
   val THRIFT_SESSION_START_TIME =
-    "Session Start time,on launching the session."
+    "Session Start time, on launching the session."
 
   val THRIFT_SESSION_FINISH_TIME =
-    "Session end time, after closing the session."
+    "Time that the session was closed."
 
   val THRIFT_SESSION_DURATION =
-    "Active duration of the session."
+    "Total duration the session has been active, from the time session" +
+      " was lauched till it was closed."
 
 }
