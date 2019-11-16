@@ -489,7 +489,7 @@ private[ui] class SessionStatsPagedTable(
                         <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
                           {header}
                          </span>
-                    }else {
+                    } else {
                         {header}
                     }
                 }
