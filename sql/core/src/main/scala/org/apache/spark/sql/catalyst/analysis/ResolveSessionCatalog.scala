@@ -455,6 +455,25 @@ class ResolveSessionCatalog(
       ShowTablePropertiesCommand(
         tableName.asTableIdentifier,
         propertyKey)
+
+    case ShowFunctionsStatement(scope, pattern, functionName) =>
+      import ShowFunctionsStatement._
+      val userScope = scope.map(s => s == ALL || s == USER).getOrElse(true)
+      val systemScope = scope.map(s => s == ALL || s == SYSTEM).getOrElse(true)
+      val (db, function) = functionName match {
+        case Some(Seq(db, fn)) => (Some(db), Some(fn))
+        case Some(Seq(fn)) => (None, Some(fn))
+        case None => (None, None)
+        case Some(fun) if fun.length > 2 =>
+          throw new AnalysisException(
+            s"Function name should have at most two parts: ${fun.quoted}")
+      }
+      val patternCommand = pattern match {
+        case p @ Some(_) => p
+        case _ => function
+      }
+
+      ShowFunctionsCommand(db, patternCommand, userScope, systemScope)
   }
 
   private def parseV1Table(tableName: Seq[String], sql: String): Seq[String] = {

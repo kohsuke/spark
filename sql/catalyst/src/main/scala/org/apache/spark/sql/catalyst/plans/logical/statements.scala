@@ -483,3 +483,9 @@ case class ShowFunctionsStatement(
     scope: Option[String],
     pattern: Option[String],
     functionName: Option[Seq[String]]) extends ParsedStatement
+
+object ShowFunctionsStatement{
+  val ALL = "all"
+  val SYSTEM = "system"
+  val USER = "user"
+}
