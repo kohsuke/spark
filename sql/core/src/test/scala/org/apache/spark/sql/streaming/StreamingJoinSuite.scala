@@ -467,7 +467,7 @@ class StreamingInnerJoinSuite extends StreamTest with StateStoreMetricsTest with
       AddData(inputStream, (6, 6L), (7, 7L), (8, 8L), (9, 9L), (10, 10L)),
       // batch 2: same result as above test
       CheckNewAnswer((6, 6L, 6, 6L), (8, 8L, 8, 8L), (10, 10L, 10, 10L)),
-      assertNumStateRows(11, 6),
+      assertNumStateRows(11, 6, 0),
       Execute { query =>
         // Verify state format = 1
         val f = query.lastExecution.executedPlan.collect {
@@ -804,7 +804,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
       // left: (1, 1L), (2, 2L), (3, 3L), (4, 4L), (5, 5L)
       // right: (2, 2L), (4, 4L)
       CheckNewAnswer((2, 2L, 2, 2L), (4, 4L, 4, 4L)),
-      assertNumStateRows(7, 7),
+      assertNumStateRows(7, 7, 0),
 
       AddData(inputStream, (6, 6L), (7, 7L), (8, 8L), (9, 9L), (10, 10L)),
       // batch 2 - global watermark = 5
@@ -818,7 +818,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
       // NOTE: look for evicted rows in right which are not evicted from left - they were
       // properly joined in batch 1
       CheckNewAnswer((6, 6L, 6, 6L), (8, 8L, 8, 8L), (10, 10L, 10, 10L)),
-      assertNumStateRows(13, 8),
+      assertNumStateRows(13, 8, 0),
 
       AddData(inputStream, (11, 11L), (12, 12L), (13, 13L), (14, 14L), (15, 15L)),
       // batch 3
@@ -833,7 +833,7 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
       CheckNewAnswer(
         Row(12, 12L, 12, 12L), Row(14, 14L, 14, 14L),
         Row(1, 1L, null, null), Row(3, 3L, null, null)),
-      assertNumStateRows(15, 7)
+      assertNumStateRows(15, 7, 0)
     )
   }
 
@@ -867,17 +867,17 @@ class StreamingOuterJoinSuite extends StreamTest with StateStoreMetricsTest with
     testStream(query)(
       AddData(inputStream, (1, 1L), (2, 2L), (3, 3L), (4, 4L), (5, 5L)),
       CheckNewAnswer((2, 2L, 2, 2L), (4, 4L, 4, 4L)),
-      assertNumStateRows(7, 7),
+      assertNumStateRows(7, 7, 0),
 
       AddData(inputStream, (6, 6L), (7, 7L), (8, 8L), (9, 9L), (10, 10L)),
       CheckNewAnswer((6, 6L, 6, 6L), (8, 8L, 8, 8L), (10, 10L, 10, 10L)),
-      assertNumStateRows(13, 8),
+      assertNumStateRows(13, 8, 0),
 
       AddData(inputStream, (11, 11L), (12, 12L), (13, 13L), (14, 14L), (15, 15L)),
       CheckNewAnswer(
         Row(12, 12L, 12, 12L), Row(14, 14L, 14, 14L),
         Row(null, null, 1, 1L), Row(null, null, 3, 3L)),
-      assertNumStateRows(15, 7)
+      assertNumStateRows(15, 7, 0)
     )
   }
 
