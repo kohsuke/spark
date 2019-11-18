@@ -18,6 +18,7 @@
 package org.apache.spark.util
 
 import org.apache.hadoop.fs.Path
+import org.scalatest.Assertions
 
 import org.apache.spark.{SharedSparkContext, SparkContext, SparkFunSuite}
 import org.apache.spark.rdd.RDD
@@ -102,9 +103,9 @@ private object PeriodicRDDCheckpointerSuite {
   def checkPersistence(rdd: RDD[_], gIndex: Int, iteration: Int): Unit = {
     try {
       if (gIndex + 2 < iteration) {
-        assert(rdd.getStorageLevel == StorageLevel.NONE)
+        Assertions.assert(rdd.getStorageLevel == StorageLevel.NONE)
       } else {
-        assert(rdd.getStorageLevel != StorageLevel.NONE)
+        Assertions.assert(rdd.getStorageLevel != StorageLevel.NONE)
       }
     } catch {
       case _: AssertionError =>

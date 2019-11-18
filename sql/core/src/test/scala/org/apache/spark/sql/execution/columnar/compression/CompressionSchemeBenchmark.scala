@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets
 
 import org.apache.commons.lang3.RandomStringUtils
 import org.apache.commons.math3.distribution.LogNormalDistribution
+import org.scalatest.Assertions
 
 import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow
@@ -60,7 +61,7 @@ object CompressionSchemeBenchmark extends BenchmarkBase with AllCompressionSchem
     tpe: NativeColumnType[T],
     supportedScheme: CompressionScheme,
     input: ByteBuffer): ((ByteBuffer, ByteBuffer) => ByteBuffer, Double, ByteBuffer) = {
-    assert(supportedScheme.supports(tpe))
+    Assertions.assert(supportedScheme.supports(tpe))
 
     def toRow(d: Any) = new GenericInternalRow(Array[Any](d))
     val encoder = supportedScheme.encoder(tpe)

@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.benchmark
 
+import org.scalatest.Assertions
+
 import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.internal.config.MEMORY_OFFHEAP_ENABLED
@@ -63,15 +65,15 @@ object HashedRelationMetricsBenchmark extends SqlBasedBenchmark {
             override def run: Unit = {
               val row = unsafeProj(InternalRow(0L)).copy()
               keys.foreach { k =>
-                assert(map.getValue(k, row) eq row)
-                assert(row.getLong(0) == k)
+                Assertions.assert(map.getValue(k, row) eq row)
+                Assertions.assert(row.getLong(0) == k)
               }
             }
           }
           thread.start()
           thread
         }
-        threads.map(_.join())
+        threads.foreach(_.join())
         map.free()
       }
       benchmark.run()

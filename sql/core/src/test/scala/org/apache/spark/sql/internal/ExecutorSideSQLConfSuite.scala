@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.internal
 
+import org.scalatest.Assertions
+
 import org.apache.spark.{SparkException, SparkFunSuite}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -131,7 +133,7 @@ case class SQLConfAssertPlan(confToCheck: Seq[(String, String)]) extends LeafExe
       .mapPartitions { it =>
         val confs = SQLConf.get
         confToCheck.foreach { case (key, expectedValue) =>
-          assert(confs.getConfString(key) == expectedValue)
+          Assertions.assert(confs.getConfString(key) == expectedValue)
         }
         it.map(i => InternalRow.fromSeq(Seq(i)))
       }

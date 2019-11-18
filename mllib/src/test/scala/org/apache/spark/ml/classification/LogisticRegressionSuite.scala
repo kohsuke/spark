@@ -21,6 +21,8 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 import scala.util.control.Breaks._
 
+import org.scalatest.Assertions
+
 import org.apache.spark.SparkException
 import org.apache.spark.ml.attribute.NominalAttribute
 import org.apache.spark.ml.classification.LogisticRegressionSuite._
@@ -2919,7 +2921,7 @@ object LogisticRegressionSuite {
   def checkCoefficientsEquivalent(coefficients1: Matrix, coefficients2: Matrix): Unit = {
     coefficients1.colIter.zip(coefficients2.colIter).foreach { case (col1: Vector, col2: Vector) =>
       (col1.asBreeze - col2.asBreeze).toArray.toSeq.sliding(2).foreach {
-        case Seq(v1, v2) => assert(v1 ~= v2 absTol 1E-3)
+        case Seq(v1, v2) => Assertions.assert(v1 ~= v2 absTol 1E-3)
       }
     }
   }

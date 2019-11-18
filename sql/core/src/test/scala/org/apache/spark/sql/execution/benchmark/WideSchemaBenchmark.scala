@@ -19,6 +19,8 @@ package org.apache.spark.sql.execution.benchmark
 
 import java.io.File
 
+import org.scalatest.Assertions
+
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.util.Utils
@@ -38,7 +40,7 @@ object WideSchemaBenchmark extends SqlBasedBenchmark {
   private val scaleFactor = 100000
   private val widthsToTest = Seq(1, 100, 2500)
   private val depthsToTest = Seq(1, 100, 250)
-  assert(scaleFactor > widthsToTest.max)
+  Assertions.assert(scaleFactor > widthsToTest.max)
 
   import spark.implicits._
 
@@ -55,7 +57,7 @@ object WideSchemaBenchmark extends SqlBasedBenchmark {
     tmpFiles ::= tmpFile
     tmpFile.delete()
     df.write.parquet(tmpFile.getAbsolutePath)
-    assert(tmpFile.isDirectory())
+    Assertions.assert(tmpFile.isDirectory())
     spark.read.parquet(tmpFile.getAbsolutePath)
   }
 

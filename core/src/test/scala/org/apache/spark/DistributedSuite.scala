@@ -17,7 +17,7 @@
 
 package org.apache.spark
 
-import org.scalatest.Matchers
+import org.scalatest.{Assertions, Matchers}
 import org.scalatest.concurrent.{Signaler, ThreadSignaler, TimeLimits}
 import org.scalatest.time.{Millis, Span}
 
@@ -367,7 +367,7 @@ object DistributedSuite {
   // Act like an identity function, but if the argument is true, set mark to true.
   def markNodeIfIdentity(item: Boolean): Boolean = {
     if (item) {
-      assert(!amMaster)
+      Assertions.assert(!amMaster)
       mark = true
     }
     item

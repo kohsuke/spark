@@ -22,6 +22,7 @@ import java.time.{Duration, Instant, LocalDate}
 import java.util.concurrent.TimeUnit
 
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalatest.Assertions
 
 import org.apache.spark.sql.catalyst.util.DateTimeConstants.MILLIS_PER_DAY
 import org.apache.spark.sql.types._
@@ -81,8 +82,8 @@ object LiteralGenerator {
 
   // TODO cache the generated data
   def decimalLiteralGen(precision: Int, scale: Int): Gen[Literal] = {
-    assert(scale >= 0)
-    assert(precision >= scale)
+    Assertions.assert(scale >= 0)
+    Assertions.assert(precision >= scale)
     Arbitrary.arbBigInt.arbitrary.map { s =>
       val a = (s % BigInt(10).pow(precision - scale)).toString()
       val b = (s % BigInt(10).pow(scale)).abs.toString()

@@ -22,6 +22,8 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import org.scalatest.Assertions
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.{IdentityTransform, Transform}
@@ -100,19 +102,19 @@ class InMemoryTable(
       private var writer: BatchWrite = Append
 
       override def truncate(): WriteBuilder = {
-        assert(writer == Append)
+        Assertions.assert(writer == Append)
         writer = TruncateAndAppend
         this
       }
 
       override def overwrite(filters: Array[Filter]): WriteBuilder = {
-        assert(writer == Append)
+        Assertions.assert(writer == Append)
         writer = new Overwrite(filters)
         this
       }
 
       override def overwriteDynamicPartitions(): WriteBuilder = {
-        assert(writer == Append)
+        Assertions.assert(writer == Append)
         writer = DynamicOverwrite
         this
       }

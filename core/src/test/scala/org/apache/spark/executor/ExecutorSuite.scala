@@ -33,7 +33,7 @@ import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito.{inOrder, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
-import org.scalatest.PrivateMethodTester
+import org.scalatest.{Assertions, PrivateMethodTester}
 import org.scalatest.concurrent.Eventually
 import org.scalatestplus.mockito.MockitoSugar
 
@@ -567,7 +567,7 @@ class FetchFailureHidingRDD(
           // scalastyle:on throwerror
         } else if (interrupt) {
           // make sure our test is setup correctly
-          assert(TaskContext.get().asInstanceOf[TaskContextImpl].fetchFailed.isDefined)
+          Assertions.assert(TaskContext.get().asInstanceOf[TaskContextImpl].fetchFailed.isDefined)
           // signal we are ready for executor metrics to be polled (if necessary) and for
           // the task to get killed
           ExecutorSuiteHelper.latches.latch1.countDown()

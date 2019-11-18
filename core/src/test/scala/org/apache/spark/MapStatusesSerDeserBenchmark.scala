@@ -17,6 +17,8 @@
 
 package org.apache.spark
 
+import org.scalatest.Assertions
+
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.benchmark.BenchmarkBase
 import org.apache.spark.scheduler.CompressedMapStatus
@@ -81,7 +83,7 @@ object MapStatusesSerDeserBenchmark extends BenchmarkBase {
 
     benchmark.addCase("Deserialization") { _ =>
       val result = MapOutputTracker.deserializeMapStatuses(serializedMapStatus, sc.getConf)
-      assert(result.length == numMaps)
+      Assertions.assert(result.length == numMaps)
     }
 
     benchmark.run()

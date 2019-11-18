@@ -28,6 +28,7 @@ import org.apache.mesos.protobuf.ByteString
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito.{times, verify}
+import org.scalatest.Assertions
 
 import org.apache.spark.deploy.mesos.config.MesosSecretConfig
 
@@ -127,18 +128,18 @@ object Utils {
       .getEnvironment
       .getVariablesList
       .asScala
-    assert(envVars
+    Assertions.assert(envVars
       .count(!_.getName.startsWith("SPARK_")) == 2) // user-defined secret env vars
     val variableOne = envVars.filter(_.getName == "SECRET_ENV_KEY").head
-    assert(variableOne.getSecret.isInitialized)
-    assert(variableOne.getSecret.getType == Secret.Type.REFERENCE)
-    assert(variableOne.getSecret.getReference.getName == "/path/to/secret")
-    assert(variableOne.getType == Environment.Variable.Type.SECRET)
+    Assertions.assert(variableOne.getSecret.isInitialized)
+    Assertions.assert(variableOne.getSecret.getType == Secret.Type.REFERENCE)
+    Assertions.assert(variableOne.getSecret.getReference.getName == "/path/to/secret")
+    Assertions.assert(variableOne.getType == Environment.Variable.Type.SECRET)
     val variableTwo = envVars.filter(_.getName == "PASSWORD").head
-    assert(variableTwo.getSecret.isInitialized)
-    assert(variableTwo.getSecret.getType == Secret.Type.REFERENCE)
-    assert(variableTwo.getSecret.getReference.getName == "/anothersecret")
-    assert(variableTwo.getType == Environment.Variable.Type.SECRET)
+    Assertions.assert(variableTwo.getSecret.isInitialized)
+    Assertions.assert(variableTwo.getSecret.getType == Secret.Type.REFERENCE)
+    Assertions.assert(variableTwo.getSecret.getReference.getName == "/anothersecret")
+    Assertions.assert(variableTwo.getType == Environment.Variable.Type.SECRET)
   }
 
   def configEnvBasedValueSecrets(secretConfig: MesosSecretConfig): Map[String, String] = {
@@ -156,18 +157,20 @@ object Utils {
       .getEnvironment
       .getVariablesList
       .asScala
-    assert(envVars
+    Assertions.assert(envVars
       .count(!_.getName.startsWith("SPARK_")) == 2) // user-defined secret env vars
     val variableOne = envVars.filter(_.getName == "USER").head
-    assert(variableOne.getSecret.isInitialized)
-    assert(variableOne.getSecret.getType == Secret.Type.VALUE)
-    assert(variableOne.getSecret.getValue.getData == ByteString.copyFrom("user".getBytes))
-    assert(variableOne.getType == Environment.Variable.Type.SECRET)
+    Assertions.assert(variableOne.getSecret.isInitialized)
+    Assertions.assert(variableOne.getSecret.getType == Secret.Type.VALUE)
+    Assertions.assert(variableOne.getSecret.getValue.getData ==
+      ByteString.copyFrom("user".getBytes))
+    Assertions.assert(variableOne.getType == Environment.Variable.Type.SECRET)
     val variableTwo = envVars.filter(_.getName == "PASSWORD").head
-    assert(variableTwo.getSecret.isInitialized)
-    assert(variableTwo.getSecret.getType == Secret.Type.VALUE)
-    assert(variableTwo.getSecret.getValue.getData == ByteString.copyFrom("password".getBytes))
-    assert(variableTwo.getType == Environment.Variable.Type.SECRET)
+    Assertions.assert(variableTwo.getSecret.isInitialized)
+    Assertions.assert(variableTwo.getSecret.getType == Secret.Type.VALUE)
+    Assertions.assert(variableTwo.getSecret.getValue.getData ==
+      ByteString.copyFrom("password".getBytes))
+    Assertions.assert(variableTwo.getType == Environment.Variable.Type.SECRET)
   }
 
   def configFileBasedRefSecrets(secretConfig: MesosSecretConfig): Map[String, String] = {
@@ -181,15 +184,15 @@ object Utils {
 
   def verifyFileBasedRefSecrets(launchedTasks: List[TaskInfo]): Unit = {
     val volumes = launchedTasks.head.getContainer.getVolumesList
-    assert(volumes.size() == 2)
+    Assertions.assert(volumes.size() == 2)
     val secretVolOne = volumes.get(0)
-    assert(secretVolOne.getContainerPath == "/topsecret")
-    assert(secretVolOne.getSource.getSecret.getType == Secret.Type.REFERENCE)
-    assert(secretVolOne.getSource.getSecret.getReference.getName == "/path/to/secret")
+    Assertions.assert(secretVolOne.getContainerPath == "/topsecret")
+    Assertions.assert(secretVolOne.getSource.getSecret.getType == Secret.Type.REFERENCE)
+    Assertions.assert(secretVolOne.getSource.getSecret.getReference.getName == "/path/to/secret")
     val secretVolTwo = volumes.get(1)
-    assert(secretVolTwo.getContainerPath == "/mypassword")
-    assert(secretVolTwo.getSource.getSecret.getType == Secret.Type.REFERENCE)
-    assert(secretVolTwo.getSource.getSecret.getReference.getName == "/anothersecret")
+    Assertions.assert(secretVolTwo.getContainerPath == "/mypassword")
+    Assertions.assert(secretVolTwo.getSource.getSecret.getType == Secret.Type.REFERENCE)
+    Assertions.assert(secretVolTwo.getSource.getSecret.getReference.getName == "/anothersecret")
   }
 
   def configFileBasedValueSecrets(secretConfig: MesosSecretConfig): Map[String, String] = {
@@ -203,16 +206,16 @@ object Utils {
 
   def verifyFileBasedValueSecrets(launchedTasks: List[TaskInfo]): Unit = {
     val volumes = launchedTasks.head.getContainer.getVolumesList
-    assert(volumes.size() == 2)
+    Assertions.assert(volumes.size() == 2)
     val secretVolOne = volumes.get(0)
-    assert(secretVolOne.getContainerPath == "/whoami")
-    assert(secretVolOne.getSource.getSecret.getType == Secret.Type.VALUE)
-    assert(secretVolOne.getSource.getSecret.getValue.getData ==
+    Assertions.assert(secretVolOne.getContainerPath == "/whoami")
+    Assertions.assert(secretVolOne.getSource.getSecret.getType == Secret.Type.VALUE)
+    Assertions.assert(secretVolOne.getSource.getSecret.getValue.getData ==
       ByteString.copyFrom("user".getBytes))
     val secretVolTwo = volumes.get(1)
-    assert(secretVolTwo.getContainerPath == "/mypassword")
-    assert(secretVolTwo.getSource.getSecret.getType == Secret.Type.VALUE)
-    assert(secretVolTwo.getSource.getSecret.getValue.getData ==
+    Assertions.assert(secretVolTwo.getContainerPath == "/mypassword")
+    Assertions.assert(secretVolTwo.getSource.getSecret.getType == Secret.Type.VALUE)
+    Assertions.assert(secretVolTwo.getSource.getSecret.getValue.getData ==
       ByteString.copyFrom("password".getBytes))
   }
 
