@@ -748,7 +748,7 @@ primaryExpression
     | qualifiedName '.' ASTERISK                                                               #star
     | '(' namedExpression (',' namedExpression)+ ')'                                           #rowConstructor
     | '(' query ')'                                                                            #subqueryExpression
-    | qualifiedName '(' (setQuantifier? argument+=expression (',' argument+=expression)*)? ')'
+    | functionCallName '(' (setQuantifier? argument+=expression (',' argument+=expression)*)? ')'
        (OVER windowSpec)?                                                                      #functionCall
     | identifier '->' expression                                                               #lambda
     | '(' identifier (',' identifier)+ ')' '->' expression                                     #lambda
@@ -910,6 +910,12 @@ frameBound
 
 qualifiedNameList
     : qualifiedName (',' qualifiedName)*
+    ;
+
+functionCallName
+    : qualifiedName
+    | LEFT
+    | RIGHT
     ;
 
 qualifiedName
