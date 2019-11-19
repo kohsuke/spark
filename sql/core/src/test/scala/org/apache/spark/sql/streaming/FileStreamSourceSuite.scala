@@ -1617,14 +1617,6 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
   }
 
   test("remove completed files when remove option is enabled") {
-    def assertFileIsRemoved(files: Array[String], fileName: String): Unit = {
-      assert(!files.exists(_.startsWith(fileName)))
-    }
-
-    def assertFileIsNotRemoved(files: Array[String], fileName: String): Unit = {
-      assert(files.exists(_.startsWith(fileName)))
-    }
-
     withTempDirs { case (src, tmp) =>
       withSQLConf(
         SQLConf.FILE_SOURCE_LOG_COMPACT_INTERVAL.key -> "2",
@@ -1642,28 +1634,24 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
           CheckAnswer("keep1"),
           AssertOnQuery("input file removed") { _: StreamExecution =>
             // it doesn't rename any file yet
-            assertFileIsNotRemoved(src.list(), "keep1")
+            assertFileIsNotRemoved(src, "keep1")
             true
           },
           AddTextFileData("keep2", src, tmp, tmpFilePrefix = "ke ep2 %"),
           CheckAnswer("keep1", "keep2"),
           AssertOnQuery("input file removed") { _: StreamExecution =>
-            val files = src.list()
-
             // it renames input file for first batch, but not for second batch yet
-            assertFileIsRemoved(files, "keep1")
-            assertFileIsNotRemoved(files, "ke ep2 %")
+            assertFileIsRemoved(src, "keep1")
+            assertFileIsNotRemoved(src, "ke ep2 %")
 
             true
           },
           AddTextFileData("keep3", src, tmp, tmpFilePrefix = "keep3"),
           CheckAnswer("keep1", "keep2", "keep3"),
           AssertOnQuery("input file renamed") { _: StreamExecution =>
-            val files = src.list()
-
             // it renames input file for second batch, but not third batch yet
-            assertFileIsRemoved(files, "ke ep2 %")
-            assertFileIsNotRemoved(files, "keep3")
+            assertFileIsRemoved(src, "ke ep2 %")
+            assertFileIsNotRemoved(src, "keep3")
 
             true
           }
@@ -1739,6 +1727,73 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
     }
   }
 
+  Seq("delete", "archive").foreach { cleanOption =>
+    test(s"skip $cleanOption completed files when files belong to the output of FileStreamSink") {
+      withThreeTempDirs { case (src, tmp, archiveDir) =>
+        withSQLConf(
+          SQLConf.FILE_SOURCE_LOG_COMPACT_INTERVAL.key -> "2",
+          // Force deleting the old logs
+          SQLConf.FILE_SOURCE_LOG_CLEANUP_DELAY.key -> "1"
+        ) {
+          val option = Map("latestFirst" -> "false", "maxFilesPerTrigger" -> "1",
+            "cleanSource" -> cleanOption, "sourceArchiveDir" -> archiveDir.getAbsolutePath)
+
+          val srcPath = src.getCanonicalPath
+          val src1Dir = new File(srcPath, "1")
+          val src2Dir = new File(srcPath, "2")
+
+          // the glob pattern including above directories
+          val srcPattern = s"$srcPath${Path.SEPARATOR_CHAR}*"
+
+          val fileStream = createFileStream("text", srcPattern, options = option)
+          val filtered = fileStream.filter($"value" contains "keep")
+
+          // create FileStreamSinkLog under source directory
+          new FileStreamSinkLog(FileStreamSinkLog.VERSION, spark,
+            new File(src1Dir, FileStreamSink.metadataDir).getCanonicalPath)
+
+          // Here we will just check whether the source file is removed or not, as we cover
+          // functionality test of "archive" in other UT.
+          testStream(filtered)(
+            AddTextFileData("keep1", src1Dir, tmp, tmpFilePrefix = "keep1"),
+            AddTextFileData("keep2", src2Dir, tmp, tmpFilePrefix = "ke ep2 %"),
+            CheckAnswer("keep1", "keep2"),
+            AssertOnQuery("input file removed") { _: StreamExecution =>
+              // it doesn't remove any files for first batch yet
+              assertFileIsNotRemoved(src1Dir, "keep1")
+              assertFileIsNotRemoved(src2Dir, "ke ep2 %")
+              true
+            },
+            AddTextFileData("keep3", src1Dir, tmp, tmpFilePrefix = "keep3"),
+            AddTextFileData("keep4", src2Dir, tmp, tmpFilePrefix = "keep4"),
+            CheckAnswer("keep1", "keep2", "keep3", "keep4"),
+            AssertOnQuery("input file removed") { _: StreamExecution =>
+              // it doesn't remove any file in src1Dir since it's the output dir of FileStreamSink
+              assertFileIsNotRemoved(src1Dir, "keep1")
+              // it removes input file for src2Dir
+              assertFileIsRemoved(src2Dir, "ke ep2 %")
+              // it doesn't remove any file for second batch yet
+              assertFileIsNotRemoved(src1Dir, "keep3")
+              assertFileIsNotRemoved(src2Dir, "keep4")
+              true
+            },
+            AddTextFileData("keep5", src1Dir, tmp, tmpFilePrefix = "keep5"),
+            CheckAnswer("keep1", "keep2", "keep3", "keep4", "keep5"),
+            AssertOnQuery("input file removed") { _: StreamExecution =>
+              // it doesn't remove any file in src1Dir since it's the output dir of FileStreamSink
+              assertFileIsNotRemoved(src1Dir, "keep3")
+              // it removes input file for src2Dir
+              assertFileIsRemoved(src2Dir, "keep4")
+              // it doesn't remove any file for third batch yet
+              assertFileIsNotRemoved(src1Dir, "keep5")
+              true
+            }
+          )
+        }
+      }
+    }
+  }
+
   class FakeFileSystem(scheme: String) extends FileSystem {
     override def exists(f: Path): Boolean = true
 
@@ -1795,6 +1850,14 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
       new SourceFileArchiver(fakeFileSystem, sourcePatternPath, fakeFileSystem2,
         baseArchiveDirPath)
     }
+  }
+
+  private def assertFileIsNotRemoved(sourceDir: File, fileName: String): Unit = {
+    assert(sourceDir.list().exists(_.startsWith(fileName)))
+  }
+
+  private def assertFileIsRemoved(sourceDir: File, fileName: String): Unit = {
+    assert(!sourceDir.list().exists(_.startsWith(fileName)))
   }
 
   private def assertFileIsNotMoved(sourceDir: File, expectedDir: File, filePrefix: String): Unit = {

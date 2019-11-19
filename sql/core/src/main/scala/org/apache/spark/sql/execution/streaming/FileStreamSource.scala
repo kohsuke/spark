@@ -20,6 +20,7 @@ package org.apache.spark.sql.execution.streaming
 import java.net.URI
 import java.util.concurrent.TimeUnit._
 
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
@@ -270,7 +271,7 @@ class FileStreamSource(
       val files = metadataLog.get(Some(logOffset), Some(logOffset)).flatMap(_._2)
       val validFileEntities = files.filter(_.batchId == logOffset)
       logDebug(s"completed file entries: ${validFileEntities.mkString(",")}")
-      validFileEntities.foreach(cleaner.clean)
+      cleaner.clean(validFileEntities)
     }
   }
 
@@ -342,11 +343,49 @@ object FileStreamSource {
     def size: Int = map.size()
   }
 
-  private[sql] trait FileStreamSourceCleaner {
-    def clean(entry: FileEntry): Unit
+  private[sql] abstract class FileStreamSourceCleaner(
+      val fileSystem: FileSystem,
+      val sourcePath: Path) extends Logging {
+
+    private val srcPathToContainFileStreamSinkMetadata = new mutable.HashMap[Path, Boolean]
+
+    def clean(entries: Seq[FileEntry]): Unit = {
+      doClean(excludeFilesFromFileStreamSink(entries))
+    }
+
+    private def excludeFilesFromFileStreamSink(entries: Seq[FileEntry]): Seq[FileEntry] = {
+      val srcPathToEntries = entries.groupBy { entry =>
+        // find the ancestor which has same depth as source path
+        var curPath = new Path(new URI(entry.path))
+        while (curPath.depth() > sourcePath.depth()) {
+          curPath = curPath.getParent
+        }
+        curPath
+      }
+
+      srcPathToEntries.filterKeys { srcPath =>
+        srcPathToContainFileStreamSinkMetadata.get(srcPath) match {
+          case Some(v) => !v
+          case None =>
+            if (fileSystem.exists(new Path(srcPath, FileStreamSink.metadataDir))) {
+              // contains metadata from FileStreamSink - shouldn't be cleaned up
+              // the message will be only logged once for same path during batches
+              logWarning(s"Source path seems to be from FileStreamSink, skipping cleanup files" +
+                s" under $srcPath")
+              srcPathToContainFileStreamSinkMetadata.put(srcPath, true)
+              false
+            } else {
+              srcPathToContainFileStreamSinkMetadata.put(srcPath, false)
+              true
+            }
+        }
+      }.flatMap { case (_, v) => v }.toSeq
+    }
+
+    protected def doClean(entries: Seq[FileEntry]): Unit
   }
 
-  private[sql] object FileStreamSourceCleaner {
+  private[sql] object FileStreamSourceCleaner extends Logging {
     def apply(
         fileSystem: FileSystem,
         sourcePath: Path,
@@ -360,17 +399,19 @@ object FileStreamSource {
         Some(new SourceFileArchiver(fileSystem, sourcePath, archiveFs, qualifiedArchivePath))
 
       case CleanSourceMode.DELETE =>
-        Some(new SourceFileRemover(fileSystem))
+        Some(new SourceFileRemover(fileSystem, sourcePath))
 
       case _ => None
     }
   }
 
   private[sql] class SourceFileArchiver(
-      fileSystem: FileSystem,
-      sourcePath: Path,
+      _fileSystem: FileSystem,
+      _sourcePath: Path,
       baseArchiveFileSystem: FileSystem,
-      baseArchivePath: Path) extends FileStreamSourceCleaner with Logging {
+      baseArchivePath: Path)
+    extends FileStreamSourceCleaner(_fileSystem, _sourcePath) with Logging {
+
     assertParameters()
 
     private def assertParameters(): Unit = {
@@ -394,9 +435,10 @@ object FileStreamSource {
         "subdirectories from root directory. e.g. '/data/archive'")
     }
 
-    override def clean(entry: FileEntry): Unit = {
+    override protected def doClean(entries: Seq[FileEntry]): Unit = entries.foreach { entry =>
       val curPath = new Path(new URI(entry.path))
-      val newPath = new Path(baseArchivePath.toString.stripSuffix("/") + curPath.toUri.getPath)
+      val newPath = new Path(baseArchivePath.toString.stripSuffix("/") +
+        curPath.toUri.getPath)
 
       try {
         logDebug(s"Creating directory if it doesn't exist ${newPath.getParent}")
@@ -415,10 +457,12 @@ object FileStreamSource {
     }
   }
 
-  private[sql] class SourceFileRemover(fileSystem: FileSystem)
-    extends FileStreamSourceCleaner with Logging {
+  private[sql] class SourceFileRemover(
+      _fileSystem: FileSystem,
+      _sourcePath: Path)
+    extends FileStreamSourceCleaner(_fileSystem, _sourcePath) with Logging {
 
-    override def clean(entry: FileEntry): Unit = {
+    override protected def doClean(entries: Seq[FileEntry]): Unit = entries.foreach { entry =>
       val curPath = new Path(new URI(entry.path))
       try {
         logDebug(s"Removing completed file $curPath")
