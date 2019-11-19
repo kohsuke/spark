@@ -19,7 +19,7 @@ package org.apache.spark.sql.hive.security
 
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.security.HadoopDelegationTokenManager
@@ -86,8 +86,8 @@ private object NoHiveTest {
   def runTest(): Unit = {
     try {
       val manager = new HadoopDelegationTokenManager(new SparkConf(), new Configuration(), null)
-      Assertions.assert(manager.isProviderLoaded("hadoopfs"))
-      Assertions.assert(manager.isProviderLoaded("hbase"))
+      assert(manager.isProviderLoaded("hadoopfs"))
+      assert(manager.isProviderLoaded("hbase"))
       require(!manager.isProviderLoaded("hive"))
     } catch {
       case e: Throwable =>

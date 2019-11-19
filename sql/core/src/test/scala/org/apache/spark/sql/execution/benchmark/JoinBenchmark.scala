@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.benchmark
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.sql.execution.joins._
 import org.apache.spark.sql.functions._
@@ -45,8 +45,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
     val dim = broadcast(spark.range(M).selectExpr("id as k", "cast(id as string) as v"))
     codegenBenchmark("Join w long", N) {
       val df = spark.range(N).join(dim, (col("id") % M) === col("k"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -57,8 +56,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
     val dim = broadcast(spark.range(M).selectExpr("cast(id/10 as long) as k"))
     codegenBenchmark("Join w long duplicated", N) {
       val df = spark.range(N).join(dim, (col("id") % M) === col("k"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -73,8 +71,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
       val df = spark.range(N).join(dim2,
         (col("id") % M).cast(IntegerType) === col("k1")
           && (col("id") % M).cast(IntegerType) === col("k2"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -88,8 +85,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
     codegenBenchmark("Join w 2 longs", N) {
       val df = spark.range(N).join(dim3,
         (col("id") % M) === col("k1") && (col("id") % M) === col("k2"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -103,8 +99,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
     codegenBenchmark("Join w 2 longs duplicated", N) {
       val df = spark.range(N).join(dim4,
         (col("id") bitwiseAND M) === col("k1") && (col("id") bitwiseAND M) === col("k2"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -115,8 +110,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
     val dim = broadcast(spark.range(M).selectExpr("id as k", "cast(id as string) as v"))
     codegenBenchmark("outer join w long", N) {
       val df = spark.range(N).join(dim, (col("id") % M) === col("k"), "left")
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -127,8 +121,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
     val dim = broadcast(spark.range(M).selectExpr("id as k", "cast(id as string) as v"))
     codegenBenchmark("semi join w long", N) {
       val df = spark.range(N).join(dim, (col("id") % M) === col("k"), "leftsemi")
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[BroadcastHashJoinExec]).isDefined)
       df.count()
     }
   }
@@ -139,8 +132,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
       val df1 = spark.range(N).selectExpr(s"id * 2 as k1")
       val df2 = spark.range(N).selectExpr(s"id * 3 as k2")
       val df = df1.join(df2, col("k1") === col("k2"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[SortMergeJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[SortMergeJoinExec]).isDefined)
       df.count()
     }
   }
@@ -153,8 +145,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
       val df2 = spark.range(N)
         .selectExpr(s"(id * 15485867) % ${N*10} as k2")
       val df = df1.join(df2, col("k1") === col("k2"))
-      Assertions.assert(df.queryExecution.sparkPlan.
-        find(_.isInstanceOf[SortMergeJoinExec]).isDefined)
+      assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[SortMergeJoinExec]).isDefined)
       df.count()
     }
   }
@@ -169,8 +160,7 @@ object JoinBenchmark extends SqlBasedBenchmark {
         val df1 = spark.range(N).selectExpr(s"id as k1")
         val df2 = spark.range(N / 3).selectExpr(s"id * 3 as k2")
         val df = df1.join(df2, col("k1") === col("k2"))
-        Assertions.assert(df.queryExecution.sparkPlan.
-          find(_.isInstanceOf[ShuffledHashJoinExec]).isDefined)
+        assert(df.queryExecution.sparkPlan.find(_.isInstanceOf[ShuffledHashJoinExec]).isDefined)
         df.count()
       }
     }

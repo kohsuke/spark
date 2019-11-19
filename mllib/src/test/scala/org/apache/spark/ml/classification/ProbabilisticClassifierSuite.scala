@@ -17,7 +17,7 @@
 
 package org.apache.spark.ml.classification
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.ml.linalg.{Vector, Vectors}
@@ -156,9 +156,9 @@ object ProbabilisticClassifierSuite {
               probabilitySingle: Vector, probabilityAll: Vector,
               predictionSingle: Double, predictionAll: Double
             ) => {
-              Assertions.assert(rawPredictionSingle ~== rawPredictionAll relTol 1E-3)
-              Assertions.assert(probabilitySingle ~== probabilityAll relTol 1E-3)
-              Assertions.assert(predictionSingle ~== predictionAll relTol 1E-3)
+              assert(rawPredictionSingle ~== rawPredictionAll relTol 1E-3)
+              assert(probabilitySingle ~== probabilityAll relTol 1E-3)
+              assert(predictionSingle ~== predictionAll relTol 1E-3)
             }
           }
         }

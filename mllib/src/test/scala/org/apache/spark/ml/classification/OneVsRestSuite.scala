@@ -17,7 +17,7 @@
 
 package org.apache.spark.ml.classification
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.ml.attribute.NominalAttribute
 import org.apache.spark.ml.classification.LogisticRegressionSuite._
@@ -342,7 +342,7 @@ private class MockLogisticRegression(uid: String) extends LogisticRegression(uid
   override protected[spark] def train(dataset: Dataset[_]): LogisticRegressionModel = {
     val labelSchema = dataset.schema($(labelCol))
     // check for label attribute propagation.
-    Assertions.assert(MetadataUtils.getNumClasses(labelSchema).forall(_ == 2))
+    assert(MetadataUtils.getNumClasses(labelSchema).forall(_ == 2))
     super.train(dataset)
   }
 }

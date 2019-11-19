@@ -23,7 +23,8 @@ import scala.util.Properties
 
 import org.apache.commons.lang3.{JavaVersion, SystemUtils}
 import org.apache.hadoop.fs.Path
-import org.scalatest.{Assertions, BeforeAndAfterEach, Matchers}
+import org.scalatest.{BeforeAndAfterEach, Matchers}
+import org.scalatest.Assertions._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -786,7 +787,7 @@ object SPARK_18360 {
       .enableHiveSupport().getOrCreate()
 
     val defaultDbLocation = spark.catalog.getDatabase("default").locationUri
-    Assertions.assert(new Path(defaultDbLocation) == new Path(spark.sharedState.warehousePath))
+    assert(new Path(defaultDbLocation) == new Path(spark.sharedState.warehousePath))
 
     val hiveClient =
       spark.sharedState.externalCatalog.unwrapped.asInstanceOf[HiveExternalCatalog].client
@@ -805,7 +806,7 @@ object SPARK_18360 {
       val rawTable = hiveClient.getTable("default", "test_tbl")
       // Hive will use the value of `hive.metastore.warehouse.dir` to generate default table
       // location for tables in default database.
-      Assertions.assert(rawTable.storage.locationUri.map(
+      assert(rawTable.storage.locationUri.map(
         CatalogUtils.URIToString).get.contains(newWarehousePath))
       hiveClient.dropTable("default", "test_tbl", ignoreIfNotExists = false, purge = false)
 
@@ -813,7 +814,7 @@ object SPARK_18360 {
       val readBack = spark.sharedState.externalCatalog.getTable("default", "test_tbl")
       // Spark SQL will use the location of default database to generate default table
       // location for tables in default database.
-      Assertions.assert(readBack.storage.locationUri.map(CatalogUtils.URIToString)
+      assert(readBack.storage.locationUri.map(CatalogUtils.URIToString)
         .get.contains(defaultDbLocation))
     } finally {
       hiveClient.dropTable("default", "test_tbl", ignoreIfNotExists = true, purge = false)

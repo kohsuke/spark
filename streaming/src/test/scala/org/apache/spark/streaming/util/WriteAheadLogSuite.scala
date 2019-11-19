@@ -33,7 +33,8 @@ import org.apache.hadoop.fs.Path
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, anyLong, eq => meq}
 import org.mockito.Mockito.{times, verify, when}
-import org.scalatest.{Assertions, BeforeAndAfter, BeforeAndAfterEach, PrivateMethodTester}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterEach, PrivateMethodTester}
+import org.scalatest.Assertions._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.Eventually._
 import org.scalatestplus.mockito.MockitoSugar
@@ -773,7 +774,7 @@ object WriteAheadLogSuite {
     override def write(record: ByteBuffer, time: Long): WriteAheadLogRecordHandle = {
       isWriteCalled = true
       eventually(Eventually.timeout(2.second)) {
-        Assertions.assert(!blockWrite)
+        assert(!blockWrite)
       }
       wal.write(record, time)
       isWriteCalled = false

@@ -17,7 +17,7 @@
 
 package org.apache.spark.ml.feature
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.ml.linalg.{Vector, VectorUDT}
 import org.apache.spark.ml.util.{MLTestingUtils, SchemaUtils}
@@ -72,7 +72,7 @@ private[ml] object LSHTest {
 
     // Check output column dimensions
     val headHashValue = transformedData.select(outputCol).head().get(0).asInstanceOf[Seq[Vector]]
-    Assertions.assert(headHashValue.length == model.getNumHashTables)
+    assert(headHashValue.length == model.getNumHashTables)
 
     // Perform a cross join and label each pair of same_bucket and distance
     val pairs = transformedData.as("a").crossJoin(transformedData.as("b"))
@@ -116,13 +116,13 @@ private[ml] object LSHTest {
     // Compute actual
     val actual = model.approxNearestNeighbors(dataset, key, k, singleProbe, "distCol")
 
-    Assertions.assert(actual.schema.sameType(model
+    assert(actual.schema.sameType(model
       .transformSchema(dataset.schema)
       .add("distCol", DataTypes.DoubleType))
     )
 
     if (!singleProbe) {
-      Assertions.assert(actual.count() == k)
+      assert(actual.count() == k)
     }
 
     // Compute precision and recall
@@ -156,9 +156,9 @@ private[ml] object LSHTest {
     val actual = model.approxSimilarityJoin(datasetA, datasetB, threshold)
 
     SchemaUtils.checkColumnType(actual.schema, "distCol", DataTypes.DoubleType)
-    Assertions.assert(actual.schema.apply("datasetA").dataType
+    assert(actual.schema.apply("datasetA").dataType
       .sameType(model.transformSchema(datasetA.schema)))
-    Assertions.assert(actual.schema.apply("datasetB").dataType
+    assert(actual.schema.apply("datasetB").dataType
       .sameType(model.transformSchema(datasetB.schema)))
 
     // Compute precision and recall

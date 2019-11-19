@@ -21,7 +21,8 @@ import java.util.{Map => JMap}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import com.google.common.collect.ImmutableMap
-import org.scalatest.{Assertions, BeforeAndAfterEach}
+import org.scalatest.Assertions._
+import org.scalatest.BeforeAndAfterEach
 
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.internal.config.SHUFFLE_IO_PLUGIN_CLASS
@@ -80,8 +81,8 @@ class TestShuffleExecutorComponentsInitialized(delegate: ShuffleExecutorComponen
       execId: String,
       extraConfigs: JMap[String, String]): Unit = {
     delegate.initializeExecutor(appId, execId, extraConfigs)
-    Assertions.assert(extraConfigs.get("test-plugin-key") == "plugin-set-value", extraConfigs)
-    Assertions.assert(extraConfigs.get("test-user-key") == "user-set-value")
+    assert(extraConfigs.get("test-plugin-key") == "plugin-set-value", extraConfigs)
+    assert(extraConfigs.get("test-user-key") == "user-set-value")
     TestShuffleExecutorComponentsInitialized.initialized.set(true)
   }
 

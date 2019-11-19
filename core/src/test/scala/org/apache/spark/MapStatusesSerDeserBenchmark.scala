@@ -17,7 +17,7 @@
 
 package org.apache.spark
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.benchmark.Benchmark
 import org.apache.spark.benchmark.BenchmarkBase
@@ -83,7 +83,7 @@ object MapStatusesSerDeserBenchmark extends BenchmarkBase {
 
     benchmark.addCase("Deserialization") { _ =>
       val result = MapOutputTracker.deserializeMapStatuses(serializedMapStatus, sc.getConf)
-      Assertions.assert(result.length == numMaps)
+      assert(result.length == numMaps)
     }
 
     benchmark.run()

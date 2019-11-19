@@ -19,7 +19,7 @@ package org.apache.spark.mllib.tree
 
 import scala.collection.mutable
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.mllib.linalg.Vectors
 import org.apache.spark.mllib.regression.LabeledPoint
@@ -42,12 +42,12 @@ object EnsembleTestHelper {
       epsilon: Double): Unit = {
     val values = new mutable.ArrayBuffer[Double]()
     data.foreach { row =>
-      Assertions.assert(row.size == numCols)
+      assert(row.size == numCols)
       values ++= row
     }
     val stats = new StatCounter(values)
-    Assertions.assert(stats.mean ~== expectedMean absTol epsilon)
-    Assertions.assert(stats.stdev ~== expectedStddev absTol epsilon)
+    assert(stats.mean ~== expectedMean absTol epsilon)
+    assert(stats.stdev ~== expectedStddev absTol epsilon)
   }
 
   def validateClassifier(

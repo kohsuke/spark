@@ -22,7 +22,7 @@ import java.nio.file.{Files, Paths}
 import scala.collection.JavaConverters._
 import scala.util.Try
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.TestUtils
 import org.apache.spark.api.python.{PythonBroadcast, PythonEvalType, PythonFunction, PythonUtils}
@@ -169,7 +169,7 @@ object IntegratedUDFTestUtils extends SQLHelper {
         "PYTHONPATH" -> s"$pysparkPythonPath:$pythonPath").!!
       binaryPythonFunc = Files.readAllBytes(path.toPath)
     }
-    Assertions.assert(binaryPythonFunc != null)
+    assert(binaryPythonFunc != null)
     binaryPythonFunc
   } else {
     throw new RuntimeException(s"Python executable [$pythonExec] and/or pyspark are unavailable.")
@@ -192,7 +192,7 @@ object IntegratedUDFTestUtils extends SQLHelper {
         "PYTHONPATH" -> s"$pysparkPythonPath:$pythonPath").!!
       binaryPandasFunc = Files.readAllBytes(path.toPath)
     }
-    Assertions.assert(binaryPandasFunc != null)
+    assert(binaryPandasFunc != null)
     binaryPandasFunc
   } else {
     throw new RuntimeException(s"Python executable [$pythonExec] and/or pyspark are unavailable.")

@@ -20,7 +20,7 @@ package org.apache.spark.sql
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
 import java.sql.{Date, Timestamp}
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.prop.TableDrivenPropertyChecks._
 
@@ -1865,7 +1865,7 @@ class DatasetSuite extends QueryTest with SharedSparkSession {
 
 object AssertExecutionId {
   def apply(id: Long): Long = {
-    Assertions.assert(TaskContext.get().getLocalProperty(SQLExecution.EXECUTION_ID_KEY) != null)
+    assert(TaskContext.get().getLocalProperty(SQLExecution.EXECUTION_ID_KEY) != null)
     id
   }
 }

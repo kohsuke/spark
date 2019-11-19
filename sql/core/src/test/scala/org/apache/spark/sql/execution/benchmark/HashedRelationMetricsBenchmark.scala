@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution.benchmark
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.Benchmark
@@ -65,8 +65,8 @@ object HashedRelationMetricsBenchmark extends SqlBasedBenchmark {
             override def run: Unit = {
               val row = unsafeProj(InternalRow(0L)).copy()
               keys.foreach { k =>
-                Assertions.assert(map.getValue(k, row) eq row)
-                Assertions.assert(row.getLong(0) == k)
+                assert(map.getValue(k, row) eq row)
+                assert(row.getLong(0) == k)
               }
             }
           }

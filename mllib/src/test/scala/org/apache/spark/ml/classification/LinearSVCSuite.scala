@@ -20,7 +20,7 @@ package org.apache.spark.ml.classification
 import scala.util.Random
 
 import breeze.linalg.{DenseVector => BDV}
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.ml.classification.LinearSVCSuite._
 import org.apache.spark.ml.feature.{Instance, LabeledPoint}
@@ -307,8 +307,8 @@ object LinearSVCSuite {
   }
 
   def checkModels(model1: LinearSVCModel, model2: LinearSVCModel): Unit = {
-    Assertions.assert(model1.intercept == model2.intercept)
-    Assertions.assert(model1.coefficients.equals(model2.coefficients))
+    assert(model1.intercept == model2.intercept)
+    assert(model1.coefficients.equals(model2.coefficients))
   }
 
 }

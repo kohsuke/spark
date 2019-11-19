@@ -29,7 +29,8 @@ import com.google.common.util.concurrent.MoreExecutors
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{any, anyLong}
 import org.mockito.Mockito.{spy, times, verify}
-import org.scalatest.{Assertions, BeforeAndAfter}
+import org.scalatest.Assertions._
+import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually._
 
 import org.apache.spark._
@@ -63,7 +64,7 @@ private class ResultDeletingTaskResultGetter(sparkEnv: SparkEnv, scheduler: Task
           // removeBlock is asynchronous. Need to wait it's removed successfully
           try {
             eventually(timeout(3.seconds), interval(200.milliseconds)) {
-              Assertions.assert(!sparkEnv.blockManager.master.contains(blockId))
+              assert(!sparkEnv.blockManager.master.contains(blockId))
             }
             removeBlockSuccessfully = true
           } catch {

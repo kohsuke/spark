@@ -21,7 +21,8 @@ import scala.collection.JavaConverters._
 import scala.util.Random
 import scala.util.control.Breaks._
 
-import org.scalatest.{Assertions, Matchers}
+import org.scalatest.Assertions._
+import org.scalatest.Matchers
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.mllib.linalg.{Vector, Vectors}
@@ -162,11 +163,11 @@ object LogisticRegressionSuite {
     weights = Vectors.dense(0.1, 0.2, 0.3, 0.4), intercept = 1.0, numFeatures = 2, numClasses = 3)
 
   private def checkModelsEqual(a: LogisticRegressionModel, b: LogisticRegressionModel): Unit = {
-    Assertions.assert(a.weights == b.weights)
-    Assertions.assert(a.intercept == b.intercept)
-    Assertions.assert(a.numClasses == b.numClasses)
-    Assertions.assert(a.numFeatures == b.numFeatures)
-    Assertions.assert(a.getThreshold == b.getThreshold)
+    assert(a.weights == b.weights)
+    assert(a.intercept == b.intercept)
+    assert(a.numClasses == b.numClasses)
+    assert(a.numFeatures == b.numFeatures)
+    assert(a.getThreshold == b.getThreshold)
   }
 }
 

@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.analysis
 
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.dsl.expressions._
@@ -70,7 +70,7 @@ private[sql] class UngroupableUDT extends UserDefinedType[UngroupableData] {
       case data: MapData =>
         val keyArray = data.keyArray().array
         val valueArray = data.valueArray().array
-        Assertions.assert(keyArray.length == valueArray.length)
+        assert(keyArray.length == valueArray.length)
         val mapData = keyArray.zip(valueArray).toMap.asInstanceOf[Map[Int, Int]]
         UngroupableData(mapData)
     }

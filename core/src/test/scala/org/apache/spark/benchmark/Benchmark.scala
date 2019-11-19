@@ -26,7 +26,7 @@ import scala.util.Try
 
 import org.apache.commons.io.output.TeeOutputStream
 import org.apache.commons.lang3.SystemUtils
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.util.Utils
 
@@ -161,7 +161,7 @@ private[spark] class Benchmark(
     // scalastyle:off
     println(s"  Stopped after $i iterations, ${NANOSECONDS.toMillis(runTimes.sum)} ms")
     // scalastyle:on
-    Assertions.assert(runTimes.nonEmpty)
+    assert(runTimes.nonEmpty)
     val best = runTimes.min
     val avg = runTimes.sum / runTimes.size
     val stdev = if (runTimes.size > 1) {

@@ -26,7 +26,7 @@ import org.apache.hadoop.fs.FileAlreadyExistsException
 import org.mockito.ArgumentMatchers.{any, anyBoolean, anyInt, anyString}
 import org.mockito.Mockito._
 import org.mockito.invocation.InvocationOnMock
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
@@ -87,7 +87,7 @@ object FakeRackUtil {
   }
 
   def getRacksForHosts(hosts: Seq[String]): Seq[Option[String]] = {
-    Assertions.assert(hosts.toSet.size == hosts.size) // no dups in hosts
+    assert(hosts.toSet.size == hosts.size) // no dups in hosts
     if (hosts.nonEmpty && hosts.length != 1) {
       numBatchInvocation += 1
     } else if (hosts.length == 1) {
@@ -129,7 +129,7 @@ class FakeTaskScheduler(sc: SparkContext, liveExecutors: (String, String)* /* ex
   def removeExecutor(execId: String): Unit = {
     executors -= execId
     val host = executorIdToHost.get(execId)
-    Assertions.assert(host.isDefined)
+    assert(host.isDefined)
     val hostId = host.get
     val executorsOnHost = hostToExecutors(hostId)
     executorsOnHost -= execId

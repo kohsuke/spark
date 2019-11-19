@@ -30,7 +30,7 @@ import scala.util.Random
 import com.google.common.io.Files
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.streaming.dstream.DStream
@@ -83,7 +83,7 @@ object MasterFailureTest extends Logging {
 
     // Verify whether all the values of the expected output is present
     // in the output
-    Assertions.assert(output.distinct.toSet == expectedOutput.toSet)
+    assert(output.distinct.toSet == expectedOutput.toSet)
   }
 
 
@@ -116,7 +116,7 @@ object MasterFailureTest extends Logging {
 
     // Verify whether the last expected output value has been generated, there by
     // confirming that none of the inputs have been missed
-    Assertions.assert(output.last == expectedOutput.last)
+    assert(output.last == expectedOutput.last)
   }
 
   /**
@@ -132,7 +132,7 @@ object MasterFailureTest extends Logging {
   ): Seq[T] = {
 
     // Just making sure that the expected output does not have duplicates
-    Assertions.assert(expectedOutput.distinct.toSet == expectedOutput.toSet)
+    assert(expectedOutput.distinct.toSet == expectedOutput.toSet)
 
     // Reset all state
     reset()

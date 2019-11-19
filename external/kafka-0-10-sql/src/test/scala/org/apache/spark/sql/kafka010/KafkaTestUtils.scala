@@ -45,7 +45,7 @@ import org.apache.kafka.common.security.auth.SecurityProtocol.{PLAINTEXT, SASL_P
 import org.apache.kafka.common.serialization.{StringDeserializer, StringSerializer}
 import org.apache.zookeeper.server.{NIOServerCnxnFactory, ZooKeeperServer}
 import org.apache.zookeeper.server.auth.SASLAuthenticationProvider
-import org.scalatest.Assertions
+import org.scalatest.Assertions._
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.time.SpanSugar._
 
@@ -606,7 +606,7 @@ class KafkaTestUtils(
   def waitUntilOffsetAppears(topicPartition: TopicPartition, offset: Long): Unit = {
     eventually(timeout(1.minute)) {
       val currentOffset = getLatestOffsets(Set(topicPartition.topic)).get(topicPartition)
-      Assertions.assert(currentOffset.nonEmpty && currentOffset.get >= offset)
+      assert(currentOffset.nonEmpty && currentOffset.get >= offset)
     }
   }
 
