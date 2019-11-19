@@ -1756,36 +1756,38 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
           // functionality test of "archive" in other UT.
           testStream(filtered)(
             AddTextFileData("keep1", src1Dir, tmp, tmpFilePrefix = "keep1"),
+            CheckAnswer("keep1"),
+            AssertOnQuery("input file removed") { _: StreamExecution =>
+              // it doesn't remove any files for recent batch yet
+              assertFileIsNotRemoved(src1Dir, "keep1")
+              true
+            },
             AddTextFileData("keep2", src2Dir, tmp, tmpFilePrefix = "ke ep2 %"),
             CheckAnswer("keep1", "keep2"),
             AssertOnQuery("input file removed") { _: StreamExecution =>
-              // it doesn't remove any files for first batch yet
+              // it doesn't remove any file in src1Dir since it's the output dir of FileStreamSink
               assertFileIsNotRemoved(src1Dir, "keep1")
+              // it doesn't remove any files for recent batch yet
               assertFileIsNotRemoved(src2Dir, "ke ep2 %")
               true
             },
             AddTextFileData("keep3", src1Dir, tmp, tmpFilePrefix = "keep3"),
+            CheckAnswer("keep1", "keep2", "keep3"),
+            AssertOnQuery("input file removed") { _: StreamExecution =>
+              // it removes input file for src2Dir
+              assertFileIsRemoved(src2Dir, "ke ep2 %")
+              // it doesn't remove any file for recent batch yet
+              assertFileIsNotRemoved(src1Dir, "keep3")
+              true
+            },
+            // we do the check again to see whether the cache work properly
             AddTextFileData("keep4", src2Dir, tmp, tmpFilePrefix = "keep4"),
             CheckAnswer("keep1", "keep2", "keep3", "keep4"),
             AssertOnQuery("input file removed") { _: StreamExecution =>
               // it doesn't remove any file in src1Dir since it's the output dir of FileStreamSink
-              assertFileIsNotRemoved(src1Dir, "keep1")
-              // it removes input file for src2Dir
-              assertFileIsRemoved(src2Dir, "ke ep2 %")
-              // it doesn't remove any file for second batch yet
               assertFileIsNotRemoved(src1Dir, "keep3")
+              // it doesn't remove any file for recent batch yet
               assertFileIsNotRemoved(src2Dir, "keep4")
-              true
-            },
-            AddTextFileData("keep5", src1Dir, tmp, tmpFilePrefix = "keep5"),
-            CheckAnswer("keep1", "keep2", "keep3", "keep4", "keep5"),
-            AssertOnQuery("input file removed") { _: StreamExecution =>
-              // it doesn't remove any file in src1Dir since it's the output dir of FileStreamSink
-              assertFileIsNotRemoved(src1Dir, "keep3")
-              // it removes input file for src2Dir
-              assertFileIsRemoved(src2Dir, "keep4")
-              // it doesn't remove any file for third batch yet
-              assertFileIsNotRemoved(src1Dir, "keep5")
               true
             }
           )
