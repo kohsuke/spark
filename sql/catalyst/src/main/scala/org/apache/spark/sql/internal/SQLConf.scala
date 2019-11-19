@@ -2527,7 +2527,9 @@ class SQLConf extends Serializable with Logging {
   def storeAssignmentPolicy: StoreAssignmentPolicy.Value =
     StoreAssignmentPolicy.withName(getConf(STORE_ASSIGNMENT_POLICY))
 
-  def usePostgreSQLDialect: Boolean = getConf(DIALECT) == Dialect.POSTGRESQL.toString
+  def dialect: String = getConf(DIALECT)
+
+  def usePostgreSQLDialect: Boolean = dialect == Dialect.POSTGRESQL.toString
 
   def dialectSparkAnsiEnabled: Boolean = getConf(DIALECT_SPARK_ANSI_ENABLED)
 

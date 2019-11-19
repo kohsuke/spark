@@ -519,7 +519,8 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
         }
       } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}postgreSQL")) {
         PgSQLTestCase(testCaseName, absPath, resultFile) :: Nil
-      } else if (file.getAbsolutePath.startsWith(s"$inputFilePath${File.separator}ansi")) {
+      } else if (file.getAbsolutePath.startsWith(
+        s"$inputFilePath${File.separator}use_SQL_standard_keywords")) {
         AnsiTestCase(testCaseName, absPath, resultFile) :: Nil
       } else {
         RegularTestCase(testCaseName, absPath, resultFile) :: Nil
