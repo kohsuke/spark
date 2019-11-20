@@ -77,6 +77,10 @@ case class LocalTableScanExec(
     taken
   }
 
+  override def executeTail(limit: Int): Array[InternalRow] = {
+    executeCollect().reverse.take(limit)
+  }
+
   // Input is already UnsafeRows.
   override protected val createUnsafeProjection: Boolean = false
 

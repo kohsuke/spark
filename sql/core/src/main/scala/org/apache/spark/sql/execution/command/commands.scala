@@ -83,6 +83,9 @@ case class ExecutedCommandExec(cmd: RunnableCommand) extends LeafExecNode {
 
   override def executeTake(limit: Int): Array[InternalRow] = sideEffectResult.take(limit).toArray
 
+  override def executeTail(limit: Int): Array[InternalRow] =
+    sideEffectResult.reverse.take(limit).toArray
+
   protected override def doExecute(): RDD[InternalRow] = {
     sqlContext.sparkContext.parallelize(sideEffectResult, 1)
   }
@@ -119,6 +122,9 @@ case class DataWritingCommandExec(cmd: DataWritingCommand, child: SparkPlan)
   override def executeToIterator: Iterator[InternalRow] = sideEffectResult.toIterator
 
   override def executeTake(limit: Int): Array[InternalRow] = sideEffectResult.take(limit).toArray
+
+  override def executeTail(limit: Int): Array[InternalRow] =
+    sideEffectResult.reverse.take(limit).toArray
 
   protected override def doExecute(): RDD[InternalRow] = {
     sqlContext.sparkContext.parallelize(sideEffectResult, 1)
