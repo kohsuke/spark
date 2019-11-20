@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
+import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.crypto.stream.CryptoInputStream;
 import org.apache.commons.crypto.stream.CryptoOutputStream;
 
@@ -167,8 +168,11 @@ public class TransportCipher {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
       if (!isCipherValid) {
+        // We need to ensure we release the data before throwing as otherwise we could leak.
+        ReferenceCountUtil.release(data);
         throw new IOException("Cipher is in invalid state.");
       }
+
       byteChannel.feedData((ByteBuf) data);
 
       byte[] decryptedData = new byte[byteChannel.readableBytes()];
@@ -187,13 +191,21 @@ public class TransportCipher {
     }
 
     @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+      // We do the closing of the stream / channel in handlerRemoved(...) as this method will be called
+      // in all cases:
+      //
+      //     - when the Channel becomes inactive
+      //     - when the handler is removed from the ChannelPipeline
       try {
         if (isCipherValid) {
           cis.close();
         }
       } finally {
-        super.channelInactive(ctx);
+        // Ensure we always close the wrapped ByteArrayReadableChannel as otherwise we could leak memory.
+        byteChannel.close();
+
+        super.handlerRemoved(ctx);
       }
     }
   }
