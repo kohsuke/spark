@@ -19,23 +19,64 @@ package org.apache.spark.network.util;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 
 import io.netty.buffer.ByteBuf;
 
 public class ByteArrayReadableChannel implements ReadableByteChannel {
   private ByteBuf data;
+  private boolean closed;
 
   public int readableBytes() {
-    return data.readableBytes();
+    return data == null ? 0 : data.readableBytes();
   }
 
   public void feedData(ByteBuf buf) {
-    data = buf;
+    if (closed) {
+      buf.release();
+      return;
+    }
+    ByteBuf currentData = data;
+    if (currentData == null) {
+      data = buf;
+    } else {
+      int currentReadable = currentData.readableBytes();
+      if (currentReadable == 0) {
+        currentData.release();
+        data = buf;
+      } else {
+        int readable = buf.readableBytes();
+        if (readable > 0) {
+          ByteBuf newData = currentData.alloc().buffer(currentReadable + readable);
+          try {
+            newData.writeBytes(currentData, currentData.readerIndex(), currentReadable);
+            newData.writeBytes(buf, buf.readerIndex(), readable);
+            buf.release();
+            currentData.release();
+            data = newData;
+            newData = null;
+          } finally {
+            if (newData != null) {
+              newData.release();
+            }
+          }
+        } else {
+          buf.release();
+        }
+      }
+    }
+
   }
 
   @Override
   public int read(ByteBuffer dst) throws IOException {
+    if (closed) {
+      throw new ClosedChannelException();
+    }
+    if (data == null) {
+      return 0;
+    }
     int totalRead = 0;
     while (data.readableBytes() > 0 && dst.remaining() > 0) {
       int bytesToRead = Math.min(data.readableBytes(), dst.remaining());
@@ -45,6 +86,7 @@ public class ByteArrayReadableChannel implements ReadableByteChannel {
 
     if (data.readableBytes() == 0) {
       data.release();
+      data = null;
     }
 
     return totalRead;
@@ -52,11 +94,16 @@ public class ByteArrayReadableChannel implements ReadableByteChannel {
 
   @Override
   public void close() throws IOException {
+    closed = true;
+    if (data != null) {
+      data.release();
+      data = null;
+    }
   }
 
   @Override
   public boolean isOpen() {
-    return true;
+    return !closed;
   }
 
 }
