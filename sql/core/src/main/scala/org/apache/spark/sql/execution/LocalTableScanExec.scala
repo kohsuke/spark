@@ -77,6 +77,14 @@ case class LocalTableScanExec(
     taken
   }
 
+  override def executeTail(limit: Int): Array[InternalRow] = {
+    val slidingIter = unsafeRows.sliding(limit)
+    var taken: Seq[InternalRow] = Seq.empty[InternalRow]
+    while(slidingIter.hasNext) { taken = slidingIter.next() }
+    longMetric("numOutputRows").add(taken.size)
+    taken.toArray
+  }
+
   // Input is already UnsafeRows.
   override protected val createUnsafeProjection: Boolean = false
 

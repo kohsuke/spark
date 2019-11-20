@@ -65,6 +65,46 @@ case class CollectLimitExec(limit: Int, child: SparkPlan) extends LimitExec {
   }
 }
 
+/**
+ * Take the last `limit` elements and collect them to a single partition.
+ *
+ * This operator will be used when a logical `Tail` operation is the final operator in an
+ * logical plan, which happens when the user is collecting results back to the driver.
+ */
+case class CollectTailExec(limit: Int, child: SparkPlan) extends LimitExec {
+  override def output: Seq[Attribute] = child.output
+  override def outputPartitioning: Partitioning = SinglePartition
+  override def executeCollect(): Array[InternalRow] = child.executeTail(limit)
+  private val serializer: Serializer = new UnsafeRowSerializer(child.output.size)
+  private lazy val writeMetrics =
+    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
+  private lazy val readMetrics =
+    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
+  override lazy val metrics = readMetrics ++ writeMetrics
+  protected override def doExecute(): RDD[InternalRow] = {
+    val locallyLimited = child.execute().mapPartitionsInternal { iter =>
+      val slidingIter = iter.sliding(limit)
+      var last: Seq[InternalRow] = Seq.empty[InternalRow]
+      while(slidingIter.hasNext) { last = slidingIter.next() }
+      last.toIterator
+    }
+    val shuffled = new ShuffledRowRDD(
+      ShuffleExchangeExec.prepareShuffleDependency(
+        locallyLimited,
+        child.output,
+        SinglePartition,
+        serializer,
+        writeMetrics),
+      readMetrics)
+    shuffled.mapPartitionsInternal { iter =>
+      val slidingIter = iter.sliding(limit)
+      var last: Seq[InternalRow] = Seq.empty[InternalRow]
+      while(slidingIter.hasNext) { last = slidingIter.next() }
+      last.toIterator
+    }
+  }
+}
+
 object BaseLimitExec {
   private val curId = new java.util.concurrent.atomic.AtomicInteger()
 
