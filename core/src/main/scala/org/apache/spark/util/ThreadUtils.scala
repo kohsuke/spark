@@ -144,7 +144,15 @@ private[spark] object ThreadUtils {
    */
   def newDaemonCachedThreadPool(prefix: String): ThreadPoolExecutor = {
     val threadFactory = namedThreadFactory(prefix)
-    MDCAwareThreadPoolExecutor.newCachedThreadPool(threadFactory).asInstanceOf[ThreadPoolExecutor]
+    MDCAwareThreadPoolExecutor.newCachedThreadPool(threadFactory)
+  }
+
+  /**
+   * Wrapper over newCachedThreadPool. Thread names are formatted as prefix-ID, where ID is a
+   * unique, sequentially assigned integer.
+   */
+  def newCachedThreadPool(threadFactory: ThreadFactory): ThreadPoolExecutor = {
+    MDCAwareThreadPoolExecutor.newCachedThreadPool(threadFactory)
   }
 
   /**
