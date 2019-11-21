@@ -39,6 +39,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +51,7 @@ public class TransportCipherTest {
     String algorithm = "TestAlgorithm";
     TransportConf conf = new TransportConf("Test", MapConfigProvider.EMPTY);
     TransportCipher cipher = new TransportCipher(conf.cryptoConf(), conf.cipherTransformation(),
-            new SecretKeySpec(new byte[256], algorithm), new byte[0], new byte[0]) {
+      new SecretKeySpec(new byte[256], algorithm), new byte[0], new byte[0]) {
 
       @Override
       CryptoOutputStream createOutputStream(WritableByteChannel ch) {
@@ -62,24 +64,10 @@ public class TransportCipherTest {
         when(cipher.getBlockSize()).thenReturn(8);
         when(cipher.getAlgorithm()).thenReturn(algorithm);
 
-        return new CryptoInputStream(new ChannelInput(ch), cipher, 1024,
-                null, new IvParameterSpec(new byte[0])) {
-          @Override
-          public int read(ByteBuffer dst) {
-            // Simulate throwing InternalError
-            // CHECKSTYLE:OFF
-            throw new InternalError();
-            // CHECKSTYLE:ON
-          }
+        CryptoInputStream mockInputStream = mock(CryptoInputStream.class);
+        when(mockInputStream.read(any(byte[].class), anyInt(), anyInt())).thenThrow(new InternalError());
 
-          @Override
-          public int read(byte[] b, int off, int len) {
-            // Simulate throwing InternalError
-            // CHECKSTYLE:OFF
-            throw new InternalError();
-            // CHECKSTYLE:ON
-          }
-        };
+        return mockInputStream;
       }
     };
 
@@ -94,7 +82,7 @@ public class TransportCipherTest {
       fail("Should have raised InternalError");
     } catch (InternalError expected) {
       // expected
-      assertEquals(1, buffer.refCnt());
+      assertEquals(0, buffer.refCnt());
     }
 
     try {
@@ -107,8 +95,5 @@ public class TransportCipherTest {
 
     // Simulate closing the connection
     assertFalse(channel.finish());
-
-    // Buffer was released on close.
-    assertEquals(0, buffer.refCnt());
   }
 }

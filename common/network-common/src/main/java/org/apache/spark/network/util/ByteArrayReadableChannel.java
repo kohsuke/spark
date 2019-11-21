@@ -28,16 +28,9 @@ public class ByteArrayReadableChannel implements ReadableByteChannel {
   private ByteBuf data;
   private boolean closed;
 
-  public int readableBytes() {
-    return data == null ? 0 : data.readableBytes();
-  }
-
   public void feedData(ByteBuf buf) throws ClosedChannelException {
     if (closed) {
       throw new ClosedChannelException();
-    }
-    if (data != null) {
-      throw new IllegalStateException("Already holding a ByteBuf");
     }
     data = buf;
   }
@@ -46,9 +39,6 @@ public class ByteArrayReadableChannel implements ReadableByteChannel {
   public int read(ByteBuffer dst) throws IOException {
     if (closed) {
       throw new ClosedChannelException();
-    }
-    if (data == null) {
-      return 0;
     }
     int totalRead = 0;
     while (data.readableBytes() > 0 && dst.remaining() > 0) {

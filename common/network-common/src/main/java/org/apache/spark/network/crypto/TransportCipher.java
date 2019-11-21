@@ -173,9 +173,9 @@ public class TransportCipher {
         if (!isCipherValid) {
           throw new IOException("Cipher is in invalid state.");
         }
+        byte[] decryptedData = new byte[buffer.readableBytes()];
         byteChannel.feedData(buffer);
 
-        byte[] decryptedData = new byte[byteChannel.readableBytes()];
         int offset = 0;
         while (offset < decryptedData.length) {
           // SPARK-25535: workaround for CRYPTO-141.
