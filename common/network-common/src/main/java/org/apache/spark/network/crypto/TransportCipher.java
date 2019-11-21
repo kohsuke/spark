@@ -30,7 +30,6 @@ import com.google.common.base.Preconditions;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
-import io.netty.util.ReferenceCountUtil;
 import org.apache.commons.crypto.stream.CryptoInputStream;
 import org.apache.commons.crypto.stream.CryptoOutputStream;
 
@@ -167,13 +166,14 @@ public class TransportCipher {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
+      ByteBuf buffer = (ByteBuf) data;
       if (!isCipherValid) {
         // We need to ensure we release the data before throwing as otherwise we could leak.
-        ReferenceCountUtil.release(data);
+        buffer.release();
         throw new IOException("Cipher is in invalid state.");
       }
 
-      byteChannel.feedData((ByteBuf) data);
+      byteChannel.feedData(buffer);
 
       byte[] decryptedData = new byte[byteChannel.readableBytes()];
       int offset = 0;

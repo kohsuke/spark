@@ -184,10 +184,10 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
       return null;
     }
 
-    return comsumeCurrentFrameBuf();
+    return consumeCurrentFrameBuf();
   }
 
-  private ByteBuf comsumeCurrentFrameBuf() {
+  private ByteBuf consumeCurrentFrameBuf() {
     ByteBuf frame = frameBuf;
     // Reset buf and size for next frame.
     frameBuf = null;
@@ -244,7 +244,7 @@ public class TransportFrameDecoder extends ChannelInboundHandlerAdapter {
     }
     buffers.clear();
     frameLenBuf.release();
-    ByteBuf frame = comsumeCurrentFrameBuf();
+    ByteBuf frame = consumeCurrentFrameBuf();
     if (frame != null) {
       frame.release();
     }
