@@ -19,19 +19,15 @@ package org.apache.spark.network.crypto;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import org.apache.commons.crypto.cipher.CryptoCipher;
 import org.apache.commons.crypto.stream.CryptoInputStream;
 import org.apache.commons.crypto.stream.CryptoOutputStream;
-import org.apache.commons.crypto.stream.input.ChannelInput;
 import org.apache.spark.network.util.MapConfigProvider;
 import org.apache.spark.network.util.TransportConf;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 
@@ -60,13 +56,9 @@ public class TransportCipherTest {
 
       @Override
       CryptoInputStream createInputStream(ReadableByteChannel ch) throws IOException {
-        CryptoCipher cipher = mock(CryptoCipher.class);
-        when(cipher.getBlockSize()).thenReturn(8);
-        when(cipher.getAlgorithm()).thenReturn(algorithm);
-
         CryptoInputStream mockInputStream = mock(CryptoInputStream.class);
-        when(mockInputStream.read(any(byte[].class), anyInt(), anyInt())).thenThrow(new InternalError());
-
+        when(mockInputStream.read(any(byte[].class), anyInt(), anyInt()))
+          .thenThrow(new InternalError());
         return mockInputStream;
       }
     };

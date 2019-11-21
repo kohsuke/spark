@@ -196,8 +196,7 @@ public class TransportCipher {
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
       // We do the closing of the stream / channel in handlerRemoved(...) as
-      // this method will be called
-      // in all cases:
+      // this method will be called in all cases:
       //
       //     - when the Channel becomes inactive
       //     - when the handler is removed from the ChannelPipeline
