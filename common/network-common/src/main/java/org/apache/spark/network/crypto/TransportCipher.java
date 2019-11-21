@@ -90,7 +90,8 @@ public class TransportCipher {
     return new CryptoOutputStream(cipher, conf, ch, key, new IvParameterSpec(outIv));
   }
 
-  private CryptoInputStream createInputStream(ReadableByteChannel ch) throws IOException {
+  @VisibleForTesting
+  CryptoInputStream createInputStream(ReadableByteChannel ch) throws IOException {
     return new CryptoInputStream(cipher, conf, ch, key, new IvParameterSpec(inIv));
   }
 
