@@ -67,13 +67,17 @@ public class TransportCipherTest {
           @Override
           public int read(ByteBuffer dst) {
             // Simulate throwing InternalError
+            // CHECKSTYLE:OFF
             throw new InternalError();
+            // CHECKSTYLE:ON
           }
 
           @Override
           public int read(byte[] b, int off, int len) {
             // Simulate throwing InternalError
+            // CHECKSTYLE:OFF
             throw new InternalError();
+            // CHECKSTYLE:ON
           }
         };
       }
