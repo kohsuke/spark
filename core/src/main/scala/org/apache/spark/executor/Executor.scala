@@ -360,6 +360,9 @@ private[spark] class Executor(
     }
 
     override def run(): Unit = {
+
+      setMDCForTask(taskDescription)
+
       threadId = Thread.currentThread.getId
       Thread.currentThread.setName(threadName)
       val threadMXBean = ManagementFactory.getThreadMXBean
@@ -655,6 +658,18 @@ private[spark] class Executor(
 
     private def hasFetchFailure: Boolean = {
       task != null && task.context != null && task.context.fetchFailed.isDefined
+    }
+  }
+
+  private def setMDCForTask(taskDescription: TaskDescription): Unit = {
+    val properties = taskDescription.properties
+
+    org.slf4j.MDC.put("appId", properties.getProperty("spark.app.id"))
+    org.slf4j.MDC.put("appName", properties.getProperty("spark.app.name"))
+
+    properties.asScala.filter(_._1.startsWith("mdc.")).foreach { item =>
+      val key = item._1.substring(4)
+      org.slf4j.MDC.put(key, item._2)
     }
   }
 
