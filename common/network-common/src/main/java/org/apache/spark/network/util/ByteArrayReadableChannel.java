@@ -32,41 +32,14 @@ public class ByteArrayReadableChannel implements ReadableByteChannel {
     return data == null ? 0 : data.readableBytes();
   }
 
-  public void feedData(ByteBuf buf) {
+  public void feedData(ByteBuf buf) throws ClosedChannelException {
     if (closed) {
-      buf.release();
-      return;
+      throw new ClosedChannelException();
     }
-    ByteBuf currentData = data;
-    if (currentData == null) {
-      data = buf;
-    } else {
-      int currentReadable = currentData.readableBytes();
-      if (currentReadable == 0) {
-        currentData.release();
-        data = buf;
-      } else {
-        int readable = buf.readableBytes();
-        if (readable > 0) {
-          ByteBuf newData = currentData.alloc().buffer(currentReadable + readable);
-          try {
-            newData.writeBytes(currentData, currentData.readerIndex(), currentReadable);
-            newData.writeBytes(buf, buf.readerIndex(), readable);
-            buf.release();
-            currentData.release();
-            data = newData;
-            newData = null;
-          } finally {
-            if (newData != null) {
-              newData.release();
-            }
-          }
-        } else {
-          buf.release();
-        }
-      }
+    if (data != null) {
+      throw new IllegalStateException("Already holding a ByteBuf");
     }
-
+    data = buf;
   }
 
   @Override
@@ -84,26 +57,16 @@ public class ByteArrayReadableChannel implements ReadableByteChannel {
       totalRead += bytesToRead;
     }
 
-    if (data.readableBytes() == 0) {
-      data.release();
-      data = null;
-    }
-
     return totalRead;
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     closed = true;
-    if (data != null) {
-      data.release();
-      data = null;
-    }
   }
 
   @Override
   public boolean isOpen() {
     return !closed;
   }
-
 }

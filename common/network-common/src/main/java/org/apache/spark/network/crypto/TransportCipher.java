@@ -168,27 +168,29 @@ public class TransportCipher {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object data) throws Exception {
       ByteBuf buffer = (ByteBuf) data;
-      if (!isCipherValid) {
-        // We need to ensure we release the data before throwing as otherwise we could leak.
-        buffer.release();
-        throw new IOException("Cipher is in invalid state.");
-      }
 
-      byteChannel.feedData(buffer);
-
-      byte[] decryptedData = new byte[byteChannel.readableBytes()];
-      int offset = 0;
-      while (offset < decryptedData.length) {
-        // SPARK-25535: workaround for CRYPTO-141.
-        try {
-          offset += cis.read(decryptedData, offset, decryptedData.length - offset);
-        } catch (InternalError ie) {
-          isCipherValid = false;
-          throw ie;
+      try {
+        if (!isCipherValid) {
+          throw new IOException("Cipher is in invalid state.");
         }
-      }
+        byteChannel.feedData(buffer);
 
-      ctx.fireChannelRead(Unpooled.wrappedBuffer(decryptedData, 0, decryptedData.length));
+        byte[] decryptedData = new byte[byteChannel.readableBytes()];
+        int offset = 0;
+        while (offset < decryptedData.length) {
+          // SPARK-25535: workaround for CRYPTO-141.
+          try {
+            offset += cis.read(decryptedData, offset, decryptedData.length - offset);
+          } catch (InternalError ie) {
+            isCipherValid = false;
+            throw ie;
+          }
+        }
+
+        ctx.fireChannelRead(Unpooled.wrappedBuffer(decryptedData, 0, decryptedData.length));
+      } finally {
+        buffer.release();
+      }
     }
 
     @Override
@@ -204,10 +206,6 @@ public class TransportCipher {
           cis.close();
         }
       } finally {
-        // Ensure we always close the wrapped ByteArrayReadableChannel as
-        // otherwise we could leak memory.
-        byteChannel.close();
-
         super.handlerRemoved(ctx);
       }
     }

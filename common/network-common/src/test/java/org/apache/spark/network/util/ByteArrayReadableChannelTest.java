@@ -23,72 +23,59 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
+import java.nio.channels.ClosedChannelException;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 public class ByteArrayReadableChannelTest {
 
   @Test
-  public void testFeedDataNotLeaksWithMultipleBuffers() throws IOException {
+  public void testFeedDataMultipleBuffers() throws IOException {
     ByteArrayReadableChannel channel = new ByteArrayReadableChannel();
     ByteBuf first = Unpooled.wrappedBuffer(new byte[]{1, 2});
     ByteBuf second = Unpooled.wrappedBuffer(new byte[]{3, 4});
     channel.feedData(first);
-    channel.feedData(second);
+    try {
+      channel.feedData(second);
+      fail();
+    } catch (IllegalStateException expected) {
 
-    ByteBuffer dst = ByteBuffer.allocate(4);
-    assertEquals(4, channel.read(dst));
-
-    dst.flip();
-    byte[] array = new byte[4];
-    dst.get(array);
-
-    assertArrayEquals(new byte[]{1, 2, 3, 4}, array);
-    assertEquals(0, first.refCnt());
-    assertEquals(0, second.refCnt());
-
-    closeChannelAndAssertState(channel);
-  }
-
-  @Test
-  public void testNotLeaksWhenDstTooSmall() throws IOException {
-    ByteArrayReadableChannel channel = new ByteArrayReadableChannel();
-    ByteBuf first = Unpooled.wrappedBuffer(new byte[]{1, 2, 3, 4});
-    channel.feedData(first);
+    }
 
     ByteBuffer dst = ByteBuffer.allocate(2);
     assertEquals(2, channel.read(dst));
+
     dst.flip();
     byte[] array = new byte[2];
     dst.get(array);
 
     assertArrayEquals(new byte[]{1, 2}, array);
     assertEquals(1, first.refCnt());
+    assertEquals(1, second.refCnt());
+
     closeChannelAndAssertState(channel);
-    assertEquals(0, first.refCnt());
+
+    assertTrue(first.release());
+    assertTrue(second.release());
   }
 
   @Test
-  public void testFeedDataWithoutReadNotLeaksWhenClosed() throws IOException {
+  public void testFeedDataAfterClosed() throws IOException {
     ByteArrayReadableChannel channel = new ByteArrayReadableChannel();
-    ByteBuf first = Unpooled.wrappedBuffer(new byte[]{1, 2});
-    channel.feedData(first);
+    closeChannelAndAssertState(channel);
+    ByteBuf first = Unpooled.wrappedBuffer(new byte[]{ 1, 2 });
+    try {
+      channel.feedData(first);
+      fail();
+    } catch (ClosedChannelException expected) {
+
+    }
     assertEquals(1, first.refCnt());
-
-    closeChannelAndAssertState(channel);
-    assertEquals(0, first.refCnt());
-  }
-
-  @Test
-  public void testFeedDataAfterClosedRelease() throws IOException {
-    ByteArrayReadableChannel channel = new ByteArrayReadableChannel();
-    closeChannelAndAssertState(channel);
-    ByteBuf first = Unpooled.wrappedBuffer(new byte[]{1, 2});
-    channel.feedData(first);
-    assertEquals(0, first.refCnt());
+    assertTrue(first.release());
   }
 
   private static void closeChannelAndAssertState(Channel channel) throws IOException {
