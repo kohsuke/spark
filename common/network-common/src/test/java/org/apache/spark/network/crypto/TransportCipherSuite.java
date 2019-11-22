@@ -16,6 +16,11 @@
  */
 package org.apache.spark.network.crypto;
 
+import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -26,11 +31,6 @@ import org.apache.spark.network.util.TransportConf;
 import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 
-import javax.crypto.spec.SecretKeySpec;
-import java.io.IOException;
-import java.nio.channels.ReadableByteChannel;
-import java.nio.channels.WritableByteChannel;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -40,7 +40,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class TransportCipherTest {
+public class TransportCipherSuite {
 
   @Test
   public void testBufferNotLeaksOnInternalError() throws IOException {
