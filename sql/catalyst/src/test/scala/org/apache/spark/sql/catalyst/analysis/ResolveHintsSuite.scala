@@ -245,4 +245,17 @@ class ResolveHintsSuite extends AnalysisTest {
       e => e.getLevel == Level.WARN &&
         e.getRenderedMessage.contains("Unrecognized hint: unknown_hint")))
   }
+
+  test("SPARK-30003: Prevent stack over flow in unknown hint resolution") {
+    val logAppender = new MockAppender()
+    withLogAppender(logAppender) {
+      checkAnalysis(
+        Project(testRelation.output, UnresolvedHint("unknown_hint", Seq("TaBlE"), table("TaBlE"))),
+        Project(testRelation.output, testRelation),
+        caseSensitive = false)
+    }
+    assert(logAppender.loggingEvents.exists(
+      e => e.getLevel == Level.WARN &&
+        e.getRenderedMessage.contains("Unrecognized hint: unknown_hint")))
+  }
 }
