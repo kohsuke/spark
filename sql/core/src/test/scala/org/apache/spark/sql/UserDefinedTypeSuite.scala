@@ -17,8 +17,12 @@
 
 package org.apache.spark.sql
 
-import java.util.Arrays
+import java.nio.file.Files
+import java.sql.Timestamp
+import java.util.{Arrays, GregorianCalendar}
 
+import com.sun.org.apache.xerces.internal.jaxp.datatype.XMLGregorianCalendarImpl
+import javax.xml.datatype.XMLGregorianCalendar
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
 import org.apache.spark.sql.catalyst.expressions.{Cast, ExpressionEvalHelper, GenericInternalRow, Literal}
@@ -26,6 +30,9 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.TestUDT.MyXMLGregorianCalendarUDT
+
+import scala.reflect.ClassTag
 
 private[sql] case class MyLabeledPoint(label: Double, features: TestUDT.MyDenseVector) {
   def getLabel: Double = label
@@ -286,5 +293,61 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
       RowFactory.create(new TestUDT.MyDenseVector(Array(1.0, 3.0, 5.0, 7.0, 9.0))))
     checkAnswer(spark.createDataFrame(data, schema).selectExpr("typeof(a)"),
       Seq(Row("array<double>")))
+  }
+
+  test("Allow merge UserDefinedType into a native DataType") {
+    import testImplicits._
+    implicit val encoder: Encoder[XMLGregorianCalendar] =
+      Encoders.bean(classOf[XMLGregorianCalendar])
+
+    // Register the UDT
+    UDTRegistration.register(
+      classOf[XMLGregorianCalendar].getName,
+      classOf[MyXMLGregorianCalendarUDT].getName)
+
+    val tempDir = Files
+      .createTempDirectory("integration-test-user-defined-type-to-native-type")
+      .toFile
+      .toString
+
+    def write(dataset: Dataset[XMLGregorianCalendar],
+              directory: String): Unit = dataset
+      .write
+      .mode(SaveMode.Append)
+      .save(directory)
+
+    val gregorianCalendar = new GregorianCalendar(
+      1925,
+      5,
+      20,
+      19,
+      25
+    )
+    // Equivalent of above
+    val timestamp = new Timestamp(
+      1925,
+      5,
+      20,
+      19,
+      25,
+      0,
+      0
+    )
+
+    val data: Seq[XMLGregorianCalendar] = Seq(
+      new XMLGregorianCalendarImpl(gregorianCalendar)
+    )
+
+    val ds = data.toDS()
+
+    write(ds, tempDir)
+    // We should be able to write a second time, and Spark should be able to resolve the types
+    write(ds, tempDir)
+
+    val records = spark.read.load(tempDir).as[Timestamp].collect()
+
+    assert(records.length === 2)
+    assert(records(0) === timestamp)
+    assert(records(1) === timestamp)
   }
 }
