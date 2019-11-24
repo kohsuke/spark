@@ -31,6 +31,7 @@ import org.apache.spark.sql.execution.datasources.parquet.ParquetTest
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.TestUDT.MyXMLGregorianCalendarUDT
 
 private[sql] case class MyLabeledPoint(label: Double, features: TestUDT.MyDenseVector) {
   def getLabel: Double = label
@@ -298,6 +299,11 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
 
     case class XMLGregorianCalendarRecord(dt: XMLGregorianCalendar)
     case class TimestampRecord(dt: Timestamp)
+
+    // Register the UDT
+    UDTRegistration.register(
+      classOf[XMLGregorianCalendar].getName,
+      classOf[MyXMLGregorianCalendarUDT].getName)
 
     val tempDir = Files
       .createTempDirectory("integration-test-user-defined-type-to-native-type")
