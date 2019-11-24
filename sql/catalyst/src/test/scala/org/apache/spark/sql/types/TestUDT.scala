@@ -78,6 +78,7 @@ object TestUDT {
 
     override def userClass: Class[XMLGregorianCalendar] = classOf[XMLGregorianCalendar]
 
+    // By setting this to a timestamp, we lose the information about the udt
     override private[sql] def jsonValue: JValue = "timestamp"
   }
 }

@@ -294,6 +294,8 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
   }
 
   test("Allow merge UserDefinedType into a native DataType") {
+    import testImplicits._
+
     case class XMLGregorianCalendarRecord(dt: XMLGregorianCalendar)
     case class TimestampRecord(dt: Timestamp)
 
