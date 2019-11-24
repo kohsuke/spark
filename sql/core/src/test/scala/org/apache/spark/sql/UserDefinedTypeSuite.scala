@@ -322,7 +322,7 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
     )
     // Equivalent of above
     val timestamp = new Timestamp(
-      1925,
+      25, // the year minus 1900
       5,
       20,
       19,
