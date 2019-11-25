@@ -60,7 +60,7 @@ abstract class EventLogFileWriter(
   protected val fileSystem = Utils.getHadoopFileSystem(logBaseDir, hadoopConf)
   protected val compressionCodec =
     if (shouldCompress) {
-      Some(CompressionCodec.createCodec(sparkConf, sparkConf.get(EVENT_LOG_COMPRESSION_CODEC)))
+      Some(CompressionCodec.createCodec(sparkConf, EventLogFileWriter.codecName(sparkConf)))
     } else {
       None
     }
@@ -194,6 +194,10 @@ object EventLogFileWriter {
     // Since we sanitize the app ID to not include periods, it is safe to split on it
     val logName = log.getName.stripSuffix(IN_PROGRESS)
     logName.split("\\.").tail.lastOption
+  }
+
+  def codecName(conf: SparkConf): String = {
+    conf.get(EVENT_LOG_COMPRESSION_CODEC)
   }
 }
 
