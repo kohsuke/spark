@@ -453,7 +453,23 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
    * 3. If B doesn't exist in `this`, it's also included in the result schema.
    * 4. Otherwise, `this` and `that` are considered as conflicting schemas and an exception would be
    *    thrown.
+   *
+   * Function to merge the two DataTypes that is compatible with the left
+   * and right side. The order is:
+   *
+   * 1. Merge Arrays, where the type of the Arrays should be compatible
+   * 2. Merge Maps, where the type of the Maps should be compatible
+   * 3. Merge Structs, where the struct recursively checked for compatibility
+   * 4. Merge DecimalType, where the scale and precision should be equal
+   * 5. Merge UserDefinedType, where the underlying class is equal
+   * 6. Merge UserDefinedType into DataType, where the underlying DataType is equal
+   * 7. Merge DataType, where we check if the DataTypes are compatible
+   * 8. Unable to determine compatibility or incompatible, throw exception
+   *
+   * @throws org.apache.spark.SparkException In case the DataTypes are incompatible
+   * @return The compatible DataType that support both left and right
    */
+  @throws(classOf[SparkException])
   private[sql] def merge(that: StructType): StructType =
     StructType.merge(this, that).asInstanceOf[StructType]
 
@@ -526,24 +542,6 @@ object StructType extends AbstractDataType {
       case _ => dt
     }
 
-  /**
-   * Function to merge the two DataTypes that is compatible with the left
-   * and right side. The order is:
-   *
-   * 1. Merge Arrays, where the type of the Arrays should be compatible
-   * 2. Merge Maps, where the type of the Maps should be compatible
-   * 3. Merge Structs, where the struct recursively checked for compatibility
-   * 4. Merge DecimalType, where the scale and precision should be equal
-   * 5. Merge UserDefinedType, where the underlying class is equal
-   * 6. Merge UserDefinedType into DataType, where the underlying DataType is equal
-   * 7. Merge DataType, where we check if the DataTypes are compatible
-   * 8. Unable to determine compatibility or incompatible, throw exception
-   *
-   * @param left The existing DataType
-   * @param right The new DataType that needs to be compatible with left
-   * @throws org.apache.spark.SparkException In case the DataTypes are incompatible
-   * @return The compatible DataType that support both left and right
-   */
   @throws(classOf[SparkException])
   private[sql] def merge(left: DataType, right: DataType): DataType =
     (left, right) match {

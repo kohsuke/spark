@@ -483,29 +483,26 @@ class DataTypeSuite extends SparkFunSuite {
   test("Allow UserDefinedType to be merged into a native DateType") {
     // In this testcase we have stored the XMLGregorianCalendar as a Timestamp
     // And we want to read this later on as a regular TimestampType
-    val left = StructType(
-      StructField("a", TimestampType) :: Nil)
+    val left = StructType(StructField("a", TimestampType) :: Nil)
 
     // We should be able to merge these types since the
     // CustomXMLGregorianCalendarType maps to a TimestampTypes
-    val right = StructType(
-      StructField("a", new MyXMLGregorianCalendarUDT) :: Nil)
+    val right = StructType(StructField("a", new MyXMLGregorianCalendarUDT) :: Nil)
 
     // We expect the DataType to be returned instead of the UserDefinedType
     assert(left.merge(right) === left)
   }
 
   test("Disallow DataType to be merged into UserDefinedType") {
-    val right = StructType(
-      StructField("a", TimestampType) :: Nil)
+    val right = StructType(StructField("a", TimestampType) :: Nil)
 
-    val left = StructType(
-      StructField("a", new MyXMLGregorianCalendarUDT) :: Nil)
+    val left = StructType(StructField("a", new MyXMLGregorianCalendarUDT) :: Nil)
 
     // We don't allow DataTypes being mapped into a UserDefinedType.
     // Main reason is we don't see any application in this for now.
-    intercept[SparkException] {
+    val error = intercept[SparkException] {
       left.merge(right) === left
-    }
+    }.getMessage()
+    assert(error.contains("Failed to merge fields 'a' and 'a'."))
   }
 }
