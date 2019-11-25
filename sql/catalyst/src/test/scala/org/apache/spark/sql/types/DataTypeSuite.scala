@@ -480,7 +480,7 @@ class DataTypeSuite extends SparkFunSuite {
     assert(result === expected)
   }
 
-  test("Allow UserDefinedType to be merged into a standard DateType") {
+  test("Allow UserDefinedType to be merged into a native DateType") {
     // In this testcase we have stored the XMLGregorianCalendar as a Timestamp
     // And we want to read this later on as a regular TimestampType
     val left = StructType(
@@ -491,9 +491,8 @@ class DataTypeSuite extends SparkFunSuite {
     val right = StructType(
       StructField("a", new MyXMLGregorianCalendarUDT) :: Nil)
 
-    // We always expect the DataType to be returned
+    // We expect the DataType to be returned instead of the UserDefinedType
     assert(left.merge(right) === left)
-    assert(right.merge(left) === left)
   }
 
   test("Disallow DataType to be merged into UserDefinedType") {
