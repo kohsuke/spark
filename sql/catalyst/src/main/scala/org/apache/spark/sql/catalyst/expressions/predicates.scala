@@ -198,6 +198,24 @@ trait PredicateHelper {
     case e: Unevaluable => false
     case e => e.children.forall(canEvaluateWithinJoin)
   }
+
+  // If one expression and its children are null intolerant, it is null intolerant.
+  protected def isNullIntolerant(expr: Expression): Boolean = expr match {
+    case e: NullIntolerant => e.children.forall(isNullIntolerant)
+    case _ => false
+  }
+
+  protected def outputWithNullability(
+      output: Seq[Attribute],
+      nonNullAttrExprIds: Seq[ExprId]): Seq[Attribute] = {
+    output.map { a =>
+      if (a.nullable && nonNullAttrExprIds.contains(a.exprId)) {
+        a.withNullability(false)
+      } else {
+        a
+      }
+    }
+  }
 }
 
 @ExpressionDescription(
