@@ -26,34 +26,39 @@ abstract class FileScanBuilder(
     fileIndex: PartitioningAwareFileIndex,
     dataSchema: StructType) extends ScanBuilder with SupportsPushDownRequiredColumns {
   private val partitionSchema = fileIndex.partitionSchema
+  private val partitionNameSet = toNameSet(partitionSchema)
   private val isCaseSensitive = sparkSession.sessionState.conf.caseSensitiveAnalysis
   protected var requiredSchema = StructType(dataSchema.fields ++ partitionSchema.fields)
 
   override def pruneColumns(requiredSchema: StructType): Unit = {
-    this.requiredSchema = requiredSchema
-  }
-
-  protected def readDataSchema(): StructType = {
-    val requiredNameSet = createRequiredNameSet()
-    val fields = dataSchema.fields.filter { field =>
-      val colName = PartitioningUtils.getColName(field, isCaseSensitive)
-      requiredNameSet.contains(colName) && !partitionNameSet.contains(colName)
-    }
-    StructType(fields)
-  }
-
-  protected def readPartitionSchema(): StructType = {
-    val requiredNameSet = createRequiredNameSet()
-    val fields = partitionSchema.fields.filter { field =>
+    // the default implementation prunes only top-level columns
+    // file formats that support nested column pruning must override this
+    val fields = dataSchema.fields ++ partitionSchema.fields
+    val requiredNameSet = toNameSet(requiredSchema)
+    val requiredFields = fields.filter { field =>
       val colName = PartitioningUtils.getColName(field, isCaseSensitive)
       requiredNameSet.contains(colName)
     }
-    StructType(fields)
+    this.requiredSchema = StructType(requiredFields)
   }
 
-  private def createRequiredNameSet(): Set[String] =
-    requiredSchema.fields.map(PartitioningUtils.getColName(_, isCaseSensitive)).toSet
+  protected def readDataSchema(): StructType = {
+    val dataFields = requiredSchema.fields.filter { field =>
+      val colName = PartitioningUtils.getColName(field, isCaseSensitive)
+      !partitionNameSet.contains(colName)
+    }
+    StructType(dataFields)
+  }
 
-  private val partitionNameSet: Set[String] =
-    partitionSchema.fields.map(PartitioningUtils.getColName(_, isCaseSensitive)).toSet
+  protected def readPartitionSchema(): StructType = {
+    val partitionFields = requiredSchema.fields.filter { field =>
+      val colName = PartitioningUtils.getColName(field, isCaseSensitive)
+      partitionNameSet.contains(colName)
+    }
+    StructType(partitionFields)
+  }
+
+  private def toNameSet(schema: StructType): Set[String] = {
+    schema.fields.map(PartitioningUtils.getColName(_, isCaseSensitive)).toSet
+  }
 }
