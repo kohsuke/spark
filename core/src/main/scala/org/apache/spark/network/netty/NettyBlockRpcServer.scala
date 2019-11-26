@@ -56,8 +56,12 @@ class NettyBlockRpcServer(
     message match {
       case openBlocks: OpenBlocks =>
         val blocksNum = openBlocks.blockIds.length
-        val blocks = for (i <- (0 until blocksNum).view)
-          yield blockManager.getBlockData(BlockId.apply(openBlocks.blockIds(i)))
+        val blocks = for (i <- (0 until blocksNum).view) yield {
+          val blockId = BlockId.apply(openBlocks.blockIds(i))
+          assert(!blockId.isInstanceOf[ShuffleBlockBatchId],
+            "Continuous shuffle block fetching only works for new fetch protocol.")
+          blockManager.getBlockData(blockId)
+        }
         val streamId = streamManager.registerStream(appId, blocks.iterator.asJava,
           client.getChannel)
         logTrace(s"Registered streamId $streamId with $blocksNum buffers")
