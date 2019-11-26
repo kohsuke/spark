@@ -456,23 +456,17 @@ class ResolveSessionCatalog(
         tableName.asTableIdentifier,
         propertyKey)
 
-    case ShowFunctionsStatement(scope, pattern, functionName) =>
-      import ShowFunctionsStatement._
-      val userScope = scope.map(s => s == ALL || s == USER).getOrElse(true)
-      val systemScope = scope.map(s => s == ALL || s == SYSTEM).getOrElse(true)
+    case ShowFunctionsStatement(userScope, systemScope, pattern, functionName) =>
       val (db, function) = functionName match {
-        case Some(Seq(db, fn)) => (Some(db), Some(fn))
-        case Some(Seq(fn)) => (None, Some(fn))
+        case SessionCatalog(_, Seq(db, fn)) => (Some(db), Some(fn))
+        case SessionCatalog(_, Seq(fn)) => (None, Some(fn))
         case None => (None, None)
-        case Some(fun) if fun.length > 2 =>
-          throw new AnalysisException(
-            s"Function name should have at most two parts: ${fun.quoted}")
+        case _ => throw new AnalysisException (s"SHOW FUNCTIONS is only supported in v1 catalog")
       }
       val patternCommand = pattern match {
         case p @ Some(_) => p
         case _ => function
       }
-
       ShowFunctionsCommand(db, patternCommand, userScope, systemScope)
   }
 

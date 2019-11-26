@@ -1682,25 +1682,25 @@ class DDLParserSuite extends AnalysisTest {
   test("SHOW FUNCTIONS") {
     comparePlans(
       parsePlan("SHOW FUNCTIONS"),
-      ShowFunctionsStatement(None, None, None))
+      ShowFunctionsStatement(true, true, None, None))
     comparePlans(
       parsePlan("SHOW USER FUNCTIONS"),
-      ShowFunctionsStatement(Some("user"), None, None))
+      ShowFunctionsStatement(true, false, None, None))
     comparePlans(
       parsePlan("SHOW user FUNCTIONS"),
-      ShowFunctionsStatement(Some("user"), None, None))
+      ShowFunctionsStatement(true, false, None, None))
     comparePlans(
       parsePlan("SHOW SYSTEM FUNCTIONS"),
-      ShowFunctionsStatement(Some("system"), None, None))
+      ShowFunctionsStatement(false, true, None, None))
     comparePlans(
       parsePlan("SHOW ALL FUNCTIONS"),
-      ShowFunctionsStatement(Some("all"), None, None))
+      ShowFunctionsStatement(true, true, None, None))
     comparePlans(
       parsePlan("SHOW FUNCTIONS LIKE 'funct*'"),
-      ShowFunctionsStatement(None, Some("funct*"), None))
+      ShowFunctionsStatement(true, true, Some("funct*"), None))
     comparePlans(
       parsePlan("SHOW FUNCTIONS LIKE a.b.c"),
-      ShowFunctionsStatement(None, None, Some(Seq("a", "b", "c"))))
+      ShowFunctionsStatement(true, true, None, Some(Seq("a", "b", "c"))))
     val sql = "SHOW other FUNCTIONS"
     intercept(sql, s"$sql not supported")
   }

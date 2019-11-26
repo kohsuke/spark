@@ -480,7 +480,8 @@ case class ShowTablePropertiesStatement(
  *  SHOW FUNCTIONS statement, as parsed from SQL
  */
 case class ShowFunctionsStatement(
-    scope: Option[String],
+    userScope: Boolean,
+    systemScope: Boolean,
     pattern: Option[String],
     functionName: Option[Seq[String]]) extends ParsedStatement
 
