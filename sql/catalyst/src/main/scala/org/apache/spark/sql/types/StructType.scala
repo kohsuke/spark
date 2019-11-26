@@ -448,23 +448,13 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
    * B from `that`,
    *
    * 1. If A and B have the same name and data type, they are merged to a field C with the same name
-   *    and data type.  C is nullable if and only if either A or B is nullable.
+   *    and data type. If A is a DataType and B a UserDefinedType, and the underlying UDT has the
+   *    same data type, then they are merged into a field C with the underlying data type.
+   *    C is nullable if and only if either A or B is nullable.
    * 2. If A doesn't exist in `that`, it's included in the result schema.
    * 3. If B doesn't exist in `this`, it's also included in the result schema.
    * 4. Otherwise, `this` and `that` are considered as conflicting schemas and an exception would be
    *    thrown.
-   *
-   * Function to merge the two DataTypes that is compatible with the left
-   * and right side. The order is:
-   *
-   * 1. Merge Arrays, where the type of the Arrays should be compatible
-   * 2. Merge Maps, where the type of the Maps should be compatible
-   * 3. Merge Structs, where the struct recursively checked for compatibility
-   * 4. Merge DecimalType, where the scale and precision should be equal
-   * 5. Merge UserDefinedType, where the underlying class is equal
-   * 6. Merge UserDefinedType into DataType, where the underlying DataType is equal
-   * 7. Merge DataType, where we check if the DataTypes are compatible
-   * 8. Unable to determine compatibility or incompatible, throw exception
    *
    * @throws org.apache.spark.SparkException In case the DataTypes are incompatible
    * @return The compatible DataType that support both left and right

@@ -295,61 +295,28 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
   }
 
   test("Allow merge UserDefinedType into a native DataType") {
-    import testImplicits._
-
     // Register the UDT
     UDTRegistration.register(
       classOf[XMLGregorianCalendar].getName,
       classOf[MyXMLGregorianCalendarUDT].getName)
 
-    val tempDir = Files
-      .createTempDirectory("integration-test-user-defined-type-to-native-type")
-      .toFile
-      .toString
+    withTempDir { dir =>
+      val gregorianCalendar = new GregorianCalendar(1925, 5, 20, 19, 25)
+      // Equivalent of above (the year minus 1900)
+      val timestamp = new Timestamp(25, 5, 20, 19, 25, 0, 0)
 
-    def write(df: DataFrame,
-              directory: String): Unit = df
-      .write
-      .mode(SaveMode.Append)
-      .save(directory)
+      val data = Seq(Row(new XMLGregorianCalendarImpl(gregorianCalendar)))
+      val rdd = spark.sparkContext.parallelize(data)
+      val schema = StructType(StructField("dt", new MyXMLGregorianCalendarUDT) :: Nil)
+      val df = spark.sqlContext.createDataFrame(rdd, schema)
 
-    val gregorianCalendar = new GregorianCalendar(
-      1925,
-      5,
-      20,
-      19,
-      25
-    )
-    // Equivalent of above
-    val timestamp = new Timestamp(
-      25, // the year minus 1900
-      5,
-      20,
-      19,
-      25,
-      0,
-      0
-    )
+      df.write.mode(SaveMode.Append).save(dir.getCanonicalPath)
+      // We should be able to write a second time, and Spark should be able to resolve the types
+      df.write.mode(SaveMode.Append).save(dir.getCanonicalPath)
 
-    val data: Seq[Row] = Seq(
-       Row(new XMLGregorianCalendarImpl(gregorianCalendar))
-    )
-
-    val rdd = spark.sparkContext.parallelize(data)
-
-    val schema = StructType(
-      StructField("dt", new MyXMLGregorianCalendarUDT) :: Nil)
-
-    val df = spark.sqlContext.createDataFrame(rdd, schema)
-
-    write(df, tempDir)
-    // We should be able to write a second time, and Spark should be able to resolve the types
-    write(df, tempDir)
-
-    val records = spark.read.load(tempDir).collect()
-
-    assert(records.length === 2)
-    assert(records(0).getAs[Timestamp](0) === timestamp)
-    assert(records(1).getAs[Timestamp](0) === timestamp)
+      val records = spark.read.load(dir.getCanonicalPath)
+      records.printSchema()
+      checkAnswer(records, Row(timestamp) :: Row(timestamp) :: Nil)
+    }
   }
 }
