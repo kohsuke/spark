@@ -458,8 +458,8 @@ class ResolveSessionCatalog(
 
     case ShowFunctionsStatement(userScope, systemScope, pattern, functionName) =>
       val (db, function) = functionName match {
-        case SessionCatalog(_, Seq(db, fn)) => (Some(db), Some(fn))
-        case SessionCatalog(_, Seq(fn)) => (None, Some(fn))
+        case Some(SessionCatalog(_, Seq(db, fn))) => (Some(db), Some(fn))
+        case Some(SessionCatalog(_, Seq(fn))) => (None, Some(fn))
         case None => (None, None)
         case _ => throw new AnalysisException (s"SHOW FUNCTIONS is only supported in v1 catalog")
       }
