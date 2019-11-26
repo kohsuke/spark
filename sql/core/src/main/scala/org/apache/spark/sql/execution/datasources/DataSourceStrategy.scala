@@ -438,6 +438,22 @@ object DataSourceStrategy {
     }
   }
 
+  /**
+   * The attribute name may differ from the one in the schema if the query analyzer
+   * is case insensitive. We should change attribute names to match the ones in the schema,
+   * so we do not need to worry about case sensitivity anymore.
+   */
+  protected[sql] def normalizeExprs(
+      exprs: Seq[Expression],
+      attributes: Seq[AttributeReference]): Seq[Expression] = {
+    exprs.map { e =>
+      e transform {
+        case a: AttributeReference =>
+          a.withName(attributes.find(_.semanticEquals(a)).getOrElse(a).name)
+      }
+    }
+  }
+
   private def translateLeafNodeFilter(predicate: Expression): Option[Filter] = predicate match {
     case expressions.EqualTo(a: Attribute, Literal(v, t)) =>
       Some(sources.EqualTo(a.name, convertToScala(v, t)))
