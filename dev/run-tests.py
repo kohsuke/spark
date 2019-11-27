@@ -283,8 +283,8 @@ def get_hadoop_profiles(hadoop_version):
     """
 
     sbt_maven_hadoop_profiles = {
-        "hadoop2.7": ["-Phadoop-2.7", "-Phive-1.2"],
-        "hadoop3.2": ["-Phadoop-3.2", "-Phive-2.3"],
+        "hadoop2.7": ["-Phadoop-2.7"],
+        "hadoop3.2": ["-Phadoop-3.2"],
     }
 
     if hadoop_version in sbt_maven_hadoop_profiles:
@@ -414,6 +414,8 @@ def run_scala_tests(build_tool, hadoop_version, test_modules, excluded_tags):
             os.environ["JAVA_HOME"] = "/usr/java/jdk-11.0.1"
             os.environ["PATH"] = "%s/bin:%s" % (os.environ["JAVA_HOME"], os.environ["PATH"])
             test_profiles += ['-Djava.version=11']
+        if "test-hive1.2" in os.environ["ghprbPullTitle"].lower():
+            test_profiles += ['-Phive-1.2']
 
     if build_tool == "maven":
         run_scala_tests_maven(test_profiles)
