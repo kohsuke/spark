@@ -288,7 +288,8 @@ def get_hadoop_profiles(hadoop_version):
     }
 
     if hadoop_version in sbt_maven_hadoop_profiles:
-        if "ghprbPullTitle" in os.environ and "test-hive1.2" in os.environ["ghprbPullTitle"].lower():
+        if ("ghprbPullTitle" in os.environ and
+            "test-hive1.2" in os.environ["ghprbPullTitle"].lower()):
             return sbt_maven_hadoop_profiles[hadoop_version] + ["-Phive-1.2"]
         else:
             return sbt_maven_hadoop_profiles[hadoop_version]
