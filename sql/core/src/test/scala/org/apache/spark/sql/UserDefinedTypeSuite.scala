@@ -316,7 +316,7 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
     val timestampSchema = StructType(StructField("dt", TimestampType) :: Nil)
     val timestampDf = spark.sqlContext.createDataFrame(timestampRdd, timestampSchema)
 
-    val df = calendarDf.union(timestampDf)
+    val df = timestampDf.union(calendarDf)
 
     checkAnswer(df, Row(timestamp) :: Row(timestamp) :: Nil)
   }
