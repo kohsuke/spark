@@ -2913,33 +2913,33 @@ Not available in R.
 </div>
 
 ### Reporting Metrics using Dropwizard 
-Spark supports reporting metrics using the [Dropwizard Library](monitoring.html#metrics). To enable metrics of Structured Streaming queries to be reported as well, you have to explicitly enable the configuration `spark.sql.streaming.metricsEnabled` in the SparkSession. 
+Spark supports reporting metrics using the [Dropwizard Library](monitoring.html#metrics). To enable metrics of Structured Streaming queries to be reported as well, you have to explicitly enable the configuration `spark.metrics.sparkStreamingSource.enabled` in the SparkSession. 
 
 <div class="codetabs">
 <div data-lang="scala"  markdown="1">
 {% highlight scala %}
-spark.conf.set("spark.sql.streaming.metricsEnabled", "true")
+spark.conf.set("spark.metrics.sparkStreamingSource.enabled", "true")
 // or
-spark.sql("SET spark.sql.streaming.metricsEnabled=true")
+spark.sql("SET spark.metrics.sparkStreamingSource.enabled=true")
 {% endhighlight %}
 </div>
 <div data-lang="java"  markdown="1">  
 {% highlight java %}
-spark.conf().set("spark.sql.streaming.metricsEnabled", "true");
+spark.conf().set("spark.metrics.sparkStreamingSource.enabled", "true");
 // or
-spark.sql("SET spark.sql.streaming.metricsEnabled=true");
+spark.sql("SET spark.metrics.sparkStreamingSource.enabled=true");
 {% endhighlight %}
 </div>
 <div data-lang="python"  markdown="1">  
 {% highlight python %}
-spark.conf.set("spark.sql.streaming.metricsEnabled", "true")
+spark.conf.set("spark.metrics.sparkStreamingSource.enabled", "true")
 # or
-spark.sql("SET spark.sql.streaming.metricsEnabled=true")
+spark.sql("SET spark.metrics.sparkStreamingSource.enabled=true")
 {% endhighlight %}
 </div>
 <div data-lang="r"  markdown="1">
 {% highlight r %}
-sql("SET spark.sql.streaming.metricsEnabled=true")
+sql("SET spark.metrics.sparkStreamingSource.enabled=true")
 {% endhighlight %}
 </div>
 </div>
