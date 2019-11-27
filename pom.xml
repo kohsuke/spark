@@ -408,7 +408,7 @@
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-webapp</artifactId>
         <version>${jetty.version}</version>
-        <scope>provided</scope>
+        <scope>test</scope>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>
