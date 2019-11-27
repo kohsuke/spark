@@ -67,6 +67,7 @@ class RateStreamMicroBatchStream(
           writer.write("v" + VERSION + "\n")
           writer.write(metadata.json)
           writer.flush
+          writer.close
         }
 
         override def deserialize(in: InputStream): LongOffset = {
