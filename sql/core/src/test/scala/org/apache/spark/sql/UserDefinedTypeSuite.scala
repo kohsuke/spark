@@ -300,23 +300,24 @@ class UserDefinedTypeSuite extends QueryTest with SharedSparkSession with Parque
       classOf[XMLGregorianCalendar].getName,
       classOf[MyXMLGregorianCalendarUDT].getName)
 
-    withTempDir { dir =>
-      val gregorianCalendar = new GregorianCalendar(1925, 5, 20, 19, 25)
-      // Equivalent of above (the year minus 1900)
-      val timestamp = new Timestamp(25, 5, 20, 19, 25, 0, 0)
+    val gregorianCalendar = new GregorianCalendar(1925, 5, 20, 19, 25)
+    // Equivalent of above (the year minus 1900)
+    val timestamp = new Timestamp(25, 5, 20, 19, 25, 0, 0)
 
-      val data = Seq(Row(new XMLGregorianCalendarImpl(gregorianCalendar)))
-      val rdd = spark.sparkContext.parallelize(data)
-      val schema = StructType(StructField("dt", new MyXMLGregorianCalendarUDT) :: Nil)
-      val df = spark.sqlContext.createDataFrame(rdd, schema)
+    val spark = SparkSession.builder().master("local[1]").getOrCreate()
 
-      df.write.mode(SaveMode.Append).save(dir.getCanonicalPath)
-      // We should be able to write a second time, and Spark should be able to resolve the types
-      df.write.mode(SaveMode.Append).save(dir.getCanonicalPath)
+    val calandarData = Seq(Row(new XMLGregorianCalendarImpl(gregorianCalendar)))
+    val calendarRdd = spark.sparkContext.parallelize(calandarData)
+    val calendarSchema = StructType(StructField("dt", new MyXMLGregorianCalendarUDT) :: Nil)
+    val calendarDf = spark.sqlContext.createDataFrame(calendarRdd, calendarSchema)
 
-      val records = spark.read.load(dir.getCanonicalPath)
-      records.printSchema()
-      checkAnswer(records, Row(timestamp) :: Row(timestamp) :: Nil)
-    }
+    val timestampData = Seq(Row(timestamp))
+    val timestampRdd = spark.sparkContext.parallelize(timestampData)
+    val timestampSchema = StructType(StructField("dt", TimestampType) :: Nil)
+    val timestampDf = spark.sqlContext.createDataFrame(timestampRdd, timestampSchema)
+
+    val df = calendarDf.union(timestampDf)
+
+    checkAnswer(df, Row(timestamp) :: Row(timestamp) :: Nil)
   }
 }
