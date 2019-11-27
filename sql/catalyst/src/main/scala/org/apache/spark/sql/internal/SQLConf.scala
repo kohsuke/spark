@@ -1293,7 +1293,7 @@ object SQLConf {
       .createWithDefault(true)
 
   val STREAMING_METRICS_ENABLED =
-    buildConf("spark.sql.streaming.metricsEnabled")
+    buildConf("spark.metrics.sparkStreamingSource.enabled")
       .doc("Whether Dropwizard/Codahale metrics will be reported for active streaming queries.")
       .booleanConf
       .createWithDefault(false)

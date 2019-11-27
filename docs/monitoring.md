@@ -924,7 +924,7 @@ This is the component with the largest amount of instrumented metrics
 
 - namespace=HiveExternalCatalog
   - **note:**: these metrics are conditional to a configuration parameter:
-    `spark.metrics.static.sources.enabled` (default is true) 
+    `spark.metrics.staticSources.enabled` (default is true) 
   - fileCacheHits.count
   - filesDiscovered.count
   - hiveClientCalls.count
@@ -933,7 +933,7 @@ This is the component with the largest amount of instrumented metrics
 
 - namespace=CodeGenerator
   - **note:**: these metrics are conditional to a configuration parameter:
-    `spark.metrics.static.sources.enabled` (default is true) 
+    `spark.metrics.staticSources.enabled` (default is true) 
   - compilationTime (histogram)
   - generatedClassSize (histogram)
   - generatedMethodSize (histogram)
@@ -962,8 +962,8 @@ This is the component with the largest amount of instrumented metrics
   - queue.executorManagement.listenerProcessingTime (timer)
 
 - namespace=appStatus (all metrics of type=counter)
-  - **note:** Introduced in Spark 3.0. Conditional to configuration parameter:  
-   `spark.app.status.metrics.enabled=true` (default is false)
+  - **note:** These metrics are conditional to configuration parameter:  
+   `spark.metrics.appStatusSource.enabled=true` (default is false)
   - stages.failedStages.count
   - stages.skippedStages.count
   - stages.completedStages.count
@@ -984,7 +984,7 @@ This is the component with the largest amount of instrumented metrics
 
 - namespace=spark.streaming
   - **note:** This applies to Spark Structured Streaming only. Conditional to a configuration
-  parameter: `spark.sql.streaming.metricsEnabled=true` (default is false) 
+  parameter: `spark.metrics.sparkStreamingSource.enabled` (default is false) 
   - eventTime-watermark
   - inputRate-total
   - latency
@@ -1057,7 +1057,7 @@ when running in local mode.
 
 - namespace=HiveExternalCatalog
   - **note:**: these metrics are conditional to a configuration parameter:
-    `spark.metrics.static.sources.enabled` (default is true) 
+    `spark.metrics.staticSources.enabled` (default is true) 
   - fileCacheHits.count
   - filesDiscovered.count
   - hiveClientCalls.count
@@ -1066,7 +1066,7 @@ when running in local mode.
 
 - namespace=CodeGenerator
   - **note:**: these metrics are conditional to a configuration parameter:
-    `spark.metrics.static.sources.enabled` (default is true) 
+    `spark.metrics.staticSources.enabled` (default is true) 
   - compilationTime (histogram)
   - generatedClassSize (histogram)
   - generatedMethodSize (histogram)
