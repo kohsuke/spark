@@ -459,7 +459,6 @@ case class StructType(fields: Array[StructField]) extends DataType with Seq[Stru
    * @throws org.apache.spark.SparkException In case the DataTypes are incompatible
    * @return The compatible DataType that support both left and right
    */
-  @throws(classOf[SparkException])
   private[sql] def merge(that: StructType): StructType =
     StructType.merge(this, that).asInstanceOf[StructType]
 
@@ -532,7 +531,6 @@ object StructType extends AbstractDataType {
       case _ => dt
     }
 
-  @throws(classOf[SparkException])
   private[sql] def merge(left: DataType, right: DataType): DataType =
     (left, right) match {
       case (ArrayType(leftElementType, leftContainsNull),
@@ -599,8 +597,8 @@ object StructType extends AbstractDataType {
       case (leftUdt: UserDefinedType[_], rightUdt: UserDefinedType[_])
         if leftUdt.userClass == rightUdt.userClass => leftUdt
 
-      case (leftType, rightUdt: UserDefinedType[_])
-        if leftType == rightUdt.sqlType => leftType
+//      case (leftType, rightUdt: UserDefinedType[_])
+//        if leftType == rightUdt.sqlType => leftType
 
       case (leftType, rightType) if leftType == rightType =>
         leftType
