@@ -483,8 +483,11 @@ case class AlterTableAddPartitionCommand(
         val newPartsTotalSizeAndDeserializationFactor =
           CommandUtils.sumSizeWithMaxDeserializationFactor(
             parts.map { part =>
-              CommandUtils.calculateLocationSize(sparkSession.sessionState, table.identifier,
-                part.storage.locationUri)
+              CommandUtils.calculateLocationSize(
+                sparkSession.sessionState,
+                table.identifier,
+                part.storage.locationUri,
+                part.storage.serde)
             })
         val addedSize = newPartsTotalSizeAndDeserializationFactor.sizeInBytes
         // if the calculation of the deserialization factor is disabled now then take the old factor
