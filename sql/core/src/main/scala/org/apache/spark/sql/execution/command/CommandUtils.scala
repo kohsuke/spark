@@ -59,11 +59,16 @@ object CommandUtils extends Logging {
     }
   }
 
-  def calculateTotalSize(spark: SparkSession, catalogTable: CatalogTable)
-    : SizeInBytesWithDeserFactor = {
+  def calculateTotalSize(
+      spark: SparkSession,
+      catalogTable: CatalogTable): SizeInBytesWithDeserFactor = {
     val sessionState = spark.sessionState
     if (catalogTable.partitionColumnNames.isEmpty) {
-      calculateLocationSize(sessionState, catalogTable.identifier, catalogTable.storage.locationUri)
+      calculateLocationSize(
+        sessionState,
+        catalogTable.identifier,
+        catalogTable.storage.locationUri,
+        catalogTable.storage.serde)
     } else {
       // Calculate table size as a sum of the visible partitions. See SPARK-21079
       val partitions = sessionState.catalog.listPartitions(catalogTable.identifier)
@@ -79,19 +84,29 @@ object CommandUtils extends Logging {
           val fileStatusSeq = InMemoryFileIndex.bulkListLeafFiles(
             paths, hadoopConf, pathFilter, spark, areRootPaths = true)
           fileStatusSeq.flatMap { case (_, fileStatuses) =>
-            fileStatuses.map(sizeInBytesWithDeserFactor(calcDeserFactEnabled, hadoopConf, _))
+            fileStatuses.map { fileStatus =>
+              sizeInBytesWithDeserFactor(
+                calcDeserFactEnabled,
+                hadoopConf,
+                fileStatus,
+                catalogTable.storage.serde)
+            }
           }
         } else {
           partitions.map { p =>
-            calculateLocationSize(sessionState, catalogTable.identifier, p.storage.locationUri)
+            calculateLocationSize(
+              sessionState,
+              catalogTable.identifier,
+              p.storage.locationUri,
+              p.storage.serde)
           }
         }
       sumSizeWithMaxDeserializationFactor(sizeWithDeserFactorsForPartitions)
     }
   }
 
-  def sumSizeWithMaxDeserializationFactor(sizesWithFactors: Seq[SizeInBytesWithDeserFactor])
-    : SizeInBytesWithDeserFactor = {
+  def sumSizeWithMaxDeserializationFactor(
+      sizesWithFactors: Seq[SizeInBytesWithDeserFactor]): SizeInBytesWithDeserFactor = {
     val definedFactors = sizesWithFactors.filter(_.deserFactor.isDefined).map(_.deserFactor.get)
     SizeInBytesWithDeserFactor(
       sizesWithFactors.map(_.sizeInBytes).sum,
@@ -101,15 +116,13 @@ object CommandUtils extends Logging {
   def sizeInBytesWithDeserFactor(
       calcDeserFact: Boolean,
       hadoopConf: Configuration,
-      fStatus: FileStatus): SizeInBytesWithDeserFactor = {
+      fStatus: FileStatus,
+      serde: Option[String]): SizeInBytesWithDeserFactor = {
     assert(fStatus.isFile)
     val factor = if (calcDeserFact) {
-      val rawSize = if (fStatus.getPath.getName.endsWith(".orc")) {
-        Some(OrcUtils.rawSize(hadoopConf, fStatus.getPath))
-      } else {
-        None
-      }
-
+      val isOrc = serde.contains("org.apache.hadoop.hive.ql.io.orc.OrcSerde") ||
+        fStatus.getPath.getName.endsWith(".orc")
+      val rawSize = if (isOrc) Some(OrcUtils.rawSize(hadoopConf, fStatus.getPath)) else None
       rawSize.map { rawSize =>
         // deserialization factor is a ratio of the data size in memory to file size rounded up
         // to the next integer number
@@ -128,7 +141,8 @@ object CommandUtils extends Logging {
   def calculateLocationSize(
       sessionState: SessionState,
       identifier: TableIdentifier,
-      locationUri: Option[URI]): SizeInBytesWithDeserFactor = {
+      locationUri: Option[URI],
+      serde: Option[String]): SizeInBytesWithDeserFactor = {
     // This method is mainly based on
     // org.apache.hadoop.hive.ql.stats.StatsUtils.getFileSizeForTable(HiveConf, Table)
     // in Hive 0.13 (except that we do not use fs.getContentSummary).
@@ -153,7 +167,7 @@ object CommandUtils extends Logging {
         }
         sumSizeWithMaxDeserializationFactor(fileSizesWithDeserFactor)
       } else {
-        sizeInBytesWithDeserFactor(calcDeserFactEnabled, hadoopConf, fileStatus)
+        sizeInBytesWithDeserFactor(calcDeserFactEnabled, hadoopConf, fileStatus, serde)
       }
     }
 
