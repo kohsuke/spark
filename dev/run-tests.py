@@ -575,7 +575,7 @@ def main():
         # to reflect the environment settings
         build_tool = os.environ.get("AMPLAB_JENKINS_BUILD_TOOL", "sbt")
         hadoop_version = os.environ.get("AMPLAB_JENKINS_BUILD_PROFILE", "hadoop2.7")
-        hive_version = os.environ.get("AMPLAB_JENKINS_BUILD_HIVE_PROFILE", "hive2.3")
+        hive_version = os.environ["AMPLAB_JENKINS_BUILD_HIVE_PROFILE"]
         test_env = "amplab_jenkins"
         # add path for Python3 in Jenkins if we're calling from a Jenkins machine
         # TODO(sknapp):  after all builds are ported to the ubuntu workers, change this to be:

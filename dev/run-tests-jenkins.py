@@ -187,6 +187,7 @@ def main():
         os.environ["AMPLAB_JENKINS_BUILD_HIVE_PROFILE"] = "hive1.2"
     if "test-hive2.3" in ghprb_pull_title:
         os.environ["AMPLAB_JENKINS_BUILD_HIVE_PROFILE"] = "hive2.3"
+    raise Exception(ghprb_pull_title)
 
     build_display_name = os.environ["BUILD_DISPLAY_NAME"]
     build_url = os.environ["BUILD_URL"]
