@@ -79,14 +79,14 @@ object CommandUtils extends Logging {
           val pathFilter = new PathFilter with Serializable {
             override def accept(path: Path): Boolean = isDataPath(path, stagingDir)
           }
-          val calcDeserFactEnabled = sessionState.conf.deserFactorStatCalcEnabled
+          val deserFactCalcEnabled = sessionState.conf.deserFactorStatCalcEnabled
           val hadoopConf = sessionState.newHadoopConf()
           val fileStatusSeq = InMemoryFileIndex.bulkListLeafFiles(
             paths, hadoopConf, pathFilter, spark, areRootPaths = true)
           fileStatusSeq.flatMap { case (_, fileStatuses) =>
             fileStatuses.map { fileStatus =>
               sizeInBytesWithDeserFactor(
-                calcDeserFactEnabled,
+                deserFactCalcEnabled,
                 hadoopConf,
                 fileStatus,
                 catalogTable.storage.serde)
@@ -154,7 +154,7 @@ object CommandUtils extends Logging {
     val stagingDir = sessionState.conf.getConfString("hive.exec.stagingdir", ".hive-staging")
     val hadoopConf = sessionState.newHadoopConf()
 
-    val calcDeserFactEnabled = sessionState.conf.deserFactorStatCalcEnabled
+    val deserFactCalcEnabled = sessionState.conf.deserFactorStatCalcEnabled
     def getSumSizeInBytesWithDeserFactor(fs: FileSystem, path: Path): SizeInBytesWithDeserFactor = {
       val fileStatus = fs.getFileStatus(path)
       if (fileStatus.isDirectory) {
@@ -167,7 +167,7 @@ object CommandUtils extends Logging {
         }
         sumSizeWithMaxDeserializationFactor(fileSizesWithDeserFactor)
       } else {
-        sizeInBytesWithDeserFactor(calcDeserFactEnabled, hadoopConf, fileStatus, serde)
+        sizeInBytesWithDeserFactor(deserFactCalcEnabled, hadoopConf, fileStatus, serde)
       }
     }
 
