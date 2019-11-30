@@ -20,8 +20,9 @@ package org.apache.spark.sql.hive.thriftserver.ui
 import java.util.{Calendar, Locale}
 import javax.servlet.http.HttpServletRequest
 
-import org.mockito.Mockito.{mock, when, RETURNS_SMART_NULLS}
+import org.mockito.Mockito.when
 import org.scalatest.BeforeAndAfter
+import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.scheduler.SparkListenerJobStart
@@ -46,7 +47,7 @@ class ThriftServerPageSuite extends SparkFunSuite with BeforeAndAfter {
    */
   private def getStatusStore: HiveThriftServer2AppStatusStore = {
     kvstore = new ElementTrackingStore(new InMemoryStore, new SparkConf())
-    val server = mock(classOf[HiveThriftServer2], RETURNS_SMART_NULLS)
+    val server = mock[HiveThriftServer2]
     val sparkConf = new SparkConf
 
     val listener = new HiveThriftServer2Listener(kvstore, sparkConf, Some(server))
@@ -71,8 +72,8 @@ class ThriftServerPageSuite extends SparkFunSuite with BeforeAndAfter {
   test("thriftserver page should load successfully") {
     val store = getStatusStore
 
-    val request = mock(classOf[HttpServletRequest])
-    val tab = mock(classOf[ThriftServerTab], RETURNS_SMART_NULLS)
+    val request = mock[HttpServletRequest]
+    val tab = mock[ThriftServerTab]
     when(tab.startTime).thenReturn(Calendar.getInstance().getTime)
     when(tab.store).thenReturn(store)
     when(tab.appName).thenReturn("testing")
@@ -97,9 +98,9 @@ class ThriftServerPageSuite extends SparkFunSuite with BeforeAndAfter {
   test("thriftserver session page should load successfully") {
     val store = getStatusStore
 
-    val request = mock(classOf[HttpServletRequest])
+    val request = mock[HttpServletRequest]
     when(request.getParameter("id")).thenReturn("sessionid")
-    val tab = mock(classOf[ThriftServerTab], RETURNS_SMART_NULLS)
+    val tab = mock[ThriftServerTab]
     when(tab.startTime).thenReturn(Calendar.getInstance().getTime)
     when(tab.store).thenReturn(store)
     when(tab.appName).thenReturn("testing")

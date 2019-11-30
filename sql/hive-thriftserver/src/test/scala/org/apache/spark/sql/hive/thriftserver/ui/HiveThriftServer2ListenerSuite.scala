@@ -19,8 +19,8 @@ package org.apache.spark.sql.hive.thriftserver.ui
 
 import java.util.Properties
 
-import org.mockito.Mockito.{mock, RETURNS_SMART_NULLS}
 import org.scalatest.BeforeAndAfter
+import org.scalatestplus.mockito.MockitoSugar.mock
 
 import org.apache.spark.{SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.internal.config.Status.{ASYNC_TRACKING_ENABLED, LIVE_ENTITY_UPDATE_PERIOD}
@@ -153,7 +153,7 @@ class HiveThriftServer2ListenerSuite extends SparkFunSuite with BeforeAndAfter {
       .set(LIVE_ENTITY_UPDATE_PERIOD, 0L)
     kvstore = new ElementTrackingStore(new InMemoryStore, sparkConf)
     if (live) {
-      val server = mock(classOf[HiveThriftServer2], RETURNS_SMART_NULLS)
+      val server = mock[HiveThriftServer2]
       val listener = new HiveThriftServer2Listener(kvstore, sparkConf, Some(server))
       (new HiveThriftServer2AppStatusStore(kvstore, Some(listener)), listener)
     } else {
