@@ -57,8 +57,6 @@ class AdaptiveQueryExecSuite
     skewData2
   }
 
-
-
   setupTestData()
 
   private def runAdaptiveAndVerifyResult(query: String): (SparkPlan, SparkPlan) = {
