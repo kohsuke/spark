@@ -94,7 +94,7 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
         validMetrics.map(stats => stats.bytesByPartitionId.length).distinct
       if (validMetrics.nonEmpty && distinctNumPreShufflePartitions.length == 1) {
         val omittedPartitions = shuffleStages(0).skewedPartitions
-        val (partitionStartIndices, partitionEndIndices) = estimatePartitionStartIndices(
+        val partitionIndices = estimatePartitionStartIndices(
           validMetrics.toArray, omittedPartitions)
         // This transformation adds new nodes, so we must use `transformUp` here.
         plan.transformUp {
@@ -103,7 +103,7 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
           // number of output partitions.
           case stage: QueryStageExec if (ShuffleQueryStageExec.isShuffleQueryStageExec(stage) &&
             !ShuffleQueryStageExec.isSkewedShuffleQueryStageExec(stage)) =>
-            CoalescedShuffleReaderExec(stage, partitionStartIndices, partitionEndIndices)
+            CoalescedShuffleReaderExec(stage, partitionIndices)
         }
       } else {
         plan
@@ -119,7 +119,7 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
   // visible for testing.
   private[sql] def estimatePartitionStartIndices(
       mapOutputStatistics: Array[MapOutputStatistics],
-      omittedPartitions: mutable.HashSet[Int] = mutable.HashSet.empty): (Array[Int], Array[Int]) = {
+      omittedPartitions: mutable.HashSet[Int] = mutable.HashSet.empty): Array[(Int, Int)] = {
     val minNumPostShufflePartitions = conf.minNumPostShufflePartitions
     val advisoryTargetPostShuffleInputSize = conf.targetPostShuffleInputSize
     // If minNumPostShufflePartitions is defined, it is possible that we need to use a
@@ -205,7 +205,7 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
       nextIndex = nextStartIndex(nextIndex + 1)
     }
     partitionEndIndices += i + 1
-    (partitionStartIndices.toArray, partitionEndIndices.toArray)
+    partitionStartIndices.zip(partitionEndIndices).toArray
   }
 }
 
@@ -218,13 +218,12 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
  */
 case class CoalescedShuffleReaderExec(
     child: SparkPlan,
-    partitionStartIndices: Array[Int],
-    partitionEndIndices: Array[Int]) extends UnaryExecNode {
+    partitionIndices: Array[(Int, Int)]) extends UnaryExecNode {
 
   override def output: Seq[Attribute] = child.output
 
   override def outputPartitioning: Partitioning = {
-    UnknownPartitioning(partitionStartIndices.length)
+    UnknownPartitioning(partitionIndices.length)
   }
 
   private var cachedShuffleRDD: ShuffledRowRDD = null
@@ -233,9 +232,9 @@ case class CoalescedShuffleReaderExec(
     if (cachedShuffleRDD == null) {
       cachedShuffleRDD = child match {
         case stage: ShuffleQueryStageExec =>
-          stage.plan.createShuffledRDD(Some(partitionStartIndices), Some(partitionEndIndices))
+          stage.plan.createShuffledRDD(Some(partitionIndices))
         case ReusedQueryStageExec(_, stage: ShuffleQueryStageExec, _) =>
-          stage.plan.createShuffledRDD(Some(partitionStartIndices), Some(partitionEndIndices))
+          stage.plan.createShuffledRDD(Some(partitionIndices))
       }
     }
     cachedShuffleRDD
