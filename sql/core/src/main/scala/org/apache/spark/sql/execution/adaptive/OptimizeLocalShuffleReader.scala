@@ -71,7 +71,7 @@ case class OptimizeLocalShuffleReader(conf: SQLConf) extends Rule[SparkPlan] {
     plan match {
       case c @ CoalescedShuffleReaderExec(q: QueryStageExec, _) =>
         LocalShuffleReaderExec(
-          q, getPartitionStartIndices(q, Some(c.partitionStartIndices.length)))
+          q, getPartitionStartIndices(q, Some(c.partitionIndices.length)))
       case q: QueryStageExec =>
         LocalShuffleReaderExec(q, getPartitionStartIndices(q, None))
     }
