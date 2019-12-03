@@ -126,15 +126,15 @@ struct<date_sub(DATE '2001-10-01', 7):date>
 -- !query 14
 select date '2001-10-01' - date '2001-09-28'
 -- !query 14 schema
-struct<subtractdates(DATE '2001-10-01', DATE '2001-09-28'):interval>
+struct<datediff(DATE '2001-10-01', DATE '2001-09-28'):int>
 -- !query 14 output
-3 days
+3
 
 
 -- !query 15
 select date'2020-01-01' - timestamp'2019-10-06 10:11:12.345678'
 -- !query 15 schema
-struct<subtracttimestamps(CAST(DATE '2020-01-01' AS TIMESTAMP), TIMESTAMP '2019-10-06 10:11:12.345678'):interval>
+struct<timestampdiff(CAST(DATE '2020-01-01' AS TIMESTAMP), TIMESTAMP('2019-10-06 10:11:12.345678')):interval>
 -- !query 15 output
 2078 hours 48 minutes 47.654322 seconds
 
@@ -142,7 +142,7 @@ struct<subtracttimestamps(CAST(DATE '2020-01-01' AS TIMESTAMP), TIMESTAMP '2019-
 -- !query 16
 select timestamp'2019-10-06 10:11:12.345678' - date'2020-01-01'
 -- !query 16 schema
-struct<subtracttimestamps(TIMESTAMP '2019-10-06 10:11:12.345678', CAST(DATE '2020-01-01' AS TIMESTAMP)):interval>
+struct<timestampdiff(TIMESTAMP '2019-10-06 10:11:12.345678', CAST(DATE '2020-01-01' AS TIMESTAMP)):interval>
 -- !query 16 output
 -2078 hours -48 minutes -47.654322 seconds
 
