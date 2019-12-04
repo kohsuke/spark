@@ -134,7 +134,7 @@ struct<datediff(DATE '2001-10-01', DATE '2001-09-28'):int>
 -- !query 15
 select date'2020-01-01' - timestamp'2019-10-06 10:11:12.345678'
 -- !query 15 schema
-struct<timestampdiff(CAST(DATE '2020-01-01' AS TIMESTAMP), TIMESTAMP('2019-10-06 10:11:12.345678')):interval>
+struct<timestampdiff(CAST(DATE '2020-01-01' AS TIMESTAMP), TIMESTAMP '2019-10-06 10:11:12.345678'):interval>
 -- !query 15 output
 2078 hours 48 minutes 47.654322 seconds
 
