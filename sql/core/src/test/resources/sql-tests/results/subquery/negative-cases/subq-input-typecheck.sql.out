@@ -135,6 +135,7 @@ WHERE
 struct<>
 -- !query 9 output
 org.apache.spark.sql.AnalysisException
+cannot resolve '(named_struct('t4a', t4.`t4a`, 't4b', t4.`t4b`, 't4c', t4.`t4c`) IN (listquery()))' due to data type mismatch:
 The data type of one or more elements in the left hand side of an IN subquery
 is not compatible with the data type of the output of the subquery
 Mismatched columns:
