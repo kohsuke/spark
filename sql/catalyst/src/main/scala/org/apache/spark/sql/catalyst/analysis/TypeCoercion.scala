@@ -472,12 +472,8 @@ object TypeCoercion {
         // RHS is the subquery output.
         val rhs = sub.output
 
-        val commonTypes = lhs.zip(rhs).flatMap {
-          case (l, r) if !l.dataType.isInstanceOf[DecimalType] &&
-            !r.dataType.isInstanceOf[DecimalType] =>
-            findCommonTypeForBinaryComparison(l.dataType, r.dataType, conf)
-              .orElse(findTightestCommonType(l.dataType, r.dataType))
-          case (l, r) => findWiderTypeForDecimal(l.dataType, r.dataType)
+        val commonTypes = lhs.zip(rhs).flatMap { case (l, r) =>
+          findWiderTypeForTwo(l.dataType, r.dataType)
         }
 
         // The number of columns/expressions must match between LHS and RHS of an
