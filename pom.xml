@@ -118,7 +118,7 @@
     <java.version>1.8</java.version>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <maven.compiler.target>${java.version}</maven.compiler.target>
-    <maven.version>3.6.2</maven.version>
+    <maven.version>3.6.3</maven.version>
     <sbt.project.name>spark</sbt.project.name>
     <slf4j.version>1.7.16</slf4j.version>
     <log4j.version>1.2.17</log4j.version>
@@ -203,6 +203,8 @@
     and ./python/setup.py too.
     -->
     <arrow.version>0.15.1</arrow.version>
+    <!-- org.fusesource.leveldbjni will be used except on arm64 platform. -->
+    <leveldbjni.group>org.fusesource.leveldbjni</leveldbjni.group>
 
     <test.java.home>${java.home}</test.java.home>
     <test.exclude.tags></test.exclude.tags>
@@ -405,6 +407,12 @@
         <scope>provided</scope>
       </dependency>
       <dependency>
+        <groupId>org.eclipse.jetty</groupId>
+        <artifactId>jetty-webapp</artifactId>
+        <version>${jetty.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
         <groupId>com.google.guava</groupId>
         <artifactId>guava</artifactId>
         <version>14.0.1</version>
@@ -531,7 +539,7 @@
         <version>${commons.httpcore.version}</version>
       </dependency>
       <dependency>
-        <groupId>org.fusesource.leveldbjni</groupId>
+        <groupId>${leveldbjni.group}</groupId>
         <artifactId>leveldbjni-all</artifactId>
         <version>1.8</version>
       </dependency>
@@ -853,7 +861,7 @@
       <dependency>
         <groupId>org.mockito</groupId>
         <artifactId>mockito-core</artifactId>
-        <version>2.28.2</version>
+        <version>3.1.0</version>
         <scope>test</scope>
       </dependency>
       <dependency>
@@ -959,6 +967,10 @@
         <scope>${hadoop.deps.scope}</scope>
         <exclusions>
           <exclusion>
+            <groupId>org.fusesource.leveldbjni</groupId>
+            <artifactId>leveldbjni-all</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>asm</groupId>
             <artifactId>asm</artifactId>
           </exclusion>
@@ -1023,6 +1035,10 @@
           <exclusion>
             <groupId>javax.ws.rs</groupId>
             <artifactId>jsr311-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-webapp</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1205,6 +1221,10 @@
         <scope>test</scope>
         <exclusions>
           <exclusion>
+            <groupId>org.fusesource.leveldbjni</groupId>
+            <artifactId>leveldbjni-all</artifactId>
+          </exclusion>
+          <exclusion>
             <groupId>asm</groupId>
             <artifactId>asm</artifactId>
           </exclusion>
@@ -1244,6 +1264,10 @@
         <version>${yarn.version}</version>
         <scope>${hadoop.deps.scope}</scope>
         <exclusions>
+          <exclusion>
+            <groupId>org.fusesource.leveldbjni</groupId>
+            <artifactId>leveldbjni-all</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>asm</groupId>
             <artifactId>asm</artifactId>
@@ -2843,24 +2867,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.antipathy</groupId>
-        <artifactId>mvn-scalafmt_2.12</artifactId>
-        <version>0.9_1.5.1</version>
-        <configuration>
-          <parameters>${scalafmt.parameters}</parameters> <!-- (Optional) Additional command line arguments -->
-          <skip>${scalafmt.skip}</skip> <!-- (Optional) skip formatting -->
-          <configLocation>dev/.scalafmt.conf</configLocation> <!-- (Optional) config locataion -->
-        </configuration>
-        <executions>
-          <execution>
-            <phase>validate</phase>
-            <goals>
-              <goal>format</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <!--
         Couple of dependencies are coming in bundle format (bundle is just a normal jar which
         contains OSGi metadata in the manifest). If one don't use OSGi, then a bundle will work as
@@ -3020,9 +3026,35 @@
       </properties>
     </profile>
 
-    <!-- Exists for backwards compatibility; profile doesn't do anything -->
     <profile>
       <id>scala-2.12</id>
+      <build>
+        <pluginManagement>
+          <plugins>
+            <!-- SPARK-29293 currently not able to update to 1.x for Scala 2.13 -->
+            <plugin>
+              <groupId>org.antipathy</groupId>
+              <artifactId>mvn-scalafmt_2.12</artifactId>
+              <version>0.12_1.5.1</version>
+              <configuration>
+                <parameters>${scalafmt.parameters}</parameters> <!-- (Optional) Additional command line arguments -->
+                <skip>${scalafmt.skip}</skip> <!-- (Optional) skip formatting -->
+                <skipSources>${scalafmt.skip}</skipSources>
+                <skipTestSources>${scalafmt.skip}</skipTestSources>
+                <configLocation>dev/.scalafmt.conf</configLocation> <!-- (Optional) config location -->
+              </configuration>
+              <executions>
+                <execution>
+                  <phase>validate</phase>
+                  <goals>
+                    <goal>format</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
     </profile>
     
     <profile>
@@ -3109,6 +3141,13 @@
     </profile>
     <profile>
       <id>sparkr</id>
+    </profile>
+    <!-- use org.openlabtesting.leveldbjni on aarch64 platform -->
+    <profile>
+      <id>aarch64</id>
+      <properties>
+        <leveldbjni.group>org.openlabtesting.leveldbjni</leveldbjni.group>
+      </properties>
     </profile>
   </profiles>
 </project>
