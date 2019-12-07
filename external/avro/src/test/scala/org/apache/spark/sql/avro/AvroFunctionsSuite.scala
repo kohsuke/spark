@@ -160,26 +160,26 @@ class AvroFunctionsSuite extends QueryTest with SharedSparkSession {
     )
     val avroStructDF = df.select(functions.to_avro('struct).as("avro"))
     val actualAvroSchema = s"""
+                             |{
+                             |  "type": "record",
+                             |  "name": "struct",
+                             |  "fields": [
+                             |    {"name": "col1", "type": "int"},
+                             |    {"name": "col2", "type": "string"}
+                             |  ]
+                             |}
+    """.stripMargin
+
+    val evolvedAvroSchema = s"""
                               |{
                               |  "type": "record",
                               |  "name": "struct",
                               |  "fields": [
                               |    {"name": "col1", "type": "int"},
-                              |    {"name": "col2", "type": "string"}
+                              |    {"name": "col2", "type": "string"},
+                              |    {"name": "col3", "type": "string", "default": ""}
                               |  ]
                               |}
-    """.stripMargin
-
-    val evolvedAvroSchema = s"""
-                               |{
-                               |  "type": "record",
-                               |  "name": "struct",
-                               |  "fields": [
-                               |    {"name": "col1", "type": "int"},
-                               |    {"name": "col2", "type": "string"},
-                               |    {"name": "col3", "type": "string", "default": ""}
-                               |  ]
-                               |}
     """.stripMargin
 
     val expected = spark.range(10).select(
@@ -193,39 +193,5 @@ class AvroFunctionsSuite extends QueryTest with SharedSparkSession {
           evolvedAvroSchema,
           Map("actualSchema" -> actualAvroSchema).asJava)),
       expected)
-  }
-
-  test("SPARK-27506: try to parse Avro message with incompatible schemas") {
-    val df = spark.range(10).select(
-      struct('id.as("col1")).as("struct")
-    )
-    val avroStructDF = df.select(functions.to_avro('struct).as("avro"))
-    val actualAvroSchema = s"""
-                              |{
-                              |  "type": "record",
-                              |  "name": "struct",
-                              |  "fields": [
-                              |    {"name": "col1", "type": "int"}
-                              |  ]
-                              |}
-    """.stripMargin
-
-    val incompatibleAvroSchema = s"""
-                                    |{
-                                    |  "type": "record",
-                                    |  "name": "struct",
-                                    |  "fields": [
-                                    |    {"name": "col1", "type": "string"}
-                                    |  ]
-                                    |}
-    """.stripMargin
-
-    intercept[SparkException] {
-      avroStructDF.select(
-        functions.from_avro(
-          'avro,
-          actualAvroSchema,
-          Map("actualSchema" -> incompatibleAvroSchema).asJava))
-    }
   }
 }
