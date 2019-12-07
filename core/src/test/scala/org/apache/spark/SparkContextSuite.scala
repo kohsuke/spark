@@ -234,63 +234,30 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext with Eventu
   }
 
   test("addFile when file path contains spaces with recursive works") {
-    val sep = File.separator
     withTempDir { dir =>
-      val mars = Utils.createTempDir(dir.getAbsolutePath + sep + "test space")
-      val spacetestfile = File.createTempFile("spacetest", "1", mars)
+      val sep = File.separator
+      val tmpDir = Utils.createTempDir(dir.getAbsolutePath + sep + "test space")
+      val tmpConfFile1 = File.createTempFile("test", ".conf", tmpDir)
 
-      try {
-        sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
-        sc.addFile(mars.getAbsolutePath, true)
+      sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
+      sc.addFile(tmpConfFile1.getAbsolutePath, true)
 
-          if (!new File(SparkFiles.get(mars.getName + sep + spacetestfile.getName)).exists()) {
-            throw new SparkException("can't access file under root added directory")
-          }
-          if (new File(SparkFiles.get(
-            dir.getName + sep + mars.getName + sep + spacetestfile.getName)).exists()) {
-            throw new SparkException("file exists that shouldn't")
-          }
-      } finally {
-        sc.stop()
-      }
+      assert(sc.listFiles().size == 1)
+      assert(sc.listFiles().head.contains(tmpConfFile1.getName))
     }
   }
 
   test("addFile when file path contains spaces without recursive works") {
     withTempDir { dir =>
       val sep = File.separator
-      val mars = Utils.createTempDir(dir.getAbsolutePath + sep + "test space")
-      val file1 = File.createTempFile("someprefix1", "somesuffix1", mars)
-      val absolutePath1 = file1.getAbsolutePath
+      val tmpDir = Utils.createTempDir(dir.getAbsolutePath + sep + "test space")
+      val tmpConfFile2 = File.createTempFile("test", ".conf", tmpDir)
 
-      try {
-        Files.write("somewords1", file1, StandardCharsets.UTF_8)
-        val length1 = file1.length()
+      sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
+      sc.addFile(tmpConfFile2.getAbsolutePath)
 
-        sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
-        sc.addFile(file1.getAbsolutePath)
-
-        sc.parallelize(Array(1), 1).map(x => {
-          val gotten1 = new File(SparkFiles.get(file1.getName))
-          if (!gotten1.exists()) {
-            throw new SparkException("file doesn't exist : " + absolutePath1)
-          }
-
-          if (length1 != gotten1.length()) {
-            throw new SparkException(
-              s"file has different length $length1 than added file ${gotten1.length()} : " +
-                absolutePath1)
-          }
-
-          if (absolutePath1 == gotten1.getAbsolutePath) {
-            throw new SparkException("file should have been copied :" + absolutePath1)
-          }
-          x
-        }).count()
-        assert(sc.listFiles().filter(_.contains("somesuffix1")).size == 1)
-      } finally {
-        sc.stop()
-      }
+      assert(sc.listFiles().size == 1)
+      assert(sc.listFiles().head.contains(tmpConfFile2.getName))
     }
   }
 
@@ -352,6 +319,20 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext with Eventu
           sc.addFile(jarPath)
           sc.addFile(jarPath)
       }
+    }
+  }
+
+  test("add jar when path contains spaces") {
+    withTempDir { dir =>
+      val sep = File.separator
+      val tmpDir = Utils.createTempDir(dir.getAbsolutePath + sep + "test space")
+      val tmpJar = File.createTempFile("test", ".jar", tmpDir)
+
+      sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
+      sc.addJar(tmpJar.getAbsolutePath)
+
+      assert(sc.listJars().size == 1)
+      assert(sc.listJars().head.contains(tmpJar.getName))
     }
   }
 
