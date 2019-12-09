@@ -35,19 +35,32 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
     case AlterTableAddColumnsStatement(
          nameParts @ NonSessionCatalog(catalog, tableName), cols) =>
       val changes = cols.map { col =>
-        TableChange.addColumn(col.name.toArray, col.dataType, true, col.comment.orNull)
+        TableChange.addColumn(
+          col.name.toArray,
+          col.dataType,
+          true,
+          col.comment.orNull,
+          col.position.orNull)
       }
       createAlterTable(nameParts, catalog, tableName, changes)
 
     case AlterTableAlterColumnStatement(
-         nameParts @ NonSessionCatalog(catalog, tableName), colName, dataType, comment) =>
+         nameParts @ NonSessionCatalog(catalog, tableName), colName, dataType, comment, position) =>
+      val nameParts = colName.toArray
       val typeChange = dataType.map { newDataType =>
-        TableChange.updateColumnType(colName.toArray, newDataType, true)
+        TableChange.updateColumnType(nameParts, newDataType, true)
       }
       val commentChange = comment.map { newComment =>
-        TableChange.updateColumnComment(colName.toArray, newComment)
+        TableChange.updateColumnComment(nameParts, newComment)
       }
-      createAlterTable(nameParts, catalog, tableName, typeChange.toSeq ++ commentChange)
+      val positionChange = position.map { newPosition =>
+        TableChange.updateColumnPosition(nameParts, newPosition)
+      }
+      createAlterTable(
+        nameParts,
+        catalog,
+        tableName,
+        typeChange.toSeq ++ commentChange ++ positionChange)
 
     case AlterTableRenameColumnStatement(
          nameParts @ NonSessionCatalog(catalog, tableName), col, newName) =>
