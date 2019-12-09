@@ -160,6 +160,19 @@ class IntervalUtilsSuite extends SparkFunSuite {
     }
   }
 
+  test("from year-month: whitespaces") {
+    assert(fromYearMonthString("99-10 ") === new CalendarInterval(99 * 12 + 10, 0, 0L))
+    assert(fromYearMonthString("+99-10\t") === new CalendarInterval(99 * 12 + 10, 0, 0L))
+    assert(fromYearMonthString("\t-\t8-10\t") === new CalendarInterval(-8 * 12 - 10, 0, 0L))
+    try {
+      fromYearMonthString("99\t-15")
+      fail("Expected to throw an exception for the invalid input")
+    } catch {
+      case e: IllegalArgumentException =>
+        assert(e.getMessage.contains("Interval string does not match year-month format"))
+    }
+  }
+
   test("from day-time string") {
     assert(fromDayTimeString("5 12:40:30.999999999") ===
       new CalendarInterval(
@@ -197,6 +210,23 @@ class IntervalUtilsSuite extends SparkFunSuite {
     } catch {
       case e: IllegalArgumentException =>
         assert(e.getMessage.contains("Cannot support (interval"))
+    }
+  }
+
+  test("from day-time string: whitespaces") {
+    assert(fromDayTimeString("\r+\n\t5\t 12:40:30.999999999\n") ===
+      new CalendarInterval(
+        0,
+        5,
+        12 * MICROS_PER_HOUR +
+          40 * MICROS_PER_MINUTE +
+          30 * MICROS_PER_SECOND + 999999L))
+    try {
+      fromDayTimeString("5 1\t:12:20", DAY, SECOND)
+      fail("Expected to throw an exception for the invalid convention type")
+    } catch {
+      case e: IllegalArgumentException =>
+        assert(e.getMessage.contains("Interval string must match day-time format"))
     }
   }
 

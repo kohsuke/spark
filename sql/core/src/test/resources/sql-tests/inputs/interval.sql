@@ -264,3 +264,7 @@ select interval 'interval \t 1\tday';
 select interval 'interval\t1\tday';
 select interval '1\t' day;
 select interval '1 ' day;
+select interval '2-2\t' year to month;
+select interval '-\t2-2\t' year to month;
+select interval '\n0 12:34:46.789\t' day to second;
+select interval '\n-\t10\t 12:34:46.789\t' day to second;

@@ -113,7 +113,7 @@ object IntervalUtils {
     result
   }
 
-  private val yearMonthPattern = "^([+|-])?(\\d+)-(\\d+)$".r
+  private val yearMonthPattern = "^([+|-])?(\\s+)?(\\d+)-(\\d+)$".r
 
   /**
    * Parse YearMonth string in form: [+|-]YYYY-MM
@@ -134,11 +134,10 @@ object IntervalUtils {
             s"Error parsing interval year-month string: ${e.getMessage}", e)
       }
     }
-    assert(input.length == input.trim.length)
-    input match {
-      case yearMonthPattern("-", yearStr, monthStr) =>
+    input.trim match {
+      case yearMonthPattern("-", _, yearStr, monthStr) =>
         negate(toInterval(yearStr, monthStr))
-      case yearMonthPattern(_, yearStr, monthStr) =>
+      case yearMonthPattern(_, _, yearStr, monthStr) =>
         toInterval(yearStr, monthStr)
       case _ =>
         throw new IllegalArgumentException(
@@ -156,7 +155,7 @@ object IntervalUtils {
   }
 
   private val dayTimePattern =
-    "^([+|-])?((\\d+) )?((\\d+):)?(\\d+):(\\d+)(\\.(\\d+))?$".r
+    "^([+|-](\\s+)?)?((\\d+)\\s+)?((\\d+):)?(\\d+):(\\d+)(\\.(\\d+))?$".r
 
   /**
    * Parse dayTime string in form: [-]d HH:mm:ss.nnnnnnnnn and [-]HH:mm:ss.nnnnnnnnn
@@ -169,33 +168,32 @@ object IntervalUtils {
    */
   def fromDayTimeString(input: String, from: IntervalUnit, to: IntervalUnit): CalendarInterval = {
     require(input != null, "Interval day-time string must be not null")
-    assert(input.length == input.trim.length)
-    val m = dayTimePattern.pattern.matcher(input)
+    val m = dayTimePattern.pattern.matcher(input.trim)
     require(m.matches, s"Interval string must match day-time format of 'd h:m:s.n': $input")
 
     try {
-      val sign = if (m.group(1) != null && m.group(1) == "-") -1 else 1
-      val days = if (m.group(2) == null) {
+      val sign = if (m.group(1) != null && m.group(1).trim == "-") -1 else 1
+      val days = if (m.group(3) == null) {
         0
       } else {
-        toLongWithRange(DAY, m.group(3), 0, Integer.MAX_VALUE).toInt
+        toLongWithRange(DAY, m.group(4), 0, Integer.MAX_VALUE).toInt
       }
       var hours: Long = 0L
       var minutes: Long = 0L
       var seconds: Long = 0L
-      if (m.group(5) != null || from == MINUTE) { // 'HH:mm:ss' or 'mm:ss minute'
-        hours = toLongWithRange(HOUR, m.group(5), 0, 23)
-        minutes = toLongWithRange(MINUTE, m.group(6), 0, 59)
-        seconds = toLongWithRange(SECOND, m.group(7), 0, 59)
-      } else if (m.group(8) != null) { // 'mm:ss.nn'
-        minutes = toLongWithRange(MINUTE, m.group(6), 0, 59)
-        seconds = toLongWithRange(SECOND, m.group(7), 0, 59)
-      } else { // 'HH:mm'
+      if (m.group(6) != null || from == MINUTE) { // 'HH:mm:ss' or 'mm:ss minute'
         hours = toLongWithRange(HOUR, m.group(6), 0, 23)
-        minutes = toLongWithRange(SECOND, m.group(7), 0, 59)
+        minutes = toLongWithRange(MINUTE, m.group(7), 0, 59)
+        seconds = toLongWithRange(SECOND, m.group(8), 0, 59)
+      } else if (m.group(9) != null) { // 'mm:ss.nn'
+        minutes = toLongWithRange(MINUTE, m.group(7), 0, 59)
+        seconds = toLongWithRange(SECOND, m.group(8), 0, 59)
+      } else { // 'HH:mm'
+        hours = toLongWithRange(HOUR, m.group(7), 0, 23)
+        minutes = toLongWithRange(SECOND, m.group(8), 0, 59)
       }
       // Hive allow nanosecond precision interval
-      var secondsFraction = parseNanos(m.group(9), seconds < 0)
+      var secondsFraction = parseNanos(m.group(10), seconds < 0)
       to match {
         case HOUR =>
           minutes = 0
