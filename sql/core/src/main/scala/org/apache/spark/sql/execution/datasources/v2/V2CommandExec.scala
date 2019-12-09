@@ -48,7 +48,12 @@ abstract class V2CommandExec extends LeafExecNode {
 
   override def executeTake(limit: Int): Array[InternalRow] = result.take(limit).toArray
 
-  override def executeTail(limit: Int): Array[InternalRow] = result.reverse.take(limit).toArray
+  override def executeTail(limit: Int): Array[InternalRow] = {
+    val slidingIter = result.sliding(limit)
+    var taken: Seq[InternalRow] = Seq.empty[InternalRow]
+    while(slidingIter.hasNext) { taken = slidingIter.next() }
+    taken.toArray
+  }
 
   protected override def doExecute(): RDD[InternalRow] = {
     sqlContext.sparkContext.parallelize(result, 1)
