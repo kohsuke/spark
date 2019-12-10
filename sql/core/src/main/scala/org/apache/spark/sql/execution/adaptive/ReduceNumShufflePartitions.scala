@@ -19,7 +19,6 @@ package org.apache.spark.sql.execution.adaptive
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
-
 import org.apache.spark.MapOutputStatistics
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -29,6 +28,8 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ShuffledRowRDD, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.ThreadUtils
+
+import scala.collection.mutable
 
 /**
  * A rule to adjust the post shuffle partitions based on the map output statistics.
@@ -65,7 +66,7 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
 
     def collectShuffleStages(plan: SparkPlan): Seq[ShuffleQueryStageExec] = plan match {
       case _: LocalShuffleReaderExec => Nil
-      case _: PostShufflePartitionReader => Nil
+      case _: SkewedShufflePartitionReader => Nil
       case stage: ShuffleQueryStageExec => Seq(stage)
       case ReusedQueryStageExec(_, stage: ShuffleQueryStageExec, _) => Seq(stage)
       case _ => plan.children.flatMap(collectShuffleStages)
@@ -92,25 +93,25 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
       val distinctNumPreShufflePartitions =
         validMetrics.map(stats => stats.bytesByPartitionId.length).distinct
       if (validMetrics.nonEmpty && distinctNumPreShufflePartitions.length == 1) {
-        // This transformation adds new nodes, so we must use `transformUp` here.
+        val visitedStage = mutable.HashSet[QueryStageExec]()
         plan.transformDown {
           // even for shuffle exchange whose input RDD has 0 partition, we should still update its
           // `partitionStartIndices`, so that all the leaf shuffles in a stage have the same
           // number of output partitions.
           case stage: QueryStageExec if (ShuffleQueryStageExec.isShuffleQueryStageExec(stage) &&
-            !stage.visited) =>
-            stage.visited = true
-            val partitionIndices = estimatePartitionStartIndices(
+            !visitedStage.contains(stage)) =>
+            visitedStage += stage
+            val partitionIndices = estimatePartitionStartAndEndIndices(
               validMetrics.toArray, (0 until (validMetrics(0).bytesByPartitionId.length)).toArray)
             CoalescedShuffleReaderExec(stage, partitionIndices)
-          case partialReader: PartialShufflePartitionReader =>
-            partialReader.child.visited = true
-            val optimizedPartitionIndices = estimatePartitionStartIndices(
-              validMetrics.toArray, partialReader.partitionIndices.unzip._1)
+          case partialReader: PartialShuffleReader =>
+            visitedStage += partialReader.child
+            val optimizedPartitionIndices = estimatePartitionStartAndEndIndices(
+              validMetrics.toArray, partialReader.partitionRanges.unzip._1)
             CoalescedShuffleReaderExec(partialReader.child, optimizedPartitionIndices)
-          case postReader: PostShufflePartitionReader =>
-            postReader.child.visited = true
-            postReader
+          case skewedReader: SkewedShufflePartitionReader =>
+            visitedStage += skewedReader.child
+            skewedReader
         }
       } else {
         plan
@@ -124,7 +125,7 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
    * already handled in skewed partition optimization.
    */
   // visible for testing.
-  private[sql] def estimatePartitionStartIndices(
+  private[sql] def estimatePartitionStartAndEndIndices(
       mapOutputStatistics: Array[MapOutputStatistics],
       validPartitions: Array[Int]): Array[(Int, Int)] = {
     val minNumPostShufflePartitions = conf.minNumPostShufflePartitions
@@ -163,52 +164,28 @@ case class ReduceNumShufflePartitions(conf: SQLConf) extends Rule[SparkPlan] {
     val partitionStartIndices = ArrayBuffer[Int]()
     val partitionEndIndices = ArrayBuffer[Int]()
 
-    def nextStartIndex(i: Int): Int = {
-      if (i == validPartitions.length - 1) i else i + 1
-    }
-
-    def partitionSize(partitionId: Int): Long = {
-      var size = 0L
-      var j = 0
-      while (j < mapOutputStatistics.length) {
-        val statistics = mapOutputStatistics(j)
-        size += statistics.bytesByPartitionId(partitionId)
-        j += 1
-      }
-      size
-    }
-    var j = 0
-    val firstStartIndex = validPartitions(j)
-
+    val firstStartIndex = validPartitions(0)
     partitionStartIndices += firstStartIndex
-
-    var postShuffleInputSize = partitionSize(firstStartIndex)
-
+    var postShuffleInputSize = mapOutputStatistics.map(_.bytesByPartitionId(firstStartIndex)).sum
     var i = firstStartIndex
-    j = nextStartIndex(j)
-    var nextIndex = validPartitions(j)
-    var k = 1
-    while (k < validPartitions.length) {
-      // We calculate the total size of ith pre-shuffle partitions from all pre-shuffle stages.
-      // Then, we add the total size to postShuffleInputSize.
-      var nextShuffleInputSize = partitionSize(nextIndex)
-
-      // If including the nextShuffleInputSize would exceed the target partition size, then start a
-      // new partition.
-      if (nextIndex != i + 1 ||
-        (postShuffleInputSize + nextShuffleInputSize > targetPostShuffleInputSize)) {
-        partitionEndIndices += i + 1
-        partitionStartIndices += nextIndex
-        // reset postShuffleInputSize.
-        postShuffleInputSize = nextShuffleInputSize
-        i = nextIndex
-      } else {
-        postShuffleInputSize += nextShuffleInputSize
-        i += 1
-      }
-      k += 1
-      j = nextStartIndex(j)
-      nextIndex = validPartitions(j)
+    validPartitions.filter(_ != firstStartIndex).foreach {
+      nextPartitionIndices =>
+        var nextShuffleInputSize =
+          mapOutputStatistics.map(_.bytesByPartitionId(nextPartitionIndices)).sum
+        // If nextPartitionIndices is skewed and omitted, or including
+        // the nextShuffleInputSize would exceed the target partition size,
+        // then start a new partition.
+        if (nextPartitionIndices != i + 1 ||
+          (postShuffleInputSize + nextShuffleInputSize > targetPostShuffleInputSize)) {
+          partitionEndIndices += i + 1
+          partitionStartIndices += nextPartitionIndices
+          // reset postShuffleInputSize.
+          postShuffleInputSize = nextShuffleInputSize
+          i = nextPartitionIndices
+        } else {
+          postShuffleInputSize += nextShuffleInputSize
+          i += 1
+        }
     }
     partitionEndIndices += i + 1
     partitionStartIndices.zip(partitionEndIndices).toArray
