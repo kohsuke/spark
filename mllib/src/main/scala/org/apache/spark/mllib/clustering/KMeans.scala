@@ -293,9 +293,9 @@ class KMeans private (
         }
 
         counts.indices.filter(counts(_) > 0).map(j => (j, (sums(j), counts(j)))).iterator
-      }.reduceByKey { case ((sum1, count1), (sum2, count2)) =>
-        axpy(1.0, sum2, sum1)
-        (sum1, count1 + count2)
+      }.reduceByKey { (sumcount1, sumcount2) =>
+        axpy(1.0, sumcount2._1, sumcount1._1)
+        (sumcount1._1, sumcount1._2 + sumcount2._2)
       }.collectAsMap()
 
       if (iteration == 0) {
