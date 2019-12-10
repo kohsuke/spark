@@ -17,8 +17,10 @@
 
 package org.apache.spark.sql.execution.adaptive
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration.Duration
+
 import org.apache.spark.MapOutputStatistics
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -28,8 +30,6 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.{ShuffledRowRDD, SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.util.ThreadUtils
-
-import scala.collection.mutable
 
 /**
  * A rule to adjust the post shuffle partitions based on the map output statistics.
