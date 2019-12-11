@@ -1555,7 +1555,7 @@ class SparkContext(config: SparkConf) extends Logging {
     val key = if (!isLocal && scheme == "file") {
       env.rpcEnv.fileServer.addFile(new File(uri.getPath))
     } else {
-      new File(path).getCanonicalFile.toURI.toString
+      schemeCorrectedPath
     }
     val timestamp = System.currentTimeMillis
     if (addedFiles.putIfAbsent(key, timestamp).isEmpty) {
