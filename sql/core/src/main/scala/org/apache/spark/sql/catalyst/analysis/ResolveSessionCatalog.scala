@@ -474,13 +474,13 @@ class ResolveSessionCatalog(
 
     case DescribeFunctionStatement(CatalogAndIdentifierParts(catalog, functionName), extended) =>
       val functionIdentifier = if (isSessionCatalog(catalog)) {
-          functionName match {
-            case Seq(db, fn) => FunctionIdentifier(fn, Some(db))
-            case Seq(fn) => FunctionIdentifier(fn, None)
-            case _ =>
-              throw new AnalysisException(s"Unsupported function name '${functionName.quoted}'")
-          }
-        } else {
+        functionName match {
+          case Seq(db, fn) => FunctionIdentifier(fn, Some(db))
+          case Seq(fn) => FunctionIdentifier(fn, None)
+          case _ =>
+            throw new AnalysisException(s"Unsupported function name '${functionName.quoted}'")
+        }
+      } else {
         throw new AnalysisException ("DESCRIBE FUNCTION is only supported in v1 catalog")
       }
       DescribeFunctionCommand(functionIdentifier, extended)

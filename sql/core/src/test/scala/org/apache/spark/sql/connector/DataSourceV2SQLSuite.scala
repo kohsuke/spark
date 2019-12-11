@@ -1799,14 +1799,14 @@ class DataSourceV2SQLSuite
     }
   }
 
-  test("DESCRIBE FUNCTION not valid v1 namespace") {
+  test("DESCRIBE FUNCTION: only support session catalog") {
     val e = intercept[AnalysisException] {
-      sql(s"DESCRIBE FUNCTION testcat.ns1.ns2.fun")
+      sql("DESCRIBE FUNCTION testcat.ns1.ns2.fun")
     }
     assert(e.message.contains("DESCRIBE FUNCTION is only supported in v1 catalog"))
 
     val e1 = intercept[AnalysisException] {
-      sql(s"DESCRIBE FUNCTION default.ns1.ns2.fun")
+      sql("DESCRIBE FUNCTION default.ns1.ns2.fun")
     }
     assert(e1.message.contains("Unsupported function name 'default.ns1.ns2.fun'"))
   }
