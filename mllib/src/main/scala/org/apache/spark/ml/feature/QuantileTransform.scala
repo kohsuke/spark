@@ -141,37 +141,42 @@ class QuantileTransform(override val uid: String)
       case Row(vec: Vector) => vec
     }
     val numFeatures = vectors.first().size
+    val scale = math.max(math.ceil(math.sqrt(vectors.getNumPartitions)).toInt, 2)
 
-    val collected = vectors.flatMap { vec =>
-      require(vec.size == numFeatures,
-        s"Number of dimensions must be $numFeatures but got ${vec.size}")
-      if (localSkipZero) {
-        val activeIter = vec match {
-          case DenseVector(values) =>
-            Iterator.range(0, numFeatures).map { i => (i, values(i)) }
-          case SparseVector(_, indices, values) =>
-            Iterator.range(0, indices.length).map { i => (indices(i), values(i)) }
+    val quantiles = vectors.mapPartitionsWithIndex { case (pid, iter) =>
+      val p = pid % scale
+      iter.flatMap { vec =>
+        require(vec.size == numFeatures,
+          s"Number of dimensions must be $numFeatures but got ${vec.size}")
+        if (localSkipZero) {
+          val activeIter = vec match {
+            case DenseVector(values) =>
+              Iterator.range(0, numFeatures).map { i => (i, values(i)) }
+            case SparseVector(_, indices, values) =>
+              Iterator.range(0, indices.length).map { i => (indices(i), values(i)) }
+          }
+          activeIter.filter { case (_, v) => v != 0 && !v.isNaN }
+        } else {
+          Iterator.range(0, numFeatures)
+            .map(i => (i, vec(i)))
+            .filter(!_._2.isNaN)
         }
-        activeIter.filter { case (_, v) => v != 0 && !v.isNaN }
-      } else {
-        Iterator.range(0, numFeatures)
-          .map(i => (i, vec(i)))
-          .filter(!_._2.isNaN)
-      }
+      }.map { case (i, v) => ((p, i), v) }
     }.aggregateByKey(
       new QuantileSummaries(QuantileSummaries.defaultCompressThreshold, localRelativeError))(
       seqOp = (s, v) => s.insert(v),
       combOp = (s1, s2) => s1.compress.merge(s2.compress)
-    ).mapValues { s =>
+    ).map { case ((_, i), s) => (i, s)
+    }.reduceByKey { case (s1, s2) => s1.compress.merge(s2.compress)
+    }.mapValues { s =>
       // confirm compression before query
       val s2 = s.compress
       val q = Array.tabulate(n)(i => s2.query(i.toDouble / (n - 1)).get)
       Vectors.dense(q)
-    }.collect().sortBy(_._1)
-    require(collected.length == numFeatures,
+    }.sortBy(_._1).values.collect()
+    require(quantiles.length == numFeatures,
       "QuantileSummaries on some dimensions were not computed")
 
-    val quantiles = collected.map(_._2)
     copyValues(new QuantileTransformModel(uid, quantiles)
       .setParent(this))
   }
