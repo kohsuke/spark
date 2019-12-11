@@ -2807,7 +2807,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     ctx.position.getType match {
       case SqlBaseParser.FIRST => ColumnPosition.FIRST
       case SqlBaseParser.AFTER =>
-        ColumnPosition.After(typedVisit[Seq[String]](ctx.multipartIdentifier).toArray)
+        ColumnPosition.createAfter(ctx.afterCol.getText)
     }
   }
 
