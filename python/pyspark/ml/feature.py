@@ -2887,10 +2887,11 @@ class _QuantileTransformParams(HasInputCol, HasOutputCol, HasRelativeError):
     """
     numQuantiles = Param(Params._dummy(), "numQuantiles", "Number of quantiles to be computed",
                          typeConverter=TypeConverters.toInt)
-    distribution = Param(Params._dummy(), "distribution", "Marginal distribution for the transformed data",
-                         typeConverter=TypeConverters.toString)
-    skipZero = Param(Params._dummy(), "skipZero", "Whether the zero entries of the input are discarded "
-                     "to compute the quantile statistics", typeConverter=TypeConverters.toBoolean)
+    distribution = Param(Params._dummy(), "distribution", "Marginal distribution for the " +
+                         "transformed data", typeConverter=TypeConverters.toString)
+    skipZero = Param(Params._dummy(), "skipZero", "Whether the zero entries of the input are " +
+                     "discarded to compute the quantile statistics",
+                     typeConverter=TypeConverters.toBoolean)
 
     @since("3.0.0")
     def getNumQuantiles(self):

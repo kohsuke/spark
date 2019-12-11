@@ -34,7 +34,7 @@ if __name__ == "__main__":
             (1, Vectors.dense([1.0, -1.0]),),
             (2, Vectors.dense([2.0, -2.0]),),
             (3, Vectors.dense([3.0, -3.0]),),
-            (4, Vectors.dense([4.0, -4.0]),),]
+            (4, Vectors.dense([4.0, -4.0]),)]
     df = spark.createDataFrame(data, ["id", "features"])
 
     qt = QuantileTransform(distribution="gaussian", inputCol="features",
