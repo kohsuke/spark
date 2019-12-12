@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, DataOutputStream}
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 import org.apache.spark.{broadcast, SparkEnv}
 import org.apache.spark.internal.Logging
@@ -434,7 +434,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
 
     val childRDD = getByteArrayRdd(n, reverse)
 
-    val buf = new ArrayBuffer[InternalRow]
+    val buf = if (reverse) new ListBuffer[InternalRow] else new ArrayBuffer[InternalRow]
     val totalParts = childRDD.partitions.length
     var partsScanned = 0
     while (buf.length < n && partsScanned < totalParts) {
@@ -474,13 +474,13 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
         while (buf.length < n && i < res.length) {
           val rows = decodeUnsafeRows(res(i)._2)
           if (n - buf.length >= res(i)._1) {
-            buf.insertAll(0, rows.toArray[InternalRow])
+            buf.prepend(rows.toArray[InternalRow]: _*)
           } else {
             val dropUntil = math.max(res(i)._1 - n - buf.length, 0L)
             // Same as Iterator.drop but this only takes a long.
             var j: Long = 0L
             while (j < dropUntil) { rows.next(); j += 1L}
-            buf.insertAll(0, rows.toArray[InternalRow])
+            buf.prepend(rows.toArray[InternalRow]: _*)
           }
           i += 1
         }

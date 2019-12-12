@@ -75,37 +75,15 @@ case class CollectTailExec(limit: Int, child: SparkPlan) extends LimitExec {
   override def output: Seq[Attribute] = child.output
   override def outputPartitioning: Partitioning = SinglePartition
   override def executeCollect(): Array[InternalRow] = child.executeTail(limit)
-  private val serializer: Serializer = new UnsafeRowSerializer(child.output.size)
-  private lazy val writeMetrics =
-    SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
-  private lazy val readMetrics =
-    SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
-  override lazy val metrics = readMetrics ++ writeMetrics
   protected override def doExecute(): RDD[InternalRow] = {
-    val locallyLimited = child.execute().mapPartitionsInternal { iter =>
-      var last: Seq[InternalRow] = Seq.empty[InternalRow]
-      if (limit > 0) {
-        val slidingIter = iter.sliding(limit)
-        while (slidingIter.hasNext) { last = slidingIter.next() }
-      }
-      last.toIterator
-    }
-    val shuffled = new ShuffledRowRDD(
-      ShuffleExchangeExec.prepareShuffleDependency(
-        locallyLimited,
-        child.output,
-        SinglePartition,
-        serializer,
-        writeMetrics),
-      readMetrics)
-    shuffled.mapPartitionsInternal { iter =>
-      var last: Seq[InternalRow] = Seq.empty[InternalRow]
-      if (limit > 0) {
-        val slidingIter = iter.sliding(limit)
-        while (slidingIter.hasNext) { last = slidingIter.next() }
-      }
-      last.toIterator
-    }
+    // This is a bit hacky way to avoid a shuffle and scanning all data when it performs
+    // at `Dataset.tail`.
+    // Since this execution plan and `execute` are currently called only when
+    // `Dataset.tail` is invoked, the jobs are always executed when they are supposed to be.
+
+    // If we use this execution plan separately like `Dataset.limit` without an actual
+    // job launch, we might just have to mimic the implementation of `CollectLimitExec`.
+    sparkContext.parallelize(executeCollect(), numSlices = 1)
   }
 }
 
