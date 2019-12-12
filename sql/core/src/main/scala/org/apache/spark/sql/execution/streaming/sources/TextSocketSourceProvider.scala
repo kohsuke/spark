@@ -54,7 +54,8 @@ class TextSocketSourceProvider extends TableProvider with DataSourceRegister wit
     }
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
+    val options = new CaseInsensitiveStringMap(properties)
     checkParameters(options)
     new TextSocketTable(
       options.get("host"),

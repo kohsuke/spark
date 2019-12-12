@@ -20,8 +20,10 @@ package org.apache.spark.sql.execution.datasources.v2
 import java.util.regex.Pattern
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.connector.catalog.{SessionConfigSupport, TableProvider}
+import org.apache.spark.sql.connector.catalog.{SessionConfigSupport, SupportsExternalMetadata, Table, TableProvider}
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 private[sql] object DataSourceV2Utils extends Logging {
 
@@ -55,6 +57,23 @@ private[sql] object DataSourceV2Utils extends Logging {
         }
 
       case _ => Map.empty
+    }
+  }
+
+  def getTableFromProvider(
+      provider: TableProvider,
+      options: CaseInsensitiveStringMap,
+      userSpecifiedSchema: Option[StructType]): Table = {
+    userSpecifiedSchema match {
+      case Some(schema) =>
+        if (!provider.isInstanceOf[SupportsExternalMetadata]) {
+          throw new UnsupportedOperationException(
+            s"${provider.getClass.getSimpleName} source does not support user-specified schema.")
+        }
+        val p = provider.asInstanceOf[SupportsExternalMetadata]
+        p.getTable(schema, p.inferPartitioning(options), options.asCaseSensitiveMap())
+
+      case None => provider.getTable(options.asCaseSensitiveMap())
     }
   }
 }

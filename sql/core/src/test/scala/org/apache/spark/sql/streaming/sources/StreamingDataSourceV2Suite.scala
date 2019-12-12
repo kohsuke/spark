@@ -99,8 +99,8 @@ class FakeReadMicroBatchOnly
 
   override def keyPrefix: String = shortName()
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
-    LastReadOptions.options = options
+  override def getTable(properties: util.Map[String, String]): Table = {
+    LastReadOptions.options = properties
     new Table with SupportsRead {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Seq())
@@ -122,8 +122,8 @@ class FakeReadContinuousOnly
 
   override def keyPrefix: String = shortName()
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
-    LastReadOptions.options = options
+  override def getTable(properties: util.Map[String, String]): Table = {
+    LastReadOptions.options = properties
     new Table with SupportsRead {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Seq())
@@ -140,7 +140,7 @@ class FakeReadContinuousOnly
 class FakeReadBothModes extends DataSourceRegister with TableProvider {
   override def shortName(): String = "fake-read-microbatch-continuous"
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
     new Table with SupportsRead {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Seq())
@@ -157,7 +157,7 @@ class FakeReadBothModes extends DataSourceRegister with TableProvider {
 class FakeReadNeitherMode extends DataSourceRegister with TableProvider {
   override def shortName(): String = "fake-read-neither-mode"
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
     new Table {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Nil)
@@ -174,8 +174,8 @@ class FakeWriteOnly
 
   override def keyPrefix: String = shortName()
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
-    LastWriteOptions.options = options
+  override def getTable(properties: util.Map[String, String]): Table = {
+    LastWriteOptions.options = properties
     new Table with FakeStreamingWriteTable {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Nil)
@@ -185,7 +185,7 @@ class FakeWriteOnly
 
 class FakeNoWrite extends DataSourceRegister with TableProvider {
   override def shortName(): String = "fake-write-neither-mode"
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
     new Table {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Nil)
@@ -213,7 +213,7 @@ class FakeWriteSupportProviderV1Fallback extends DataSourceRegister
 
   override def shortName(): String = "fake-write-v1-fallback"
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
     new Table with FakeStreamingWriteTable {
       override def name(): String = "fake"
       override def schema(): StructType = StructType(Nil)
@@ -222,7 +222,7 @@ class FakeWriteSupportProviderV1Fallback extends DataSourceRegister
 }
 
 object LastReadOptions {
-  var options: CaseInsensitiveStringMap = _
+  var options: util.Map[String, String] = _
 
   def clear(): Unit = {
     options = null
@@ -230,7 +230,7 @@ object LastReadOptions {
 }
 
 object LastWriteOptions {
-  var options: CaseInsensitiveStringMap = _
+  var options: util.Map[String, String] = _
 
   def clear(): Unit = {
     options = null
@@ -348,7 +348,7 @@ class StreamingDataSourceV2Suite extends StreamTest {
           eventually(timeout(streamingTimeout)) {
             // Write options should not be set.
             assert(!LastWriteOptions.options.containsKey(readOptionName))
-            assert(LastReadOptions.options.getBoolean(readOptionName, false))
+            assert(LastReadOptions.options.get(readOptionName) == "true")
           }
         }
       }
@@ -359,7 +359,7 @@ class StreamingDataSourceV2Suite extends StreamTest {
           eventually(timeout(streamingTimeout)) {
             // Read options should not be set.
             assert(!LastReadOptions.options.containsKey(writeOptionName))
-            assert(LastWriteOptions.options.getBoolean(writeOptionName, false))
+            assert(LastWriteOptions.options.get(writeOptionName) == "true")
           }
         }
       }

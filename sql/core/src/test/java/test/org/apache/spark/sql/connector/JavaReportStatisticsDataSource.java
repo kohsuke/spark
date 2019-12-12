@@ -17,6 +17,7 @@
 
 package test.org.apache.spark.sql.connector;
 
+import java.util.Map;
 import java.util.OptionalLong;
 
 import org.apache.spark.sql.connector.catalog.Table;
@@ -54,7 +55,7 @@ public class JavaReportStatisticsDataSource implements TableProvider {
   }
 
   @Override
-  public Table getTable(CaseInsensitiveStringMap options) {
+  public Table getTable(Map<String, String> properties) {
     return new JavaSimpleBatchTable() {
       @Override
       public ScanBuilder newScanBuilder(CaseInsensitiveStringMap options) {

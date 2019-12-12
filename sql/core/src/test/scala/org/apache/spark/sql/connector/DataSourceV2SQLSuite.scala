@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.connector
 
+import java.util
+
 import scala.collection.JavaConverters._
 
 import org.apache.spark.SparkException
@@ -1896,7 +1898,7 @@ class DataSourceV2SQLSuite
 
 /** Used as a V2 DataSource for V2SessionCatalog DDL */
 class FakeV2Provider extends TableProvider {
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
     throw new UnsupportedOperationException("Unnecessary for DDL tests")
   }
 }

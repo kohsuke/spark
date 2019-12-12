@@ -48,7 +48,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 class RateStreamProvider extends TableProvider with DataSourceRegister {
   import RateStreamProvider._
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
+    val options = new CaseInsensitiveStringMap(properties)
     val rowsPerSecond = options.getLong(ROWS_PER_SECOND, 1)
     if (rowsPerSecond <= 0) {
       throw new IllegalArgumentException(

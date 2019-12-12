@@ -28,8 +28,9 @@ import test.org.apache.spark.sql.connector._
 import org.apache.spark.SparkException
 import org.apache.spark.sql.{AnalysisException, DataFrame, QueryTest, Row}
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability, TableProvider}
+import org.apache.spark.sql.connector.catalog.{SupportsExternalMetadata, SupportsRead, Table, TableCapability, TableProvider}
 import org.apache.spark.sql.connector.catalog.TableCapability._
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.connector.read.partitioning.{ClusteredDistribution, Distribution, Partitioning}
 import org.apache.spark.sql.execution.datasources.v2.{BatchScanExec, DataSourceV2Relation, DataSourceV2ScanRelation}
@@ -444,7 +445,7 @@ class SimpleSinglePartitionSource extends TableProvider {
     }
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = new SimpleBatchTable {
+  override def getTable(properties: util.Map[String, String]): Table = new SimpleBatchTable {
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
       new MyScanBuilder()
     }
@@ -461,7 +462,7 @@ class SimpleDataSourceV2 extends TableProvider {
     }
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = new SimpleBatchTable {
+  override def getTable(properties: util.Map[String, String]): Table = new SimpleBatchTable {
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
       new MyScanBuilder()
     }
@@ -470,7 +471,7 @@ class SimpleDataSourceV2 extends TableProvider {
 
 class AdvancedDataSourceV2 extends TableProvider {
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = new SimpleBatchTable {
+  override def getTable(properties: util.Map[String, String]): Table = new SimpleBatchTable {
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
       new AdvancedScanBuilder()
     }
@@ -558,7 +559,7 @@ class AdvancedReaderFactory(requiredSchema: StructType) extends PartitionReaderF
 }
 
 
-class SchemaRequiredDataSource extends TableProvider {
+class SchemaRequiredDataSource extends TableProvider with SupportsExternalMetadata {
 
   class MyScanBuilder(schema: StructType) extends SimpleScanBuilder {
     override def planInputPartitions(): Array[InputPartition] = Array.empty
@@ -566,11 +567,19 @@ class SchemaRequiredDataSource extends TableProvider {
     override def readSchema(): StructType = schema
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType = {
     throw new IllegalArgumentException("requires a user-supplied schema")
   }
 
-  override def getTable(options: CaseInsensitiveStringMap, schema: StructType): Table = {
+  override def inferPartitioning(options: CaseInsensitiveStringMap): Array[Transform] = {
+    Array.empty
+  }
+
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    assert(partitioning.isEmpty)
     val userGivenSchema = schema
     new SimpleBatchTable {
       override def schema(): StructType = userGivenSchema
@@ -595,7 +604,7 @@ class ColumnarDataSourceV2 extends TableProvider {
     }
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = new SimpleBatchTable {
+  override def getTable(properties: util.Map[String, String]): Table = new SimpleBatchTable {
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
       new MyScanBuilder()
     }
@@ -666,7 +675,7 @@ class PartitionAwareDataSource extends TableProvider {
     override def outputPartitioning(): Partitioning = new MyPartitioning
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = new SimpleBatchTable {
+  override def getTable(properties: util.Map[String, String]): Table = new SimpleBatchTable {
     override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
       new MyScanBuilder()
     }
@@ -706,8 +715,8 @@ class SchemaReadAttemptException(m: String) extends RuntimeException(m)
 
 class SimpleWriteOnlyDataSource extends SimpleWritableDataSource {
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
-    new MyTable(options) {
+  override def getTable(properties: util.Map[String, String]): Table = {
+    new MyTable(properties) {
       override def schema(): StructType = {
         throw new SchemaReadAttemptException("schema should not be read.")
       }
@@ -732,7 +741,7 @@ class ReportStatisticsDataSource extends TableProvider {
     }
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): Table = {
+  override def getTable(properties: util.Map[String, String]): Table = {
     new SimpleBatchTable {
       override def newScanBuilder(options: CaseInsensitiveStringMap): ScanBuilder = {
         new MyScanBuilder

@@ -108,8 +108,8 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       failOnDataLoss(caseInsensitiveParameters))
   }
 
-  override def getTable(options: CaseInsensitiveStringMap): KafkaTable = {
-    val includeHeaders = options.getBoolean(INCLUDE_HEADERS, false)
+  override def getTable(properties: ju.Map[String, String]): KafkaTable = {
+    val includeHeaders = new CaseInsensitiveStringMap(properties).getBoolean(INCLUDE_HEADERS, false)
     new KafkaTable(includeHeaders)
   }
 

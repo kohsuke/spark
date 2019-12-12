@@ -17,9 +17,9 @@
 
 package org.apache.spark.sql.connector.catalog;
 
+import java.util.Map;
+
 import org.apache.spark.annotation.Evolving;
-import org.apache.spark.sql.types.StructType;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 /**
  * The base interface for v2 data sources which don't have a real catalog. Implementations must
@@ -38,24 +38,10 @@ public interface TableProvider {
   /**
    * Return a {@link Table} instance to do read/write with user-specified options.
    *
-   * @param options the user-specified options that can identify a table, e.g. file path, Kafka
-   *                topic name, etc. It's an immutable case-insensitive string-to-string map.
+   * @param properties The specified table properties. It's case preserving (contains exactly what
+   *                   users specified) and implementations are free to use it case sensitively or
+   *                   insensitively. It should be able to identify a table, e.g. file path, Kafka
+   *                   topic name, etc.
    */
-  Table getTable(CaseInsensitiveStringMap options);
-
-  /**
-   * Return a {@link Table} instance to do read/write with user-specified schema and options.
-   * <p>
-   * By default this method throws {@link UnsupportedOperationException}, implementations should
-   * override this method to handle user-specified schema.
-   * </p>
-   * @param options the user-specified options that can identify a table, e.g. file path, Kafka
-   *                topic name, etc. It's an immutable case-insensitive string-to-string map.
-   * @param schema the user-specified schema.
-   * @throws UnsupportedOperationException
-   */
-  default Table getTable(CaseInsensitiveStringMap options, StructType schema) {
-    throw new UnsupportedOperationException(
-      this.getClass().getSimpleName() + " source does not support user-specified schema");
-  }
+  Table getTable(Map<String, String> properties);
 }
