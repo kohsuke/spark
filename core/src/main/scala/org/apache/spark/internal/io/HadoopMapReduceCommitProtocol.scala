@@ -115,8 +115,8 @@ class HadoopMapReduceCommitProtocol(
    */
   private def getPartitionPath(stagingTaskFile: Path): String = {
     assert(dynamicPartitionOverwrite)
-    val absStagingPartitionPath = stagingTaskFile.getParent.getParent.toUri.getRawPath
-    val absStagingWorkingPath = stagingWorkingDir.toUri.getRawPath
+    val absStagingPartitionPath = stagingTaskFile.getParent.getParent.toUri.getPath
+    val absStagingWorkingPath = stagingWorkingDir.toUri.getPath
     absStagingPartitionPath.substring(absStagingWorkingPath.length + 1)
   }
 
