@@ -18,7 +18,6 @@
 package org.apache.spark.sql.execution.adaptive
 
 import scala.concurrent.Future
-
 import org.apache.spark.{FutureAction, MapOutputStatistics}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -28,6 +27,8 @@ import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange._
+
+import scala.collection.mutable
 
 
 /**
@@ -127,7 +128,8 @@ abstract class QueryStageExec extends LeafExecNode {
  */
 case class ShuffleQueryStageExec(
     override val id: Int,
-    override val plan: ShuffleExchangeExec) extends QueryStageExec {
+    override val plan: ShuffleExchangeExec,
+    val excludedPartitions: Set[Int] = Set.empty) extends QueryStageExec {
 
   override def doMaterialize(): Future[Any] = {
     plan.mapOutputStatisticsFuture
@@ -170,6 +172,13 @@ object ShuffleQueryStageExec {
     case r: ReusedQueryStageExec => isShuffleQueryStageExec(r.plan)
     case _: ShuffleQueryStageExec => true
     case _ => false
+  }
+
+  def getShuffleStage(queryStage: QueryStageExec): ShuffleQueryStageExec = {
+    queryStage match {
+      case stage: ShuffleQueryStageExec => stage
+      case ReusedQueryStageExec(_, stage: ShuffleQueryStageExec, _) => stage
+    }
   }
 }
 
