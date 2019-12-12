@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.adaptive
 
 import scala.concurrent.Future
+
 import org.apache.spark.{FutureAction, MapOutputStatistics}
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
@@ -27,9 +28,6 @@ import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange._
-
-import scala.collection.mutable
-
 
 /**
  * A query stage is an independent subgraph of the query plan. Query stage materializes its output
