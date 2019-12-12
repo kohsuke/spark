@@ -813,8 +813,8 @@ case class LocalLimit(limitExpr: Expression, child: LogicalPlan) extends OrderPr
 /**
  * This is similar with [[Limit]] except,
  *
- * - It does not have plans for global/local separately because currently there is only one
- *   implementation which does both global/local tails. See
+ * - It does not have plans for global/local separately because currently there is only single
+ *   implementation which initially mimics both global/local tails. See
  *   `org.apache.spark.sql.execution.CollectTailExec` and
  *   `org.apache.spark.sql.execution.CollectLimitExec`
  *
