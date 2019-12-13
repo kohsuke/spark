@@ -48,23 +48,27 @@ private[sql] object CatalogV2Implicits {
   }
 
   implicit class TransformHelper(transforms: Seq[Transform]) {
-    def asPartitionColumns: Seq[String] = {
+    def validatePartitionColumns(): Unit = {
       val (idTransforms, nonIdTransforms) = transforms.partition(_.isInstanceOf[IdentityTransform])
 
       if (nonIdTransforms.nonEmpty) {
         throw new AnalysisException("Transforms cannot be converted to partition columns: " +
-            nonIdTransforms.map(_.describe).mkString(", "))
+          nonIdTransforms.map(_.describe).mkString(", "))
       }
 
-      idTransforms.map(_.asInstanceOf[IdentityTransform]).map(_.reference).map { ref =>
+      idTransforms.map(_.asInstanceOf[IdentityTransform]).map(_.reference).foreach { ref =>
         val parts = ref.fieldNames
         if (parts.size > 1) {
           throw new AnalysisException(s"Cannot partition by nested column: $ref")
-        } else {
-          parts(0)
         }
       }
     }
+
+    def asPartitionColumns: Seq[String] = {
+      validatePartitionColumns()
+      transforms.map(_.asInstanceOf[IdentityTransform]).map(_.reference).map(_.fieldNames.head)
+    }
+
   }
 
   implicit class CatalogHelper(plugin: CatalogPlugin) {

@@ -26,6 +26,7 @@ import org.scalatest.Assertions._
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.catalog._
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
 import org.apache.spark.sql.connector.expressions.{IdentityTransform, Transform}
 import org.apache.spark.sql.connector.read._
 import org.apache.spark.sql.connector.write._
@@ -59,8 +60,11 @@ class InMemoryTable(
 
   def rows: Seq[InternalRow] = dataMap.values.flatMap(_.rows).toSeq
 
-  private val partFieldNames = partitioning.flatMap(_.references).toSeq.flatMap(_.fieldNames)
-  private val partIndexes = partFieldNames.map(schema.fieldIndex)
+  // If `partitioning` contains nested columns, an `AnalysisException` will be thrown
+  // in `asPartitionColumns` since using nested columns as partition columns is not supported.
+  private val partTopColNames = partitioning.toSeq.asPartitionColumns
+
+  private val partIndexes = partTopColNames.map(schema.fieldIndex)
 
   private def getKey(row: InternalRow): Seq[Any] = partIndexes.map(row.toSeq(schema)(_))
 
@@ -147,7 +151,7 @@ class InMemoryTable(
 
   private class Overwrite(filters: Array[Filter]) extends TestBatchWrite {
     override def commit(messages: Array[WriterCommitMessage]): Unit = dataMap.synchronized {
-      val deleteKeys = InMemoryTable.filtersToKeys(dataMap.keys, partFieldNames, filters)
+      val deleteKeys = InMemoryTable.filtersToKeys(dataMap.keys, partTopColNames, filters)
       dataMap --= deleteKeys
       withData(messages.map(_.asInstanceOf[BufferedRows]))
     }
@@ -161,7 +165,7 @@ class InMemoryTable(
   }
 
   override def deleteWhere(filters: Array[Filter]): Unit = dataMap.synchronized {
-    dataMap --= InMemoryTable.filtersToKeys(dataMap.keys, partFieldNames, filters)
+    dataMap --= InMemoryTable.filtersToKeys(dataMap.keys, partTopColNames, filters)
   }
 }
 

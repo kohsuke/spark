@@ -1929,6 +1929,18 @@ class DataSourceV2SQLSuite
     }
   }
 
+  test("SPARK-30289: DSv2 `InMemoryTable` partitioning should not accept nested columns") {
+    val t1 = s"${catalogAndNamespace}tbl"
+    withTable(t1) {
+      val e = intercept[IllegalArgumentException] {
+        sql(s"CREATE TABLE $t1 (nested struct<id:bigint, data:string>) " +
+          s"USING $v2Format PARTITIONED BY (nested.id)")
+      }
+      assert(e.getMessage.contains(
+        "Cannot partition by nested column: nested.id"))
+    }
+  }
+
   private def testV1Command(sqlCommand: String, sqlParams: String): Unit = {
     val e = intercept[AnalysisException] {
       sql(s"$sqlCommand $sqlParams")

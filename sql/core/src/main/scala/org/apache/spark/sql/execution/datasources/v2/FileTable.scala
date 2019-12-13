@@ -24,6 +24,7 @@ import org.apache.hadoop.fs.{FileStatus, Path}
 
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability}
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
 import org.apache.spark.sql.connector.catalog.TableCapability._
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources._
@@ -38,6 +39,9 @@ abstract class FileTable(
     paths: Seq[String],
     userSpecifiedSchema: Option[StructType])
   extends Table with SupportsRead with SupportsWrite {
+
+  // If `partitioning` contains nested columns, an `AnalysisException` will be thrown
+  partitioning.toSeq.validatePartitionColumns()
 
   import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 

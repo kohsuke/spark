@@ -78,6 +78,8 @@ private[sql] case class V1Table(v1Table: CatalogTable) extends Table {
       partitions += spec.asTransform
     }
 
+    import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.TransformHelper
+    partitions.validatePartitionColumns()
     partitions.toArray
   }
 
