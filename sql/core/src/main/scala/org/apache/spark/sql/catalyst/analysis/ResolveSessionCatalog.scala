@@ -475,14 +475,14 @@ class ResolveSessionCatalog(
         propertyKey)
 
     case DescribeFunctionStatement(CatalogAndIdentifier(catalog, functionIdent), extended) =>
-      val (database, function) =
+      val function =
         parseSessionCatalogFunctionIdentifier("DESCRIBE FUNCTION", catalog, functionIdent)
-      DescribeFunctionCommand(FunctionIdentifier(function, database), extended)
+      DescribeFunctionCommand(function, extended)
 
     case ShowFunctionsStatement(userScope, systemScope, pattern, fun) =>
       val (database, function) = fun match {
         case Some(CatalogAndIdentifier(catalog, functionIdent)) =>
-          val (db, fn) =
+          val FunctionIdentifier(fn, db) =
             parseSessionCatalogFunctionIdentifier("SHOW FUNCTIONS", catalog, functionIdent)
           (db, Some(fn))
         case None => (None, pattern)
@@ -490,13 +490,13 @@ class ResolveSessionCatalog(
       ShowFunctionsCommand(database, function, userScope, systemScope)
 
     case DropFunctionStatement(CatalogAndIdentifier(catalog, functionIdent), ifExists, isTemp) =>
-      val (database, function) =
+      val FunctionIdentifier(function, database) =
         parseSessionCatalogFunctionIdentifier("DROP FUNCTION", catalog, functionIdent)
       DropFunctionCommand(database, function, ifExists, isTemp)
 
     case CreateFunctionStatement(CatalogAndIdentifier(catalog, functionIdent),
       className, resources, isTemp, ignoreIfExists, replace) =>
-      val (database, function) =
+      val FunctionIdentifier(function, database) =
         parseSessionCatalogFunctionIdentifier("CREATE FUNCTION", catalog, functionIdent)
       CreateFunctionCommand(database, function, className, resources, isTemp, ignoreIfExists,
         replace)
@@ -505,11 +505,11 @@ class ResolveSessionCatalog(
   private def parseSessionCatalogFunctionIdentifier(
       sql: String,
       catalog: CatalogPlugin,
-      functionIdent: Identifier): (Option[String], String) = {
+      functionIdent: Identifier): FunctionIdentifier = {
     if (isSessionCatalog(catalog)) {
       functionIdent.asMultipartIdentifier match {
-        case Seq(db, fn) => (Some(db), fn)
-        case Seq(fn) => (None, fn)
+        case Seq(db, fn) => FunctionIdentifier(fn, Some(db))
+        case Seq(fn) => FunctionIdentifier(fn, None)
         case _ =>
           throw new AnalysisException(s"Unsupported function name '${functionIdent.quoted}'")
       }
