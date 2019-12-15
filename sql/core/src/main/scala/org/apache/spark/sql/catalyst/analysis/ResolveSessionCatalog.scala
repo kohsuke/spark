@@ -502,7 +502,9 @@ class ResolveSessionCatalog(
         replace)
   }
 
-  private def parseSessionCatalogFunctionIdentifier(sql: String, catalog: CatalogPlugin,
+  private def parseSessionCatalogFunctionIdentifier(
+      sql: String,
+      catalog: CatalogPlugin,
       functionIdent: Identifier): (Option[String], String) = {
     if (isSessionCatalog(catalog)) {
       functionIdent.asMultipartIdentifier match {
