@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution
 
 import java.io.{BufferedWriter, OutputStreamWriter}
+import java.util.UUID
 
 import org.apache.hadoop.fs.Path
 
@@ -34,7 +35,9 @@ import org.apache.spark.sql.catalyst.util.truncatedString
 import org.apache.spark.sql.dynamicpruning.PlanDynamicPruningFilters
 import org.apache.spark.sql.execution.adaptive.InsertAdaptiveSparkPlan
 import org.apache.spark.sql.execution.exchange.{EnsureRequirements, ReuseExchange}
+import org.apache.spark.sql.execution.streaming.{IncrementalExecution, OffsetSeqMetadata}
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.streaming.OutputMode
 import org.apache.spark.util.Utils
 
 /**
@@ -130,6 +133,33 @@ class QueryExecution(
     }
     concat.append("\n")
     concat.toString
+  }
+
+  def explainString(mode: ExplainMode): String = {
+    if (logical.isStreaming) {
+      // This is used only by explaining `Dataset/DataFrame` created by `spark.readStream`, so the
+      // output mode does not matter since there is no `Sink`.
+      return new IncrementalExecution(
+        sparkSession, logical, OutputMode.Append(), "<unknown>",
+        UUID.randomUUID, UUID.randomUUID, 0, OffsetSeqMetadata(0, 0)).explainString(mode)
+    }
+
+    mode match {
+      case SimpleMode =>
+        simpleString
+      case ExtendedMode =>
+        toString
+      case CodegenMode =>
+        try {
+          org.apache.spark.sql.execution.debug.codegenString(executedPlan)
+        } catch {
+          case e: AnalysisException => e.toString
+        }
+      case CostMode =>
+        stringWithStats
+      case FormattedMode =>
+        simpleString(formatted = true)
+    }
   }
 
   private def writePlans(append: String => Unit, maxFields: Int): Unit = {
