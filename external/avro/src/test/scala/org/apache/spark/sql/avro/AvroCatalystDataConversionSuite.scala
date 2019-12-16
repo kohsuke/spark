@@ -127,6 +127,25 @@ class AvroCatalystDataConversionSuite extends SparkFunSuite
     }
   }
 
+  test(s"array of nested schema with seed") {
+    val seed = scala.util.Random.nextLong()
+    val rand = new scala.util.Random(seed)
+    val schema = StructType(
+      StructField("a",
+        ArrayType(
+          RandomDataGenerator.randomNestedSchema(rand, 10, testingTypes)
+          , containsNull = false)
+        , nullable = false) :: Nil
+    )
+
+    withClue(s"Schema: $schema\nseed: $seed") {
+      val data = RandomDataGenerator.randomRow(rand, schema)
+      val converter = CatalystTypeConverters.createToCatalystConverter(schema)
+      val input = Literal.create(converter(data), schema)
+      roundTripTest(input)
+    }
+  }
+
   test("read int as string") {
     val data = Literal(1)
     val avroTypeJson =
