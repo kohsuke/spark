@@ -167,7 +167,7 @@ class AvroDeserializer(rootAvroType: Schema, rootCatalystType: DataType) {
       case (ARRAY, ArrayType(elementType, containsNull)) =>
         val elementWriter = newWriter(avroType.getElementType, elementType, path)
         (updater, ordinal, value) =>
-          val array = value.asInstanceOf[GenericData.Array[Any]]
+          val array = value.asInstanceOf[java.util.List[Any]]
           val len = array.size()
           val result = createArrayData(elementType, len)
           val elementUpdater = new ArrayDataUpdater(result)
