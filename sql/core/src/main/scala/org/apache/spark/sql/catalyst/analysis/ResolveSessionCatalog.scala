@@ -474,30 +474,30 @@ class ResolveSessionCatalog(
         tbl.asTableIdentifier,
         propertyKey)
 
-    case DescribeFunctionStatement(CatalogAndIdentifier(catalog, functionIdent), extended) =>
-      val function =
-        parseSessionCatalogFunctionIdentifier("DESCRIBE FUNCTION", catalog, functionIdent)
-      DescribeFunctionCommand(function, extended)
+    case DescribeFunctionStatement(CatalogAndIdentifier(catalog, ident), extended) =>
+      val functionIdent =
+        parseSessionCatalogFunctionIdentifier("DESCRIBE FUNCTION", catalog, ident)
+      DescribeFunctionCommand(functionIdent, extended)
 
     case ShowFunctionsStatement(userScope, systemScope, pattern, fun) =>
       val (database, function) = fun match {
-        case Some(CatalogAndIdentifier(catalog, functionIdent)) =>
+        case Some(CatalogAndIdentifier(catalog, ident)) =>
           val FunctionIdentifier(fn, db) =
-            parseSessionCatalogFunctionIdentifier("SHOW FUNCTIONS", catalog, functionIdent)
+            parseSessionCatalogFunctionIdentifier("SHOW FUNCTIONS", catalog, ident)
           (db, Some(fn))
         case None => (None, pattern)
       }
       ShowFunctionsCommand(database, function, userScope, systemScope)
 
-    case DropFunctionStatement(CatalogAndIdentifier(catalog, functionIdent), ifExists, isTemp) =>
+    case DropFunctionStatement(CatalogAndIdentifier(catalog, ident), ifExists, isTemp) =>
       val FunctionIdentifier(function, database) =
-        parseSessionCatalogFunctionIdentifier("DROP FUNCTION", catalog, functionIdent)
+        parseSessionCatalogFunctionIdentifier("DROP FUNCTION", catalog, ident)
       DropFunctionCommand(database, function, ifExists, isTemp)
 
-    case CreateFunctionStatement(CatalogAndIdentifier(catalog, functionIdent),
+    case CreateFunctionStatement(CatalogAndIdentifier(catalog, ident),
       className, resources, isTemp, ignoreIfExists, replace) =>
       val FunctionIdentifier(function, database) =
-        parseSessionCatalogFunctionIdentifier("CREATE FUNCTION", catalog, functionIdent)
+        parseSessionCatalogFunctionIdentifier("CREATE FUNCTION", catalog, ident)
       CreateFunctionCommand(database, function, className, resources, isTemp, ignoreIfExists,
         replace)
   }
