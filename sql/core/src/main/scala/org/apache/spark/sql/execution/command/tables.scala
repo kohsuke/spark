@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.command
 
 import java.net.{URI, URISyntaxException}
+import java.util.Locale
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -34,7 +35,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.plans.DescribeTableSchema
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.catalyst.util.{escapeSingleQuotedString, quoteIdentifier}
+import org.apache.spark.sql.catalyst.util.{escapeSingleQuotedString, quoteIdentifier, CaseInsensitiveMap}
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.json.JsonFileFormat
@@ -720,8 +721,9 @@ case class DescribeColumnCommand(
     }
 
     val catalogTable = catalog.getTempViewOrPermanentTableMetadata(table)
-    val colStats = catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
-    val cs = colStats.get(field.name)
+    val colStatsMap = catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
+    val colStats = if (conf.caseSensitiveAnalysis) colStatsMap else CaseInsensitiveMap(colStatsMap)
+    val cs = colStats.get(getColumnName(field.name))
 
     val comment = if (field.metadata.contains("comment")) {
       Option(field.metadata.getString("comment"))
@@ -750,6 +752,10 @@ case class DescribeColumnCommand(
       buffer ++= histDesc.getOrElse(Seq(Row("histogram", "NULL")))
     }
     buffer
+  }
+
+  private def getColumnName(fieldName: String) = {
+    if (conf.caseSensitiveAnalysis) fieldName else fieldName.toLowerCase(Locale.ROOT)
   }
 
   private def histogramDescription(histogram: Histogram): Seq[Row] = {
