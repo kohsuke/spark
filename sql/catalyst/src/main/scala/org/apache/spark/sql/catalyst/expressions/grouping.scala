@@ -138,8 +138,23 @@ case class GroupingID(groupByExprs: Seq[Expression]) extends Expression with Une
   @transient
   override lazy val references: AttributeSet =
     AttributeSet(VirtualColumn.groupingIdAttribute :: Nil)
+  // `ResolveGroupingAnalytics` resolves `groupByExprs` if it is empty
+  override lazy val resolved: Boolean = childrenResolved && groupByExprs.nonEmpty
   override def children: Seq[Expression] = groupByExprs
-  override def dataType: DataType = IntegerType
+  override def dataType: DataType = GroupingID.groupIdDataType(groupByExprs)
   override def nullable: Boolean = false
   override def prettyName: String = "grouping_id"
+}
+
+object GroupingID {
+
+  val MAX_GROUPING_NUM_FOR_INTEGER_ID = 31
+
+  def groupIdDataType(groupByExprs: Seq[Expression]): DataType = {
+    if (GroupingID.MAX_GROUPING_NUM_FOR_INTEGER_ID >= groupByExprs.size) {
+      IntegerType
+    } else {
+      StringType
+    }
+  }
 }
