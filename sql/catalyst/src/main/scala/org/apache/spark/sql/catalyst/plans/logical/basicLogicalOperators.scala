@@ -636,7 +636,9 @@ object Expand {
       bits.clear(index)
       bits
     }
-    val bitMask = masks.reduce[util.BitSet] { case (b1, b2) =>
+    val initMask = new util.BitSet(numAttributes)
+    initMask.flip(0, numAttributes)
+    val bitMask = masks.foldLeft(initMask) { case (b1, b2) =>
       b1.and(b2)
       b1
     }
