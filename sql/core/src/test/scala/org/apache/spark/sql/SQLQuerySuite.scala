@@ -3344,7 +3344,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       sql("insert into customer values(2,'Ana','trujilo','Adva de la','Maxico D.F.',05021,'Maxico')")
       sql("insert into customer values(3,'Antonio','Antonio Moreno','Mataderos 2312','Maxico D.F.',05023,'Maxico')")
       sql("analyze table customer compute statistics for columns cname")
-      val expectedData= Seq(
+      val expectedData = Seq(
         Row("col_name", "cname"),
         Row("data_type", "string"),
         Row("comment", "NULL"),
