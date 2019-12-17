@@ -3334,6 +3334,26 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       checkAnswer(df5, Array.empty[Row])
     }
   }
+
+  test("SPARK-30279 Support 32 or more grouping attributes for GROUPING_ID()") {
+    def testGroupingIDs(numCols: Int, expectedIDs: Seq[Any]): Unit = {
+      val cols = (0 until numCols).map { i => s"k$i" }
+      val rowValues = (0 until numCols).map { _ => 1 }
+      sql("CREATE TEMPORARY VIEW t AS SELECT * FROM " +
+        s"VALUES(${rowValues.mkString(", ")}, 3) AS t(${cols.mkString(", ")}, v)")
+      val df = sql("SELECT GROUPING_ID(), SUM(v) FROM t GROUP BY " +
+        s"GROUPING SETS ((${cols.mkString(",")}), (${cols.init.mkString(",")}))")
+      checkAnswer(df, expectedIDs.map { id => Row(id, 3) })
+      sql("DROP VIEW t")
+    }
+    testGroupingIDs(31, Seq(0, 1))
+    testGroupingIDs(32,
+      "00000000000000000000000000000000" ::
+      "00000000000000000000000000000001" :: Nil)
+    testGroupingIDs(35,
+      "00000000000000000000000000000000000" ::
+      "00000000000000000000000000000000001" :: Nil)
+  }
 }
 
 case class Foo(bar: Option[String])
