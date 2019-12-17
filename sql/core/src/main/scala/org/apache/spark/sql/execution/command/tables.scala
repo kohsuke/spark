@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution.command
 
 import java.net.{URI, URISyntaxException}
+import java.util.Locale
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -720,8 +721,10 @@ case class DescribeColumnCommand(
     }
 
     val catalogTable = catalog.getTempViewOrPermanentTableMetadata(table)
-    val colStats = catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
-    val cs = colStats.get(field.name)
+    val colStats = catalogTable.stats.map(_.colStats.map {
+      case (key, value) => key.toLowerCase(Locale.ROOT) -> value
+    }).getOrElse(Map.empty)
+    val cs = colStats.get(field.name.toLowerCase(Locale.ROOT))
 
     val comment = if (field.metadata.contains("comment")) {
       Option(field.metadata.getString("comment"))
