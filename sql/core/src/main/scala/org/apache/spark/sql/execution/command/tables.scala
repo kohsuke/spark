@@ -720,8 +720,8 @@ case class DescribeColumnCommand(
     }
 
     val catalogTable = catalog.getTempViewOrPermanentTableMetadata(table)
-    val colStats = catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
-    val cs = colStats.get(field.name)
+    val colStats = catalogTable.stats.map(_.colStats.map{ case (key, value) => key.toLowerCase -> value}).getOrElse(Map.empty)
+    val cs = colStats.get(field.name.toLowerCase())
 
     val comment = if (field.metadata.contains("comment")) {
       Option(field.metadata.getString("comment"))
