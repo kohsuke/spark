@@ -721,10 +721,8 @@ case class DescribeColumnCommand(
     }
 
     val catalogTable = catalog.getTempViewOrPermanentTableMetadata(table)
-    val colStats = catalogTable.stats.map(_.colStats.map {
-      case (key, value) => key.toLowerCase(Locale.ROOT) -> value
-    }).getOrElse(Map.empty)
-    val cs = colStats.get(field.name.toLowerCase(Locale.ROOT))
+    val colStats = getColStats(catalogTable)
+    val cs = colStats.get(getColumnName(field.name))
 
     val comment = if (field.metadata.contains("comment")) {
       Option(field.metadata.getString("comment"))
@@ -753,6 +751,25 @@ case class DescribeColumnCommand(
       buffer ++= histDesc.getOrElse(Seq(Row("histogram", "NULL")))
     }
     buffer
+  }
+
+  private def getColStats(catalogTable: CatalogTable) = {
+    if (conf.caseSensitiveAnalysis) {
+      catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
+    } else {
+      catalogTable.stats.map(_.colStats.map {
+        case (key, value) => key.toLowerCase(Locale.ROOT) -> value
+      }).getOrElse(Map.empty)
+
+    }
+  }
+
+  private def getColumnName(fieldName: String) = {
+    if (conf.caseSensitiveAnalysis) {
+      fieldName
+    } else {
+      fieldName.toLowerCase(Locale.ROOT)
+    }
   }
 
   private def histogramDescription(histogram: Histogram): Seq[Row] = {
