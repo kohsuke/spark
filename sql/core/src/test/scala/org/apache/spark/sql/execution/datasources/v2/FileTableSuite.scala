@@ -17,7 +17,9 @@
 package org.apache.spark.sql.execution.datasources.v2
 
 import scala.collection.JavaConverters._
+
 import org.apache.hadoop.fs.FileStatus
+
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.connector.expressions.{FieldReference, Transform, IdentityTransform}
 import org.apache.spark.sql.{QueryTest, SparkSession}
@@ -91,12 +93,13 @@ class FileTableSuite extends QueryTest with SharedSparkSession {
       StructField("nested", StructType(Array(
         StructField("id", IntegerType, true),
         StructField("data", StringType, true)
-      )), true),
+      )), true)
     ))
 
     val e = intercept[AnalysisException] {
       new FileTable(spark, CaseInsensitiveStringMap.empty(), Seq(), Some(nestedSchema)) {
-        override def partitioning: Array[Transform] = Array(IdentityTransform(FieldReference(Seq("nested", "id"))))
+        override def partitioning: Array[Transform] =
+          Array(IdentityTransform(FieldReference(Seq("nested", "id"))))
 
         override def inferSchema(files: Seq[FileStatus]): Option[StructType] = Some(nestedSchema)
 
