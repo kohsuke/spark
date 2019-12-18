@@ -110,14 +110,19 @@ trait StateStore {
 
 /** A versioned key-value store which is same as [[StateStore]], but write-protected. */
 abstract class ReadOnlyStateStore extends StateStore {
+  /** Not expected to be called. Don't need to override this method. */
   override def put(key: UnsafeRow, value: UnsafeRow): Unit = throwNotAllowed()
 
+  /** Not expected to be called. Don't need to override this method. */
   override def remove(key: UnsafeRow): Unit = throwNotAllowed()
 
+  /** Not expected to be called. Don't need to override this method. */
   override def commit(): Long = throwNotAllowed()
 
+  /** Not expected to be called. Don't need to override this method. */
   override def metrics: StateStoreMetrics = throwNotAllowed()
 
+  /** Not expected to be called. Don't need to override this method. */
   override def hasCommitted: Boolean = false
 
   private def throwNotAllowed[T](): T = {
@@ -229,7 +234,8 @@ trait StateStoreProvider {
    * Return an instance of read-only [[StateStore]] representing state data of the given version.
    * By default it will return the same instance as getStore(version) but wrapped to prevent
    * modification. Providers can override and return optimized version of [[StateStore]] based on
-   * the fact the instance will be only used for reading.
+   * the fact the instance will be only used for reading - [[ReadOnlyStateStore]] is the good base
+   * class to extend when providers implement their own.
    */
   def getReadOnlyStore(version: Long): StateStore = new WrappedReadOnlyStateStore(getStore(version))
 
