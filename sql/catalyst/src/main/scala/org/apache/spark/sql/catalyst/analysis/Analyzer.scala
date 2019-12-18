@@ -596,10 +596,11 @@ class Analyzer(
     def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperatorsUp {
       case a if !a.childrenResolved => a // be sure all of the children are resolved.
 
-      // If a plan has grouping IDs with an empty group-by, we resolve them first
+      // If a plan has unresolved grouping IDs, we resolve them first
       case p @ EmptyGroupingIDExtractor(groupByExprs) =>
         p.transformExpressions {
-          case GroupingID(Nil) => GroupingID(groupByExprs)
+          // In case that `GroupingID` has an empty group-by expressions
+          case gid: GroupingID if !gid.resolved => GroupingID(groupByExprs)
         }
 
       // Ensure group by expressions and aggregate expressions have been resolved.
