@@ -158,11 +158,11 @@ case class CreateViewCommand(
       def verify(child: LogicalPlan) {
         child.collect {
           // Disallow creating permanent views based on temporary views.
-          case UnresolvedRelation(AsTableIdentifier(ident))
-            if sparkSession.sessionState.catalog.isTemporaryTable(ident) =>
+          case UnresolvedRelation(Seq(singlePartName))
+              if sparkSession.sessionState.catalog.getTempView(singlePartName).isDefined =>
             // temporary views are only stored in the session catalog
             throw new AnalysisException(s"Not allowed to create a permanent view $name by " +
-              s"referencing a temporary view $ident. " +
+              s"referencing a temporary view $singlePartName. " +
               "Please create a temp view instead by CREATE TEMP VIEW")
           case other if !other.resolved => other.expressions.flatMap(_.collect {
             // Traverse subquery plan for any unresolved relations.
@@ -339,7 +339,7 @@ object ViewHelper {
     // Generate the view default database name.
     val manager = session.sessionState.catalogManager
     removeQueryColumnNames(properties) ++
-      catalogAndNamespaceToProps(manager.currentCatalog.name(), manager.currentNamespace) ++
+      catalogAndNamespaceToProps(manager.currentCatalog.name, manager.currentNamespace) ++
       generateQueryColumnNames(queryOutput)
   }
 
