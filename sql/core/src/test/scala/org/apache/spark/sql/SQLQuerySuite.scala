@@ -3339,10 +3339,14 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-29505: desc columnname - case insensitive search") {
     withTable("customer") {
-      sql("CREATE TABLE customer(id INT, name STRING, CName STRING, address STRING, city STRING, pin INT, country STRING)")
-      sql("INSERT INTO customer VALUES(1,'Alfred','Maria','Obere Str 57','Berlin',12209,'Germany')")
-      sql("INSERT INTO customer VALUES(2,'Ana','trujilo','Adva de la','Maxico D.F.',05021,'Maxico')")
-      sql("INSERT INTO customer VALUES(3,'Antonio','Antonio Moreno','Mataderos 2312','Maxico D.F.',05023,'Maxico')")
+      sql("CREATE TABLE customer(id INT, name STRING, CName STRING, address STRING," +
+        " city STRING, pin INT, country STRING)")
+      sql("INSERT INTO customer VALUES(1,'Alfred','Maria','Obere Str 57'," +
+        "'Berlin',12209,'Germany')")
+      sql("INSERT INTO customer VALUES(2,'Ana','trujilo','Adva de la'," +
+        "'Maxico D.F.',05021,'Maxico')")
+      sql("INSERT INTO customer VALUES(3,'Antonio','Antonio Moreno','Mataderos 2312'," +
+        "'Maxico D.F.',05023,'Maxico')")
       sql("ANALYZE TABLE customer COMPUTE STATISTICS FOR COLUMNS cname")
       val expectedData = Seq(
         Row("col_name", "cname"),
