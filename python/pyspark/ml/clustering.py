@@ -97,7 +97,7 @@ class ClusteringSummary(JavaWrapper):
 
 @inherit_doc
 class _GaussianMixtureParams(HasMaxIter, HasFeaturesCol, HasSeed, HasPredictionCol,
-                             HasProbabilityCol, HasTol):
+                             HasProbabilityCol, HasTol, HasAggregationDepth):
     """
     Params for :py:class:`GaussianMixture` and :py:class:`GaussianMixtureModel`.
 
@@ -153,6 +153,15 @@ class GaussianMixtureModel(JavaModel, _GaussianMixtureParams, JavaMLWritable, Ja
         where weights[i] is the weight for Gaussian i, and weights sum to 1.
         """
         return self._call_java("weights")
+
+    @property
+    @since("3.0.0")
+    def gaussians(self):
+        """
+        Array of :py:class:`MultivariateGaussian` where gaussians[i] represents
+        the Multivariate Gaussian (Normal) Distribution for Gaussian i
+        """
+        return self._call_java("gaussians")
 
     @property
     @since("2.0.0")
@@ -229,10 +238,12 @@ class GaussianMixture(JavaEstimator, _GaussianMixtureParams, JavaMLWritable, Jav
     >>> gm.getMaxIter()
     10
     >>> model = gm.fit(df)
+    >>> model.getAggregationDepth()
+    2
     >>> model.getFeaturesCol()
     'features'
     >>> model.setPredictionCol("newPrediction")
-    GaussianMixture...
+    GaussianMixtureModel...
     >>> model.predict(df.head().features)
     2
     >>> model.predictProbability(df.head().features)
@@ -248,6 +259,9 @@ class GaussianMixture(JavaEstimator, _GaussianMixtureParams, JavaMLWritable, Jav
     8.14636...
     >>> weights = model.weights
     >>> len(weights)
+    3
+    >>> gaussians = model.gaussians
+    >>> len(gaussians)
     3
     >>> model.gaussiansDF.select("mean").head()
     Row(mean=DenseVector([0.825, 0.8675]))
@@ -271,6 +285,8 @@ class GaussianMixture(JavaEstimator, _GaussianMixtureParams, JavaMLWritable, Jav
     False
     >>> model2.weights == model.weights
     True
+    >>> model2.gaussians == model.gaussians
+    True
     >>> model2.gaussiansDF.select("mean").head()
     Row(mean=DenseVector([0.825, 0.8675]))
     >>> model2.gaussiansDF.select("cov").head()
@@ -281,15 +297,17 @@ class GaussianMixture(JavaEstimator, _GaussianMixtureParams, JavaMLWritable, Jav
 
     @keyword_only
     def __init__(self, featuresCol="features", predictionCol="prediction", k=2,
-                 probabilityCol="probability", tol=0.01, maxIter=100, seed=None):
+                 probabilityCol="probability", tol=0.01, maxIter=100, seed=None,
+                 aggregationDepth=2):
         """
         __init__(self, featuresCol="features", predictionCol="prediction", k=2, \
-                 probabilityCol="probability", tol=0.01, maxIter=100, seed=None)
+                 probabilityCol="probability", tol=0.01, maxIter=100, seed=None, \
+                 aggregationDepth=2)
         """
         super(GaussianMixture, self).__init__()
         self._java_obj = self._new_java_obj("org.apache.spark.ml.clustering.GaussianMixture",
                                             self.uid)
-        self._setDefault(k=2, tol=0.01, maxIter=100)
+        self._setDefault(k=2, tol=0.01, maxIter=100, aggregationDepth=2)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -299,10 +317,12 @@ class GaussianMixture(JavaEstimator, _GaussianMixtureParams, JavaMLWritable, Jav
     @keyword_only
     @since("2.0.0")
     def setParams(self, featuresCol="features", predictionCol="prediction", k=2,
-                  probabilityCol="probability", tol=0.01, maxIter=100, seed=None):
+                  probabilityCol="probability", tol=0.01, maxIter=100, seed=None,
+                  aggregationDepth=2):
         """
         setParams(self, featuresCol="features", predictionCol="prediction", k=2, \
-                  probabilityCol="probability", tol=0.01, maxIter=100, seed=None)
+                  probabilityCol="probability", tol=0.01, maxIter=100, seed=None, \
+                  aggregationDepth=2)
 
         Sets params for GaussianMixture.
         """
@@ -358,6 +378,13 @@ class GaussianMixture(JavaEstimator, _GaussianMixtureParams, JavaMLWritable, Jav
         """
         return self._set(tol=value)
 
+    @since("3.0.0")
+    def setAggregationDepth(self, value):
+        """
+        Sets the value of :py:attr:`aggregationDepth`.
+        """
+        return self._set(aggregationDepth=value)
+
 
 class GaussianMixtureSummary(ClusteringSummary):
     """
@@ -410,7 +437,7 @@ class KMeansSummary(ClusteringSummary):
 
 @inherit_doc
 class _KMeansParams(HasMaxIter, HasFeaturesCol, HasSeed, HasPredictionCol, HasTol,
-                    HasDistanceMeasure):
+                    HasDistanceMeasure, HasWeightCol):
     """
     Params for :py:class:`KMeans` and :py:class:`KMeansModel`.
 
@@ -504,11 +531,13 @@ class KMeans(JavaEstimator, _KMeansParams, JavaMLWritable, JavaMLReadable):
     (the k-means|| algorithm by Bahmani et al).
 
     >>> from pyspark.ml.linalg import Vectors
-    >>> data = [(Vectors.dense([0.0, 0.0]),), (Vectors.dense([1.0, 1.0]),),
-    ...         (Vectors.dense([9.0, 8.0]),), (Vectors.dense([8.0, 9.0]),)]
-    >>> df = spark.createDataFrame(data, ["features"])
+    >>> data = [(Vectors.dense([0.0, 0.0]), 2.0), (Vectors.dense([1.0, 1.0]), 2.0),
+    ...         (Vectors.dense([9.0, 8.0]), 2.0), (Vectors.dense([8.0, 9.0]), 2.0)]
+    >>> df = spark.createDataFrame(data, ["features", "weighCol"])
     >>> kmeans = KMeans(k=2)
     >>> kmeans.setSeed(1)
+    KMeans...
+    >>> kmeans.setWeightCol("weighCol")
     KMeans...
     >>> kmeans.setMaxIter(10)
     KMeans...
@@ -519,7 +548,7 @@ class KMeans(JavaEstimator, _KMeansParams, JavaMLWritable, JavaMLReadable):
     >>> model.getDistanceMeasure()
     'euclidean'
     >>> model.setPredictionCol("newPrediction")
-    KMeans...
+    KMeansModel...
     >>> model.predict(df.head().features)
     0
     >>> centers = model.clusterCenters()
@@ -539,7 +568,7 @@ class KMeans(JavaEstimator, _KMeansParams, JavaMLWritable, JavaMLReadable):
     >>> summary.clusterSizes
     [2, 2]
     >>> summary.trainingCost
-    2.0
+    4.0
     >>> kmeans_path = temp_path + "/kmeans"
     >>> kmeans.save(kmeans_path)
     >>> kmeans2 = KMeans.load(kmeans_path)
@@ -561,11 +590,11 @@ class KMeans(JavaEstimator, _KMeansParams, JavaMLWritable, JavaMLReadable):
     @keyword_only
     def __init__(self, featuresCol="features", predictionCol="prediction", k=2,
                  initMode="k-means||", initSteps=2, tol=1e-4, maxIter=20, seed=None,
-                 distanceMeasure="euclidean"):
+                 distanceMeasure="euclidean", weightCol=None):
         """
         __init__(self, featuresCol="features", predictionCol="prediction", k=2, \
                  initMode="k-means||", initSteps=2, tol=1e-4, maxIter=20, seed=None, \
-                 distanceMeasure="euclidean")
+                 distanceMeasure="euclidean", weightCol=None)
         """
         super(KMeans, self).__init__()
         self._java_obj = self._new_java_obj("org.apache.spark.ml.clustering.KMeans", self.uid)
@@ -581,11 +610,11 @@ class KMeans(JavaEstimator, _KMeansParams, JavaMLWritable, JavaMLReadable):
     @since("1.5.0")
     def setParams(self, featuresCol="features", predictionCol="prediction", k=2,
                   initMode="k-means||", initSteps=2, tol=1e-4, maxIter=20, seed=None,
-                  distanceMeasure="euclidean"):
+                  distanceMeasure="euclidean", weightCol=None):
         """
         setParams(self, featuresCol="features", predictionCol="prediction", k=2, \
                   initMode="k-means||", initSteps=2, tol=1e-4, maxIter=20, seed=None, \
-                  distanceMeasure="euclidean")
+                  distanceMeasure="euclidean", weightCol=None)
 
         Sets params for KMeans.
         """
@@ -654,6 +683,13 @@ class KMeans(JavaEstimator, _KMeansParams, JavaMLWritable, JavaMLReadable):
         Sets the value of :py:attr:`tol`.
         """
         return self._set(tol=value)
+
+    @since("3.0.0")
+    def setWeightCol(self, value):
+        """
+        Sets the value of :py:attr:`weightCol`.
+        """
+        return self._set(weightCol=value)
 
 
 @inherit_doc
@@ -781,7 +817,7 @@ class BisectingKMeans(JavaEstimator, _BisectingKMeansParams, JavaMLWritable, Jav
     >>> model.getMaxIter()
     20
     >>> model.setPredictionCol("newPrediction")
-    BisectingKMeans...
+    BisectingKMeansModel...
     >>> model.predict(df.head().features)
     0
     >>> centers = model.clusterCenters()
@@ -1252,6 +1288,8 @@ class LDA(JavaEstimator, _LDAParams, JavaMLReadable, JavaMLWritable):
     10
     >>> lda.clear(lda.maxIter)
     >>> model = lda.fit(df)
+    >>> model.setSeed(1)
+    DistributedLDAModel...
     >>> model.getTopicDistributionCol()
     'topicDistribution'
     >>> model.isDistributed()

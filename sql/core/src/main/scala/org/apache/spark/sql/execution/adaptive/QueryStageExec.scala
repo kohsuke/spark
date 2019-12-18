@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.execution.adaptive
 
-import scala.collection.mutable
 import scala.concurrent.Future
 
 import org.apache.spark.{FutureAction, MapOutputStatistics}
@@ -25,7 +24,6 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.Statistics
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
@@ -131,21 +129,14 @@ case class ShuffleQueryStageExec(
     override val id: Int,
     override val plan: ShuffleExchangeExec) extends QueryStageExec {
 
-  @transient lazy val mapOutputStatisticsFuture: Future[MapOutputStatistics] = {
-    if (plan.inputRDD.getNumPartitions == 0) {
-      Future.successful(null)
-    } else {
-      sparkContext.submitMapStage(plan.shuffleDependency)
-    }
-  }
-
   override def doMaterialize(): Future[Any] = {
-    mapOutputStatisticsFuture
+    plan.mapOutputStatisticsFuture
   }
 
   override def cancel(): Unit = {
-    mapOutputStatisticsFuture match {
-      case action: FutureAction[MapOutputStatistics] if !mapOutputStatisticsFuture.isCompleted =>
+    plan.mapOutputStatisticsFuture match {
+      case action: FutureAction[MapOutputStatistics]
+        if !plan.mapOutputStatisticsFuture.isCompleted =>
         action.cancel()
       case _ =>
     }
@@ -219,9 +210,13 @@ case class ReusedQueryStageExec(
     }
   }
 
-  override def outputPartitioning: Partitioning = plan.outputPartitioning match {
+  private[sql] def updatePartitioning(p: Partitioning): Partitioning = p match {
     case e: Expression => updateAttr(e).asInstanceOf[Partitioning]
     case other => other
+  }
+
+  override def outputPartitioning: Partitioning = {
+    updatePartitioning(plan.outputPartitioning)
   }
 
   override def outputOrdering: Seq[SortOrder] = {
