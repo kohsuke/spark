@@ -159,7 +159,7 @@ private[state] class HDFSBackedStateStoreProvider extends StateStoreProvider wit
     /** Abort all the updates made on this store. This store will not be usable any more. */
     override def abort(): Unit = {
       // This if statement is to ensure that files are deleted only once: if either commit or abort
-      // is called before, the files will not be deleted.
+      // is called before, it will be no-op.
       if (state == UPDATING) {
         state = ABORTED
         cancelDeltaFile(compressedStream, deltaFileStream)
