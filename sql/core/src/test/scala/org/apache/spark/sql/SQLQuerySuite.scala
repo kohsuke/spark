@@ -3336,35 +3336,6 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
       checkAnswer(df5, Array.empty[Row])
     }
   }
-
-  test("SPARK-29505: desc columnname - case insensitive search") {
-    withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
-      withTable("customer") {
-        sql("CREATE TABLE customer(id INT, name STRING, CName STRING, address STRING," +
-          " city STRING, pin INT, country STRING)")
-        sql("INSERT INTO customer VALUES(1,'Alfred','Maria','Obere Str 57'," +
-          "'Berlin',12209,'Germany')")
-        sql("INSERT INTO customer VALUES(2,'Ana','trujilo','Adva de la'," +
-          "'Maxico D.F.',05021,'Maxico')")
-        sql("INSERT INTO customer VALUES(3,'Antonio','Antonio Moreno','Mataderos 2312'," +
-          "'Maxico D.F.',05023,'Maxico')")
-        sql("ANALYZE TABLE customer COMPUTE STATISTICS FOR COLUMNS cname")
-        val expectedData = Seq(
-          Row("col_name", "cname"),
-          Row("data_type", "string"),
-          Row("comment", "NULL"),
-          Row("min", "NULL"),
-          Row("max", "NULL"),
-          Row("num_nulls", "0"),
-          Row("distinct_count", "3"),
-          Row("avg_col_len", "9"),
-          Row("max_col_len", "14"),
-          Row("histogram", "NULL"))
-        assert(sql("desc extended customer cname").collect().
-          containsSlice(expectedData))
-      }
-    }
-  }
 }
 
 case class Foo(bar: Option[String])

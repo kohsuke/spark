@@ -760,16 +760,11 @@ case class DescribeColumnCommand(
       catalogTable.stats.map(_.colStats.map {
         case (key, value) => key.toLowerCase(Locale.ROOT) -> value
       }).getOrElse(Map.empty)
-
     }
   }
 
   private def getColumnName(fieldName: String) = {
-    if (conf.caseSensitiveAnalysis) {
-      fieldName
-    } else {
-      fieldName.toLowerCase(Locale.ROOT)
-    }
+    if (conf.caseSensitiveAnalysis) fieldName else fieldName.toLowerCase(Locale.ROOT)
   }
 
   private def histogramDescription(histogram: Histogram): Seq[Row] = {
