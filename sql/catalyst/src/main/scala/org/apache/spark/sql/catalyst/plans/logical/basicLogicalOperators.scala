@@ -17,16 +17,17 @@
 
 package org.apache.spark.sql.catalyst.plans.logical
 
-import java.util
-
 import org.apache.spark.sql.catalyst.AliasIdentifier
-import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
+import org.apache.spark.sql.catalyst.analysis.{MultiInstanceRelation, NamedRelation}
 import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.{AggregateExpression, AggregateFunction}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning, RangePartitioning, RoundRobinPartitioning}
 import org.apache.spark.sql.catalyst.util.truncatedString
+import org.apache.spark.sql.connector.catalog.{CatalogManager, Identifier, SupportsNamespaces, TableCatalog, TableChange}
+import org.apache.spark.sql.connector.catalog.TableChange.{AddColumn, ColumnChange}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types._
 import org.apache.spark.util.random.RandomSampler
 
@@ -609,7 +610,6 @@ object Expand {
     groupingSetAttrs: Seq[Attribute],
     attrMap: Map[Attribute, Int]): Int = {
     val numAttributes = attrMap.size
-    assert(numAttributes <= GroupingID.MAX_GROUPING_NUM_FOR_INTEGER_ID)
     val mask = (1 << numAttributes) - 1
     // Calculate the attrbute masks of selected grouping set. For example, if we have GroupBy
     // attributes (a, b, c, d), grouping set (a, c) will produce the following sequence:
@@ -621,30 +621,6 @@ object Expand {
     ))
     // Reduce masks to generate an bitmask for the selected grouping set.
     masks.reduce(_ & _)
-  }
-
-  // This is a string version of `buildBitmask` to support 32 or more group attributes; This method
-  // uses the same logic to generate a bitmask, but returns it as a string
-  // in a binary notation, e.g., "0101".
-  private def buildBitmaskAsString(
-    groupingSetAttrs: Seq[Attribute],
-    attrMap: Map[Attribute, Int]): String = {
-    val numAttributes = attrMap.size
-    val masks = groupingSetAttrs.map(attrMap).map { index =>
-      val bits = new util.BitSet(numAttributes)
-      bits.flip(0, numAttributes)
-      bits.clear(index)
-      bits
-    }
-    val initMask = new util.BitSet(numAttributes)
-    initMask.flip(0, numAttributes)
-    val bitMask = masks.foldLeft(initMask) { case (b1, b2) =>
-      b1.and(b2)
-      b1
-    }
-    (0 until numAttributes).map { index =>
-      if (bitMask.get(index)) "1" else "0"
-    }.mkString
   }
 
   /**
@@ -669,23 +645,16 @@ object Expand {
     // expressions which equal GroupBy expressions with Literal(null), if those expressions
     // are not set for this grouping set.
     val projections = groupingSetsAttrs.map { groupingSetAttrs =>
-      child.output ++ {
-        val gidDataType = GroupingID.groupIdDataType(groupByAttrs)
-        val gid = gidDataType match {
-          case IntegerType => buildBitmask(groupingSetAttrs, attrMap)
-          case StringType => buildBitmaskAsString(groupingSetAttrs, attrMap)
+      child.output ++ groupByAttrs.map { attr =>
+        if (!groupingSetAttrs.contains(attr)) {
+          // if the input attribute in the Invalid Grouping Expression set of for this group
+          // replace it with constant null
+          Literal.create(null, attr.dataType)
+        } else {
+          attr
         }
-        groupByAttrs.map { attr =>
-          if (!groupingSetAttrs.contains(attr)) {
-            // if the input attribute in the Invalid Grouping Expression set of for this group
-            // replace it with constant null
-            Literal.create(null, attr.dataType)
-          } else {
-            attr
-          }
-          // groupingId is the last output, here we use the bit mask as the concrete value for it.
-        } :+ Literal.create(gid, gidDataType)
-      }
+      // groupingId is the last output, here we use the bit mask as the concrete value for it.
+      } :+ Literal.create(buildBitmask(groupingSetAttrs, attrMap), IntegerType)
     }
 
     // the `groupByAttrs` has different meaning in `Expand.output`, it could be the original
