@@ -3360,7 +3360,7 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession {
           Row("avg_col_len", "9"),
           Row("max_col_len", "14"),
           Row("histogram", "NULL"))
-        assert(sql("desc extended customer cname").collect().
+        assert(sql("DESC EXTENDED customer cname").collect().
           containsSlice(expectedData))
       }
     }
