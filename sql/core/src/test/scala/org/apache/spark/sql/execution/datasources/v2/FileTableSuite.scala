@@ -20,9 +20,9 @@ import scala.collection.JavaConverters._
 
 import org.apache.hadoop.fs.FileStatus
 
-import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.connector.expressions.{FieldReference, Transform, IdentityTransform}
 import org.apache.spark.sql.{QueryTest, SparkSession}
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTransform, Transform}
 import org.apache.spark.sql.connector.read.ScanBuilder
 import org.apache.spark.sql.connector.write.WriteBuilder
 import org.apache.spark.sql.execution.datasources.FileFormat
