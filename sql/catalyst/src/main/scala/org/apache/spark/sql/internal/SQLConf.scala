@@ -2098,6 +2098,13 @@ object SQLConf {
         "defined by `from` and `to`.")
       .booleanConf
       .createWithDefault(false)
+
+   val LEGACY_INTEGER_GROUPING_ID =
+    buildConf("spark.sql.legacy.integerGroupingId.enabled")
+      .internal()
+      .doc("When true, grouping_id() returns int values instead of long values.")
+      .booleanConf
+      .createWithDefault(false)
 }
 
 /**
@@ -2600,6 +2607,8 @@ class SQLConf extends Serializable with Logging {
   def castDatetimeToString: Boolean = getConf(SQLConf.LEGACY_CAST_DATETIME_TO_STRING)
 
   def ignoreDataLocality: Boolean = getConf(SQLConf.IGNORE_DATA_LOCALITY)
+
+  def integerGroupingIdEnabled: Boolean = getConf(SQLConf.LEGACY_INTEGER_GROUPING_ID)
 
   /** ********************** SQLConf functionality methods ************ */
 

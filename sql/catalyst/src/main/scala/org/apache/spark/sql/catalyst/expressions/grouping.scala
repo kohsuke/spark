@@ -19,6 +19,7 @@ package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 
 /**
@@ -139,7 +140,14 @@ case class GroupingID(groupByExprs: Seq[Expression]) extends Expression with Une
   override lazy val references: AttributeSet =
     AttributeSet(VirtualColumn.groupingIdAttribute :: Nil)
   override def children: Seq[Expression] = groupByExprs
-  override def dataType: DataType = IntegerType
+  override def dataType: DataType = GroupingID.dataType
   override def nullable: Boolean = false
   override def prettyName: String = "grouping_id"
+}
+
+object GroupingID {
+
+  def dataType: DataType = {
+    if (SQLConf.get.integerGroupingIdEnabled) IntegerType else LongType
+  }
 }
