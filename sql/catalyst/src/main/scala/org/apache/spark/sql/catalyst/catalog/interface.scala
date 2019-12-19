@@ -368,8 +368,9 @@ case class CatalogTable(
 }
 
 object CatalogTable {
-  val VIEW_DEFAULT_DATABASE = "view.default.database"
-  val VIEW_QUERY_OUTPUT_PREFIX = "view.query.out."
+  val VIEW_PREFIX = "view."
+  val VIEW_DEFAULT_DATABASE = VIEW_PREFIX + "default.database"
+  val VIEW_QUERY_OUTPUT_PREFIX = VIEW_PREFIX + "query.out."
   val VIEW_QUERY_OUTPUT_NUM_COLUMNS = VIEW_QUERY_OUTPUT_PREFIX + "numCols"
   val VIEW_QUERY_OUTPUT_COLUMN_NAME_PREFIX = VIEW_QUERY_OUTPUT_PREFIX + "col."
 }
