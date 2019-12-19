@@ -50,11 +50,11 @@ trait GroupingSet extends Expression with CodegenFallback {
       > SELECT name, age, count(*) FROM VALUES (2, 'Alice'), (5, 'Bob') people(age, name) GROUP BY _FUNC_(name, age);
         Bob	5	1
         Alice	2	1
-        NULL	NULL	2
-        NULL	5	1
-        Bob	NULL	1
         Alice	NULL	1
         NULL	2	1
+        NULL	NULL	2
+        Bob	NULL	1
+        NULL	5	1
   """,
   since = "2.0.0")
 // scalastyle:on line.size.limit line.contains.tab
@@ -71,9 +71,9 @@ case class Cube(groupByExprs: Seq[Expression]) extends GroupingSet {}
       > SELECT name, age, count(*) FROM VALUES (2, 'Alice'), (5, 'Bob') people(age, name) GROUP BY _FUNC_(name, age);
         Bob	5	1
         Alice	2	1
+        Alice	NULL	1
         NULL	NULL	2
         Bob	NULL	1
-        Alice	NULL	1
   """,
   since = "2.0.0")
 // scalastyle:on line.size.limit line.contains.tab
@@ -92,8 +92,8 @@ case class Rollup(groupByExprs: Seq[Expression]) extends GroupingSet {}
   examples = """
     Examples:
       > SELECT name, _FUNC_(name), sum(age) FROM VALUES (2, 'Alice'), (5, 'Bob') people(age, name) GROUP BY cube(name);
-        Bob	0	5
         Alice	0	2
+        Bob	0	5
         NULL	1	7
   """,
   since = "2.0.0")
@@ -121,13 +121,13 @@ case class Grouping(child: Expression) extends Expression with Unevaluable {
   examples = """
     Examples:
       > SELECT name, _FUNC_(), sum(age), avg(height) FROM VALUES (2, 'Alice', 165), (5, 'Bob', 180) people(age, name, height) GROUP BY cube(name, height);
-        NULL	2	5	180.0
         Alice	0	2	165.0
-        NULL	3	7	172.5
-        NULL	2	2	165.0
-        Bob	1	5	180.0
         Alice	1	2	165.0
+        NULL	3	7	172.5
         Bob	0	5	180.0
+        Bob	1	5	180.0
+        NULL	2	2	165.0
+        NULL	2	5	180.0
   """,
   note = """
     Input columns should match with grouping columns exactly, or empty (means all the grouping
