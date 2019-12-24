@@ -309,7 +309,8 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
    * UnsafeRow is highly compressible (at least 8 bytes for any column), the byte array is also
    * compressed.
    */
-  private def getByteArrayRdd(n: Int = -1, reverse: Boolean = false): RDD[(Long, Array[Byte])] = {
+  private def getByteArrayRdd(
+      n: Int = -1, reversePartitions: Boolean = false): RDD[(Long, Array[Byte])] = {
     execute().mapPartitionsInternal { iter =>
       var count = 0
       val buffer = new Array[Byte](4 << 10)  // 4K
@@ -317,7 +318,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
       val bos = new ByteArrayOutputStream()
       val out = new DataOutputStream(codec.compressedOutputStream(bos))
 
-      if (reverse) {
+      if (reversePartitions) {
         // To collect n from the last, we should anyway read everything with keeping the n.
         // Otherwise, we don't know where is the last from the iterator.
         var last: Seq[UnsafeRow] = Seq.empty[UnsafeRow]
