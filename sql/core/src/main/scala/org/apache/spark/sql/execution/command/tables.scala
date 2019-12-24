@@ -23,9 +23,7 @@ import java.util.Locale
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 import scala.util.control.NonFatal
-
 import org.apache.hadoop.fs.{FileContext, FsConstants, Path}
-
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{NoSuchPartitionException, UnresolvedAttribute}
@@ -35,7 +33,7 @@ import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.catalyst.plans.DescribeTableSchema
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.catalyst.util.{escapeSingleQuotedString, quoteIdentifier}
+import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, escapeSingleQuotedString, quoteIdentifier}
 import org.apache.spark.sql.execution.datasources.{DataSource, PartitioningUtils}
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.json.JsonFileFormat
@@ -721,13 +719,8 @@ case class DescribeColumnCommand(
     }
 
     val catalogTable = catalog.getTempViewOrPermanentTableMetadata(table)
-    val colStats = if (conf.caseSensitiveAnalysis) {
-      catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
-    } else {
-      catalogTable.stats.map(_.colStats.map {
-        case (key, value) => key.toLowerCase(Locale.ROOT) -> value
-      }).getOrElse(Map.empty)
-    }
+    val colStatsMap = catalogTable.stats.map(_.colStats).getOrElse(Map.empty)
+    val colStats = if (conf.caseSensitiveAnalysis) colStatsMap else CaseInsensitiveMap(colStatsMap)
     val cs = colStats.get(getColumnName(field.name))
 
     val comment = if (field.metadata.contains("comment")) {
