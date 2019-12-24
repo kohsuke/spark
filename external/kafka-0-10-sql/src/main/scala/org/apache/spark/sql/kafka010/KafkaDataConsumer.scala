@@ -130,8 +130,6 @@ private[kafka010] class InternalKafkaConsumer(
   }
 }
 
-// TODO: consider changing this to normal class, as having mutable variables in
-//   case class sounds weird.
 /**
  * The internal object to store the fetched data from Kafka consumer and the next offset to poll.
  *
@@ -141,7 +139,7 @@ private[kafka010] class InternalKafkaConsumer(
  * @param _offsetAfterPoll the Kafka offset after calling `poll`. We will use this offset to
  *                           poll when `records` is drained.
  */
-private[kafka010] case class FetchedData(
+private[kafka010] class FetchedData(
     private var _records: ju.ListIterator[ConsumerRecord[Array[Byte], Array[Byte]]],
     private var _nextOffsetInFetchedData: Long,
     private var _offsetAfterPoll: Long) {
@@ -192,15 +190,13 @@ private[kafka010] case class FetchedData(
   def offsetAfterPoll: Long = _offsetAfterPoll
 }
 
-// TODO: consider changing this to normal class, as having mutable variables in
-//   case class sounds weird.
 /**
  * The internal object returned by the `fetchRecord` method. If `record` is empty, it means it is
  * invisible (either a transaction message, or an aborted message when the consumer's
  * `isolation.level` is `read_committed`), and the caller should use `nextOffsetToFetch` to fetch
  * instead.
  */
-private[kafka010] case class FetchedRecord(
+private[kafka010] class FetchedRecord(
     var record: ConsumerRecord[Array[Byte], Array[Byte]],
     var nextOffsetToFetch: Long) {
 
@@ -237,7 +233,7 @@ private[kafka010] class KafkaDataConsumer(
    * The fetched record returned from the `fetchRecord` method. This is a reusable private object to
    * avoid memory allocation.
    */
-  private val fetchedRecord: FetchedRecord = FetchedRecord(null, UNKNOWN_OFFSET)
+  private val fetchedRecord: FetchedRecord = new FetchedRecord(null, UNKNOWN_OFFSET)
 
   /**
    * Get the record for the given offset if available.

@@ -170,7 +170,7 @@ private[kafka010] object FetchedDataPool {
 
   private object CachedFetchedData {
     def empty(): CachedFetchedData = {
-      val emptyData = FetchedData(
+      val emptyData = new FetchedData(
         ju.Collections.emptyListIterator[ConsumerRecord[Array[Byte], Array[Byte]]],
         UNKNOWN_OFFSET,
         UNKNOWN_OFFSET)
