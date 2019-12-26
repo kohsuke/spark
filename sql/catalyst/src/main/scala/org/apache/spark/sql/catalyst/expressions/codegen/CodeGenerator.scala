@@ -39,6 +39,7 @@ import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
 import org.apache.spark.sql.catalyst.util.{ArrayData, GenericArrayData, MapData}
+import org.apache.spark.sql.catalyst.util.DateTimeConstants.NANOS_PER_MILLIS
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -112,7 +113,7 @@ private[codegen] case class NewFunctionSpec(
  * A context for codegen, tracking a list of objects that could be passed into generated Java
  * function.
  */
-class CodegenContext {
+class CodegenContext extends Logging {
 
   import CodeGenerator._
 
@@ -604,6 +605,7 @@ class CodegenContext {
       s"((java.lang.Double.isNaN($c1) && java.lang.Double.isNaN($c2)) || $c1 == $c2)"
     case dt: DataType if isPrimitiveType(dt) => s"$c1 == $c2"
     case dt: DataType if dt.isInstanceOf[AtomicType] => s"$c1.equals($c2)"
+    case CalendarIntervalType => s"$c1.equals($c2)"
     case array: ArrayType => genComp(array, c1, c2) + " == 0"
     case struct: StructType => genComp(struct, c1, c2) + " == 0"
     case udt: UserDefinedType[_] => genEqual(udt.sqlType, c1, c2)
@@ -623,11 +625,12 @@ class CodegenContext {
   def genComp(dataType: DataType, c1: String, c2: String): String = dataType match {
     // java boolean doesn't support > or < operator
     case BooleanType => s"($c1 == $c2 ? 0 : ($c1 ? 1 : -1))"
-    case DoubleType => s"org.apache.spark.util.Utils.nanSafeCompareDoubles($c1, $c2)"
-    case FloatType => s"org.apache.spark.util.Utils.nanSafeCompareFloats($c1, $c2)"
+    case DoubleType => s"java.lang.Double.compare($c1, $c2)"
+    case FloatType => s"java.lang.Float.compare($c1, $c2)"
     // use c1 - c2 may overflow
     case dt: DataType if isPrimitiveType(dt) => s"($c1 > $c2 ? 1 : $c1 < $c2 ? -1 : 0)"
     case BinaryType => s"org.apache.spark.sql.catalyst.util.TypeUtils.compareBinary($c1, $c2)"
+    case CalendarIntervalType => s"$c1.compareTo($c2)"
     case NullType => "0"
     case array: ArrayType =>
       val elementType = array.elementType
@@ -1038,13 +1041,70 @@ class CodegenContext {
     // Get all the expressions that appear at least twice and set up the state for subexpression
     // elimination.
     val commonExprs = equivalentExpressions.getAllEquivalentExprs.filter(_.size > 1)
-    val codes = commonExprs.map { e =>
-      val expr = e.head
-      // Generate the code for this expression tree.
-      val eval = expr.genCode(this)
-      val state = SubExprEliminationState(eval.isNull, eval.value)
-      e.foreach(localSubExprEliminationExprs.put(_, state))
-      eval.code.toString
+    val commonExprVals = commonExprs.map(_.head.genCode(this))
+
+    lazy val nonSplitExprCode = {
+      commonExprs.zip(commonExprVals).map { case (exprs, eval) =>
+        // Generate the code for this expression tree.
+        val state = SubExprEliminationState(eval.isNull, eval.value)
+        exprs.foreach(localSubExprEliminationExprs.put(_, state))
+        eval.code.toString
+      }
+    }
+
+    val codes = if (commonExprVals.map(_.code.length).sum > SQLConf.get.methodSplitThreshold) {
+      val inputVarsForAllFuncs = commonExprs.map { expr =>
+        getLocalInputVariableValues(this, expr.head).toSeq
+      }
+      if (inputVarsForAllFuncs.map(calculateParamLengthFromExprValues).forall(isValidParamLength)) {
+        commonExprs.zipWithIndex.map { case (exprs, i) =>
+          val expr = exprs.head
+          val eval = commonExprVals(i)
+
+          val isNullLiteral = eval.isNull match {
+            case TrueLiteral | FalseLiteral => true
+            case _ => false
+          }
+          val (isNull, isNullEvalCode) = if (!isNullLiteral) {
+            val v = addMutableState(JAVA_BOOLEAN, "subExprIsNull")
+            (JavaCode.isNullGlobal(v), s"$v = ${eval.isNull};")
+          } else {
+            (eval.isNull, "")
+          }
+
+          // Generate the code for this expression tree and wrap it in a function.
+          val fnName = freshName("subExpr")
+          val inputVars = inputVarsForAllFuncs(i)
+          val argList = inputVars.map(v => s"${v.javaType.getName} ${v.variableName}")
+          val returnType = javaType(expr.dataType)
+          val fn =
+            s"""
+               |private $returnType $fnName(${argList.mkString(", ")}) {
+               |  ${eval.code}
+               |  $isNullEvalCode
+               |  return ${eval.value};
+               |}
+               """.stripMargin
+
+          val value = freshName("subExprValue")
+          val state = SubExprEliminationState(isNull, JavaCode.variable(value, expr.dataType))
+          exprs.foreach(localSubExprEliminationExprs.put(_, state))
+          val inputVariables = inputVars.map(_.variableName).mkString(", ")
+          s"$returnType $value = ${addNewFunction(fnName, fn)}($inputVariables);"
+        }
+      } else {
+        val errMsg = "Failed to split subexpression code into small functions because the " +
+          "parameter length of at least one split function went over the JVM limit: " +
+          MAX_JVM_METHOD_PARAMS_LENGTH
+        if (Utils.isTesting) {
+          throw new IllegalStateException(errMsg)
+        } else {
+          logInfo(errMsg)
+          nonSplitExprCode
+        }
+      }
+    } else {
+      nonSplitExprCode
     }
     SubExprCodes(codes, localSubExprEliminationExprs.toMap)
   }
@@ -1315,18 +1375,25 @@ object CodeGenerator extends Logging {
       case e: InternalCompilerException =>
         val msg = s"failed to compile: $e"
         logError(msg, e)
-        val maxLines = SQLConf.get.loggingMaxLinesForCodegen
-        logInfo(s"\n${CodeFormatter.format(code, maxLines)}")
+        logGeneratedCode(code)
         throw new InternalCompilerException(msg, e)
       case e: CompileException =>
         val msg = s"failed to compile: $e"
         logError(msg, e)
-        val maxLines = SQLConf.get.loggingMaxLinesForCodegen
-        logInfo(s"\n${CodeFormatter.format(code, maxLines)}")
+        logGeneratedCode(code)
         throw new CompileException(msg, e.getLocation)
     }
 
     (evaluator.getClazz().getConstructor().newInstance().asInstanceOf[GeneratedClass], codeStats)
+  }
+
+  private def logGeneratedCode(code: CodeAndComment): Unit = {
+    val maxLines = SQLConf.get.loggingMaxLinesForCodegen
+    if (Utils.isTesting) {
+      logError(s"\n${CodeFormatter.format(code, maxLines)}")
+    } else {
+      logInfo(s"\n${CodeFormatter.format(code, maxLines)}")
+    }
   }
 
   /**
@@ -1513,6 +1580,7 @@ object CodeGenerator extends Logging {
     val jt = javaType(dataType)
     dataType match {
       case _ if isPrimitiveType(jt) => s"$row.set${primitiveTypeName(jt)}($ordinal, $value)"
+      case CalendarIntervalType => s"$row.setInterval($ordinal, $value)"
       case t: DecimalType => s"$row.setDecimal($ordinal, $value, ${t.precision})"
       case udt: UserDefinedType[_] => setColumn(row, udt.sqlType, ordinal, value)
       // The UTF8String, InternalRow, ArrayData and MapData may came from UnsafeRow, we should copy
@@ -1536,8 +1604,10 @@ object CodeGenerator extends Logging {
       nullable: Boolean,
       isVectorized: Boolean = false): String = {
     if (nullable) {
-      // Can't call setNullAt on DecimalType, because we need to keep the offset
-      if (!isVectorized && dataType.isInstanceOf[DecimalType]) {
+      // Can't call setNullAt on DecimalType/CalendarIntervalType, because we need to keep the
+      // offset
+      if (!isVectorized && (dataType.isInstanceOf[DecimalType] ||
+        dataType.isInstanceOf[CalendarIntervalType])) {
         s"""
            |if (!${ev.isNull}) {
            |  ${setColumn(row, dataType, ordinal, ev.value)};
@@ -1568,6 +1638,7 @@ object CodeGenerator extends Logging {
       case _ if isPrimitiveType(jt) =>
         s"$vector.put${primitiveTypeName(jt)}($rowId, $value);"
       case t: DecimalType => s"$vector.putDecimal($rowId, $value, ${t.precision});"
+      case CalendarIntervalType => s"$vector.putInterval($rowId, $value);"
       case t: StringType => s"$vector.putByteArray($rowId, $value.getBytes());"
       case _ =>
         throw new IllegalArgumentException(s"cannot generate code for unsupported type: $dataType")
@@ -1646,7 +1717,7 @@ object CodeGenerator extends Logging {
   def getLocalInputVariableValues(
       ctx: CodegenContext,
       expr: Expression,
-      subExprs: Map[Expression, SubExprEliminationState]): Set[VariableValue] = {
+      subExprs: Map[Expression, SubExprEliminationState] = Map.empty): Set[VariableValue] = {
     val argSet = mutable.Set[VariableValue]()
     if (ctx.INPUT_ROW != null) {
       argSet += JavaCode.variable(ctx.INPUT_ROW, classOf[InternalRow])
@@ -1750,6 +1821,14 @@ object CodeGenerator extends Logging {
 
   def boxedType(dt: DataType): String = boxedType(javaType(dt))
 
+  def typeName(clazz: Class[_]): String = {
+    if (clazz.isArray) {
+      typeName(clazz.getComponentType) + "[]"
+    } else {
+      clazz.getName
+    }
+  }
+
   /**
    * Returns the representation of default value for a given Java Type.
    * @param jt the string name of the Java type
@@ -1801,6 +1880,10 @@ object CodeGenerator extends Logging {
    * length less than a pre-defined constant.
    */
   def isValidParamLength(paramLength: Int): Boolean = {
-    paramLength <= MAX_JVM_METHOD_PARAMS_LENGTH
+    // This config is only for testing
+    SQLConf.get.getConfString("spark.sql.CodeGenerator.validParamLength", null) match {
+      case null | "" => paramLength <= MAX_JVM_METHOD_PARAMS_LENGTH
+      case validLength => paramLength <= validLength.toInt
+    }
   }
 }

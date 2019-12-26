@@ -22,6 +22,8 @@ import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
+import org.scalatest.Assertions._
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.{IdentityTransform, Transform}
@@ -41,8 +43,11 @@ class InMemoryTable(
     override val properties: util.Map[String, String])
   extends Table with SupportsRead with SupportsWrite with SupportsDelete {
 
+  private val allowUnsupportedTransforms =
+    properties.getOrDefault("allow-unsupported-transforms", "false").toBoolean
+
   partitioning.foreach { t =>
-    if (!t.isInstanceOf[IdentityTransform]) {
+    if (!t.isInstanceOf[IdentityTransform] && !allowUnsupportedTransforms) {
       throw new IllegalArgumentException(s"Transform $t must be IdentityTransform")
     }
   }
@@ -119,7 +124,7 @@ class InMemoryTable(
   }
 
   private abstract class TestBatchWrite extends BatchWrite {
-    override def createBatchWriterFactory(): DataWriterFactory = {
+    override def createBatchWriterFactory(info: PhysicalWriteInfo): DataWriterFactory = {
       BufferedRowsWriterFactory
     }
 
@@ -247,4 +252,6 @@ private class BufferWriter extends DataWriter[InternalRow] {
   override def commit(): WriterCommitMessage = buffer
 
   override def abort(): Unit = {}
+
+  override def close(): Unit = {}
 }

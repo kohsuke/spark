@@ -14,8 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.catalyst.analysis
+
+import scala.collection.mutable
 
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions._
@@ -24,7 +25,6 @@ import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.optimizer.BooleanSimplification
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical._
-import org.apache.spark.sql.catalyst.plans.logical.sql.{AlterTableStatement, InsertIntoStatement}
 import org.apache.spark.sql.connector.catalog.TableChange.{AddColumn, DeleteColumn, RenameColumn, UpdateColumnComment, UpdateColumnType}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
@@ -33,6 +33,8 @@ import org.apache.spark.sql.types._
  * Throws user facing errors when passed invalid queries that fail to analyze.
  */
 trait CheckAnalysis extends PredicateHelper {
+
+  protected def isView(nameParts: Seq[String]): Boolean
 
   import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
 
@@ -95,6 +97,27 @@ trait CheckAnalysis extends PredicateHelper {
 
       case InsertIntoStatement(u: UnresolvedRelation, _, _, _, _) =>
         failAnalysis(s"Table not found: ${u.multipartIdentifier.quoted}")
+
+      case u: UnresolvedV2Relation if isView(u.originalNameParts) =>
+        u.failAnalysis(
+          s"Invalid command: '${u.originalNameParts.quoted}' is a view not a table.")
+
+      case u: UnresolvedV2Relation =>
+        u.failAnalysis(s"Table not found: ${u.originalNameParts.quoted}")
+
+      case AlterTable(_, _, u: UnresolvedV2Relation, _) if isView(u.originalNameParts) =>
+        u.failAnalysis(
+          s"Invalid command: '${u.originalNameParts.quoted}' is a view not a table.")
+
+      case AlterTable(_, _, u: UnresolvedV2Relation, _) =>
+        failAnalysis(s"Table not found: ${u.originalNameParts.quoted}")
+
+      case DescribeTable(u: UnresolvedV2Relation, _) if isView(u.originalNameParts) =>
+        u.failAnalysis(
+          s"Invalid command: '${u.originalNameParts.quoted}' is a view not a table.")
+
+      case DescribeTable(u: UnresolvedV2Relation, _) =>
+        failAnalysis(s"Table not found: ${u.originalNameParts.quoted}")
 
       case operator: LogicalPlan =>
         // Check argument data types of higher-order functions downwards first.
@@ -258,6 +281,41 @@ trait CheckAnalysis extends PredicateHelper {
             groupingExprs.foreach(checkValidGroupingExprs)
             aggregateExprs.foreach(checkValidAggregateExpression)
 
+          case CollectMetrics(name, metrics, _) =>
+            if (name == null || name.isEmpty) {
+              operator.failAnalysis(s"observed metrics should be named: $operator")
+            }
+            // Check if an expression is a valid metric. A metric must meet the following criteria:
+            // - Is not a window function;
+            // - Is not nested aggregate function;
+            // - Is not a distinct aggregate function;
+            // - Has only non-deterministic functions that are nested inside an aggregate function;
+            // - Has only attributes that are nested inside an aggregate function.
+            def checkMetric(s: Expression, e: Expression, seenAggregate: Boolean = false): Unit = {
+              e match {
+                case _: WindowExpression =>
+                  e.failAnalysis(
+                    "window expressions are not allowed in observed metrics, but found: " + s.sql)
+                case _ if !e.deterministic && !seenAggregate =>
+                  e.failAnalysis(s"non-deterministic expression ${s.sql} can only be used " +
+                    "as an argument to an aggregate function.")
+                case a: AggregateExpression if seenAggregate =>
+                  e.failAnalysis(
+                    "nested aggregates are not allowed in observed metrics, but found: " + s.sql)
+                case a: AggregateExpression if a.isDistinct =>
+                  e.failAnalysis(
+                    "distinct aggregates are not allowed in observed metrics, but found: " + s.sql)
+                case _: Attribute if !seenAggregate =>
+                  e.failAnalysis (s"attribute ${s.sql} can only be used as an argument to an " +
+                    "aggregate function.")
+                case _: AggregateExpression =>
+                  e.children.foreach(checkMetric (s, _, seenAggregate = true))
+                case _ =>
+                  e.children.foreach(checkMetric (s, _, seenAggregate))
+              }
+            }
+            metrics.foreach(m => checkMetric(m, m))
+
           case Sort(orders, _, _) =>
             orders.foreach { order =>
               if (!RowOrdering.isOrderable(order.dataType)) {
@@ -356,9 +414,6 @@ trait CheckAnalysis extends PredicateHelper {
                 }
               case _ =>
             }
-
-          case alter: AlterTableStatement =>
-            alter.failAnalysis(s"Table or view not found: ${alter.tableName.quoted}")
 
           case alter: AlterTable if alter.childrenResolved =>
             val table = alter.table
@@ -515,6 +570,7 @@ trait CheckAnalysis extends PredicateHelper {
           case _ => // Analysis successful!
         }
     }
+    checkCollectedMetrics(plan)
     extendedCheckRules.foreach(_(plan))
     plan.foreachUp {
       case o if !o.resolved =>
@@ -587,25 +643,57 @@ trait CheckAnalysis extends PredicateHelper {
           // Only certain operators are allowed to host subquery expression containing
           // outer references.
           plan match {
-            case _: Filter | _: Aggregate | _: Project | _: DeleteFromTable => // Ok
+            case _: Filter | _: Aggregate | _: Project | _: SupportsSubquery => // Ok
             case other => failAnalysis(
               "Correlated scalar sub-queries can only be used in a " +
-                s"Filter/Aggregate/Project: $plan")
+                s"Filter/Aggregate/Project and a few commands: $plan")
           }
         }
 
       case inSubqueryOrExistsSubquery =>
         plan match {
-          case _: Filter | _: DeleteFromTable => // Ok
+          case _: Filter | _: SupportsSubquery | _: Join => // Ok
           case _ =>
             failAnalysis(s"IN/EXISTS predicate sub-queries can only be used in" +
-                s" Filter/DeleteFromTable: $plan")
+                s" Filter/Join and a few commands: $plan")
         }
     }
 
     // Validate to make sure the correlations appearing in the query are valid and
     // allowed by spark.
     checkCorrelationsInSubquery(expr.plan)
+  }
+
+  /**
+   * Validate that collected metrics names are unique. The same name cannot be used for metrics
+   * with different results. However multiple instances of metrics with with same result and name
+   * are allowed (e.g. self-joins).
+   */
+  private def checkCollectedMetrics(plan: LogicalPlan): Unit = {
+    val metricsMap = mutable.Map.empty[String, LogicalPlan]
+    def check(plan: LogicalPlan): Unit = plan.foreach { node =>
+      node match {
+        case metrics @ CollectMetrics(name, _, _) =>
+          metricsMap.get(name) match {
+            case Some(other) =>
+              // Exact duplicates are allowed. They can be the result
+              // of a CTE that is used multiple times or a self join.
+              if (!metrics.sameResult(other)) {
+                failAnalysis(
+                  s"Multiple definitions of observed metrics named '$name': $plan")
+              }
+            case None =>
+              metricsMap.put(name, metrics)
+          }
+        case _ =>
+      }
+      node.expressions.foreach(_.foreach {
+        case subquery: SubqueryExpression =>
+          check(subquery.plan)
+        case _ =>
+      })
+    }
+    check(plan)
   }
 
   /**

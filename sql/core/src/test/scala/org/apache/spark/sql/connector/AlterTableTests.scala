@@ -50,7 +50,7 @@ trait AlterTableTests extends SharedSparkSession {
       }
 
       assert(exc.getMessage.contains(s"${catalogAndNamespace}table_name"))
-      assert(exc.getMessage.contains("Table or view not found"))
+      assert(exc.getMessage.contains("Table not found"))
     }
   }
 
@@ -98,6 +98,49 @@ trait AlterTableTests extends SharedSparkSession {
       assert(table.schema === StructType(Seq(
         StructField("id", IntegerType),
         StructField("data", StringType).withComment("doc"))))
+    }
+  }
+
+  test("AlterTable: add column with position") {
+    val t = s"${catalogAndNamespace}table_name"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (point struct<x: int>) USING $v2Format")
+
+      sql(s"ALTER TABLE $t ADD COLUMN a string FIRST")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", StringType)
+        .add("point", new StructType().add("x", IntegerType)))
+
+      sql(s"ALTER TABLE $t ADD COLUMN b string AFTER point")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", StringType)
+        .add("point", new StructType().add("x", IntegerType))
+        .add("b", StringType))
+
+      val e1 = intercept[SparkException](
+        sql(s"ALTER TABLE $t ADD COLUMN c string AFTER non_exist"))
+      assert(e1.getMessage().contains("AFTER column not found"))
+
+      sql(s"ALTER TABLE $t ADD COLUMN point.y int FIRST")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", StringType)
+        .add("point", new StructType()
+          .add("y", IntegerType)
+          .add("x", IntegerType))
+        .add("b", StringType))
+
+      sql(s"ALTER TABLE $t ADD COLUMN point.z int AFTER x")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", StringType)
+        .add("point", new StructType()
+          .add("y", IntegerType)
+          .add("x", IntegerType)
+          .add("z", IntegerType))
+        .add("b", StringType))
+
+      val e2 = intercept[SparkException](
+        sql(s"ALTER TABLE $t ADD COLUMN point.x2 int AFTER non_exist"))
+      assert(e2.getMessage().contains("AFTER column not found"))
     }
   }
 
@@ -471,6 +514,61 @@ trait AlterTableTests extends SharedSparkSession {
     }
   }
 
+  test("AlterTable: update column position") {
+    val t = s"${catalogAndNamespace}table_name"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (a int, b int, point struct<x: int, y: int, z: int>) USING $v2Format")
+
+      sql(s"ALTER TABLE $t ALTER COLUMN b FIRST")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("b", IntegerType)
+        .add("a", IntegerType)
+        .add("point", new StructType()
+          .add("x", IntegerType)
+          .add("y", IntegerType)
+          .add("z", IntegerType)))
+
+      sql(s"ALTER TABLE $t ALTER COLUMN b AFTER point")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", IntegerType)
+        .add("point", new StructType()
+          .add("x", IntegerType)
+          .add("y", IntegerType)
+          .add("z", IntegerType))
+        .add("b", IntegerType))
+
+      val e1 = intercept[SparkException](
+        sql(s"ALTER TABLE $t ALTER COLUMN b AFTER non_exist"))
+      assert(e1.getMessage.contains("AFTER column not found"))
+
+      sql(s"ALTER TABLE $t ALTER COLUMN point.y FIRST")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", IntegerType)
+        .add("point", new StructType()
+          .add("y", IntegerType)
+          .add("x", IntegerType)
+          .add("z", IntegerType))
+        .add("b", IntegerType))
+
+      sql(s"ALTER TABLE $t ALTER COLUMN point.y AFTER z")
+      assert(getTableMetadata(t).schema == new StructType()
+        .add("a", IntegerType)
+        .add("point", new StructType()
+          .add("x", IntegerType)
+          .add("z", IntegerType)
+          .add("y", IntegerType))
+        .add("b", IntegerType))
+
+      val e2 = intercept[SparkException](
+        sql(s"ALTER TABLE $t ALTER COLUMN point.y AFTER non_exist"))
+      assert(e2.getMessage.contains("AFTER column not found"))
+
+      // `AlterTable.resolved` checks column existence.
+      intercept[AnalysisException](
+        sql(s"ALTER TABLE $t ALTER COLUMN a.y AFTER x"))
+    }
+  }
+
   test("AlterTable: update column type and comment") {
     val t = s"${catalogAndNamespace}table_name"
     withTable(t) {
@@ -813,6 +911,19 @@ trait AlterTableTests extends SharedSparkSession {
       assert(table.name === fullTableName(t))
       assert(table.properties ===
         Map("provider" -> v2Format, "location" -> "s3://bucket/path").asJava)
+    }
+  }
+
+  test("AlterTable: set partition location") {
+    val t = s"${catalogAndNamespace}table_name"
+    withTable(t) {
+      sql(s"CREATE TABLE $t (id int) USING $v2Format")
+
+      val exc = intercept[AnalysisException] {
+        sql(s"ALTER TABLE $t PARTITION(ds='2017-06-10') SET LOCATION 's3://bucket/path'")
+      }
+      assert(exc.getMessage.contains(
+        "ALTER TABLE SET LOCATION does not support partition for v2 tables"))
     }
   }
 
