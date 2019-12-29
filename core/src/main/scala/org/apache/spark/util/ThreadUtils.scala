@@ -22,7 +22,6 @@ import java.util.concurrent._
 import java.util.concurrent.locks.ReentrantLock
 
 import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
-
 import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.language.higherKinds
