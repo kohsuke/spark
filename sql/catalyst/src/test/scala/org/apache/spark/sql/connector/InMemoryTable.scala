@@ -124,7 +124,7 @@ class InMemoryTable(
   }
 
   private abstract class TestBatchWrite extends BatchWrite {
-    override def createBatchWriterFactory(): DataWriterFactory = {
+    override def createBatchWriterFactory(info: PhysicalWriteInfo): DataWriterFactory = {
       BufferedRowsWriterFactory
     }
 
@@ -252,4 +252,6 @@ private class BufferWriter extends DataWriter[InternalRow] {
   override def commit(): WriterCommitMessage = buffer
 
   override def abort(): Unit = {}
+
+  override def close(): Unit = {}
 }
