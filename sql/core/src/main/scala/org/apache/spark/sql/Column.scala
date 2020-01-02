@@ -862,6 +862,16 @@ class Column(val expr: Expression) extends Logging {
   def getItem(key: Any): Column = withExpr { UnresolvedExtractValue(expr, Literal(key)) }
 
   /**
+   * An expression that adds/replaces a field by name in a `StructType`.
+   *
+   * @group expr_ops
+   * @since 3.0.0
+   */
+  def withField(fieldName: String, fieldValue: Column): Column = withExpr {
+    AddField(expr, fieldName, fieldValue.expr)
+  }
+
+  /**
    * An expression that gets a field by name in a `StructType`.
    *
    * @group expr_ops
