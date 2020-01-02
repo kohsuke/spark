@@ -869,4 +869,93 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
       df.select(typedLit(("a", 2, 1.0))),
       Row(Row("a", 2, 1.0)) :: Nil)
   }
+
+  test("withField") {
+    val structLevel1 = spark.createDataFrame(sparkContext.parallelize(
+      Row(Row(1, 1, 1)) :: Nil),
+      StructType(Seq(
+        StructField("a", StructType(Seq(
+          StructField("a", IntegerType),
+          StructField("b", IntegerType),
+          StructField("c", IntegerType)))))))
+
+    val structLevel2 = spark.createDataFrame(sparkContext.parallelize(
+      Row(Row(Row(1, 1, 1))) :: Nil),
+      StructType(Seq(
+        StructField("a", StructType(Seq(
+          StructField("a", StructType(Seq(
+            StructField("a", IntegerType),
+            StructField("b", IntegerType),
+            StructField("c", IntegerType))))))))))
+
+    val structLevel3 = spark.createDataFrame(sparkContext.parallelize(
+      Seq(Row(Row(Row(1, 2, 3), Row(Row(4, null, 6), Row(7, 8, 9)))))),
+      StructType(Seq(
+        StructField("a", StructType(Seq(
+          StructField("a", StructType(Seq(
+            StructField("a", IntegerType),
+            StructField("b", IntegerType),
+            StructField("c", IntegerType)))),
+          StructField("b", StructType(Seq(
+            StructField("a", StructType(Seq(
+              StructField("a", IntegerType),
+              StructField("b", IntegerType),
+              StructField("c", IntegerType)))),
+            StructField("b", StructType(Seq(
+              StructField("a", IntegerType),
+              StructField("b", IntegerType),
+              StructField("c", IntegerType)))))))))))))
+
+    // throw error if withField is called on a column that is not struct dataType
+    intercept[AnalysisException]{
+      testData.withColumn("key", 'key.withField("a", lit(2)))
+    }.getMessage should include(
+      "cannot resolve 'add_field(`key`, 2)' due to data type mismatch: " +
+        "struct should be struct data type. struct is integer")
+
+    // throw error if null fieldName supplied
+    intercept[RuntimeException]{
+      structLevel1.withColumn("a", 'a.withField(null, lit(2)))
+    }.getMessage should include("requirement failed: fieldName cannot be null")
+
+    // add new field to struct
+    checkAnswer(
+      structLevel1.withColumn("a", 'a.withField("d", lit(2))),
+      Row(Row(1, 1, 1, 2)) :: Nil)
+
+    // replace field in struct
+    checkAnswer(
+      structLevel1.withColumn("a", 'a.withField("b", lit(2))),
+      Row(Row(1, 2, 1)) :: Nil)
+
+    // add new field to nested struct
+    checkAnswer(
+      structLevel2.withColumn("a", 'a.withField(
+        "a", $"a.a".withField(
+          "d", lit(2)))),
+      Row(Row(Row(1, 1, 1, 2))) :: Nil)
+
+    // replace field in nested struct
+    checkAnswer(
+      structLevel2.withColumn("a", 'a.withField(
+        "a", $"a.a".withField(
+          "b", lit(2)))),
+      Row(Row(Row(1, 2, 1))) :: Nil)
+
+    // add field to deeply nested struct
+    checkAnswer(
+      structLevel3.withColumn("a", 'a.withField(
+        "b", $"a.b".withField(
+          "a", $"a.b.a".withField(
+            "d", lit("hello"))))),
+      Row(Row(Row(1, 2, 3), Row(Row(4, null, 6, "hello"), Row(7, 8, 9)))) :: Nil)
+
+    // replace field in deeply nested struct
+    checkAnswer(
+      structLevel3.withColumn("a", 'a.withField(
+        "b", $"a.b".withField(
+          "a", $"a.b.a".withField(
+            "b", lit(5))))),
+      Row(Row(Row(1, 2, 3), Row(Row(4, 5, 6), Row(7, 8, 9)))) :: Nil)
+  }
 }
