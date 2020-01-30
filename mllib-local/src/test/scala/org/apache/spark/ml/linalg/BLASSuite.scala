@@ -126,6 +126,31 @@ class BLASSuite extends SparkMLFunSuite {
     }
   }
 
+  test("ger") {
+    // test dense vector
+    val alpha = 0.1
+    val x = new DenseVector(Array(1.0, 2, 2.1, 4))
+    val y = new DenseVector(Array(2.0, 3.0, -1))
+    val A = new DenseMatrix(4, 3, Array.ofDim[Double](12))
+    val expected = new DenseMatrix(4, 3,
+      Array(0.2, 0.4, 0.42, 0.8, 0.3, 0.6, 0.63, 1.2, -0.1, -0.2, -0.21, -0.4))
+    ger(alpha, x, y, A)
+    assert(A ~== expected absTol 1e-9)
+
+    val B = new DenseMatrix(3, 3, Array.fill(9)(-0.1))
+    val expected2 = new DenseMatrix(3, 3,
+      Array(0.3, 0.5, -0.3, 0.5, 0.8, -0.4, -0.3, -0.4, 0))
+    ger(alpha, y, y, B)
+    assert(B ~== expected2 absTol 1e-9)
+
+    val C = new DenseMatrix(3, 3, Array.ofDim[Double](9))
+    withClue("Size of vector must match the rank of matrix") {
+      intercept[Exception] {
+        ger(alpha, x, y, C)
+      }
+    }
+  }
+
   test("spr") {
     // test dense vector
     val alpha = 0.1

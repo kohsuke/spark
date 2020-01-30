@@ -235,7 +235,27 @@ private[spark] object BLAS extends Serializable {
   }
 
   /**
-   * Adds alpha * x * x.t to a matrix in-place. This is the same as BLAS's ?SPR.
+   * A := alpha * x * y^T^ + A. This is the same as BLAS's ?GER.
+   *
+   * @param alpha a real scalar that will be multiplied to x * y^T^.
+   * @param x the vector x that contains the m elements.
+   * @param y the vector y that contains the n elements.
+   * @param A the matrix A. Size of m x n.
+   */
+  def ger(alpha: Double, x: DenseVector, y: DenseVector, A: DenseMatrix): Unit = {
+    require(!A.isTransposed,
+      "The matrix A cannot be the product of a transpose() call. A.isTransposed must be false.")
+    val mA = A.numRows
+    val nA = A.numCols
+    require(mA == x.size, s"The size of x doesn't match the rank of A. A: $mA x $nA, x: ${x.size}")
+    require(nA == y.size, s"The size of y doesn't match the rank of A. A: $mA x $nA, y: ${y.size}")
+    if (alpha != 0) {
+      nativeBLAS.dger(mA, nA, alpha, x.values, 1, y.values, 1, A.values, mA)
+    }
+  }
+
+  /**
+   * Adds alpha * v * v.t to a matrix in-place. This is the same as BLAS's ?SPR.
    *
    * @param U the upper triangular part of the matrix in a [[DenseVector]](column major)
    */
@@ -262,7 +282,7 @@ private[spark] object BLAS extends Serializable {
   }
 
   /**
-   * Adds alpha * x * x.t to a matrix in-place. This is the same as BLAS's ?SPR.
+   * Adds alpha * v * v.t to a matrix in-place. This is the same as BLAS's ?SPR.
    *
    * @param U the upper triangular part of the matrix packed in an array (column major)
    */

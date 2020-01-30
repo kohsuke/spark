@@ -44,7 +44,7 @@ import org.apache.spark.storage.StorageLevel
  */
 private[clustering] trait GaussianMixtureParams extends Params with HasMaxIter with HasFeaturesCol
   with HasSeed with HasPredictionCol with HasWeightCol with HasProbabilityCol with HasTol
-  with HasAggregationDepth {
+  with HasAggregationDepth with HasBlockSize {
 
   /**
    * Number of independent Gaussians in the mixture model. Must be greater than 1. Default: 2.
@@ -169,7 +169,7 @@ class GaussianMixtureModel private[ml] (
   @Since("3.0.0")
   def predictProbability(features: Vector): Vector = {
     val probs: Array[Double] =
-      GaussianMixtureModel.computeProbabilities(features.asBreeze.toDenseVector, gaussians, weights)
+      GaussianMixtureModel.computeProbabilities(features, gaussians, weights)
     Vectors.dense(probs)
   }
 
@@ -282,19 +282,25 @@ object GaussianMixtureModel extends MLReadable[GaussianMixtureModel] {
    */
   private[clustering]
   def computeProbabilities(
-      features: BDV[Double],
+      features: Vector,
       dists: Array[MultivariateGaussian],
       weights: Array[Double]): Array[Double] = {
-    val p = weights.zip(dists).map {
-      case (weight, dist) => EPSILON + weight * dist.pdf(features)
-    }
-    val pSum = p.sum
+    val probArray = Array.ofDim[Double](weights.length)
+    var probSum = 0.0
     var i = 0
     while (i < weights.length) {
-      p(i) /= pSum
+      val p = EPSILON + weights(i) * dists(i).pdf(features)
+      probArray(i) = p
+      probSum += p
       i += 1
     }
-    p
+
+    i = 0
+    while (i < weights.length) {
+      probArray(i) /= probSum
+      i += 1
+    }
+    probArray
   }
 }
 
@@ -371,6 +377,15 @@ class GaussianMixture @Since("2.0.0") (
   def setAggregationDepth(value: Int): this.type = set(aggregationDepth, value)
 
   /**
+   * Set block size for stacking input data in matrices.
+   * Default is 1024.
+   *
+   * @group expertSetParam
+   */
+  @Since("3.0.0")
+  def setBlockSize(value: Int): this.type = set(blockSize, value)
+
+  /**
    * Number of samples per cluster to use when initializing Gaussians.
    */
   private val numSamples = 5
@@ -387,8 +402,6 @@ class GaussianMixture @Since("2.0.0") (
       s"than ${GaussianMixture.MAX_NUM_FEATURES} features because the size of the covariance" +
       s" matrix is quadratic in the number of features.")
 
-    val handlePersistence = dataset.storageLevel == StorageLevel.NONE
-
     val w = if (isDefined(weightCol) && $(weightCol).nonEmpty) {
       col($(weightCol)).cast(DoubleType)
     } else {
@@ -398,10 +411,6 @@ class GaussianMixture @Since("2.0.0") (
     val instances = dataset.select(DatasetUtils.columnToVector(dataset, $(featuresCol)), w)
       .as[(Vector, Double)]
       .rdd
-
-    if (handlePersistence) {
-      instances.persist(StorageLevel.MEMORY_AND_DISK)
-    }
 
     val sc = spark.sparkContext
     val numClusters = $(k)
@@ -418,6 +427,15 @@ class GaussianMixture @Since("2.0.0") (
     // TODO: SPARK-15785 Support users supplied initial GMM.
     val (weights, gaussians) = initRandom(instances, numClusters, numFeatures)
 
+    val localBlockSize = $(blockSize)
+    val blocks = instances.mapPartitions { iter =>
+      iter.grouped(localBlockSize).map { seq =>
+        (Matrices.fromVectors(seq.map(_._1)), seq.map(_._2).toArray)
+      }
+    }
+    blocks.persist(StorageLevel.MEMORY_AND_DISK)
+      .setName(s"training dataset (blockSize=$localBlockSize)")
+
     var logLikelihood = Double.MinValue
     var logLikelihoodPrev = 0.0
 
@@ -428,54 +446,50 @@ class GaussianMixture @Since("2.0.0") (
       val bcGaussians = sc.broadcast(gaussians)
 
       // aggregate the cluster contribution for all sample points
-      val sums = instances.treeAggregate(
-        new ExpectationAggregator(numFeatures, bcWeights, bcGaussians))(
-        seqOp = (c: ExpectationAggregator, v: (Vector, Double)) => c.add(v._1, v._2),
-        combOp = (c1: ExpectationAggregator, c2: ExpectationAggregator) => c1.merge(c2),
+      val summary = blocks.treeAggregate(
+        new ExpectationAggregator(numFeatures, localBlockSize, bcWeights, bcGaussians))(
+        seqOp = (c, b) => c.add(b._1, b._2),
+        combOp = (c1, c2) => c1.merge(c2),
         depth = $(aggregationDepth))
 
       bcWeights.destroy()
       bcGaussians.destroy()
 
       if (iter == 0) {
-        instr.logNumExamples(sums.count)
-        instr.logSumOfWeights(sums.weights.sum)
+        instr.logNumExamples(summary.count)
+        instr.logSumOfWeights(summary.weights.sum)
       }
 
       /*
          Create new distributions based on the partial assignments
          (often referred to as the "M" step in literature)
        */
-      val sumWeights = sums.weights.sum
+      val sumWeights = summary.weights.sum
 
       if (shouldDistributeGaussians) {
         val numPartitions = math.min(numClusters, 1024)
-        val tuples = Seq.tabulate(numClusters) { i =>
-          (sums.means(i), sums.covs(i), sums.weights(i))
-        }
+        val tuples = summary.meanIter.zip(summary.covIter).zip(summary.weights.iterator)
+          .map { case ((mean, cov), weight) => (mean, cov, weight) }
+          .toSeq
         val (ws, gs) = sc.parallelize(tuples, numPartitions).map { case (mean, cov, weight) =>
           GaussianMixture.updateWeightsAndGaussians(mean, cov, weight, sumWeights)
         }.collect().unzip
         Array.copy(ws, 0, weights, 0, ws.length)
         Array.copy(gs, 0, gaussians, 0, gs.length)
       } else {
-        var i = 0
-        while (i < numClusters) {
-          val (weight, gaussian) = GaussianMixture.updateWeightsAndGaussians(
-            sums.means(i), sums.covs(i), sums.weights(i), sumWeights)
-          weights(i) = weight
-          gaussians(i) = gaussian
-          i += 1
-        }
+        summary.meanIter.zip(summary.covIter).zip(summary.weights.iterator).zipWithIndex
+          .foreach { case (((mean, cov), weight), i) =>
+            val (w, g) = GaussianMixture.updateWeightsAndGaussians(mean, cov, weight, sumWeights)
+            weights(i) = w
+            gaussians(i) = g
+          }
       }
 
       logLikelihoodPrev = logLikelihood   // current becomes previous
-      logLikelihood = sums.logLikelihood  // this is the freshly computed log-likelihood
+      logLikelihood = summary.logLikelihood  // this is the freshly computed log-likelihood
       iter += 1
     }
-    if (handlePersistence) {
-      instances.unpersist()
-    }
+    blocks.unpersist()
 
     val gaussianDists = gaussians.map { case (mean, covVec) =>
       val cov = GaussianMixture.unpackUpperTriangularMatrix(numFeatures, covVec.values)
@@ -652,17 +666,20 @@ object GaussianMixture extends DefaultParamsReadable[GaussianMixture] {
  */
 private class ExpectationAggregator(
     numFeatures: Int,
+    blockSize: Int,
     bcWeights: Broadcast[Array[Double]],
     bcGaussians: Broadcast[Array[(DenseVector, DenseVector)]]) extends Serializable {
 
   private val k: Int = bcWeights.value.length
   private var totalCnt: Long = 0L
   private var newLogLikelihood: Double = 0.0
-  private lazy val newWeights: Array[Double] = Array.ofDim[Double](k)
-  private lazy val newMeans: Array[DenseVector] = Array.fill(k)(
-    new DenseVector(Array.ofDim[Double](numFeatures)))
-  private lazy val newCovs: Array[DenseVector] = Array.fill(k)(
-    new DenseVector(Array.ofDim[Double](numFeatures * (numFeatures + 1) / 2)))
+  private val covSize = numFeatures * (numFeatures + 1) / 2
+  private lazy val newWeights =
+    new DenseVector(Array.ofDim[Double](k))
+  private lazy val newMeansMat =
+    new DenseMatrix(numFeatures, k, Array.ofDim[Double](numFeatures * k))
+  private lazy val newCovsMat =
+    new DenseMatrix(covSize, k, Array.ofDim[Double](covSize * k))
 
   @transient private lazy val oldGaussians = {
     bcGaussians.value.map { case (mean, covVec) =>
@@ -671,52 +688,90 @@ private class ExpectationAggregator(
     }
   }
 
+  @transient private lazy val auxiliaryMat =
+    new DenseMatrix(blockSize, numFeatures, Array.ofDim[Double](blockSize * numFeatures))
+
   def count: Long = totalCnt
 
   def logLikelihood: Double = newLogLikelihood
 
-  def weights: Array[Double] = newWeights
+  def weights: Array[Double] = newWeights.values
 
-  def means: Array[DenseVector] = newMeans
+  def meanIter: Iterator[DenseVector] = newMeansMat.colIter.map(_.toDense)
 
-  def covs: Array[DenseVector] = newCovs
+  def covIter: Iterator[DenseVector] = newCovsMat.colIter.map(_.toDense)
 
   /**
-   * Add a new training instance to this ExpectationAggregator, update the weights,
+   * Add a new training instance block to this ExpectationAggregator, update the weights,
    * means and covariances for each distributions, and update the log likelihood.
    *
-   * @param instance The instance of data point to be added.
-   * @param weight The instance weight.
+   * @param matrix The instance block of data point to be added.
+   * @param weights The instance weights.
    * @return This ExpectationAggregator object.
    */
-  def add(instance: Vector, weight: Double): this.type = {
+  def add(matrix: Matrix, weights: Array[Double]): this.type = {
+    val size = matrix.numRows
     val localWeights = bcWeights.value
     val localOldGaussians = oldGaussians
-
-    val prob = new Array[Double](k)
-    var probSum = 0.0
-    var i = 0
-    while (i < k) {
-      val p = EPSILON + localWeights(i) * localOldGaussians(i).pdf(instance)
-      prob(i) = p
-      probSum += p
-      i += 1
+    val localNewWeights = newWeights.values
+    val localNewCovsMat = newCovsMat
+    val localAuxiliaryMat = if (blockSize == size) {
+      auxiliaryMat
+    } else {
+      new DenseMatrix(size, numFeatures, Array.ofDim[Double](size * numFeatures))
     }
 
-    newLogLikelihood += math.log(probSum) * weight
-    val localNewWeights = newWeights
-    val localNewMeans = newMeans
-    val localNewCovs = newCovs
-    i = 0
-    while (i < k) {
-      val w = prob(i) / probSum * weight
-      localNewWeights(i) += w
-      BLAS.axpy(w, instance, localNewMeans(i))
-      BLAS.spr(w, instance, localNewCovs(i))
-      i += 1
+    val probMat = new DenseMatrix(size, k, Array.ofDim[Double](size * k))
+    val probMatArr = probMat.values
+    var j = 0
+    while (j < k) {
+      val probJ = localOldGaussians(j).pdf(matrix, localAuxiliaryMat).values
+      val start = j * size
+      var i = 0
+      while (i < size) {
+        probMatArr(start + i) = EPSILON + localWeights(j) * probJ(i)
+        i += 1
+      }
+      j += 1
     }
 
-    totalCnt += 1
+    var localLogLikelihood = 0.0
+    val probVec = new DenseVector(Array.ofDim[Double](k))
+    val probVecArr = probVec.values
+    val covVec = new DenseVector(Array.ofDim[Double](covSize))
+    matrix.rowIter.zip(weights.iterator).zipWithIndex.foreach {
+      case ((vector, weight), i) =>
+        var j = 0
+        var index = i
+        var probSum = 0.0
+        while (j < k) {
+          probSum += probMatArr(index)
+          index += size
+          j += 1
+        }
+        localLogLikelihood += math.log(probSum) * weight
+
+        j = 0
+        index = i
+        while (j < k) {
+          val w = probMat(i, j) / probSum * weight
+          localNewWeights(j) += w
+          probVecArr(j) = w
+          probMatArr(index) = w
+          index += size
+          j += 1
+        }
+
+        BLAS.scal(0.0, covVec)
+        BLAS.spr(1.0, vector, covVec)
+        BLAS.ger(1.0, covVec, probVec, localNewCovsMat)
+    }
+
+    BLAS.gemm(1.0, matrix.transpose, probMat, 1.0, newMeansMat)
+
+    newLogLikelihood += localLogLikelihood
+    totalCnt += matrix.numRows
+
     this
   }
 
@@ -731,21 +786,10 @@ private class ExpectationAggregator(
   def merge(other: ExpectationAggregator): this.type = {
     if (other.count != 0) {
       totalCnt += other.totalCnt
-
-      val localThisNewWeights = this.newWeights
-      val localOtherNewWeights = other.newWeights
-      val localThisNewMeans = this.newMeans
-      val localOtherNewMeans = other.newMeans
-      val localThisNewCovs = this.newCovs
-      val localOtherNewCovs = other.newCovs
-      var i = 0
-      while (i < k) {
-        localThisNewWeights(i) += localOtherNewWeights(i)
-        BLAS.axpy(1.0, localOtherNewMeans(i), localThisNewMeans(i))
-        BLAS.axpy(1.0, localOtherNewCovs(i), localThisNewCovs(i))
-        i += 1
-      }
       newLogLikelihood += other.newLogLikelihood
+      BLAS.axpy(1.0, other.newWeights, newWeights)
+      BLAS.axpy(1.0, other.newMeansMat, newMeansMat)
+      BLAS.axpy(1.0, other.newCovsMat, newCovsMat)
     }
     this
   }

@@ -17,11 +17,11 @@
 
 package org.apache.spark.ml.stat.distribution
 
-import breeze.linalg.{diag, eigSym, max, DenseMatrix => BDM, DenseVector => BDV, Vector => BV}
+import breeze.linalg.{diag, eigSym, max, DenseMatrix => BDM, DenseVector => BDV}
 
 import org.apache.spark.annotation.{DeveloperApi, Since}
 import org.apache.spark.ml.impl.Utils
-import org.apache.spark.ml.linalg.{Matrices, Matrix, Vector, Vectors}
+import org.apache.spark.ml.linalg._
 
 
 /**
@@ -43,26 +43,25 @@ class MultivariateGaussian @Since("2.0.0") (
   require(cov.numCols == cov.numRows, "Covariance matrix must be square")
   require(mean.size == cov.numCols, "Mean vector length must match covariance matrix size")
 
-  /** Private constructor taking Breeze types */
-  private[ml] def this(mean: BDV[Double], cov: BDM[Double]) = {
-    this(Vectors.fromBreeze(mean), Matrices.fromBreeze(cov))
-  }
-
-  @transient private lazy val breezeMu = mean.asBreeze.toDenseVector
-
   /**
    * Compute distribution dependent constants:
    *    rootSigmaInv = D^(-1/2)^ * U.t, where sigma = U * D * U.t
    *    u = log((2*pi)^(-k/2)^ * det(sigma)^(-1/2)^)
    */
-  @transient private lazy val (rootSigmaInv: BDM[Double], u: Double) = calculateCovarianceConstants
+  @transient private lazy val rootSigmaInvWithU = calculateCovarianceConstants
+
+  @transient private lazy val u = rootSigmaInvWithU._2
+
+  @transient private lazy val rootSigmaInvMat = Matrices.fromBreeze(rootSigmaInvWithU._1).toDense
+
+  @transient private lazy val rootSigmaInvMulMu = rootSigmaInvMat.multiply(mean)
 
   /**
    * Returns density of this multivariate Gaussian at given point, x
    */
   @Since("2.0.0")
   def pdf(x: Vector): Double = {
-    pdf(x.asBreeze)
+    math.exp(logpdf(x))
   }
 
   /**
@@ -70,19 +69,46 @@ class MultivariateGaussian @Since("2.0.0") (
    */
   @Since("2.0.0")
   def logpdf(x: Vector): Double = {
-    logpdf(x.asBreeze)
+    val v = rootSigmaInvMulMu.copy
+    BLAS.gemv(-1.0, rootSigmaInvMat, x, 1.0, v)
+    u - 0.5 * BLAS.dot(v, v)
   }
 
-  /** Returns density of this multivariate Gaussian at given point, x */
-  private[ml] def pdf(x: BV[Double]): Double = {
-    math.exp(logpdf(x))
+  private[ml] def pdf(X: Matrix): DenseVector = {
+    val m = X.numRows
+    val n = X.numCols
+    val mat = new DenseMatrix(m, n, Array.ofDim[Double](m * n))
+    pdf(X, mat)
   }
 
-  /** Returns the log-density of this multivariate Gaussian at given point, x */
-  private[ml] def logpdf(x: BV[Double]): Double = {
-    val delta = x - breezeMu
-    val v = rootSigmaInv * delta
-    u + v.t * v * -0.5
+  private[ml] def pdf(X: Matrix, mat: DenseMatrix): DenseVector = {
+    require(!mat.isTransposed)
+    val localU = u
+    val localRootSigmaInvMat = rootSigmaInvMat
+    val localRootSigmaInvMulMu = rootSigmaInvMulMu.toArray
+
+    BLAS.gemm(1.0, X, localRootSigmaInvMat.transpose, 0.0, mat)
+    val arr = mat.values
+    val m = mat.numRows
+    val n = mat.numCols
+
+    val pdf = Array.ofDim[Double](m)
+    var i = 0
+    while (i < m) {
+      var squaredSum = 0.0
+      var index = i
+      var j = 0
+      while (j < n) {
+        val d = arr(index) - localRootSigmaInvMulMu(j)
+        squaredSum += d * d
+        index += m
+        j += 1
+      }
+      pdf(i) = math.exp(localU - 0.5 * squaredSum)
+      i += 1
+    }
+
+    new DenseVector(pdf)
   }
 
   /**
