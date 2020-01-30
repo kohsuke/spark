@@ -55,7 +55,7 @@ class MultivariateGaussian @Since("2.0.0") (
    */
   @transient private lazy val tuple = {
     val (rootSigmaInv, u) = calculateCovarianceConstants
-    val rootSigmaInvMat = Matrices.fromBreeze(rootSigmaInv)
+    val rootSigmaInvMat = Matrices.fromBreeze(rootSigmaInv).toDense
     val rootSigmaInvMulMu = rootSigmaInvMat.multiply(mean)
     (rootSigmaInvMat, u, rootSigmaInvMulMu)
   }
@@ -79,6 +79,43 @@ class MultivariateGaussian @Since("2.0.0") (
     val v = rootSigmaInvMulMu.copy
     BLAS.gemv(-1.0, rootSigmaInvMat, x, 1.0, v)
     u - 0.5 * BLAS.dot(v, v)
+  }
+
+  private[ml] def pdf(X: Matrix): Vector = {
+    val m = X.numRows
+    val n = X.numCols
+    val mat = new DenseMatrix(m, n, Array.ofDim[Double](m * n))
+    pdf(X, mat)
+  }
+
+  private[ml] def pdf(X: Matrix, mat: DenseMatrix): Vector = {
+    require(!mat.isTransposed)
+    val localU = u
+    val localRootSigmaInvMat = rootSigmaInvMat
+    val localRootSigmaInvMulMu = rootSigmaInvMulMu.toArray
+
+    BLAS.gemm(1.0, X, localRootSigmaInvMat.transpose, 0.0, mat)
+    val arr = mat.values
+    val m = mat.numRows
+    val n = mat.numCols
+
+    val pdfArr = Array.ofDim[Double](m)
+    var i = 0
+    while (i < m) {
+      var squaredSum = 0.0
+      var index = i
+      var j = 0
+      while (j < n) {
+        val d = arr(index) - localRootSigmaInvMulMu(j)
+        squaredSum += d * d
+        index += m
+        j += 1
+      }
+      pdfArr(i) = math.exp(localU - 0.5 * squaredSum)
+      i += 1
+    }
+
+    Vectors.dense(pdfArr)
   }
 
   /**
