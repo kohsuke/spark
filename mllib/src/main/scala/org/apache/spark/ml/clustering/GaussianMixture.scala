@@ -382,7 +382,7 @@ class GaussianMixture @Since("2.0.0") (
    *
    * @group expertSetParam
    */
-  @Since("3.0.0")
+  @Since("3.1.0")
   def setBlockSize(value: Int): this.type = set(blockSize, value)
 
   /**
