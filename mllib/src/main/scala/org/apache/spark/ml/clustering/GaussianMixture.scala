@@ -738,9 +738,30 @@ private class ExpectationAggregator(
     var localLogLikelihood = 0.0
     val probVec = new DenseVector(Array.ofDim[Double](k))
     val probVecArr = probVec.values
+
+    // compute the cov vector for each row vector
     val covVec = new DenseVector(Array.ofDim[Double](covSize))
-    matrix.rowIter.zip(weights.iterator).zipWithIndex.foreach {
-      case ((vector, weight), i) =>
+    val covVecIter = matrix match {
+      case sm: SparseMatrix =>
+        sm.rowIter.map { vec =>
+          BLAS.scal(0.0, covVec)
+          BLAS.spr(1.0, vec, covVec)
+          covVec
+        }
+      case dm: DenseMatrix =>
+        require(dm.isTransposed)
+        val m = dm.numRows
+        val n = dm.numCols
+        Iterator.tabulate(m) { i =>
+          BLAS.scal(0.0, covVec)
+          // when input block is dense, directly using nativeBLAS to avoid array copy
+          BLAS.nativeBLAS.dspr("U", n, 1.0, dm.values, i * n, 1, covVec.values, 0)
+          covVec
+        }
+    }
+
+    covVecIter.zip(weights.iterator).zipWithIndex.foreach {
+      case ((covVec, weight), i) =>
         var j = 0
         var index = i
         var probSum = 0.0
@@ -762,8 +783,6 @@ private class ExpectationAggregator(
           j += 1
         }
 
-        BLAS.scal(0.0, covVec)
-        BLAS.spr(1.0, vector, covVec)
         BLAS.ger(1.0, covVec, probVec, localNewCovsMat)
     }
 

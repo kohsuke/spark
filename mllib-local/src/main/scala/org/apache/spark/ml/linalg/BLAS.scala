@@ -227,7 +227,7 @@ private[spark] object BLAS extends Serializable {
   }
 
   // For level-3 routines, we use the native BLAS.
-  private def nativeBLAS: NetlibBLAS = {
+  private[ml] def nativeBLAS: NetlibBLAS = {
     if (_nativeBLAS == null) {
       _nativeBLAS = NativeBLAS
     }
