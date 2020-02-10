@@ -232,7 +232,7 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     taskScheduler
   }
 
-  test("SPARK-18886 -  partial offers (isAllFreeResources = false) reset timer before " +
+  test("SPARK-18886 - partial offers (isAllFreeResources = false) reset timer before " +
     "any resources have been rejected") {
     val clock = new ManualClock()
     val taskScheduler = setupTaskScheduler(clock)
@@ -252,11 +252,12 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     clock.advance(advanceAmount)
     assert(taskScheduler
       .resourceOffers(
-        IndexedSeq(WorkerOffer("exec2", "host1", 1)))
+        IndexedSeq(WorkerOffer("exec2", "host1", 1)),
+        isAllFreeResources = false)
       .flatten.isEmpty)
   }
 
-  test("SPARK-18886 -  delay scheduling timer is reset when it accepts all resources offered when" +
+  test("SPARK-18886 - delay scheduling timer is reset when it accepts all resources offered when" +
     "isAllFreeResources = true") {
     val clock = new ManualClock()
     val taskScheduler = setupTaskScheduler(clock)
@@ -275,7 +276,8 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     clock.advance(advanceAmount)
     assert(taskScheduler
       .resourceOffers(
-        IndexedSeq(WorkerOffer("exec2", "host1", 1)))
+        IndexedSeq(WorkerOffer("exec2", "host1", 1)),
+        isAllFreeResources = false)
       .flatten.isEmpty)
   }
 
@@ -309,7 +311,8 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     clock.advance(advanceAmount)
     assert(taskScheduler
       .resourceOffers(
-        IndexedSeq(WorkerOffer("exec2", "host1", 1)))
+        IndexedSeq(WorkerOffer("exec2", "host1", 1)),
+        isAllFreeResources = false)
       .flatten.isEmpty)
   }
 
@@ -344,7 +347,8 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     clock.advance(advanceAmount)
     assert(taskScheduler
       .resourceOffers(
-        IndexedSeq(WorkerOffer("exec2", "host1", 1)))
+        IndexedSeq(WorkerOffer("exec2", "host1", 1)),
+        isAllFreeResources = false)
       .flatten.length === 1)
 
 
@@ -376,7 +380,8 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     clock.advance(advanceAmount)
     assert(taskScheduler
       .resourceOffers(
-        IndexedSeq(WorkerOffer("exec2", "host1", 1)))
+        IndexedSeq(WorkerOffer("exec2", "host1", 1)),
+        isAllFreeResources = false)
       .flatten.length === 1)
   }
 

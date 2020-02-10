@@ -505,7 +505,7 @@ class StandaloneDynamicAllocationSuite
 
     val taskScheduler = mock(classOf[TaskSchedulerImpl])
     when(taskScheduler.nodeBlacklist()).thenReturn(Set("blacklisted-host"))
-    when(taskScheduler.resourceOffers(any())).thenReturn(Nil)
+    when(taskScheduler.resourceOffers(any(), any())).thenReturn(Nil)
     when(taskScheduler.resourcesReqsPerTask).thenReturn(Seq.empty)
     when(taskScheduler.sc).thenReturn(sc)
 
