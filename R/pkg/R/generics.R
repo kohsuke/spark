@@ -1471,6 +1471,10 @@ setGeneric("spark.als", function(data, ...) { standardGeneric("spark.als") })
 setGeneric("spark.bisectingKmeans",
            function(data, formula, ...) { standardGeneric("spark.bisectingKmeans") })
 
+#' @rdname spark.fmRegressor
+setGeneric("spark.fmRegressor",
+           function(data, formula, ...) { standardGeneric("spark.fmRegressor") })
+
 #' @rdname spark.gaussianMixture
 setGeneric("spark.gaussianMixture",
            function(data, formula, ...) { standardGeneric("spark.gaussianMixture") })
