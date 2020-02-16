@@ -123,6 +123,8 @@ read.ml <- function(path) {
     new("LinearSVCModel", jobj = jobj)
   } else if (isInstanceOf(jobj, "org.apache.spark.ml.r.FPGrowthWrapper")) {
     new("FPGrowthModel", jobj = jobj)
+  } else if (isInstanceOf(jobj, "org.apache.spark.ml.r.LinearRegressionWrapper")) {
+    new("LinearRegressionModel", jobj = jobj)
   } else {
     stop("Unsupported model: ", jobj)
   }
