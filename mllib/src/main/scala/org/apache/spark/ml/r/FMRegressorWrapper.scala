@@ -99,17 +99,18 @@ private[r] object FMRegressorWrapper
     // assemble and fit the pipeline
     val fmr = new FMRegressor()
       .setFactorSize(factorSize)
+      .setFitIntercept(fitIntercept)
       .setFitLinear(fitLinear)
       .setRegParam(regParam)
       .setMiniBatchFraction(miniBatchFraction)
       .setInitStd(initStd)
       .setMaxIter(maxIter)
+      .setStepSize(stepSize)
       .setTol(tol)
       .setSolver(solver)
-      .setFitIntercept(fitIntercept)
       .setFeaturesCol(rFormula.getFeaturesCol)
 
-    if (seed != null) {
+    if (seed != null && seed.length > 0) {
       fmr.setSeed(seed.toLong)
     }
 

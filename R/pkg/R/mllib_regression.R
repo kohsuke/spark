@@ -547,11 +547,10 @@ setMethod("write.ml", signature(object = "AFTSurvivalRegressionModel", path = "c
             write_internal(object, path, overwrite)
           })
 
-
-#' Factorization Machines Regression Model Model
+#' Factorization Machines Regression Model
 #'
 #' \code{spark.fmRegressor} fits a factorization regression model against a SparkDataFrame.
-#' Users can call \code{predict} to make
+#' Users can call \code{summary} to print a summary of the fitted model, \code{predict} to make
 #' predictions on new data, and \code{write.ml}/\code{read.ml} to save/load fitted models.
 #'
 #' @param data a \code{SparkDataFrame} of observations and labels for model fitting.
@@ -638,7 +637,6 @@ setMethod("spark.fmRegressor", signature(data = "SparkDataFrame", formula = "for
             new("FMRegressionModel", jobj = jobj)
           })
 
-
 #  Returns the summary of a FM Regression model produced by \code{spark.fmRegressor}
 
 #' @param object a FM Regression Model model fitted by \code{spark.fmRegressor}.
@@ -665,7 +663,6 @@ setMethod("summary", signature(object = "FMRegressionModel"),
               factorSize = factor_size
             )
           })
-
 
 #  Predicted values based on an FMRegressionModel model
 
