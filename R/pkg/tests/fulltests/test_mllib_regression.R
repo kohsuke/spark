@@ -579,5 +579,4 @@ test_that("spark.fmRegressor", {
   }
 })
 
-
 sparkR.session.stop()
