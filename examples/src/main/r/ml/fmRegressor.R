@@ -16,7 +16,7 @@
 #
 
 # To run this example use
-# ./bin/spark-submit examples/src/main/r/ml/decisionTree.R
+# ./bin/spark-submit examples/src/main/r/ml/fmRegressor.R
 
 # Load SparkR library into your R session
 library(SparkR)
@@ -31,10 +31,15 @@ training_test <- randomSplit(df, c(0.7, 0.3))
 training <- training_test[[1]]
 test <- training_test[[2]]
 
-
 # Fit a FM regression model
 model <- spark.fmRegressor(training, label ~ features)
 
+# Model summary
+summary(model)
+
 # Prediction
 predictions <- predict(model, test)
+head(predictions)
 # $example off$
+
+sparkR.session.stop()
