@@ -1096,11 +1096,11 @@ Refer to the [Python API docs](api/python/pyspark.ml.html#pyspark.ml.regression.
 
 <div data-lang="r" markdown="1">
 
-More details on parameters can be found in the [R API documentation](api/R/spark.fmRegressor.html).
+Refer to the [R API documentation](api/R/spark.fmRegressor.html) for more details.
 
 Note: At the moment SparkR doesn't suport feature scaling.
 
-{% include_example binomial r/ml/fmRegressor.R %}
+{% include_example r/ml/fmRegressor.R %}
 </div>
 
 </div>
