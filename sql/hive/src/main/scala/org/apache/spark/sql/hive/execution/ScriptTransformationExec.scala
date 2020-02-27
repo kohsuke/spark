@@ -161,6 +161,7 @@ case class ScriptTransformationExec(
 
               if (scriptOutputReader != null) {
                 if (scriptOutputReader.next(scriptOutputWritable) <= 0) {
+                  proc.waitFor()
                   checkFailureAndPropagate()
                   return false
                 }
