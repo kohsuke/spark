@@ -2264,6 +2264,12 @@ object SQLConf {
     .booleanConf
     .createWithDefault(false)
 
+  val TRANSFORMATION_EXIT_TIMEOUT = buildConf("spark.sql.transformation.exit.timeout")
+    .internal()
+    .doc("The timeout for executor to wait for transformation script exit when EOF.")
+    .timeConf(TimeUnit.MILLISECONDS)
+    .createWithDefault(10000L)
+
   /**
    * Holds information about keys that have been deprecated.
    *
