@@ -20,6 +20,7 @@ package org.apache.spark.sql.hive.execution
 import java.io._
 import java.nio.charset.StandardCharsets
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 import javax.annotation.Nullable
 
 import scala.collection.JavaConverters._
@@ -32,7 +33,7 @@ import org.apache.hadoop.hive.serde2.AbstractSerDe
 import org.apache.hadoop.hive.serde2.objectinspector._
 import org.apache.hadoop.io.Writable
 
-import org.apache.spark.{SparkException, TaskContext}
+import org.apache.spark.{SparkEnv, SparkException, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
@@ -161,6 +162,25 @@ case class ScriptTransformationExec(
 
               if (scriptOutputReader != null) {
                 if (scriptOutputReader.next(scriptOutputWritable) <= 0) {
+                  // There can be a lag between reader read EOF and the process termination.
+                  // If the script fails to startup, this kind of error may be missed.
+                  // So explicitly waiting for the process termination.
+                  val timeout = SparkEnv.get.conf.get("spark.sql.transformation.exit.timeout",
+                    "1000").toInt
+                  try {
+                    if (timeout < 0) {
+                      proc.waitFor()
+                    } else if (timeout == 0) {
+                      // Do nothing
+                    } else {
+                      proc.waitFor(timeout, TimeUnit.MILLISECONDS)
+                    }
+                  } catch {
+                    case t: Throwable =>
+                      log.warn(s"Transformation script process exits timeout in ${timeout} " +
+                        s"milliseconds", t)
+                  }
+
                   checkFailureAndPropagate()
                   return false
                 }
