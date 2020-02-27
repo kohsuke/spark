@@ -20,6 +20,7 @@ package org.apache.spark.sql.hive.execution
 import java.io._
 import java.nio.charset.StandardCharsets
 import java.util.Properties
+import java.util.concurrent.TimeUnit
 import javax.annotation.Nullable
 
 import scala.collection.JavaConverters._
@@ -42,6 +43,7 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.hive.HiveInspectors
 import org.apache.spark.sql.hive.HiveShim._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.{CircularBuffer, RedirectThread, SerializableConfiguration, Utils}
 
@@ -146,12 +148,32 @@ case class ScriptTransformationExec(
           }
         }
 
+        private def waitForTransformationProcessTermination(): Unit = {
+          val timeout = SQLConf.get.getConf(SQLConf.TRANSFORMATION_EXIT_TIMEOUT)
+          try {
+            if (timeout < 0) {
+              proc.waitFor()
+            } else if (timeout == 0) {
+              // Do nothing
+            } else {
+              proc.waitFor(timeout, TimeUnit.SECONDS)
+            }
+          } catch {
+            case t: Throwable =>
+              log.warn(s"Transformation script process exits timeout in ${timeout} seconds", t)
+          }
+        }
+
         override def hasNext: Boolean = {
           try {
             if (outputSerde == null) {
               if (curLine == null) {
                 curLine = reader.readLine()
                 if (curLine == null) {
+                  // There can be a lag between reader read EOF and the process termination.
+                  // If the script fails to startup, this kind of error may be missed.
+                  // So explicitly waiting for the process termination.
+                  waitForTransformationProcessTermination()
                   checkFailureAndPropagate()
                   return false
                 }
@@ -161,6 +183,7 @@ case class ScriptTransformationExec(
 
               if (scriptOutputReader != null) {
                 if (scriptOutputReader.next(scriptOutputWritable) <= 0) {
+                  waitForTransformationProcessTermination()
                   checkFailureAndPropagate()
                   return false
                 }
