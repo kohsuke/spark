@@ -16,14 +16,17 @@
  */
 package org.apache.spark.deploy.k8s.submit
 
-import java.io.StringWriter
+import java.io.{File, StringWriter}
 import java.util.{Collections, UUID}
 import java.util.Properties
 
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.io.{Codec, Source}
+import scala.util.control.NonFatal
+
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.client.KubernetesClient
-import scala.collection.mutable
-import scala.util.control.NonFatal
 
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.SparkApplication
@@ -101,8 +104,20 @@ private[spark] class Client(
 
   def run(): Unit = {
     val resolvedDriverSpec = builder.buildFromFeatures(conf, kubernetesClient)
-    val configMapName = s"${conf.resourceNamePrefix}-driver-conf-map"
-    val configMap = buildConfigMap(configMapName, resolvedDriverSpec.systemProperties)
+    val configMapName = KubernetesClientUtils.configMapName(conf)
+    val loadedConfFilesMap = KubernetesClientUtils.loadSparkConfFiles(conf)
+    // Add resolved spark conf to the loaded configuration files map.
+    val sparkConf = KubernetesClientUtils
+      .buildSparkConfString(configMapName, resolvedDriverSpec.systemProperties)
+    val confFilesMap = loadedConfFilesMap ++ Map(SPARK_CONF_FILE_NAME -> sparkConf)
+    val configMap = KubernetesClientUtils
+      .buildConfigMap(configMapName, confFilesMap)
+
+    val keyToPaths = confFilesMap.map {
+        case (fileName: String, _: String) =>
+      new KeyToPath(fileName, 420, fileName) // 420 is decimal for 0644.
+    }.toList.sortBy(x => x.getKey).asJava // List is sorted to make mocking based tests work
+
     // The include of the ENV_VAR for "SPARK_CONF_DIR" is to allow for the
     // Spark command builder to pickup on the Java Options present in the ConfigMap
     val resolvedDriverContainer = new ContainerBuilder(resolvedDriverSpec.pod.container)
@@ -121,6 +136,7 @@ private[spark] class Client(
         .addNewVolume()
           .withName(SPARK_CONF_VOLUME)
           .withNewConfigMap()
+            .withItems(keyToPaths)
             .withName(configMapName)
             .endConfigMap()
           .endVolume()
@@ -163,23 +179,6 @@ private[spark] class Client(
       val originalMetadata = resource.getMetadata
       originalMetadata.setOwnerReferences(Collections.singletonList(driverPodOwnerReference))
     }
-  }
-
-  // Build a Config Map that will house spark conf properties in a single file for spark-submit
-  private def buildConfigMap(configMapName: String, conf: Map[String, String]): ConfigMap = {
-    val properties = new Properties()
-    conf.foreach { case (k, v) =>
-      properties.setProperty(k, v)
-    }
-    val propertiesWriter = new StringWriter()
-    properties.store(propertiesWriter,
-      s"Java properties built from Kubernetes config map with name: $configMapName")
-    new ConfigMapBuilder()
-      .withNewMetadata()
-        .withName(configMapName)
-        .endMetadata()
-      .addToData(SPARK_CONF_FILE_NAME, propertiesWriter.toString)
-      .build()
   }
 }
 
@@ -226,5 +225,70 @@ private[spark] class KubernetesClientApplication extends SparkApplication {
           watcher)
         client.run()
     }
+  }
+}
+
+private[k8s] object KubernetesClientUtils extends Logging {
+  def configMapName(conf: KubernetesConf): String = s"${conf.resourceNamePrefix}-driver-conf-map"
+
+  def buildSparkConfString(configMapName: String, conf: Map[String, String]): String = {
+    val properties = new Properties()
+    conf.foreach { case (k, v) =>
+      properties.setProperty(k, v)
+    }
+    val propertiesWriter = new StringWriter()
+    properties.store(propertiesWriter,
+      s"Java properties built from Kubernetes config map with name: $configMapName")
+    propertiesWriter.toString
+  }
+
+  // Build a Config Map that will house spark $SPARK_HOME/conf/ on remote pods.
+  def buildConfigMap(configMapName: String, confFileMap: Map[String, String]): ConfigMap = {
+    new ConfigMapBuilder()
+      .withNewMetadata()
+        .withName(configMapName)
+        .endMetadata()
+      .addToData(confFileMap.asJava)
+      .build()
+  }
+
+  /*
+   * Spark $SPARK_HOME/conf/ dir contains a few configuration files, try to load the content for
+   * mounting them on the kubernetes driver and executor pods.
+   */
+  def loadSparkConfFiles(conf: KubernetesConf): Map[String, String] = {
+    val confDir = Option(conf.sparkConf.getenv(ENV_SPARK_CONF_DIR)).orElse(
+      conf.sparkConf.getOption("spark.home").map(dir => s"$dir/conf"))
+    if (confDir.isDefined) {
+      val confFiles = listConfFiles(confDir.get)
+      logInfo(s"Spark configuration files loaded from $confDir : ${confFiles.mkString(",")}")
+      confFiles.map { file =>
+        val source = Source.fromFile(file)(Codec.UTF8)
+        val mapping = (file.getName -> source.mkString)
+        source.close()
+        mapping
+      }.toMap
+    } else {
+      logWarning(s"Spark configuration directory not detected, please set env:$ENV_SPARK_CONF_DIR")
+      Map()
+    }
+  }
+
+  def listConfFiles(confDir: String): Seq[File] = {
+    // We exclude all the template files and user provided spark conf or properties.
+    // As spark properties is resolved in a different step.
+    val fileFilter = (f: File) => {
+      f.isFile && !(f.getName.endsWith("template") ||
+        f.getName.matches("spark.*(conf|properties)"))
+    }
+    val confFiles: Seq[File] = {
+      val dir = new File(confDir)
+      if (dir.isDirectory) {
+        dir.listFiles.filter(x => fileFilter(x)).toSeq
+      } else {
+        Nil
+      }
+    }
+    confFiles
   }
 }
