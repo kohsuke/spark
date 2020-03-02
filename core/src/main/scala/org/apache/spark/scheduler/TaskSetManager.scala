@@ -480,11 +480,11 @@ private[spark] class TaskSetManager(
           extraResources,
           serializedTask)
       }
+      val hasPendingTasks = pendingTasks.all.nonEmpty || pendingSpeculatableTasks.all.nonEmpty
       val hasScheduleDelayReject =
         taskDescription.isEmpty &&
           maxLocality == TaskLocality.ANY &&
-          pendingTasks.all.nonEmpty &&
-          pendingSpeculatableTasks.all.nonEmpty
+          hasPendingTasks
       (taskDescription, hasScheduleDelayReject)
     } else {
       (None, false)
