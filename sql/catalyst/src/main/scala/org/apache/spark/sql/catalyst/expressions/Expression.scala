@@ -262,6 +262,7 @@ abstract class Expression extends TreeNode[Expression] {
 
   protected def flatArguments: Iterator[Any] = stringArgs.flatMap {
     case t: Iterable[_] => t
+    case e: Expression => e.argumentString :: Nil
     case single => single :: Nil
   }
 
@@ -273,6 +274,8 @@ abstract class Expression extends TreeNode[Expression] {
 
   override def toString: String = prettyName + truncatedString(
     flatArguments.toSeq, "(", ", ", ")", SQLConf.get.maxToStringFields)
+
+  def argumentString: String = toString
 
   /**
    * Returns SQL representation of this expression.  For expressions extending [[NonSQLExpression]],
