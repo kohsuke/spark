@@ -570,6 +570,7 @@ test_that("spark.fmRegressor", {
     model2 <- read.ml(modelPath)
 
     expect_is(model2, "FMRegressionModel")
+    expect_equal(summary(model), summary(model2))
 
     prediction2 <- predict(model2, df)
     expect_equal(
