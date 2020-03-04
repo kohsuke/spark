@@ -577,6 +577,7 @@ test_that("spark.fmRegressor", {
       collect(prediction1),
       collect(prediction2)
     )
+    unlink(modelPath)
   }
 })
 
