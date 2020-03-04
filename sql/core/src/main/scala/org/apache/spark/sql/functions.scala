@@ -3955,17 +3955,6 @@ object functions {
     to_json(e, Map.empty[String, String])
 
   /**
-   * Returns length of json array if a valid json array is passed.
-   *
-   * @param e a string column containing a json array
-   * @return Length of json array
-   * @since 3.0.0
-   */
-  def json_array_legth(e: Column): Column = withExpr {
-    LengthOfJsonArray(e.expr)
-  }
-
-  /**
    * Returns length of array or map.
    *
    * @group collection_funcs
