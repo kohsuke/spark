@@ -225,6 +225,7 @@ class Analyzer(
       ResolveInsertInto ::
       ResolveRelations ::
       ResolveTables ::
+      AddMetadataColumns ::
       ResolveReferences ::
       ResolveCreateNamedStruct ::
       ResolveDeserializer ::
@@ -906,6 +907,29 @@ class Analyzer(
       nameParts
     } else {
       AnalysisContext.get.catalogAndNamespace.head +: nameParts
+    }
+  }
+
+  /**
+   * Adds metadata columns to output for child relations when nodes are missing resolved attributes.
+   *
+   * References to metadata columns are resolved using columns from [[LogicalPlan.metadataOutput]],
+   * but the relation's output does not include the metadata columns until the relation is replaced
+   * using [[DataSourceV2Relation.withMetadataColumns()]]. Unless this rule adds metadata to the
+   * relation's output, the analyzer will detect that nothing produces the columns.
+   *
+   * This rule only adds metadata columns when a node is resolved but is missing input from its
+   * children. This ensures that metadata columns are not added to the plan unless they are used. By
+   * checking only resolved nodes, this ensures that * expansion is already done so that metadata
+   * columns are not accidentally selected by *.
+   */
+  object AddMetadataColumns extends Rule[LogicalPlan] {
+    def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperatorsUp {
+      case node if node.resolved && node.children.nonEmpty && node.missingInput.nonEmpty =>
+        node resolveOperatorsUp {
+          case rel: DataSourceV2Relation =>
+            rel.withMetadataColumns()
+        }
     }
   }
 
