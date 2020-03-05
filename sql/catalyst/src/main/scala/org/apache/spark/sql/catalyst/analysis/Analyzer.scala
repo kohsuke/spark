@@ -2358,7 +2358,7 @@ class Analyzer(
                   resolvedGenerator = null
                   Nil
                 }
-              } else if (generator.childrenResolved) {
+              } else if (generator.resolved) {
                 resolvedGenerator = createGenerate(generator, outer, names, child)
                 resolvedGenerator.generatorOutput
               } else {
