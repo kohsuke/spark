@@ -18,6 +18,7 @@
 package org.apache.spark.sql.sources
 
 import org.apache.spark.annotation.{Evolving, Stable}
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.unquote
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // This file defines all the filters that we can push down to the data sources.
@@ -32,6 +33,7 @@ import org.apache.spark.annotation.{Evolving, Stable}
 sealed abstract class Filter {
   /**
    * List of columns that are referenced by this filter.
+   * Note that, if a column contains `dots` in name, it will be quoted to avoid confusion.
    * @since 2.1.0
    */
   def references: Array[String]
@@ -39,6 +41,13 @@ sealed abstract class Filter {
   protected def findReferences(value: Any): Array[String] = value match {
     case f: Filter => f.references
     case _ => Array.empty
+  }
+
+  /**
+   * If any of the references of this filter contains nested column
+   */
+  private[sql] def containsNestedColumn: Boolean = {
+    this.references.exists(unquote(_).length > 1)
   }
 }
 
