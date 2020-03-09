@@ -63,11 +63,11 @@ case class OptimizeSkewedJoin(conf: SQLConf) extends Rule[SparkPlan] {
   /**
    * A partition is considered as a skewed partition if its size is larger than the median
    * partition size * ADAPTIVE_EXECUTION_SKEWED_PARTITION_FACTOR and also larger than
-   * ADVISORY_PARTITION_SIZE_IN_BYTES * 2.
+   * ADVISORY_PARTITION_SIZE_IN_BYTES.
    */
   private def isSkewed(size: Long, medianSize: Long): Boolean = {
     size > medianSize * conf.getConf(SQLConf.SKEW_JOIN_SKEWED_PARTITION_FACTOR) &&
-      size > conf.getConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES) * 2
+      size > conf.getConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES)
   }
 
   private def medianSize(stats: MapOutputStatistics): Long = {
@@ -194,22 +194,18 @@ case class OptimizeSkewedJoin(conf: SQLConf) extends Rule[SparkPlan] {
             nonSkewPartitionIndices.clear()
           }
 
-          val leftParts = if (isLeftSkew) {
+          val leftMapStartIndices = getMapStartIndices(left, partitionIndex, leftTargetSize)
+          val leftParts = if (isLeftSkew && leftMapStartIndices.length > 1) {
             leftSkewDesc.addPartitionSize(leftSize)
-            createSkewPartitions(
-              partitionIndex,
-              getMapStartIndices(left, partitionIndex, leftTargetSize),
-              getNumMappers(left))
+            createSkewPartitions(partitionIndex, leftMapStartIndices, getNumMappers(left))
           } else {
             Seq(CoalescedPartitionSpec(partitionIndex, partitionIndex + 1))
           }
 
-          val rightParts = if (isRightSkew) {
+          val rightMapStartIndices = getMapStartIndices(right, partitionIndex, rightTargetSize)
+          val rightParts = if (isRightSkew && rightMapStartIndices.length > 1) {
             rightSkewDesc.addPartitionSize(rightSize)
-            createSkewPartitions(
-              partitionIndex,
-              getMapStartIndices(right, partitionIndex, rightTargetSize),
-              getNumMappers(right))
+            createSkewPartitions(partitionIndex, rightMapStartIndices, getNumMappers(right))
           } else {
             Seq(CoalescedPartitionSpec(partitionIndex, partitionIndex + 1))
           }

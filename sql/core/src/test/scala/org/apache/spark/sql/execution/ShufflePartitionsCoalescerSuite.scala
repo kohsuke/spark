@@ -257,21 +257,21 @@ class ShufflePartitionsCoalescerSuite extends SparkFunSuite {
     val targetSize = 100
 
     // merge the small partitions at the beginning/end
-    val sizeList1 = Seq[Long](20, 90, 20, 25, 80, 20)
+    val sizeList1 = Seq[Long](15, 90, 15, 15, 15, 90, 15)
     assert(ShufflePartitionsCoalescer.splitSizeListByTargetSize(sizeList1, targetSize).toSeq ==
-      Seq(0, 2, 4))
+      Seq(0, 2, 5))
 
     // merge the small partitions in the middle
-    val sizeList2 = Seq[Long](20, 25, 90, 20, 90, 20, 25)
+    val sizeList2 = Seq[Long](30, 15, 90, 10, 90, 15, 30)
     assert(ShufflePartitionsCoalescer.splitSizeListByTargetSize(sizeList2, targetSize).toSeq ==
       Seq(0, 2, 4, 5))
 
     // merge the small partition even if it leads to a very large partition
-    val sizeList3 = Seq[Long](20, 1000, 20, 1000)
+    val sizeList3 = Seq[Long](15, 1000, 15, 1000)
     assert(ShufflePartitionsCoalescer.splitSizeListByTargetSize(sizeList3, targetSize).toSeq ==
       Seq(0, 3))
 
-    // merge the small partitions even if it exceeds targetSize * 0.3
+    // merge the small partitions even if it exceeds targetSize * 0.2
     val sizeList4 = Seq[Long](35, 75, 90, 20, 35, 35, 35)
     assert(ShufflePartitionsCoalescer.splitSizeListByTargetSize(sizeList4, targetSize).toSeq ==
       Seq(0, 2, 3))

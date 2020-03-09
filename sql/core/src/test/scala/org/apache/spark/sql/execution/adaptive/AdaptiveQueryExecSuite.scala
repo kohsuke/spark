@@ -674,22 +674,6 @@ class AdaptiveQueryExecSuite
         // So total (4 + 1 + 1) partitions.
         val rightSmj = findTopLevelSortMergeJoin(rightAdaptivePlan)
         checkSkewJoin(rightSmj, 4 + 1 + 1)
-
-        withSQLConf(SQLConf.ADVISORY_PARTITION_SIZE_IN_BYTES.key -> "3000") {
-          val (_, innerAdaptivePlan) = runAdaptiveAndVerifyResult(
-            "SELECT * FROM skewData1 join skewData2 ON key1 = key2")
-          // left stats: [4297, 0, 0, 0, 4674]
-          // right stats:[6292, 0, 0, 0, 0]
-          // Partition 0: left side is smaller than 3000 * 2, so it's not skewed,
-          //              right side is skewed divided into 2 splits, so
-          //              2 sub-partitions.
-          // Partition 1, 2, 3: not skewed, and coalesced into 1 partition.
-          // Partition 4: left side is smaller than 3000 * 2, so it's not skewed,
-          //              right side is not skewed either, so just 1 partition.
-          // So total (2 + 1 + 1) partitions.
-          val innerSmj = findTopLevelSortMergeJoin(innerAdaptivePlan)
-          checkSkewJoin(innerSmj, 2 + 1 + 1)
-        }
       }
     }
   }
