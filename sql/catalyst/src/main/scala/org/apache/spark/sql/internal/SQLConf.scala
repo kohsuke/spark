@@ -2205,7 +2205,7 @@ object SQLConf {
         s"instead of the value of ${DEFAULT_DATA_SOURCE_NAME.key}.")
       .version("3.0.0")
       .booleanConf
-      .createWithDefault(false)
+      .createWithDefault(true)
 
 
   val LEGACY_INTEGRALDIVIDE_RETURN_LONG = buildConf("spark.sql.legacy.integralDivide.returnBigint")
