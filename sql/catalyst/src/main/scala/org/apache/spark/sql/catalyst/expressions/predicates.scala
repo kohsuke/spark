@@ -20,7 +20,7 @@ package org.apache.spark.sql.catalyst.expressions
 import scala.collection.immutable.TreeSet
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.analysis.TypeCheckResult
+import org.apache.spark.sql.catalyst.analysis.{FunctionRegistry, TypeCheckResult}
 import org.apache.spark.sql.catalyst.expressions.BindReferences.bindReference
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
 import org.apache.spark.sql.catalyst.expressions.codegen._
@@ -731,6 +731,8 @@ object Equality {
   """)
 case class EqualTo(left: Expression, right: Expression)
     extends BinaryComparison with NullIntolerant {
+
+  override def sqlOperator: String = getTagValue(FunctionRegistry.FUNC_ALIAS).getOrElse(symbol)
 
   override def symbol: String = "="
 
