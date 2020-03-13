@@ -305,7 +305,7 @@ case class ShowViewsCommand(
     val catalog = sparkSession.sessionState.catalog
     val db = databaseName.getOrElse(catalog.getCurrentDatabase)
 
-    // Show the information of tables.
+    // Show the information of views.
     val views =
       tableIdentifierPattern.map(catalog.listViews(db, _)).getOrElse(catalog.listViews(db, "*"))
     views.map { tableIdent =>
