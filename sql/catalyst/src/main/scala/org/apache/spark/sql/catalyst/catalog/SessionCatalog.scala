@@ -897,8 +897,7 @@ class SessionCatalog(
     val globalTempViews = globalTempViewManager.listViewNames(pattern).map { name =>
       TableIdentifier(name, Some(globalTempViewManager.database))
     }
-    dbViews ++ globalTempViews
-    dbViews ++ listLocalTempViews(pattern)
+    dbViews ++ globalTempViews ++ listLocalTempViews(pattern)
   }
 
   /**

@@ -70,6 +70,7 @@ struct<database:string,viewName:string,isTemporary:boolean>
 	tenk1	true
 	testdata	true
 	view_3	true
+global_temp	view_4	true
 showdb	view_1	false
 showdb	view_2	false
 
@@ -86,6 +87,7 @@ struct<database:string,viewName:string,isTemporary:boolean>
 	tenk1	true
 	testdata	true
 	view_3	true
+global_temp	view_4	true
 showdb	view_1	false
 showdb	view_2	false
 
@@ -102,6 +104,7 @@ struct<database:string,viewName:string,isTemporary:boolean>
 	tenk1	true
 	testdata	true
 	view_3	true
+global_temp	view_4	true
 showdb	view_1	false
 showdb	view_2	false
 
@@ -118,6 +121,7 @@ struct<database:string,viewName:string,isTemporary:boolean>
 	tenk1	true
 	testdata	true
 	view_3	true
+global_temp	view_4	true
 
 
 -- !query
@@ -126,6 +130,7 @@ SHOW VIEWS 'view_*'
 struct<database:string,viewName:string,isTemporary:boolean>
 -- !query output
 	view_3	true
+global_temp	view_4	true
 showdb	view_1	false
 showdb	view_2	false
 
@@ -145,6 +150,7 @@ SHOW VIEWS IN showdb 'view_*'
 struct<database:string,viewName:string,isTemporary:boolean>
 -- !query output
 	view_3	true
+global_temp	view_4	true
 showdb	view_1	false
 showdb	view_2	false
 
