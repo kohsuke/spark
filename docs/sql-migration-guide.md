@@ -226,7 +226,7 @@ license: |
   - Since Spark 3.0, when casting string value to integral types(tinyint, smallint, int and bigint), datetime types(date, timestamp and interval) and boolean type, the leading and trailing whitespaces (<= ASCII 32) will be trimmed before converted to these type values, e.g. `cast(' 1\t' as int)` results `1`, `cast(' 1\t' as boolean)` results `true`, `cast('2019-10-10\t as date)` results the date value `2019-10-10`. In Spark version 2.4 and earlier, while casting string to integrals and booleans, it will not trim the whitespaces from both ends, the foregoing results will be `null`, while to datetimes, only the trailing spaces (= ASCII 32) will be removed.
 
   - Since Spark 3.0, an analysis exception will be thrown when hash expressions are applied on elements of MapType. To restore the behavior before Spark 3.0, set `spark.sql.legacy.allowHashOnMapType` to `true`.
-    
+
   - Since Spark 3.0, numbers written in scientific notation(e.g. `1E2`) would be parsed as Double. In Spark version 2.4 and earlier, they're parsed as Decimal. To restore the behavior before Spark 3.0, you can set `spark.sql.legacy.exponentLiteralAsDecimal.enabled` to `true`.
 
   - Since Spark 3.0, we pad decimal numbers with trailing zeros to the scale of the column for `spark-sql` interface, for example:
@@ -254,13 +254,13 @@ license: |
           </td>
         </tr>
     </table>
-    
+
   - Since Spark 3.0, `CREATE TABLE` without a specific provider will use the value of `spark.sql.sources.default` as its provider. In Spark version 2.4 and earlier, it was hive. To restore the behavior before Spark 3.0, you can set `spark.sql.legacy.createHiveTableByDefault.enabled` to `true`.
 
   - Since Spark 3.0, the unary arithmetic operator plus(`+`) only accepts string, numeric and interval type values as inputs. Besides, `+` with a integral string representation will be coerced to double value, e.g. `+'1'` results `1.0`. In Spark version 2.4 and earlier, this operator is ignored. There is no type checking for it, thus, all type values with a `+` prefix are valid, e.g. `+ array(1, 2)` is valid and results `[1, 2]`. Besides, there is no type coercion for it at all, e.g. in Spark 2.4, the result of `+'1'` is string `1`.
 
   - Since Spark 3.0, day-time interval strings are converted to intervals with respect to the `from` and `to` bounds. If an input string does not match to the pattern defined by specified bounds, the `ParseException` exception is thrown. For example, `interval '2 10:20' hour to minute` raises the exception because the expected format is `[+|-]h[h]:[m]m`. In Spark version 2.4, the `from` bound was not taken into account, and the `to` bound was used to truncate the resulted interval. For instance, the day-time interval string from the showed example is converted to `interval 10 hours 20 minutes`. To restore the behavior before Spark 3.0, you can set `spark.sql.legacy.fromDayTimeString.enabled` to `true`.
-  
+
   - Since Spark 3.0, negative scale of decimal is not allowed by default, e.g. data type of literal like `1E10BD` is `DecimalType(11, 0)`. In Spark version 2.4 and earlier, it was `DecimalType(2, -9)`. To restore the behavior before Spark 3.0, you can set `spark.sql.legacy.allowNegativeScaleOfDecimal` to `true`.
 
   - Since Spark 3.0, the `date_add` and `date_sub` functions only accepts int, smallint, tinyint as the 2nd argument, fractional and string types are not valid anymore, e.g. `date_add(cast('1964-05-23' as date), '12.34')` will cause `AnalysisException`. In Spark version 2.4 and earlier, if the 2nd argument is fractional or string value, it will be coerced to int value, and the result will be a date value of `1964-06-04`.
@@ -334,13 +334,15 @@ license: |
   - Since Spark 3.0, `SHOW CREATE TABLE` will always return Spark DDL, even when the given table is a Hive serde table. For generating Hive DDL, please use `SHOW CREATE TABLE AS SERDE` command instead.
 
   - Since Spark 3.0, we upgraded the built-in Hive from 1.2 to 2.3 and it brings following impacts:
-  
+
     - You may need to set `spark.sql.hive.metastore.version` and `spark.sql.hive.metastore.jars` according to the version of the Hive metastore you want to connect to.
   For example: set `spark.sql.hive.metastore.version` to `1.2.1` and `spark.sql.hive.metastore.jars` to `maven` if your Hive metastore version is 1.2.1.
-  
+
     - You need to migrate your custom SerDes to Hive 2.3 or build your own Spark with `hive-1.2` profile. See HIVE-15167 for more details.
 
     - The decimal string representation can be different between Hive 1.2 and Hive 2.3 when using `TRANSFORM` operator in SQL for script transformation, which depends on hive's behavior. In Hive 1.2, the string representation omits trailing zeroes. But in Hive 2.3, it is always padded to 18 digits with trailing zeroes if necessary.
+
+  - Since Spark 3.0, columns of CHAR/VARCHAR type are not allowed in non-Hive tables, and CREATE/ALTER TABLE commands will fail if CHAR/VARCHAR type is detected. In Spark version 2.4 and earlier, CHAR/VARCHAR type are treated as STRING type and the length parameter is simply ignored.
 
 ## Upgrading from Spark SQL 2.4.4 to 2.4.5
 
@@ -956,29 +958,29 @@ Spark SQL supports the vast majority of Hive features, such as:
 * Unions
 * Sub-queries
   * Sub-queries in the FROM Clause
-  
+
     ```SELECT col FROM (SELECT a + b AS col FROM t1) t2```
   * Sub-queries in WHERE Clause
     * Correlated or non-correlated IN and NOT IN statement in WHERE Clause
-    
+
       ```
       SELECT col FROM t1 WHERE col IN (SELECT a FROM t2 WHERE t1.a = t2.a)
       SELECT col FROM t1 WHERE col IN (SELECT a FROM t2)
       ```
     * Correlated or non-correlated EXISTS and NOT EXISTS statement in WHERE Clause
-    
+
       ```
       SELECT col FROM t1 WHERE EXISTS (SELECT t2.a FROM t2 WHERE t1.a = t2.a AND t2.a > 10)
       SELECT col FROM t1 WHERE EXISTS (SELECT t2.a FROM t2 WHERE t2.a > 10)
       ```
     * Non-correlated IN and NOT IN statement in JOIN Condition
-    
+
       ```SELECT t1.col FROM t1 JOIN t2 ON t1.a = t2.a AND t1.a IN (SELECT a FROM t3)```
-   
+
     * Non-correlated EXISTS and NOT EXISTS statement in JOIN Condition
-       
-      ```SELECT t1.col FROM t1 JOIN t2 ON t1.a = t2.a AND EXISTS (SELECT * FROM t3 WHERE t3.a > 10)``` 
-       
+
+      ```SELECT t1.col FROM t1 JOIN t2 ON t1.a = t2.a AND EXISTS (SELECT * FROM t3 WHERE t3.a > 10)```
+
 * Sampling
 * Explain
 * Partitioned tables including dynamic partition insertion
