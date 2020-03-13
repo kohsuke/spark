@@ -366,8 +366,8 @@ class ResolveSessionCatalog(
     case ShowTables(SessionCatalogAndNamespace(_, ns), pattern) =>
       assert(ns.nonEmpty)
       if (ns.length != 1) {
-          throw new AnalysisException(
-            s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException(
+          s"The database name is not valid: ${ns.quoted}")
       }
       ShowTablesCommand(Some(ns.head), pattern)
 
@@ -529,6 +529,17 @@ class ResolveSessionCatalog(
         allowExisting,
         replace,
         viewType)
+
+    case ShowViewsStatement(SessionCatalogAndNamespace(_, ns), pattern) =>
+      val namespace = if (ns.isEmpty) {
+        None
+      } else if (ns.length == 1) {
+        Some(ns.head)
+      } else {
+        throw new AnalysisException(
+          s"The database name is not valid: ${ns.quoted}")
+      }
+      ShowViewsCommand(namespace, pattern)
 
     case ShowTableProperties(r: ResolvedTable, propertyKey) if isSessionCatalog(r.catalog) =>
       ShowTablePropertiesCommand(r.identifier.asTableIdentifier, propertyKey)

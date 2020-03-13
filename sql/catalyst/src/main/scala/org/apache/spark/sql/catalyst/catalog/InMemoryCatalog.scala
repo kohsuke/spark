@@ -346,6 +346,13 @@ class InMemoryCatalog(
     StringUtils.filterPattern(listTables(db), pattern)
   }
 
+  override def listViews(db: String, pattern: String): Seq[String] = synchronized {
+    requireDbExists(db)
+    val views = catalog(db).tables.filter(v => v._2.table.tableType == CatalogTableType.VIEW)
+      .keySet.toSeq.sorted
+    StringUtils.filterPattern(views, pattern)
+  }
+
   override def loadTable(
       db: String,
       table: String,

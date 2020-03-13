@@ -1260,6 +1260,21 @@ class DDLParserSuite extends AnalysisTest {
         Some(Map("ds" -> "2008-04-09"))))
   }
 
+  test("show views") {
+    comparePlans(
+      parsePlan("SHOW VIEWS"),
+      ShowViewsStatement(UnresolvedNamespace(Seq.empty[String]), None))
+    comparePlans(
+      parsePlan("SHOW VIEWS FROM testcat.ns1.ns2.tbl"),
+      ShowViewsStatement(UnresolvedNamespace(Seq("testcat", "ns1", "ns2", "tbl")), None))
+    comparePlans(
+      parsePlan("SHOW VIEWS IN testcat.ns1.ns2.tbl"),
+      ShowViewsStatement(UnresolvedNamespace(Seq("testcat", "ns1", "ns2", "tbl")), None))
+    comparePlans(
+      parsePlan("SHOW VIEWS IN tbl LIKE '*dog*'"),
+      ShowViewsStatement(UnresolvedNamespace(Seq("tbl")), Some("*dog*")))
+  }
+
   test("create namespace -- backward compatibility with DATABASE/DBPROPERTIES") {
     val expected = CreateNamespaceStatement(
       Seq("a", "b", "c"),
