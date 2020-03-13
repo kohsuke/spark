@@ -590,7 +590,9 @@ object FunctionRegistry {
       if (varargCtor.isDefined) {
         // If there is an apply method that accepts Seq[Expression], use that one.
         try {
-          varargCtor.get.newInstance(expressions).asInstanceOf[Expression]
+          val exp = varargCtor.get.newInstance(expressions).asInstanceOf[Expression]
+          if (setAlias) exp.setTagValue(FUNC_ALIAS, name)
+          exp
         } catch {
           // the exception is an invocation exception. To get a meaningful message, we need the
           // cause.
