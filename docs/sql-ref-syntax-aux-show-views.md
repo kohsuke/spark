@@ -1,7 +1,7 @@
 ---
 layout: global
-title: SHOW TABLES
-displayTitle: SHOW TABLES
+title: SHOW VIEWS
+displayTitle: SHOW VIEWS
 license: |
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
@@ -20,25 +20,25 @@ license: |
 ---
 ### Description
 
-The `SHOW TABLES` statement returns all the tables for an optionally specified database.
+The `SHOW VIEWS` statement returns all the views for an optionally specified database.
 Additionally, the output of this statement may be filtered by an optional matching
-pattern. If no database is specified then the tables are returned from the 
-current database.
+pattern. If no database is specified then the views are returned from the 
+current database. Note that both global and local temporary views are also returned.
 
 ### Syntax
 {% highlight sql %}
-SHOW TABLES [ { FROM | IN } database_name ] [ LIKE 'regex_pattern' ]
+SHOW VIEWS [ { FROM | IN } database_name ] [ LIKE 'regex_pattern' ]
 {% endhighlight %}
 
 ### Parameters
 <dl>
   <dt><code><em>{ FROM | IN } database_name</em></code></dt>
   <dd>
-     Specifies the database name from which tables are listed.
+     Specifies the database name from which views are listed.
   </dd>
   <dt><code><em>LIKE regex_pattern</em></code></dt>
   <dd>
-     Specifies the regular expression pattern that is used to filter out unwanted tables. 
+     Specifies the regular expression pattern that is used to filter out unwanted views. 
      <ul> 
           <li> Except for `*` and `|` character, the pattern works like a regex.</li>
           <li> `*` alone matches 0 or more characters and `|` is used to separate multiple different regexes,
@@ -51,47 +51,47 @@ SHOW TABLES [ { FROM | IN } database_name ] [ LIKE 'regex_pattern' ]
 
 ### Example
 {% highlight sql %}
--- List all tables in default database
-SHOW TABLES;
+-- List all views in default database
+SHOW VIEWS;
   +-----------+------------+--------------+--+
-  | database  | tableName  | isTemporary  |
+  | database  | viewName   | isTemporary  |
   +-----------+------------+--------------+--+
   | default   | sam        | false        |
   | default   | sam1       | false        |
   | default   | suj        | false        |
   +-----------+------------+--------------+--+
 
--- List all tables from userdb database 
-SHOW TABLES FROM userdb;
+-- List all views from userdb database 
+SHOW VIEWS FROM userdb;
   +-----------+------------+--------------+--+
-  | database  | tableName  | isTemporary  |
-  +-----------+------------+--------------+--+
-  | userdb    | user1      | false        |
-  | userdb    | user2      | false        |
-  +-----------+------------+--------------+--+
-
--- List all tables in userdb database
-SHOW TABLES IN userdb;
-  +-----------+------------+--------------+--+
-  | database  | tableName  | isTemporary  |
+  | database  | viewName   | isTemporary  |
   +-----------+------------+--------------+--+
   | userdb    | user1      | false        |
   | userdb    | user2      | false        |
   +-----------+------------+--------------+--+
 
--- List all tables from default database matching the pattern `sam*`
-SHOW TABLES FROM default LIKE 'sam*';
+-- List all views in userdb database
+SHOW VIEWS IN userdb;
   +-----------+------------+--------------+--+
-  | database  | tableName  | isTemporary  |
+  | database  | viewName   | isTemporary  |
+  +-----------+------------+--------------+--+
+  | userdb    | user1      | false        |
+  | userdb    | user2      | false        |
+  +-----------+------------+--------------+--+
+
+-- List all views from default database matching the pattern `sam*`
+SHOW VIEWS FROM default LIKE 'sam*';
+  +-----------+------------+--------------+--+
+  | database  | viewName   | isTemporary  |
   +-----------+------------+--------------+--+
   | default   | sam        | false        |
   | default   | sam1       | false        |
   +-----------+------------+--------------+--+
   
--- List all tables matching the pattern `sam*|suj`
-SHOW TABLES LIKE 'sam*|suj';
+-- List all views matching the pattern `sam*|suj`
+SHOW VIEWS LIKE 'sam*|suj';
   +-----------+------------+--------------+--+
-  | database  | tableName  | isTemporary  |
+  | database  | viewName   | isTemporary  |
   +-----------+------------+--------------+--+
   | default   | sam        | false        |
   | default   | sam1       | false        |
@@ -101,7 +101,7 @@ SHOW TABLES LIKE 'sam*|suj';
 {% endhighlight %}
 
 ### Related statements
-- [CREATE TABLE](sql-ref-syntax-ddl-create-table.html)
-- [DROP TABLE](sql-ref-syntax-ddl-drop-table.html)
+- [CREATE VIEW](sql-ref-syntax-ddl-create-view.html)
+- [DROP VIEW](sql-ref-syntax-ddl-drop-view.html)
 - [CREATE DATABASE](sql-ref-syntax-ddl-create-database.html)
 - [DROP DATABASE](sql-ref-syntax-ddl-drop-database.html)
