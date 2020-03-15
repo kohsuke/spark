@@ -311,6 +311,7 @@ case class RecursiveRelationExec(
 
     val levelLimit = conf.getConf(SQLConf.CTE_RECURSION_LEVEL_LIMIT)
 
+    // TODO: cache before count, as the RDD can be reused in the next iteration
     var prevIterationRDD = anchorTerm.execute().map(_.copy())
     var prevIterationCount = prevIterationRDD.count()
 
@@ -365,6 +366,7 @@ case class RecursiveRelationExec(
 
       executionIdLong.foreach(onUpdatePlan)
 
+      // TODO: cache before count, as the RDD can be reused in the next iteration
       prevIterationRDD = physicalRecursiveTerm.execute().map(_.copy())
       prevIterationCount = prevIterationRDD.count()
 
