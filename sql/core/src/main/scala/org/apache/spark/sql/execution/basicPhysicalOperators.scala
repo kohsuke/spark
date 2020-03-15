@@ -307,11 +307,7 @@ case class RecursiveRelationExec(
 
   override protected def doExecute(): RDD[InternalRow] = {
     val executionId = sparkContext.getLocalProperty(SQLExecution.EXECUTION_ID_KEY)
-    val executionIdLong = if (false) {
-      None
-    } else {
-      Option(executionId).map(_.toLong)
-    }
+    val executionIdLong = Option(executionId).map(_.toLong)
 
     val levelLimit = conf.getConf(SQLConf.CTE_RECURSION_LEVEL_LIMIT)
 
