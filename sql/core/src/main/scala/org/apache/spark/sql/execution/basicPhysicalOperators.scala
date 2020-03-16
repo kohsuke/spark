@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.execution
 
-import java.util.concurrent.{Future => JFuture}
+import java.util.concurrent.{Future => JFuture, LinkedBlockingQueue}
 import java.util.concurrent.TimeUnit._
 
 import scala.collection.mutable
@@ -281,15 +281,16 @@ case class RecursiveRelationExec(
   @transient
   lazy val logicalRecursiveTerm = logicalLink.get.asInstanceOf[RecursiveRelation].recursiveTerm
 
-  override def children: Seq[SparkPlan] = anchorTerm :: Nil
+  private val physicalRecursiveTerms = new LinkedBlockingQueue[SparkPlan]
+
+  def recursiveTermIterations: Seq[SparkPlan] =
+    physicalRecursiveTerms.toArray(Array.empty[SparkPlan])
+
+  override def children: Seq[SparkPlan] = anchorTerm +: recursiveTermIterations
 
   override def innerChildren: Seq[QueryPlan[_]] = logicalRecursiveTerm +: super.innerChildren
 
   override def stringArgs: Iterator[Any] = Iterator(cteName, output)
-
-  private val physicalRecursiveTerms = new mutable.ArrayBuffer[SparkPlan]
-
-  def recursiveTermIterations: Seq[SparkPlan] = physicalRecursiveTerms.toList
 
   override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
@@ -362,7 +363,7 @@ case class RecursiveRelationExec(
       val physicalRecursiveTerm =
         QueryExecution.prepareExecutedPlan(sqlContext.sparkSession, newLogicalRecursiveTerm)
 
-      physicalRecursiveTerms += physicalRecursiveTerm
+      physicalRecursiveTerms.offer(physicalRecursiveTerm)
 
       executionIdLong.foreach(onUpdatePlan)
 
@@ -382,6 +383,14 @@ case class RecursiveRelationExec(
     } else {
       sparkContext.union(accumulatedRDDs)
     }
+  }
+
+  override def verboseStringWithOperatorId(): String = {
+    s"""
+       |(${ExplainUtils.getOpId(this)}) $nodeName ${ExplainUtils.getCodegenId(this)}
+       |${ExplainUtils.generateFieldString("CTE", cteName)}
+       |${ExplainUtils.generateFieldString("Output", output)}
+     """.stripMargin
   }
 }
 
