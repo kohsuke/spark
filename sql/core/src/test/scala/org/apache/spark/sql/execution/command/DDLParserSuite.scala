@@ -77,8 +77,10 @@ class DDLParserSuite extends AnalysisTest with SharedSparkSession {
 
   private def withCreateTableStatement(sql: String)(prediction: CreateTableStatement => Unit)
     : Unit = {
-    val statement = parser.parsePlan(sql).asInstanceOf[CreateTableStatement]
-    prediction(statement)
+    withSQLConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED.key -> "false") {
+      val statement = parser.parsePlan(sql).asInstanceOf[CreateTableStatement]
+      prediction(statement)
+    }
   }
 
   test("alter database - property values must be set") {
@@ -485,18 +487,20 @@ class DDLParserSuite extends AnalysisTest with SharedSparkSession {
   }
 
   test("Test CTAS #3") {
-    val s3 = """CREATE TABLE page_view AS SELECT * FROM src"""
-    val statement = parser.parsePlan(s3).asInstanceOf[CreateTableAsSelectStatement]
-    assert(statement.tableName(0) == "page_view")
-    assert(statement.asSelect == parser.parsePlan("SELECT * FROM src"))
-    assert(statement.partitioning.isEmpty)
-    assert(statement.bucketSpec.isEmpty)
-    assert(statement.properties.isEmpty)
-    assert(statement.provider.isEmpty)
-    assert(statement.options.isEmpty)
-    assert(statement.location.isEmpty)
-    assert(statement.comment.isEmpty)
-    assert(!statement.ifNotExists)
+    withSQLConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED.key -> "false") {
+      val s3 = """CREATE TABLE page_view AS SELECT * FROM src"""
+      val statement = parser.parsePlan(s3).asInstanceOf[CreateTableAsSelectStatement]
+      assert(statement.tableName(0) == "page_view")
+      assert(statement.asSelect == parser.parsePlan("SELECT * FROM src"))
+      assert(statement.partitioning.isEmpty)
+      assert(statement.bucketSpec.isEmpty)
+      assert(statement.properties.isEmpty)
+      assert(statement.provider.isEmpty)
+      assert(statement.options.isEmpty)
+      assert(statement.location.isEmpty)
+      assert(statement.comment.isEmpty)
+      assert(!statement.ifNotExists)
+    }
   }
 
   test("Test CTAS #4") {
