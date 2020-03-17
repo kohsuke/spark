@@ -869,14 +869,14 @@ case class ShowTablesCommand(
   }
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    // Since we need to return a Seq of rows, we will call getTables directly
+    // Since we need to return a Seq of rows, we will call listTables directly
     // instead of calling tables in sparkSession.
     val catalog = sparkSession.sessionState.catalog
     val db = databaseName.getOrElse(catalog.getCurrentDatabase)
     if (partitionSpec.isEmpty) {
       // Show the information of tables.
-      val tables =
-        tableIdentifierPattern.map(catalog.listTables(db, _)).getOrElse(catalog.listTables(db))
+      val tables = tableIdentifierPattern.map(catalog.listTables(db, _))
+        .getOrElse(catalog.listTables(db))
       tables.map { tableIdent =>
         val database = tableIdent.database.getOrElse("")
         val tableName = tableIdent.table

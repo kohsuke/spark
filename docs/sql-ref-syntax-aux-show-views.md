@@ -23,7 +23,8 @@ license: |
 The `SHOW VIEWS` statement returns all the views for an optionally specified database.
 Additionally, the output of this statement may be filtered by an optional matching
 pattern. If no database is specified then the views are returned from the 
-current database. Note that both global and local temporary views are also returned.
+current database. Note that the command always lists global and temporary views 
+regardless of a given database.
 
 ### Syntax
 {% highlight sql %}
@@ -51,33 +52,50 @@ SHOW VIEWS [ { FROM | IN } database_name ] [ LIKE 'regex_pattern' ]
 
 ### Example
 {% highlight sql %}
+-- Create views in different databases, also create global/local temp views.
+CREATE VIEW sam AS SELECT id, salary FROM employee WHERE name = 'sam';
+CREATE VIEW sam1 AS SELECT id, salary FROM employee WHERE name = 'sam1';
+CREATE VIEW suj AS SELECT id, salary FROM employee WHERE name = 'suj';
+USE userdb;
+CREATE VIEW user1 AS SELECT id, salary FROM employee WHERE name = 'user1';
+CREATE VIEW user2 AS SELECT id, salary FROM employee WHERE name = 'user2';
+USE default;
+CREATE GLOBAL TEMP VIEW temp1 AS SELECT 1 as col1;
+CREATE TEMP VIEW temp2 AS SELECT 1 as col1;
+
 -- List all views in default database
 SHOW VIEWS;
-  +-----------+------------+--------------+--+
-  | database  | viewName   | isTemporary  |
-  +-----------+------------+--------------+--+
-  | default   | sam        | false        |
-  | default   | sam1       | false        |
-  | default   | suj        | false        |
-  +-----------+------------+--------------+--+
+  +-------------+------------+--------------+--+
+  | database    | viewName   | isTemporary  |
+  +-------------+------------+--------------+--+
+  | default     | sam        | false        |
+  | default     | sam1       | false        |
+  | default     | suj        | false        |
+  | global_temp | temp1      | true         |
+  |             | temp2      | true         |
+  +-------------+------------+--------------+--+
 
 -- List all views from userdb database 
 SHOW VIEWS FROM userdb;
-  +-----------+------------+--------------+--+
-  | database  | viewName   | isTemporary  |
-  +-----------+------------+--------------+--+
-  | userdb    | user1      | false        |
-  | userdb    | user2      | false        |
-  +-----------+------------+--------------+--+
+  +-------------+------------+--------------+--+
+  | database    | viewName   | isTemporary  |
+  +-------------+------------+--------------+--+
+  | userdb      | user1      | false        |
+  | userdb      | user2      | false        |
+  | global_temp | temp1      | true         |
+  |             | temp2      | true         |
+  +-------------+------------+--------------+--+
 
 -- List all views in userdb database
 SHOW VIEWS IN userdb;
-  +-----------+------------+--------------+--+
-  | database  | viewName   | isTemporary  |
-  +-----------+------------+--------------+--+
-  | userdb    | user1      | false        |
-  | userdb    | user2      | false        |
-  +-----------+------------+--------------+--+
+  +-------------+------------+--------------+--+
+  | database    | viewName   | isTemporary  |
+  +-------------+------------+--------------+--+
+  | userdb      | user1      | false        |
+  | userdb      | user2      | false        |
+  | global_temp | temp1      | true         |
+  |             | temp2      | true         |
+  +-------------+------------+--------------+--+
 
 -- List all views from default database matching the pattern `sam*`
 SHOW VIEWS FROM default LIKE 'sam*';

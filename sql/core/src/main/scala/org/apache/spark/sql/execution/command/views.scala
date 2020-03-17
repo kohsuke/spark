@@ -292,22 +292,19 @@ case class ShowViewsCommand(
     databaseName: Option[String],
     tableIdentifierPattern: Option[String]) extends RunnableCommand {
 
-  // The result of SHOW TABLES/SHOW TABLE has three basic columns: database, tableName and
-  // isTemporary. If `isExtended` is true, append column `information` to the output columns.
+  // The result of SHOW VIEWS has three basic columns: database, viewName and isTemporary.
   override val output: Seq[Attribute] = Seq(
     AttributeReference("database", StringType, nullable = false)(),
     AttributeReference("viewName", StringType, nullable = false)(),
     AttributeReference("isTemporary", BooleanType, nullable = false)())
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
-    // Since we need to return a Seq of rows, we will call getTables directly
-    // instead of calling tables in sparkSession.
     val catalog = sparkSession.sessionState.catalog
     val db = databaseName.getOrElse(catalog.getCurrentDatabase)
 
     // Show the information of views.
-    val views =
-      tableIdentifierPattern.map(catalog.listViews(db, _)).getOrElse(catalog.listViews(db, "*"))
+    val views = tableIdentifierPattern.map(catalog.listViews(db, _))
+      .getOrElse(catalog.listViews(db, "*"))
     views.map { tableIdent =>
       val database = tableIdent.database.getOrElse("")
       val tableName = tableIdent.table

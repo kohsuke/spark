@@ -18,6 +18,8 @@ SHOW VIEWS 'view_*';
 SHOW VIEWS LIKE 'view_1*|view_2*';
 SHOW VIEWS IN showdb 'view_*';
 SHOW VIEWS IN showdb LIKE 'view_*';
+-- Error when database not exists
+SHOW VIEWS IN wrongdb LIKE 'view_*';
 
 -- Clean Up
 DROP VIEW view_1;
