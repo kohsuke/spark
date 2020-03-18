@@ -893,7 +893,7 @@ class SessionCatalog(
     } else {
       Nil
     }
-    // Always get global/local temp views
+    // Always try to get global/local temp views
     val globalTempViews = globalTempViewManager.listViewNames(pattern).map { name =>
       TableIdentifier(name, Some(globalTempViewManager.database))
     }

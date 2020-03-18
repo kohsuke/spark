@@ -92,10 +92,10 @@ private[client] sealed abstract class Shim {
   def alterPartitions(hive: Hive, tableName: String, newParts: JList[Partition]): Unit
 
   def getTablesByType(
-    hive: Hive,
-    dbName: String,
-    pattern: String,
-    tableType: TableType): Seq[String]
+      hive: Hive,
+      dbName: String,
+      pattern: String,
+      tableType: TableType): Seq[String]
 
   def createPartitions(
       hive: Hive,
@@ -375,8 +375,8 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       dbName: String,
       pattern: String,
       tableType: TableType): Seq[String] = {
-    throw new UnsupportedOperationException("Hive doesn't support getTablesByType. " +
-      "Please use Hive 2.3 or higher version.")
+    throw new UnsupportedOperationException("Hive 2.2 and lower versions don't support " +
+      "getTablesByType. Please use Hive 2.3 or higher version.")
   }
 
   override def loadPartition(

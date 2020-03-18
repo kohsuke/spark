@@ -46,7 +46,6 @@ SHOW VIEWS [ { FROM | IN } database_name ] [ LIKE 'regex_pattern' ]
            any of which can match. </li>
           <li> The leading and trailing blanks are trimmed in the input pattern before processing.</li>
      </ul>
-    
   </dd>
 </dl>
 
@@ -105,16 +104,17 @@ SHOW VIEWS FROM default LIKE 'sam*';
   | default   | sam        | false        |
   | default   | sam1       | false        |
   +-----------+------------+--------------+--+
-  
--- List all views matching the pattern `sam*|suj`
-SHOW VIEWS LIKE 'sam*|suj';
-  +-----------+------------+--------------+--+
-  | database  | viewName   | isTemporary  |
-  +-----------+------------+--------------+--+
-  | default   | sam        | false        |
-  | default   | sam1       | false        |
-  | default   | suj        | false        |
-  +-----------+------------+--------------+--+
+
+-- List all views matching the pattern `sam|suj｜temp*`
+SHOW VIEWS LIKE 'sam|suj|temp*';
+  +-------------+------------+--------------+--+
+  | database    | viewName   | isTemporary  |
+  +-------------+------------+--------------+--+
+  | default     | sam        | false        |
+  | default     | suj        | false        |
+  | global_temp | temp1      | true         |
+  |             | temp2      | true         |
+  +-------------+------------+--------------+--+
 
 {% endhighlight %}
 

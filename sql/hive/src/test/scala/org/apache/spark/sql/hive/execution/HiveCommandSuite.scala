@@ -121,29 +121,29 @@ class HiveCommandSuite extends QueryTest with SQLTestUtils with TestHiveSingleto
     withView("default1a", "default2b", "temp1", "global_temp.temp2") {
       sql("CREATE VIEW show1a AS SELECT 1 AS id")
       sql("CREATE VIEW show2b AS SELECT 1 AS id")
-      sql("CREATE TEMP VIEW temp1 AS SELECT 1 AS id")
-      sql("CREATE GLOBAL TEMP VIEW temp2 AS SELECT 1 AS id")
+      sql("CREATE GLOBAL TEMP VIEW temp1 AS SELECT 1 AS id")
+      sql("CREATE TEMP VIEW temp2 AS SELECT 1 AS id")
       checkAnswer(
         sql("SHOW VIEWS"),
         Row("default", "show1a", false) ::
           Row("default", "show2b", false) ::
           Row("default", "parquet_view1", false) ::
-          Row("global_temp", "temp2", true) ::
-          Row("", "temp1", true) :: Nil)
+          Row("global_temp", "temp1", true) ::
+          Row("", "temp2", true) :: Nil)
       checkAnswer(
         sql("SHOW VIEWS IN default"),
         Row("default", "show1a", false) ::
           Row("default", "show2b", false) ::
           Row("default", "parquet_view1", false) ::
-          Row("global_temp", "temp2", true) ::
-          Row("", "temp1", true) :: Nil)
+          Row("global_temp", "temp1", true) ::
+          Row("", "temp2", true) :: Nil)
       checkAnswer(
         sql("SHOW VIEWS FROM default"),
         Row("default", "show1a", false) ::
           Row("default", "show2b", false) ::
           Row("default", "parquet_view1", false) ::
-          Row("global_temp", "temp2", true) ::
-          Row("", "temp1", true) :: Nil)
+          Row("global_temp", "temp1", true) ::
+          Row("", "temp2", true) :: Nil)
       checkAnswer(
         sql("SHOW VIEWS 'show1*|show2*'"),
         Row("default", "show1a", false) ::
