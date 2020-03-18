@@ -202,6 +202,7 @@ public class TransportClientFactory implements Closeable {
       }
       try {
         clientPool.clients[clientIndex] = createClient(resolvedAddress);
+        clientPool.lastConnectionFailed[clientIndex] = 0;
       } catch (IOException e) {
         clientPool.lastConnectionFailed[clientIndex] = System.currentTimeMillis();
         throw e;
