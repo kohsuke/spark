@@ -199,7 +199,6 @@ public class TransportClientFactory implements Closeable {
         throw new IOException(
           String.format("Connecting to %s failed in the last %s ms, fail this connection directly",
             resolvedAddress, conf.ioRetryWaitTimeMs()));
-
       }
       try {
         clientPool.clients[clientIndex] = createClient(resolvedAddress);
