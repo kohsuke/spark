@@ -273,7 +273,7 @@ class VersionsSuite extends SparkFunSuite with Logging {
 
     test(s"$version: createTable") {
       client.createTable(table("default", tableName = "src"), ignoreIfExists = false)
-      client.createTable(table("default", tableName = "temporary"), ignoreIfExists = false)
+      client.createTable(table("default", "temporary"), ignoreIfExists = false)
     }
 
     test(s"$version: loadTable") {
