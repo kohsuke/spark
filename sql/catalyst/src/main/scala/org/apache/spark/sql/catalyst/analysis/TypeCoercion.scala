@@ -63,6 +63,7 @@ object TypeCoercion {
       ImplicitTypeCasts ::
       DateTimeOperations ::
       WindowFrameCoercion ::
+      StringLiteralCoercion ::
       Nil
 
   // See https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Types.
@@ -1041,6 +1042,22 @@ object TypeCoercion {
           Cast(e, t)
         case _ => boundary
       }
+    }
+  }
+
+  /**
+   * A special rule to support string literal as the second argument of date_add/date_sub functions,
+   * to keep backward compatibility.
+   * TODO: revisit the type coercion rules for string.
+   */
+  object StringLiteralCoercion extends TypeCoercionRule {
+    override protected def coerceTypes(plan: LogicalPlan): LogicalPlan = plan resolveExpressions {
+      // Skip nodes who's children have not been resolved yet.
+      case e if !e.childrenResolved => e
+      case DateAdd(l, r) if r.dataType == StringType && r.foldable =>
+        DateAdd(l, AnsiCast(r, IntegerType))
+      case DateSub(l, r) if r.dataType == StringType && r.foldable =>
+        DateSub(l, AnsiCast(r, IntegerType))
     }
   }
 }
