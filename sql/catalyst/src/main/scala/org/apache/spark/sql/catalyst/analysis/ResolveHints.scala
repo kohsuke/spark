@@ -93,6 +93,10 @@ object ResolveHints {
       // Whether to continue recursing down the tree
       var recurse = true
 
+      def extractMultipartIdentifier(r: SubqueryAlias): Seq[String] = {
+        r.identifier.qualifier :+ r.identifier.name
+      }
+
       val newNode = CurrentOrigin.withOrigin(plan.origin) {
         plan match {
           case ResolvedHint(u @ UnresolvedRelation(ident), hint)
@@ -101,8 +105,8 @@ object ResolveHints {
             ResolvedHint(u, createHintInfo(hintName).merge(hint, hintErrorHandler))
 
           case ResolvedHint(r: SubqueryAlias, hint)
-              if relationsInHint.exists(matchedIdentifier(_, r.identifier.multipartIdentifier)) =>
-            appliedRelations += r.identifier.multipartIdentifier
+              if relationsInHint.exists(matchedIdentifier(_, extractMultipartIdentifier(r))) =>
+            appliedRelations += extractMultipartIdentifier(r)
             ResolvedHint(r, createHintInfo(hintName).merge(hint, hintErrorHandler))
 
           case UnresolvedRelation(ident) if relationsInHint.exists(matchedIdentifier(_, ident)) =>
@@ -110,8 +114,8 @@ object ResolveHints {
             ResolvedHint(plan, createHintInfo(hintName))
 
           case r: SubqueryAlias
-              if relationsInHint.exists(matchedIdentifier(_, r.identifier.multipartIdentifier)) =>
-            appliedRelations += r.identifier.multipartIdentifier
+              if relationsInHint.exists(matchedIdentifier(_, extractMultipartIdentifier(r))) =>
+            appliedRelations += extractMultipartIdentifier(r)
             ResolvedHint(plan, createHintInfo(hintName))
 
           case _: ResolvedHint | _: View | _: With | _: SubqueryAlias =>
