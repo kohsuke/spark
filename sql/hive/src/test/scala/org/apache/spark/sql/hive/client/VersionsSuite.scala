@@ -154,11 +154,10 @@ class VersionsSuite extends SparkFunSuite with Logging {
         .client.version.fullVersion.startsWith(version))
     }
 
-    def table(database: String, tableName: String,
-        tableType: CatalogTableType = CatalogTableType.MANAGED): CatalogTable = {
+    def table(database: String, tableName: String): CatalogTable = {
       CatalogTable(
         identifier = TableIdentifier(tableName, Some(database)),
-        tableType = tableType,
+        tableType = CatalogTableType.MANAGED,
         schema = new StructType().add("key", "int"),
         storage = CatalogStorageFormat(
           locationUri = None,
@@ -275,8 +274,6 @@ class VersionsSuite extends SparkFunSuite with Logging {
     test(s"$version: createTable") {
       client.createTable(table("default", tableName = "src"), ignoreIfExists = false)
       client.createTable(table("default", tableName = "temporary"), ignoreIfExists = false)
-      client.createTable(table("default", tableName = "view1", tableType = CatalogTableType.VIEW),
-        ignoreIfExists = false)
     }
 
     test(s"$version: loadTable") {
@@ -392,24 +389,12 @@ class VersionsSuite extends SparkFunSuite with Logging {
     }
 
     test(s"$version: listTables(database)") {
-      assert(client.listTables("default") === Seq("src", "temporary", "view1"))
+      assert(client.listTables("default") === Seq("src", "temporary"))
     }
 
     test(s"$version: listTables(database, pattern)") {
       assert(client.listTables("default", pattern = "src") === Seq("src"))
       assert(client.listTables("default", pattern = "nonexist").isEmpty)
-    }
-
-    test(s"$version: listViews(database, pattern)") {
-      val versionsNotSupport = Seq("0.12", "0.13", "0.14", "1.0", "1.1", "1.2", "2.0", "2.1", "2.2")
-      try {
-        assert(client.listViews("default", pattern = "view1") === Seq("view1"))
-        assert(client.listViews("default", pattern = "nonexist").isEmpty)
-        assert(!versionsNotSupport.contains(version))
-      } catch {
-        case _: UnsupportedOperationException =>
-          assert(versionsNotSupport.contains(version))
-      }
     }
 
     test(s"$version: dropTable") {
@@ -420,15 +405,11 @@ class VersionsSuite extends SparkFunSuite with Logging {
       try {
         client.dropTable("default", tableName = "temporary", ignoreIfNotExists = false,
           purge = true)
-        client.dropTable("default", tableName = "view1", ignoreIfNotExists = false,
-          purge = true)
         assert(!versionsWithoutPurge.contains(version))
       } catch {
         case _: UnsupportedOperationException =>
           assert(versionsWithoutPurge.contains(version))
           client.dropTable("default", tableName = "temporary", ignoreIfNotExists = false,
-            purge = false)
-          client.dropTable("default", tableName = "view1", ignoreIfNotExists = false,
             purge = false)
       }
       assert(client.listTables("default") === Seq("src"))
