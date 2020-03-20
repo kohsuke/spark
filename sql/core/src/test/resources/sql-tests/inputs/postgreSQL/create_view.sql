@@ -41,16 +41,16 @@ DROP TABLE emp;
 -- These views are left around mainly to exercise special cases in pg_dump.
 
 -- [SPARK-19842] Informational Referential Integrity Constraints Support in Spark
--- [SPARK-28298] Fully support char and varchar types
--- CREATE TABLE view_base_table (key int PRIMARY KEY, data varchar(20));
+CREATE TABLE view_base_table (key int /* PRIMARY KEY */, data varchar(20)) USING PARQUET;
 --
--- CREATE VIEW key_dependent_view AS
---    SELECT * FROM view_base_table GROUP BY key;
+CREATE VIEW key_dependent_view AS
+   SELECT * FROM view_base_table GROUP BY key;
 --
+-- [SPARK-19842] Informational Referential Integrity Constraints Support in Spark
 -- ALTER TABLE view_base_table DROP CONSTRAINT view_base_table_pkey;  -- fails
---
--- CREATE VIEW key_dependent_view_no_cols AS
---    SELECT FROM view_base_table GROUP BY key HAVING length(data) > 0;
+
+CREATE VIEW key_dependent_view_no_cols AS
+   SELECT FROM view_base_table GROUP BY key HAVING length(data) > 0;
 
 --
 -- CREATE OR REPLACE VIEW

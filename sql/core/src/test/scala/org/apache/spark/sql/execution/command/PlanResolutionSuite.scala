@@ -1519,11 +1519,10 @@ class PlanResolutionSuite extends AnalysisTest {
     }
   }
 
-  test("SPARK-31147: forbid CHAR/VARCHAR type in non-Hive tables") {
+  test("SPARK-31147: forbid CHAR type in non-Hive tables") {
     def checkFailure(t: String, provider: String): Unit = {
       val types = Seq(
         "CHAR(2)",
-        "VARCHAR(2)",
         "ARRAY<CHAR(2)>",
         "MAP<INT, CHAR(2)>",
         "MAP<CHAR(2), INT>",
@@ -1567,4 +1566,3 @@ object AsDataSourceV2Relation {
     case _ => None
   }
 }
-

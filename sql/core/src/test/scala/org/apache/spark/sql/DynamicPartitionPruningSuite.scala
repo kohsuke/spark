@@ -290,7 +290,7 @@ abstract class DynamicPartitionPruningSuiteBase
         sql(
           s"""
              |CREATE TABLE fact (
-             |  col1 string, col2 bigint, col3 bigint, col4 decimal(18,8), partCol1 string
+             |  col1 varchar(14), col2 bigint, col3 bigint, col4 decimal(18,8), partCol1 varchar(1)
              |) USING $tableFormat PARTITIONED BY (partCol1)
         """.stripMargin)
 
