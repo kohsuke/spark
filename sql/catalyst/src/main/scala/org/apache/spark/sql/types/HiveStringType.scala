@@ -58,7 +58,7 @@ object HiveStringType {
     case ArrayType(et, _) => containsCharType(et)
     case MapType(kt, vt, _) => containsCharType(kt) || containsCharType(vt)
     case StructType(fields) => fields.exists(f => containsCharType(f.dataType))
-    case _ => dt.isInstanceOf[HiveStringType]
+    case _ => dt.isInstanceOf[CharType]
   }
 }
 
