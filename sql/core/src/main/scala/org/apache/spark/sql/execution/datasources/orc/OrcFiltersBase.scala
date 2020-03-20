@@ -51,7 +51,7 @@ trait OrcFiltersBase {
   /**
    * The key of the dataTypeMap will be quoted if it contains `dots`.
    */
-  protected[sql] def quotedDataTypeMap(schema: StructType): Map[String, DataType] = {
+  protected[orc] def quotedDataTypeMap(schema: StructType): Map[String, DataType] = {
     schema.map(f => quoteIfNeeded(f.name) -> f.dataType).toMap
   }
 }

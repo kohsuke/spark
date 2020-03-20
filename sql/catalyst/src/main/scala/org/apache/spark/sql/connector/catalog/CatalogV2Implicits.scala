@@ -137,7 +137,7 @@ private[sql] object CatalogV2Implicits {
 
   private lazy val catalystSqlParser = new CatalystSqlParser(SQLConf.get)
 
-  def unquote(name: String): Seq[String] = {
+  def parseColumnPath(name: String): Seq[String] = {
     catalystSqlParser.parseMultipartIdentifier(name)
   }
 }
