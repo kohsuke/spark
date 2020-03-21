@@ -873,12 +873,13 @@ class Column(val expr: Expression) extends Logging {
 
   /**
    * An expression that adds/replaces a field by name in a `StructType`.
+   * If schema contains multiple fields with fieldName, they will all be replaced with fieldValue.
    *
    * @group expr_ops
    * @since 3.0.0
    */
   def withField(fieldName: String, fieldValue: Column): Column = withExpr {
-    AddField(expr, fieldName, fieldValue.expr)
+    AddFields(expr :: Literal(fieldName) :: fieldValue.expr :: Nil)
   }
 
   /**

@@ -469,6 +469,7 @@ object FunctionRegistry {
     expression[TransformKeys]("transform_keys"),
     expression[MapZipWith]("map_zip_with"),
     expression[ZipWith]("zip_with"),
+    expression[AddFields]("add_fields"),
 
     CreateStruct.registryEntry,
 
