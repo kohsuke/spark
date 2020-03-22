@@ -351,8 +351,8 @@ select json_object_keys('')
 -- !query schema
 struct<>
 -- !query output
-org.apache.spark.sql.AnalysisException
-json_object_keys expect a JSON object but nothing is provided.;
+java.lang.RuntimeException
+json_object_keys expect a JSON object but nothing is provided.
 
 
 -- !query
@@ -432,8 +432,8 @@ select json_object_keys('[1, 2, 3]')
 -- !query schema
 struct<>
 -- !query output
-org.apache.spark.sql.AnalysisException
-json_object_keys can only be called on JSON object.;
+java.lang.RuntimeException
+json_object_keys can only be called on JSON object.
 
 
 -- !query
