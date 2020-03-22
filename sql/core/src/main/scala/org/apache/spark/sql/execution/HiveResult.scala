@@ -23,7 +23,7 @@ import java.time.{Instant, LocalDate}
 
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.catalyst.util.{DateFormatter, DateTimeUtils, TimestampFormatter}
-import org.apache.spark.sql.execution.command.{DescribeCommandBase, ExecutedCommandExec, ShowTablesCommand}
+import org.apache.spark.sql.execution.command.{DescribeCommandBase, ExecutedCommandExec, ShowTablesCommand, ShowViewsCommand}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.CalendarInterval
@@ -49,6 +49,8 @@ object HiveResult {
       }
     // SHOW TABLES in Hive only output table names, while ours output database, table name, isTemp.
     case command @ ExecutedCommandExec(s: ShowTablesCommand) if !s.isExtended =>
+      command.executeCollect().map(_.getString(1))
+    case command @ ExecutedCommandExec(_: ShowViewsCommand) =>
       command.executeCollect().map(_.getString(1))
     case other =>
       val result: Seq[Seq[Any]] = other.executeCollectPublic().map(_.toSeq).toSeq

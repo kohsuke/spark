@@ -220,22 +220,19 @@ class ResolveSessionCatalog(
 
     case d @ DescribeNamespace(SessionCatalogAndNamespace(_, ns), _) =>
       if (ns.length != 1) {
-        throw new AnalysisException(
-          s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
       }
       DescribeDatabaseCommand(ns.head, d.extended)
 
     case AlterNamespaceSetProperties(SessionCatalogAndNamespace(_, ns), properties) =>
       if (ns.length != 1) {
-        throw new AnalysisException(
-          s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
       }
       AlterDatabasePropertiesCommand(ns.head, properties)
 
     case AlterNamespaceSetLocation(SessionCatalogAndNamespace(_, ns), location) =>
       if (ns.length != 1) {
-        throw new AnalysisException(
-          s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
       }
       AlterDatabaseSetLocationCommand(ns.head, location)
 
@@ -347,8 +344,7 @@ class ResolveSessionCatalog(
     case c @ CreateNamespaceStatement(CatalogAndNamespace(catalog, ns), _, _)
         if isSessionCatalog(catalog) =>
       if (ns.length != 1) {
-        throw new AnalysisException(
-          s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
       }
 
       val comment = c.properties.get(SupportsNamespaces.PROP_COMMENT)
@@ -358,24 +354,21 @@ class ResolveSessionCatalog(
 
     case d @ DropNamespace(SessionCatalogAndNamespace(_, ns), _, _) =>
       if (ns.length != 1) {
-        throw new AnalysisException(
-          s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException( s"The database name is not valid: ${ns.quoted}")
       }
       DropDatabaseCommand(ns.head, d.ifExists, d.cascade)
 
     case ShowTables(SessionCatalogAndNamespace(_, ns), pattern) =>
       assert(ns.nonEmpty)
       if (ns.length != 1) {
-          throw new AnalysisException(
-            s"The database name is not valid: ${ns.quoted}")
+        throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
       }
       ShowTablesCommand(Some(ns.head), pattern)
 
     case ShowTableStatement(ns, pattern, partitionsSpec) =>
       val db = ns match {
         case Some(ns) if ns.length != 1 =>
-          throw new AnalysisException(
-            s"The database name is not valid: ${ns.quoted}")
+          throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
         case _ => ns.map(_.head)
       }
       ShowTablesCommand(db, Some(pattern), true, partitionsSpec)
@@ -529,6 +522,16 @@ class ResolveSessionCatalog(
         allowExisting,
         replace,
         viewType)
+
+    case ShowViewsStatement(SessionCatalogAndNamespace(_, ns), pattern) =>
+      val namespace = if (ns.isEmpty) {
+        None
+      } else if (ns.length == 1) {
+        Some(ns.head)
+      } else {
+        throw new AnalysisException(s"The database name is not valid: ${ns.quoted}")
+      }
+      ShowViewsCommand(namespace, pattern)
 
     case ShowTableProperties(r: ResolvedTable, propertyKey) if isSessionCatalog(r.catalog) =>
       ShowTablePropertiesCommand(r.identifier.asTableIdentifier, propertyKey)
