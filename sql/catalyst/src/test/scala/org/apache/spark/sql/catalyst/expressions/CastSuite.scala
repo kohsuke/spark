@@ -1140,9 +1140,7 @@ class CastSuite extends CastSuiteBase {
     assert(Cast.canCast(set.dataType, ArrayType(StringType, false)))
   }
 
-  test("NullTypes should be able to cast to any types") {
-    assert(Cast.canCast(NullType, IntegerType))
-
+  test("NullTypes should be able to cast to any complex types") {
     assert(Cast.canCast(ArrayType(NullType, true), ArrayType(IntegerType, true)))
     assert(Cast.canCast(ArrayType(NullType, false), ArrayType(IntegerType, true)))
 
