@@ -79,7 +79,8 @@ private[spark] object ChiSqTest extends Logging {
    * the independence test.
    * Returns an array containing the ChiSquaredTestResult for every feature against the label.
    */
-  def chiSquaredFeatures(data: RDD[LabeledPoint],
+  def chiSquaredFeatures(
+      data: RDD[LabeledPoint],
       methodName: String = PEARSON.name): Array[ChiSqTestResult] = {
     data.first().features match {
       case dv: DenseVector =>
@@ -93,7 +94,8 @@ private[spark] object ChiSqTest extends Logging {
       numFeatures: Int,
       methodName: String = PEARSON.name): Array[ChiSqTestResult] = {
     data.flatMap { case LabeledPoint(label, features) =>
-      require(features.size == numFeatures)
+      require(features.size == numFeatures,
+        s"Number of features must be $numFeatures but got ${features.size}")
       features.iterator.map { case (col, value) =>
         (col, (value, label))
       }
@@ -139,7 +141,8 @@ private[spark] object ChiSqTest extends Logging {
     }
   }
 
-  private def chiSquaredSparseFeatures(data: RDD[LabeledPoint],
+  private def chiSquaredSparseFeatures(
+      data: RDD[LabeledPoint],
       numFeatures: Int,
       methodName: String = PEARSON.name): Array[ChiSqTestResult] = {
     val labelCounts = data.map(_.label).countByValue()
@@ -156,7 +159,8 @@ private[spark] object ChiSqTest extends Logging {
     val bcLabels = sc.broadcast((labelCounts, label2Index))
 
     val results = data.flatMap { case LabeledPoint(label, features) =>
-      require(features.size == numFeatures)
+      require(features.size == numFeatures,
+        s"Number of features must be $numFeatures but got ${features.size}")
       features.nonZeroIterator.map { case (col, value) =>
         (col, (value, label))
       }
