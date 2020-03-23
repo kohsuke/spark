@@ -77,7 +77,8 @@ object Cast {
         resolvableNullability(fn || forceNullable(fromType, toType), tn)
 
     case (MapType(fromKey, fromValue, fn), MapType(toKey, toValue, tn)) =>
-      canCast(fromKey, toKey) && canCastMapKeyNullSafe(fromKey, toKey) &&
+      canCast(fromKey, toKey) &&
+        (!forceNullable(fromKey, toKey)) &&
         canCast(fromValue, toValue) &&
         resolvableNullability(fn || forceNullable(fromValue, toValue), tn)
 
@@ -95,11 +96,6 @@ object Cast {
       true
 
     case _ => false
-  }
-
-  def canCastMapKeyNullSafe(fromType: DataType, toType: DataType): Boolean = {
-    // If the original map key type is NullType, it's OK as the map must be empty.
-    fromType == NullType || !forceNullable(fromType, toType)
   }
 
   /**
