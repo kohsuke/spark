@@ -43,7 +43,8 @@ import static org.apache.spark.network.util.NettyUtils.getRemoteAddress;
  *
  * The messages should have been processed by the pipeline setup by {@link TransportServer}.
  */
-public class TransportRequestHandler extends MessageHandler<RequestMessage> {
+public class TransportRequestHandler
+    extends ChunkFetchRequestHandler implements MessageHandler<RequestMessage> {
 
   private static final Logger logger = LoggerFactory.getLogger(TransportRequestHandler.class);
 
@@ -67,6 +68,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       TransportClient reverseClient,
       RpcHandler rpcHandler,
       Long maxChunksBeingTransferred) {
+    super(reverseClient, rpcHandler.getStreamManager(), maxChunksBeingTransferred);
     this.channel = channel;
     this.reverseClient = reverseClient;
     this.rpcHandler = rpcHandler;
@@ -97,8 +99,10 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
   }
 
   @Override
-  public void handle(RequestMessage request) {
-    if (request instanceof RpcRequest) {
+  public void handle(RequestMessage request) throws Exception {
+    if (request instanceof ChunkFetchRequest) {
+      processFetchRequest(channel, (ChunkFetchRequest) request);
+    } else if (request instanceof RpcRequest) {
       processRpcRequest((RpcRequest) request);
     } else if (request instanceof OneWayMessage) {
       processOneWayMessage((OneWayMessage) request);
@@ -130,19 +134,19 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
     } catch (Exception e) {
       logger.error(String.format(
         "Error opening stream %s for request from %s", req.streamId, getRemoteAddress(channel)), e);
-      respond(new StreamFailure(req.streamId, Throwables.getStackTraceAsString(e)));
+      respond(channel, new StreamFailure(req.streamId, Throwables.getStackTraceAsString(e)));
       return;
     }
 
     if (buf != null) {
       streamManager.streamBeingSent(req.streamId);
-      respond(new StreamResponse(req.streamId, buf.size(), buf)).addListener(future -> {
+      respond(channel, new StreamResponse(req.streamId, buf.size(), buf)).addListener(future -> {
         streamManager.streamSent(req.streamId);
       });
     } else {
       // org.apache.spark.repl.ExecutorClassLoader.STREAM_NOT_FOUND_REGEX should also be updated
       // when the following error message is changed.
-      respond(new StreamFailure(req.streamId, String.format(
+      respond(channel, new StreamFailure(req.streamId, String.format(
         "Stream '%s' was not found.", req.streamId)));
     }
   }
@@ -152,17 +156,17 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       rpcHandler.receive(reverseClient, req.body().nioByteBuffer(), new RpcResponseCallback() {
         @Override
         public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
+          respond(channel, new RpcResponse(req.requestId, new NioManagedBuffer(response)));
         }
 
         @Override
         public void onFailure(Throwable e) {
-          respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
+          respond(channel, new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
         }
       });
     } catch (Exception e) {
       logger.error("Error while invoking RpcHandler#receive() on RPC id " + req.requestId, e);
-      respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
+      respond(channel, new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
     } finally {
       req.body().release();
     }
@@ -177,12 +181,12 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       RpcResponseCallback callback = new RpcResponseCallback() {
         @Override
         public void onSuccess(ByteBuffer response) {
-          respond(new RpcResponse(req.requestId, new NioManagedBuffer(response)));
+          respond(channel, new RpcResponse(req.requestId, new NioManagedBuffer(response)));
         }
 
         @Override
         public void onFailure(Throwable e) {
-          respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
+          respond(channel, new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
         }
       };
       TransportFrameDecoder frameDecoder = (TransportFrameDecoder)
@@ -231,7 +235,7 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
       }
     } catch (Exception e) {
       logger.error("Error while invoking RpcHandler#receive() on RPC id " + req.requestId, e);
-      respond(new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
+      respond(channel, new RpcFailure(req.requestId, Throwables.getStackTraceAsString(e)));
       // We choose to totally fail the channel, rather than trying to recover as we do in other
       // cases.  We don't know how many bytes of the stream the client has already sent for the
       // stream, it's not worth trying to recover.
@@ -255,14 +259,15 @@ public class TransportRequestHandler extends MessageHandler<RequestMessage> {
    * Responds to a single message with some Encodable object. If a failure occurs while sending,
    * it will be logged and the channel closed.
    */
-  private ChannelFuture respond(Encodable result) {
+  @Override
+  public ChannelFuture respond(Channel channel, Encodable result) {
     SocketAddress remoteAddress = channel.remoteAddress();
     return channel.writeAndFlush(result).addListener(future -> {
       if (future.isSuccess()) {
         logger.trace("Sent result {} to client {}", result, remoteAddress);
       } else {
         logger.error(String.format("Error sending result %s to %s; closing connection",
-          result, remoteAddress), future.cause());
+            result, remoteAddress), future.cause());
         channel.close();
       }
     });

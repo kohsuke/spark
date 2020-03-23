@@ -39,7 +39,7 @@ import org.apache.spark.network.server.TransportRequestHandler;
 public class TransportRequestHandlerSuite {
 
   @Test
-  public void handleStreamRequest() {
+  public void handleStreamRequest() throws Exception {
     RpcHandler rpcHandler = new NoOpRpcHandler();
     OneForOneStreamManager streamManager = (OneForOneStreamManager) (rpcHandler.getStreamManager());
     Channel channel = mock(Channel.class);

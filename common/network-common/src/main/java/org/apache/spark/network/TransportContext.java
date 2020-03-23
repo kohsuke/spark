@@ -36,7 +36,7 @@ import org.apache.spark.network.client.TransportClientFactory;
 import org.apache.spark.network.client.TransportResponseHandler;
 import org.apache.spark.network.protocol.MessageDecoder;
 import org.apache.spark.network.protocol.MessageEncoder;
-import org.apache.spark.network.server.ChunkFetchRequestHandler;
+import org.apache.spark.network.server.ChunkFetchChannelHandler;
 import org.apache.spark.network.server.RpcHandler;
 import org.apache.spark.network.server.TransportChannelHandler;
 import org.apache.spark.network.server.TransportRequestHandler;
@@ -123,7 +123,7 @@ public class TransportContext implements Closeable {
 
     if (conf.getModuleName() != null &&
         conf.getModuleName().equalsIgnoreCase("shuffle") &&
-        !isClientOnly) {
+        !isClientOnly && conf.separateChunkFetchRequest()) {
       chunkFetchWorkers = NettyUtils.createEventLoop(
           IOMode.valueOf(conf.ioMode()),
           conf.chunkFetchHandlerThreads(),
@@ -187,7 +187,7 @@ public class TransportContext implements Closeable {
       RpcHandler channelRpcHandler) {
     try {
       TransportChannelHandler channelHandler = createChannelHandler(channel, channelRpcHandler);
-      ChunkFetchRequestHandler chunkFetchHandler =
+      ChunkFetchChannelHandler chunkFetchHandler =
         createChunkFetchHandler(channelHandler, channelRpcHandler);
       ChannelPipeline pipeline = channel.pipeline()
         .addLast("encoder", ENCODER)
@@ -220,15 +220,16 @@ public class TransportContext implements Closeable {
     TransportRequestHandler requestHandler = new TransportRequestHandler(channel, client,
       rpcHandler, conf.maxChunksBeingTransferred());
     return new TransportChannelHandler(client, responseHandler, requestHandler,
-      conf.connectionTimeoutMs(), closeIdleConnections, this);
+      conf.connectionTimeoutMs(), conf.separateChunkFetchRequest(), closeIdleConnections, this);
   }
 
   /**
    * Creates the dedicated ChannelHandler for ChunkFetchRequest messages.
    */
-  private ChunkFetchRequestHandler createChunkFetchHandler(TransportChannelHandler channelHandler,
+  private ChunkFetchChannelHandler createChunkFetchHandler(
+      TransportChannelHandler channelHandler,
       RpcHandler rpcHandler) {
-    return new ChunkFetchRequestHandler(channelHandler.getClient(),
+    return new ChunkFetchChannelHandler(channelHandler.getClient(),
       rpcHandler.getStreamManager(), conf.maxChunksBeingTransferred());
   }
 
