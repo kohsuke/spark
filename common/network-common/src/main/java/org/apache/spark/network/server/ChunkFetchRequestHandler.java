@@ -85,9 +85,7 @@ public abstract class ChunkFetchRequestHandler
       (ChannelFutureListener) future -> streamManager.chunkSent(msg.streamChunkId.streamId));
   }
 
-  public abstract ChannelFuture respond(
-      final Channel channel,
-      final Encodable result) throws Exception;
+  public abstract ChannelFuture respond(Channel channel, Encodable result) throws Exception;
 
   @Override
   protected void channelRead0(
