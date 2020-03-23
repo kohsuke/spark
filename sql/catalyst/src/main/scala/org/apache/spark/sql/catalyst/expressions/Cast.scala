@@ -206,6 +206,12 @@ object Cast {
     case _ => false  // overflow
   }
 
+  /**
+   * Returns `true` iif it should change the nullability of this type in the container,
+   * e.g. map, array, expression, etc. This function should take the nullability in
+   * the container into account. For example, it should not force to a nullable type when
+   * null type is non-nullable, which means an empty array of null type.
+   */
   def forceNullable(from: DataType, to: DataType): Boolean = (from, to) match {
     case (_, _) if from == to => false
 
