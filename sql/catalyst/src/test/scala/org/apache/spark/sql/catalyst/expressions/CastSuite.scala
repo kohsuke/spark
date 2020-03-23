@@ -412,6 +412,14 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       assert(ret.resolved)
       checkEvaluation(ret, Seq(null, true, false, null))
     }
+
+    {
+      val array = Literal.create(Seq.empty, ArrayType(NullType, containsNull = false))
+      val ret = cast(array, ArrayType(IntegerType, containsNull = false))
+      assert(ret.resolved)
+      checkEvaluation(ret, Seq.empty)
+    }
+
     {
       val ret = cast(array, ArrayType(BooleanType, containsNull = false))
       assert(ret.resolved === false)
@@ -1138,6 +1146,17 @@ class CastSuite extends CastSuiteBase {
     assert(Cast.canCast(list.dataType, ArrayType(IntegerType, false)))
     val set = CollectSet(Literal(1))
     assert(Cast.canCast(set.dataType, ArrayType(StringType, false)))
+  }
+
+  test("SPARK-31227: Non-nullable null type should not coerce to nullable type") {
+    assert(Cast.canCast(ArrayType(NullType, false), ArrayType(IntegerType, false)))
+
+    assert(Cast.canCast(
+      MapType(NullType, NullType, false), MapType(IntegerType, IntegerType, false)))
+
+    assert(Cast.canCast(
+      StructType(StructField("a", NullType, false) :: Nil),
+      StructType(StructField("a", IntegerType, false) :: Nil)))
   }
 
   test("Cast should output null for invalid strings when ANSI is not enabled.") {

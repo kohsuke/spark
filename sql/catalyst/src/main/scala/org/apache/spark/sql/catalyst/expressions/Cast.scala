@@ -211,7 +211,6 @@ object Cast {
   }
 
   def forceNullable(from: DataType, to: DataType): Boolean = (from, to) match {
-    case (NullType, _) => true
     case (_, _) if from == to => false
 
     case (StringType, BinaryType) => false
