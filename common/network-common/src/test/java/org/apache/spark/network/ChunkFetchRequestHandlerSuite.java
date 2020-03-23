@@ -23,8 +23,6 @@ import java.util.List;
 
 import io.netty.channel.Channel;
 
-import org.apache.spark.network.server.ChunkFetchChannelHandler;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,6 +33,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.spark.network.buffer.ManagedBuffer;
 import org.apache.spark.network.client.TransportClient;
 import org.apache.spark.network.protocol.*;
+import org.apache.spark.network.server.ChunkFetchChannelHandler;
 import org.apache.spark.network.server.NoOpRpcHandler;
 import org.apache.spark.network.server.OneForOneStreamManager;
 import org.apache.spark.network.server.RpcHandler;
