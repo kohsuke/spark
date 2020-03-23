@@ -187,8 +187,6 @@ public class TransportContext implements Closeable {
       RpcHandler channelRpcHandler) {
     try {
       TransportChannelHandler channelHandler = createChannelHandler(channel, channelRpcHandler);
-      ChunkFetchChannelHandler chunkFetchHandler =
-        createChunkFetchHandler(channelHandler, channelRpcHandler);
       ChannelPipeline pipeline = channel.pipeline()
         .addLast("encoder", ENCODER)
         .addLast(TransportFrameDecoder.HANDLER_NAME, NettyUtils.createFrameDecoder())
@@ -200,6 +198,8 @@ public class TransportContext implements Closeable {
         .addLast("handler", channelHandler);
       // Use a separate EventLoopGroup to handle ChunkFetchRequest messages for shuffle rpcs.
       if (chunkFetchWorkers != null) {
+        ChunkFetchChannelHandler chunkFetchHandler =
+          createChunkFetchHandler(channelHandler, channelRpcHandler);
         pipeline.addLast(chunkFetchWorkers, "chunkFetchHandler", chunkFetchHandler);
       }
       return channelHandler;

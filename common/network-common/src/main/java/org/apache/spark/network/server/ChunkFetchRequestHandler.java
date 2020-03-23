@@ -19,20 +19,25 @@ package org.apache.spark.network.server;
 
 import com.google.common.base.Throwables;
 import io.netty.channel.*;
-import static org.apache.spark.network.util.NettyUtils.getRemoteAddress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.spark.network.buffer.ManagedBuffer;
 import org.apache.spark.network.client.TransportClient;
-import org.apache.spark.network.protocol.ChunkFetchFailure;
-import org.apache.spark.network.protocol.ChunkFetchRequest;
-import org.apache.spark.network.protocol.ChunkFetchSuccess;
-import org.apache.spark.network.protocol.Encodable;
+import org.apache.spark.network.protocol.*;
 
+import static org.apache.spark.network.util.NettyUtils.getRemoteAddress;
+
+/**
+ * Base class for custom ChannelHandler for FetchRequest messages.
+ * The messages can be processed in a separate event loop group or the one shared with other
+ * {@link Message.Type}s. The behavior is decided by whether the config
+ * `spark.shuffle.server.chunkFetchHandlerThreadsPercent` is set or not.
+ * See more details in SPARK-30623.
+ */
 public abstract class ChunkFetchRequestHandler
     extends SimpleChannelInboundHandler<ChunkFetchRequest> {
-  private static final Logger logger = LoggerFactory.getLogger(ChunkFetchChannelHandler.class);
+  private static final Logger logger = LoggerFactory.getLogger(ChunkFetchRequestHandler.class);
 
   private final TransportClient client;
   private final StreamManager streamManager;
@@ -51,12 +56,12 @@ public abstract class ChunkFetchRequestHandler
       final Channel channel, final ChunkFetchRequest msg) throws Exception {
     if (logger.isTraceEnabled()) {
       logger.trace("Received req from {} to fetch block {}", getRemoteAddress(channel),
-          msg.streamChunkId);
+        msg.streamChunkId);
     }
     long chunksBeingTransferred = streamManager.chunksBeingTransferred();
     if (chunksBeingTransferred >= maxChunksBeingTransferred) {
       logger.warn("The number of chunks being transferred {} is above {}, close the connection.",
-          chunksBeingTransferred, maxChunksBeingTransferred);
+        chunksBeingTransferred, maxChunksBeingTransferred);
       channel.close();
       return;
     }
@@ -69,15 +74,15 @@ public abstract class ChunkFetchRequestHandler
       }
     } catch (Exception e) {
       logger.error(String.format("Error opening block %s for request from %s",
-          msg.streamChunkId, getRemoteAddress(channel)), e);
+        msg.streamChunkId, getRemoteAddress(channel)), e);
       respond(channel, new ChunkFetchFailure(msg.streamChunkId,
-          Throwables.getStackTraceAsString(e)));
+        Throwables.getStackTraceAsString(e)));
       return;
     }
 
     streamManager.chunkBeingSent(msg.streamChunkId.streamId);
     respond(channel, new ChunkFetchSuccess(msg.streamChunkId, buf)).addListener(
-        (ChannelFutureListener) future -> streamManager.chunkSent(msg.streamChunkId.streamId));
+      (ChannelFutureListener) future -> streamManager.chunkSent(msg.streamChunkId.streamId));
   }
 
   public abstract ChannelFuture respond(
