@@ -61,12 +61,11 @@ public class TransportClientFactory implements Closeable {
   private static class ClientPool {
     TransportClient[] clients;
     Object[] locks;
-    long[] lastConnectionFailed;
+    volatile long lastConnectionFailed;
 
     ClientPool(int size) {
       clients = new TransportClient[size];
       locks = new Object[size];
-      lastConnectionFailed = new long[size];
       for (int i = 0; i < size; i++) {
         locks[i] = new Object();
       }
@@ -194,17 +193,16 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      if (System.currentTimeMillis() - clientPool.lastConnectionFailed[clientIndex]
-        < conf.ioRetryWaitTimeMs()) {
+      if (System.currentTimeMillis() - clientPool.lastConnectionFailed < conf.ioRetryWaitTimeMs()) {
         throw new IOException(
           String.format("Connecting to %s failed in the last %s ms, fail this connection directly",
             resolvedAddress, conf.ioRetryWaitTimeMs()));
       }
       try {
         clientPool.clients[clientIndex] = createClient(resolvedAddress);
-        clientPool.lastConnectionFailed[clientIndex] = 0;
+        clientPool.lastConnectionFailed = 0;
       } catch (IOException e) {
-        clientPool.lastConnectionFailed[clientIndex] = System.currentTimeMillis();
+        clientPool.lastConnectionFailed = System.currentTimeMillis();
         throw e;
       }
       return clientPool.clients[clientIndex];
