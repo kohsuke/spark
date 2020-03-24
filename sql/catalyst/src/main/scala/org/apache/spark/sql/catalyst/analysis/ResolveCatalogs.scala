@@ -144,7 +144,7 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
       throw new AnalysisException("Describing columns is not supported for v2 tables.")
 
     case c @ CreateTableStatement(
-         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _) =>
+         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _, _) =>
       assertNoCharTypeInSchema(c.tableSchema)
       CreateV2Table(
         catalog.asTableCatalog,
@@ -152,18 +152,18 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
         c.tableSchema,
         // convert the bucket spec and add it as a transform
         c.partitioning ++ c.bucketSpec.map(_.asTransform),
-        convertTableProperties(c.properties, c.options, c.location, c.comment, c.provider),
+        convertTableProperties(c),
         ignoreIfExists = c.ifNotExists)
 
     case c @ CreateTableAsSelectStatement(
-         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _) =>
+         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _, _, _) =>
       CreateTableAsSelect(
         catalog.asTableCatalog,
         tbl.asIdentifier,
         // convert the bucket spec and add it as a transform
         c.partitioning ++ c.bucketSpec.map(_.asTransform),
         c.asSelect,
-        convertTableProperties(c.properties, c.options, c.location, c.comment, c.provider),
+        convertTableProperties(c),
         writeOptions = c.writeOptions,
         ignoreIfExists = c.ifNotExists)
 
@@ -171,7 +171,7 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
       RefreshTable(catalog.asTableCatalog, tbl.asIdentifier)
 
     case c @ ReplaceTableStatement(
-         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _) =>
+         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _) =>
       assertNoCharTypeInSchema(c.tableSchema)
       ReplaceTable(
         catalog.asTableCatalog,
@@ -179,18 +179,18 @@ class ResolveCatalogs(val catalogManager: CatalogManager)
         c.tableSchema,
         // convert the bucket spec and add it as a transform
         c.partitioning ++ c.bucketSpec.map(_.asTransform),
-        convertTableProperties(c.properties, c.options, c.location, c.comment, c.provider),
+        convertTableProperties(c),
         orCreate = c.orCreate)
 
     case c @ ReplaceTableAsSelectStatement(
-         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _) =>
+         NonSessionCatalogAndTable(catalog, tbl), _, _, _, _, _, _, _, _, _, _, _) =>
       ReplaceTableAsSelect(
         catalog.asTableCatalog,
         tbl.asIdentifier,
         // convert the bucket spec and add it as a transform
         c.partitioning ++ c.bucketSpec.map(_.asTransform),
         c.asSelect,
-        convertTableProperties(c.properties, c.options, c.location, c.comment, c.provider),
+        convertTableProperties(c),
         writeOptions = c.writeOptions,
         orCreate = c.orCreate)
 

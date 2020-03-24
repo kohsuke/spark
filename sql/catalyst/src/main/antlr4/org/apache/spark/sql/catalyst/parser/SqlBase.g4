@@ -30,12 +30,6 @@ grammar SqlBase;
   public boolean legacy_exponent_literal_as_decimal_enabled = false;
 
   /**
-   * When false, CREATE TABLE syntax without a provider will use
-   * the value of spark.sql.sources.default as its provider.
-   */
-  public boolean legacy_create_hive_table_by_default_enabled = false;
-
-  /**
    * Verify whether current token is a valid decimal token (which contains dot).
    * Returns true if the character that follows the token is not a digit or letter or underscore.
    *
@@ -123,25 +117,9 @@ statement
         (RESTRICT | CASCADE)?                                          #dropNamespace
     | SHOW (DATABASES | NAMESPACES) ((FROM | IN) multipartIdentifier)?
         (LIKE? pattern=STRING)?                                        #showNamespaces
-    | {!legacy_create_hive_table_by_default_enabled}?
-        createTableHeader ('(' colTypeList ')')? tableProvider?
+    | createTableHeader ('(' colTypeList ')')? tableProvider?
         createTableClauses
         (AS? query)?                                                   #createTable
-    | {legacy_create_hive_table_by_default_enabled}?
-        createTableHeader ('(' colTypeList ')')? tableProvider
-        createTableClauses
-        (AS? query)?                                                   #createTable
-    | createTableHeader ('(' columns=colTypeList ')')?
-        (commentSpec |
-        (PARTITIONED BY '(' partitionColumns=colTypeList ')' |
-        PARTITIONED BY partitionColumnNames=identifierList) |
-        bucketSpec |
-        skewSpec |
-        rowFormat |
-        createFileFormat |
-        locationSpec |
-        (TBLPROPERTIES tableProps=tablePropertyList))*
-        (AS? query)?                                                   #createHiveTable
     | CREATE TABLE (IF NOT EXISTS)? target=tableIdentifier
         LIKE source=tableIdentifier
         (tableProvider |
@@ -149,7 +127,7 @@ statement
         createFileFormat |
         locationSpec |
         (TBLPROPERTIES tableProps=tablePropertyList))*                 #createTableLike
-    | replaceTableHeader ('(' colTypeList ')')? tableProvider
+    | replaceTableHeader ('(' colTypeList ')')? tableProvider?
         createTableClauses
         (AS? query)?                                                   #replaceTable
     | ANALYZE TABLE multipartIdentifier partitionSpec? COMPUTE STATISTICS
@@ -384,8 +362,11 @@ tableProvider
 
 createTableClauses
     :((OPTIONS options=tablePropertyList) |
-     (PARTITIONED BY partitioning=transformList) |
+     (PARTITIONED BY partitioning=partitionFieldList) |
+     skewSpec |
      bucketSpec |
+     rowFormat |
+     createFileFormat |
      locationSpec |
      commentSpec |
      (TBLPROPERTIES tableProps=tablePropertyList))*
@@ -732,8 +713,13 @@ namedExpressionSeq
     : namedExpression (',' namedExpression)*
     ;
 
-transformList
-    : '(' transforms+=transform (',' transforms+=transform)* ')'
+partitionFieldList
+    : '(' fields+=partitionField (',' fields+=partitionField)* ')'
+    ;
+
+partitionField
+    : transform  #partitionTransform
+    | colType    #partitionColumn
     ;
 
 transform
