@@ -193,10 +193,12 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      if (System.currentTimeMillis() - clientPool.lastConnectionFailed < conf.ioRetryWaitTimeMs()) {
+      double fastFailTimeWindow = conf.ioRetryWaitTimeMs() * 0.95;
+      if (conf.maxIORetries() > 0 && System.currentTimeMillis() - clientPool.lastConnectionFailed <
+        fastFailTimeWindow) {
         throw new IOException(
           String.format("Connecting to %s failed in the last %s ms, fail this connection directly",
-            resolvedAddress, conf.ioRetryWaitTimeMs()));
+            resolvedAddress, fastFailTimeWindow));
       }
       try {
         clientPool.clients[clientIndex] = createClient(resolvedAddress);
