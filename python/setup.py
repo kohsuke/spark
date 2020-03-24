@@ -121,7 +121,7 @@ try:
     if (in_spark):
         # Construct the symlink farm - this is necessary since we can't refer to the path above the
         # package root and we need to copy the jars and scripts which are up above the python root.
-        if _supports_symlinks():
+        if False:
             os.symlink(JARS_PATH, JARS_TARGET)
             os.symlink(SCRIPTS_PATH, SCRIPTS_TARGET)
             os.symlink(USER_SCRIPTS_PATH, USER_SCRIPTS_TARGET)
