@@ -41,6 +41,7 @@ public abstract class ChunkFetchRequestHandler
 
   private final TransportClient client;
   private final StreamManager streamManager;
+  /** The max number of chunks being transferred and not finished yet. */
   private final long maxChunksBeingTransferred;
 
   protected ChunkFetchRequestHandler(
