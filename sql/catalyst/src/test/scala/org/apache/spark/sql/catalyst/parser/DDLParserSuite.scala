@@ -64,6 +64,7 @@ class DDLParserSuite extends AnalysisTest {
       Some("parquet"),
       Map.empty[String, String],
       None,
+      None,
       None)
 
     Seq(createSql, replaceSql).foreach { sql =>
@@ -87,6 +88,7 @@ class DDLParserSuite extends AnalysisTest {
         Some("parquet"),
         Map.empty[String, String],
         None,
+        None,
         None),
       expectedIfNotExists = true)
   }
@@ -106,6 +108,7 @@ class DDLParserSuite extends AnalysisTest {
       Map.empty[String, String],
       Some("parquet"),
       Map.empty[String, String],
+      None,
       None,
       None)
     Seq(createSql, replaceSql).foreach { sql =>
@@ -161,6 +164,7 @@ class DDLParserSuite extends AnalysisTest {
       Some("parquet"),
       Map.empty[String, String],
       None,
+      None,
       None)
     Seq(createSql, replaceSql).foreach { sql =>
       testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
@@ -183,6 +187,7 @@ class DDLParserSuite extends AnalysisTest {
       Some("parquet"),
       Map.empty[String, String],
       None,
+      None,
       None)
     Seq(createSql, replaceSql).foreach { sql =>
       testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
@@ -201,7 +206,8 @@ class DDLParserSuite extends AnalysisTest {
       Some("parquet"),
       Map.empty[String, String],
       None,
-      Some("abc"))
+      Some("abc"),
+      None)
     Seq(createSql, replaceSql).foreach{ sql =>
       testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
     }
@@ -221,6 +227,7 @@ class DDLParserSuite extends AnalysisTest {
       Some("parquet"),
       Map.empty[String, String],
       None,
+      None,
       None)
     Seq(createSql, replaceSql).foreach { sql =>
       testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
@@ -239,6 +246,7 @@ class DDLParserSuite extends AnalysisTest {
         Some("parquet"),
         Map.empty[String, String],
         Some("/tmp/file"),
+        None,
         None)
     Seq(createSql, replaceSql).foreach { sql =>
       testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
@@ -256,6 +264,7 @@ class DDLParserSuite extends AnalysisTest {
       Map.empty[String, String],
       Some("parquet"),
       Map.empty[String, String],
+      None,
       None,
       None)
     Seq(createSql, replaceSql).foreach { sql =>
@@ -318,6 +327,7 @@ class DDLParserSuite extends AnalysisTest {
           Some("json"),
           Map("a" -> "1", "b" -> "0.1", "c" -> "true"),
           None,
+          None,
           None),
         expectedIfNotExists = false)
     }
@@ -373,7 +383,8 @@ class DDLParserSuite extends AnalysisTest {
         Some("parquet"),
         Map.empty[String, String],
         Some("/user/external/page_view"),
-        Some("This is the staging page view table"))
+        Some("This is the staging page view table"),
+        None)
     Seq(s1, s2, s3, s4).foreach { sql =>
       testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = true)
     }
@@ -2089,7 +2100,9 @@ class DDLParserSuite extends AnalysisTest {
       provider: Option[String],
       options: Map[String, String],
       location: Option[String],
-      comment: Option[String])
+      comment: Option[String],
+      serdeInfo: Option[SerdeInfo],
+      extneral: Boolean = false)
 
   private object TableSpec {
     def apply(plan: LogicalPlan): TableSpec = {
@@ -2104,7 +2117,9 @@ class DDLParserSuite extends AnalysisTest {
             create.provider,
             create.options,
             create.location,
-            create.comment)
+            create.comment,
+            create.serde,
+            create.external)
         case replace: ReplaceTableStatement =>
           TableSpec(
             replace.tableName,
@@ -2115,7 +2130,8 @@ class DDLParserSuite extends AnalysisTest {
             replace.provider,
             replace.options,
             replace.location,
-            replace.comment)
+            replace.comment,
+            replace.serde)
         case ctas: CreateTableAsSelectStatement =>
           TableSpec(
             ctas.tableName,
@@ -2126,7 +2142,9 @@ class DDLParserSuite extends AnalysisTest {
             ctas.provider,
             ctas.options,
             ctas.location,
-            ctas.comment)
+            ctas.comment,
+            ctas.serde,
+            ctas.external)
         case rtas: ReplaceTableAsSelectStatement =>
           TableSpec(
             rtas.tableName,
@@ -2137,7 +2155,8 @@ class DDLParserSuite extends AnalysisTest {
             rtas.provider,
             rtas.options,
             rtas.location,
-            rtas.comment)
+            rtas.comment,
+            rtas.serde)
         case other =>
           fail(s"Expected to parse Create, CTAS, Replace, or RTAS plan" +
             s" from query, got ${other.getClass.getName}.")
@@ -2164,20 +2183,19 @@ class DDLParserSuite extends AnalysisTest {
   }
 
   test("create table - without using") {
-    withSQLConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED.key -> "false") {
-      val sql = "CREATE TABLE 1m.2g(a INT)"
-      val expectedTableSpec = TableSpec(
-        Seq("1m", "2g"),
-        Some(new StructType().add("a", IntegerType)),
-        Seq.empty[Transform],
-        None,
-        Map.empty[String, String],
-        None,
-        Map.empty[String, String],
-        None,
-        None)
+    val sql = "CREATE TABLE 1m.2g(a INT)"
+    val expectedTableSpec = TableSpec(
+      Seq("1m", "2g"),
+      Some(new StructType().add("a", IntegerType)),
+      Seq.empty[Transform],
+      None,
+      Map.empty[String, String],
+      None,
+      Map.empty[String, String],
+      None,
+      None,
+      None)
 
-      testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
-    }
+    testCreateOrReplaceDdl(sql, expectedTableSpec, expectedIfNotExists = false)
   }
 }
