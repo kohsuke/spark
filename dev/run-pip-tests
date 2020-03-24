@@ -76,15 +76,18 @@ for python in "${PYTHON_EXECS[@]}"; do
     VIRTUALENV_PATH="$VIRTUALENV_BASE"/$python
     rm -rf "$VIRTUALENV_PATH"
     if [ -n "$USE_CONDA" ]; then
+      echo "+++++++++ using conda"
       conda create -y -p "$VIRTUALENV_PATH" python=$python numpy pandas pip setuptools
       source activate "$VIRTUALENV_PATH"
     else
       mkdir -p "$VIRTUALENV_PATH"
+      echo "+++++++++ using virtualenv"
       virtualenv --python=$python "$VIRTUALENV_PATH"
       source "$VIRTUALENV_PATH"/bin/activate
     fi
     # Upgrade pip & friends if using virtual env
     if [ ! -n "$USE_CONDA" ]; then
+      echo "++++++++ using pip"
       pip install --upgrade pip wheel numpy
     fi
 
