@@ -71,7 +71,7 @@ class DDLParserSuite extends AnalysisTest {
     }
 
     intercept("CREATE TABLE my_tab(a: INT COMMENT 'test', b: STRING) USING parquet",
-      "no viable alternative at input")
+      "extraneous input ':'")
   }
 
   test("create/replace table - with IF NOT EXISTS") {

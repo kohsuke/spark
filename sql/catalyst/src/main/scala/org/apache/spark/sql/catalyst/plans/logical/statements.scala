@@ -54,6 +54,43 @@ abstract class ParsedStatement extends LogicalPlan {
 }
 
 /**
+ * Type to keep track of Hive serde info
+ */
+case class SerdeInfo(
+    storedAs: Option[String] = None,
+    formatClasses: Option[(String, String)] = None,
+    serde: Option[String] = None,
+    serdeProperties: Map[String, String] = Map.empty) {
+  // this uses assertions because validation is done in validateRowFormatFileFormat etc.
+  assert(storedAs.isEmpty || formatClasses.isEmpty,
+    s"Conflicting STORED AS $storedAs and INPUTFORMAT/OUTPUTFORMAT $formatClasses values")
+  assert(storedAs.isEmpty || serde.isEmpty,
+    s"Conflicting STORED AS $storedAs and SERDE $serde values")
+
+  def merge(other: SerdeInfo): SerdeInfo = {
+    def getOnly[T](desc: String, left: Option[T], right: Option[T]): Option[T] = {
+      (left, right) match {
+        case (Some(l), Some(r)) if l != r =>
+          assert(l == r, s"Conflicting $desc values: $l != $r")
+          left
+        case (Some(_), _) =>
+          left
+        case (_, Some(_)) =>
+          right
+        case _ =>
+          None
+      }
+    }
+
+    SerdeInfo(
+      getOnly("STORED AS", storedAs, other.storedAs),
+      getOnly("INPUTFORMAT/OUTPUTFORMAT", formatClasses, other.formatClasses),
+      getOnly("SERDE", serde, other.serde),
+      serdeProperties ++ other.serdeProperties)
+  }
+}
+
+/**
  * A CREATE TABLE command, as parsed from SQL.
  *
  * This is a metadata-only command and is not used to write data to the created table.
@@ -68,6 +105,8 @@ case class CreateTableStatement(
     options: Map[String, String],
     location: Option[String],
     comment: Option[String],
+    serde: Option[SerdeInfo],
+    external: Boolean,
     ifNotExists: Boolean) extends ParsedStatement
 
 /**
@@ -83,6 +122,8 @@ case class CreateTableAsSelectStatement(
     options: Map[String, String],
     location: Option[String],
     comment: Option[String],
+    serde: Option[SerdeInfo],
+    external: Boolean,
     ifNotExists: Boolean) extends ParsedStatement {
 
   override def children: Seq[LogicalPlan] = Seq(asSelect)
@@ -118,6 +159,7 @@ case class ReplaceTableStatement(
     options: Map[String, String],
     location: Option[String],
     comment: Option[String],
+    serde: Option[SerdeInfo],
     orCreate: Boolean) extends ParsedStatement
 
 /**
@@ -133,6 +175,7 @@ case class ReplaceTableAsSelectStatement(
     options: Map[String, String],
     location: Option[String],
     comment: Option[String],
+    serde: Option[SerdeInfo],
     orCreate: Boolean) extends ParsedStatement {
 
   override def children: Seq[LogicalPlan] = Seq(asSelect)
