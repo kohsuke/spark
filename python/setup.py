@@ -233,7 +233,7 @@ finally:
     # packaging.
     if (in_spark):
         # Depending on cleaning up the symlink farm or copied version
-        if _supports_symlinks():
+        if False:
             os.remove(os.path.join(TEMP_PATH, "jars"))
             os.remove(os.path.join(TEMP_PATH, "bin"))
             os.remove(os.path.join(TEMP_PATH, "sbin"))
