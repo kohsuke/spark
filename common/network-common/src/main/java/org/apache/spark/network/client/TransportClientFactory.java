@@ -87,6 +87,7 @@ public class TransportClientFactory implements Closeable {
   private EventLoopGroup workerGroup;
   private final PooledByteBufAllocator pooledAllocator;
   private final NettyMemoryMetrics metrics;
+  private final double fastFailTimeWindow;
 
   public TransportClientFactory(
       TransportContext context,
@@ -113,6 +114,7 @@ public class TransportClientFactory implements Closeable {
     }
     this.metrics = new NettyMemoryMetrics(
       this.pooledAllocator, conf.getModuleName() + "-client", conf);
+    fastFailTimeWindow = conf.ioRetryWaitTimeMs() * 0.95;
   }
 
   public MetricSet getAllMetrics() {
@@ -193,7 +195,6 @@ public class TransportClientFactory implements Closeable {
           logger.info("Found inactive connection to {}, creating a new one.", resolvedAddress);
         }
       }
-      double fastFailTimeWindow = conf.ioRetryWaitTimeMs() * 0.95;
       if (conf.maxIORetries() > 0 && System.currentTimeMillis() - clientPool.lastConnectionFailed <
         fastFailTimeWindow) {
         throw new IOException(
