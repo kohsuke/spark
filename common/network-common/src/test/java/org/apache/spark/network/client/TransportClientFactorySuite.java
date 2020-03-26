@@ -244,6 +244,5 @@ public class TransportClientFactorySuite {
     expectedException.expect(IOException.class);
     expectedException.expectMessage("fail this connection directly");
     factory.createClient(TestUtils.getLocalHost(), unreachablePort);
-
   }
 }
