@@ -257,11 +257,9 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
       seq.mkString("\n").split("(?<=[^\\\\]);")
     }
 
-    def splitCommentsAndCodes(input: String) = {
-      input.split("\n").partition { line =>
-        val newLine = line.trim
-        newLine.startsWith("--") && !newLine.startsWith("--QUERY-DELIMITER")
-      }
+    def splitCommentsAndCodes(input: String) = input.split("\n").partition { line =>
+      val newLine = line.trim
+      newLine.startsWith("--") && !newLine.startsWith("--QUERY-DELIMITER")
     }
 
     val input = fileToString(new File(testCase.inputFile))
