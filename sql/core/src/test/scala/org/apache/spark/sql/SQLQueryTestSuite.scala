@@ -578,19 +578,16 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     import session.implicits._
 
     if (testTables.contains("testdata")) {
-      logWarning("load testdata")
       (1 to 100).map(i => (i, i.toString)).toDF("key", "value").createOrReplaceTempView("testdata")
     }
 
     if (testTables.contains("arraydata")) {
-      logWarning("load arraydata")
       ((Seq(1, 2, 3), Seq(Seq(1, 2, 3))) :: (Seq(2, 3, 4), Seq(Seq(2, 3, 4))) :: Nil)
         .toDF("arraycol", "nestedarraycol")
         .createOrReplaceTempView("arraydata")
     }
 
     if (testTables.contains("mapdata")) {
-      logWarning("load mapdata")
       (Tuple1(Map(1 -> "a1", 2 -> "b1", 3 -> "c1", 4 -> "d1", 5 -> "e1")) ::
         Tuple1(Map(1 -> "a2", 2 -> "b2", 3 -> "c2", 4 -> "d2")) ::
         Tuple1(Map(1 -> "a3", 2 -> "b3", 3 -> "c3")) ::
@@ -601,7 +598,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     }
 
     if (testTables.contains("aggtest")) {
-      logWarning("load aggtest")
       session
         .read
         .format("csv")
@@ -612,7 +608,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     }
 
     if (testTables.contains("onek")) {
-      logWarning("load onek")
       session
         .read
         .format("csv")
@@ -641,7 +636,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     }
 
     if (testTables.contains("tenk1")) {
-      logWarning("load tenk1")
       session
         .read
         .format("csv")
