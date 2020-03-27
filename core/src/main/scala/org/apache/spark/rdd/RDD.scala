@@ -265,6 +265,20 @@ abstract class RDD[T: ClassTag](
   }
 
   /**
+   * Get the list of dependencies of this RDD, ignoring checkpointing.
+   */
+  final private def internalDependencies: Seq[Dependency[_]] = {
+    if (dependencies_ == null) {
+      stateLock.synchronized {
+        if (dependencies_ == null) {
+          dependencies_ = getDependencies
+        }
+      }
+    }
+    dependencies_
+  }
+
+  /**
    * Get the array of partitions of this RDD, taking into account whether the
    * RDD is checkpointed or not.
    */
@@ -1723,7 +1737,7 @@ abstract class RDD[T: ClassTag](
           cleaner.doCleanupShuffle(shuffleId, blocking)
         }
         val rdd = dep.rdd
-        val rddDeps = rdd.dependencies
+        val rddDeps = rdd.internalDependencies
         if (rdd.getStorageLevel == StorageLevel.NONE && rddDeps != null) {
           rddDeps.foreach(cleanEagerly)
         }
