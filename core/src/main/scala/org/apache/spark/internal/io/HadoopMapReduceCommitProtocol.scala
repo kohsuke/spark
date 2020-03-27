@@ -89,7 +89,7 @@ class HadoopMapReduceCommitProtocol(
    * The staging directory of this write job. Spark uses it to deal with files with absolute output
    * path, or writing data into partitioned directory with dynamicPartitionOverwrite=true.
    */
-  private def stagingDir = new Path(path, ".spark-staging-" + jobId)
+  protected def stagingDir = getStagingDir(path, jobId)
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
     val format = context.getOutputFormatClass.getConstructor().newInstance()
@@ -106,15 +106,13 @@ class HadoopMapReduceCommitProtocol(
     val filename = getFilename(taskContext, ext)
 
     val stagingDir: Path = committer match {
-      case _ if dynamicPartitionOverwrite =>
-        assert(dir.isDefined,
-          "The dataset to be written must be partitioned when dynamicPartitionOverwrite is true.")
-        partitionPaths += dir.get
-        this.stagingDir
       // For FileOutputCommitter it has its own staging path called "work path".
       case f: FileOutputCommitter =>
+        handleDynamicPartitionOverwrite(dir)
         new Path(Option(f.getWorkPath).map(_.toString).getOrElse(path))
-      case _ => new Path(path)
+      case _ =>
+        handleDynamicPartitionOverwrite(dir)
+        new Path(path)
     }
 
     dir.map { d =>
@@ -137,7 +135,15 @@ class HadoopMapReduceCommitProtocol(
     tmpOutputPath
   }
 
-  protected def getFilename(taskContext: TaskAttemptContext, ext: String): String = {
+  private def handleDynamicPartitionOverwrite(dir: Option[String]): Unit = {
+    if (dynamicPartitionOverwrite) {
+      assert(dir.isDefined,
+        "The dataset to be written must be partitioned when dynamicPartitionOverwrite is true.")
+      partitionPaths += dir.get
+    }
+  }
+
+  private def getFilename(taskContext: TaskAttemptContext, ext: String): String = {
     // The file name looks like part-00000-2dd664f9-d2c4-4ffe-878f-c6c70c1fb0cb_00003-c000.parquet
     // Note that %05d does not truncate the split number, so if we have more than 100000 tasks,
     // the file name is fine and won't overflow.
