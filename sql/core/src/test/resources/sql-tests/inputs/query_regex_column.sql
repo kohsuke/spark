@@ -1,3 +1,5 @@
+--TEST_TABLES testdata
+
 set spark.sql.parser.quotedRegexColumnNames=false;
 
 CREATE OR REPLACE TEMPORARY VIEW testData AS SELECT * FROM VALUES

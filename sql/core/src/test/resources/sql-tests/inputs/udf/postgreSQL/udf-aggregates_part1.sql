@@ -5,6 +5,8 @@
 -- AGGREGATES [Part 1]
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/aggregates.sql#L1-L143
 
+--TEST_TABLES aggtest,onek,tenk1
+
 -- avoid bit-exact output here because operations may not be bit-exact.
 -- SET extra_float_digits = 0;
 

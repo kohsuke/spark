@@ -3,6 +3,8 @@
 -- Window Functions Testing
 -- https://github.com/postgres/postgres/blob/REL_12_STABLE/src/test/regress/sql/window.sql#L564-L911
 
+--TEST_TABLES tenk1
+
 -- Test window operator with codegen on and off.
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=true
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY

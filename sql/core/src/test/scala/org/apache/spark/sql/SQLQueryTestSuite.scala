@@ -318,8 +318,11 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
       conf.trim -> value.substring(1).trim
     })
 
+    val testTableLines = comments.filter(_.startsWith("--TEST_TABLES ")).map(_.substring(14))
+    val testTables = testTableLines.flatMap(_.split(","))
+
     if (regenerateGoldenFiles) {
-      runQueries(queries, testCase, settings)
+      runQueries(queries, testCase, settings, testTables)
     } else {
       // A config dimension has multiple config sets, and a config set has multiple configs.
       // - config dim:     Seq[Seq[(String, String)]]
@@ -341,7 +344,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
 
       configSets.foreach { configSet =>
         try {
-          runQueries(queries, testCase, settings ++ configSet)
+          runQueries(queries, testCase, settings ++ configSet, testTables)
         } catch {
           case e: Throwable =>
             val configs = configSet.map {
@@ -357,11 +360,12 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
   protected def runQueries(
       queries: Seq[String],
       testCase: TestCase,
-      configSet: Seq[(String, String)]): Unit = {
+      configSet: Seq[(String, String)],
+      testTables: Seq[String]): Unit = {
     // Create a local SparkSession to have stronger isolation between different test cases.
     // This does not isolate catalog changes.
     val localSparkSession = spark.newSession()
-    loadTestData(localSparkSession)
+    loadTestData(localSparkSession, testTables)
 
     testCase match {
       case udfTestCase: UDFTest =>
@@ -570,82 +574,100 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
   }
 
   /** Load built-in test tables into the SparkSession. */
-  private def loadTestData(session: SparkSession): Unit = {
+  private def loadTestData(session: SparkSession, testTables: Seq[String]): Unit = {
     import session.implicits._
 
-    (1 to 100).map(i => (i, i.toString)).toDF("key", "value").createOrReplaceTempView("testdata")
+    if (testTables.contains("testdata")) {
+      logWarning("load testdata")
+      (1 to 100).map(i => (i, i.toString)).toDF("key", "value").createOrReplaceTempView("testdata")
+    }
 
-    ((Seq(1, 2, 3), Seq(Seq(1, 2, 3))) :: (Seq(2, 3, 4), Seq(Seq(2, 3, 4))) :: Nil)
-      .toDF("arraycol", "nestedarraycol")
-      .createOrReplaceTempView("arraydata")
+    if (testTables.contains("arraydata")) {
+      logWarning("load arraydata")
+      ((Seq(1, 2, 3), Seq(Seq(1, 2, 3))) :: (Seq(2, 3, 4), Seq(Seq(2, 3, 4))) :: Nil)
+        .toDF("arraycol", "nestedarraycol")
+        .createOrReplaceTempView("arraydata")
+    }
 
-    (Tuple1(Map(1 -> "a1", 2 -> "b1", 3 -> "c1", 4 -> "d1", 5 -> "e1")) ::
-      Tuple1(Map(1 -> "a2", 2 -> "b2", 3 -> "c2", 4 -> "d2")) ::
-      Tuple1(Map(1 -> "a3", 2 -> "b3", 3 -> "c3")) ::
-      Tuple1(Map(1 -> "a4", 2 -> "b4")) ::
-      Tuple1(Map(1 -> "a5")) :: Nil)
-      .toDF("mapcol")
-      .createOrReplaceTempView("mapdata")
+    if (testTables.contains("mapdata")) {
+      logWarning("load mapdata")
+      (Tuple1(Map(1 -> "a1", 2 -> "b1", 3 -> "c1", 4 -> "d1", 5 -> "e1")) ::
+        Tuple1(Map(1 -> "a2", 2 -> "b2", 3 -> "c2", 4 -> "d2")) ::
+        Tuple1(Map(1 -> "a3", 2 -> "b3", 3 -> "c3")) ::
+        Tuple1(Map(1 -> "a4", 2 -> "b4")) ::
+        Tuple1(Map(1 -> "a5")) :: Nil)
+        .toDF("mapcol")
+        .createOrReplaceTempView("mapdata")
+    }
 
-    session
-      .read
-      .format("csv")
-      .options(Map("delimiter" -> "\t", "header" -> "false"))
-      .schema("a int, b float")
-      .load(testFile("test-data/postgresql/agg.data"))
-      .createOrReplaceTempView("aggtest")
+    if (testTables.contains("aggtest")) {
+      logWarning("load aggtest")
+      session
+        .read
+        .format("csv")
+        .options(Map("delimiter" -> "\t", "header" -> "false"))
+        .schema("a int, b float")
+        .load(testFile("test-data/postgresql/agg.data"))
+        .createOrReplaceTempView("aggtest")
+    }
 
-    session
-      .read
-      .format("csv")
-      .options(Map("delimiter" -> "\t", "header" -> "false"))
-      .schema(
-        """
-          |unique1 int,
-          |unique2 int,
-          |two int,
-          |four int,
-          |ten int,
-          |twenty int,
-          |hundred int,
-          |thousand int,
-          |twothousand int,
-          |fivethous int,
-          |tenthous int,
-          |odd int,
-          |even int,
-          |stringu1 string,
-          |stringu2 string,
-          |string4 string
-        """.stripMargin)
-      .load(testFile("test-data/postgresql/onek.data"))
-      .createOrReplaceTempView("onek")
+    if (testTables.contains("onek")) {
+      logWarning("load onek")
+      session
+        .read
+        .format("csv")
+        .options(Map("delimiter" -> "\t", "header" -> "false"))
+        .schema(
+          """
+            |unique1 int,
+            |unique2 int,
+            |two int,
+            |four int,
+            |ten int,
+            |twenty int,
+            |hundred int,
+            |thousand int,
+            |twothousand int,
+            |fivethous int,
+            |tenthous int,
+            |odd int,
+            |even int,
+            |stringu1 string,
+            |stringu2 string,
+            |string4 string
+          """.stripMargin)
+        .load(testFile("test-data/postgresql/onek.data"))
+        .createOrReplaceTempView("onek")
+    }
 
-    session
-      .read
-      .format("csv")
-      .options(Map("delimiter" -> "\t", "header" -> "false"))
-      .schema(
-        """
-          |unique1 int,
-          |unique2 int,
-          |two int,
-          |four int,
-          |ten int,
-          |twenty int,
-          |hundred int,
-          |thousand int,
-          |twothousand int,
-          |fivethous int,
-          |tenthous int,
-          |odd int,
-          |even int,
-          |stringu1 string,
-          |stringu2 string,
-          |string4 string
-        """.stripMargin)
-      .load(testFile("test-data/postgresql/tenk.data"))
-      .createOrReplaceTempView("tenk1")
+    if (testTables.contains("tenk1")) {
+      logWarning("load tenk1")
+      session
+        .read
+        .format("csv")
+        .options(Map("delimiter" -> "\t", "header" -> "false"))
+        .schema(
+          """
+            |unique1 int,
+            |unique2 int,
+            |two int,
+            |four int,
+            |ten int,
+            |twenty int,
+            |hundred int,
+            |thousand int,
+            |twothousand int,
+            |fivethous int,
+            |tenthous int,
+            |odd int,
+            |even int,
+            |stringu1 string,
+            |stringu2 string,
+            |string4 string
+          """.stripMargin)
+        .load(testFile("test-data/postgresql/tenk.data"))
+        .createOrReplaceTempView("tenk1")
+    }
   }
 
   private val originalTimeZone = TimeZone.getDefault

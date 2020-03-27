@@ -8,6 +8,8 @@
 --
 -- This test file was converted from postgreSQL/join.sql.
 
+--TEST_TABLES onek,tenk1
+
 CREATE OR REPLACE TEMPORARY VIEW INT4_TBL AS SELECT * FROM
   (VALUES (0), (123456), (-123456), (2147483647), (-2147483647))
   AS v(f1);

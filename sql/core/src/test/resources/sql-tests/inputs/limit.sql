@@ -1,3 +1,4 @@
+--TEST_TABLES testdata,arraydata,mapdata
 
 -- limit on various data types
 SELECT * FROM testdata LIMIT 2;

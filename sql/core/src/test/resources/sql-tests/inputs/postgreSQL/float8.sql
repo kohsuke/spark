@@ -5,6 +5,8 @@
 -- FLOAT8
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/float8.sql
 
+--TEST_TABLES testdata
+
 CREATE TABLE FLOAT8_TBL(f1 double) USING parquet;
 
 -- PostgreSQL implicitly casts string literals to data with floating point types, but

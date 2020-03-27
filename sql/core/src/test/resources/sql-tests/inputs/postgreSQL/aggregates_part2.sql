@@ -5,6 +5,8 @@
 -- AGGREGATES [Part 2]
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/aggregates.sql#L145-L350
 
+--TEST_TABLES tenk1
+
 -- Test aggregate operator with codegen on and off.
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=true
 --CONFIG_DIM1 spark.sql.codegen.wholeStage=false,spark.sql.codegen.factoryMode=CODEGEN_ONLY

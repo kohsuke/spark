@@ -1,3 +1,5 @@
+--TEST_TABLES testdata
+
 -- Aliased subqueries in FROM clause
 SELECT * FROM (SELECT * FROM testData) AS t WHERE key = 1;
 

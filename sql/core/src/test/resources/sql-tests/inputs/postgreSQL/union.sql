@@ -5,6 +5,7 @@
 -- UNION (also INTERSECT, EXCEPT)
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/union.sql
 --
+--TEST_TABLES tenk1
 
 CREATE OR REPLACE TEMPORARY VIEW INT4_TBL AS SELECT * FROM
   (VALUES (0), (123456), (-123456), (2147483647), (-2147483647))

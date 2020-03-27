@@ -3,6 +3,8 @@
 -- GROUPING SETS
 -- https://github.com/postgres/postgres/blob/REL_12_STABLE/src/test/regress/sql/groupingsets.sql
 
+--TEST_TABLES onek,tenk1
+
 -- test data sources
 
 create temp view gstest1(a,b,v)

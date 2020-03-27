@@ -1,3 +1,4 @@
+--TEST_TABLES testdata
 
 -- unary minus and plus
 select -100;

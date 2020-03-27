@@ -7,6 +7,8 @@
 
 -- This test file was converted from postgreSQL/aggregates_part3.sql.
 
+--TEST_TABLES onek,tenk1
+
 -- [SPARK-28865] Table inheritance
 -- try it on an inheritance tree
 -- create table minmaxtest(f1 int);

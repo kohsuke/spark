@@ -5,6 +5,7 @@
 -- SELECT_DISTINCT
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/select_distinct.sql
 --
+--TEST_TABLES onek,tenk1
 
 CREATE OR REPLACE TEMPORARY VIEW tmp AS
 SELECT two, stringu1, ten, string4

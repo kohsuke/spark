@@ -1,3 +1,5 @@
+--TEST_TABLES testdata,arraydata,mapdata,aggtest,onek,tenk1
+
 -- Test data.
 CREATE DATABASE showdb;
 USE showdb;

@@ -6,6 +6,7 @@
 -- Test JOIN clauses
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/join.sql
 --
+--TEST_TABLES onek,tenk1
 
 -- There are 2 dimensions we want to test
 --  1. run with broadcast hash join, sort merge join or shuffle hash join.

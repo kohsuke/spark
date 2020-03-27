@@ -7,6 +7,8 @@
 --
 -- This test file was converted from postgreSQL/aggregates_part2.sql.
 
+--TEST_TABLES tenk1
+
 create temporary view int4_tbl as select * from values
   (0),
   (123456),

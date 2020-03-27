@@ -11,6 +11,7 @@
 --
 -- Tests for common table expressions (WITH query, ... SELECT ...)
 --
+--TEST_TABLES tenk1
 
 -- Basic WITH
 WITH q1(x,y) AS (SELECT 1,2)

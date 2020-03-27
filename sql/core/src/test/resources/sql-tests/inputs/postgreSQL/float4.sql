@@ -5,6 +5,8 @@
 -- FLOAT4
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/float4.sql
 
+--TEST_TABLES testdata
+
 CREATE TABLE FLOAT4_TBL (f1  float) USING parquet;
 
 -- PostgreSQL implicitly casts string literals to data with floating point types, but

@@ -5,6 +5,8 @@
 -- AGGREGATES [Part 4]
 -- https://github.com/postgres/postgres/blob/REL_12_BETA2/src/test/regress/sql/aggregates.sql#L607-L997
 
+--TEST_TABLES aggtest,onek,tenk1
+
 -- This test file was converted from postgreSQL/aggregates_part4.sql.
 
 -- [SPARK-27980] Ordered-Set Aggregate Functions
