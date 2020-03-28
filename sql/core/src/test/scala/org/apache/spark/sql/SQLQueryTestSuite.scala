@@ -82,6 +82,11 @@ import org.apache.spark.tags.ExtendedSQLTest
  *     times, each time picks one config set from each dimension, until all the combinations are
  *     tried. For example, if dimension 1 has 2 lines, dimension 2 has 3 lines, this testing file
  *     will be run 6 times (cartesian product).
+ *  6. Lines starting with --TEST_TABLES are used to specify the test data that needs to be created
+ *     or loaded. [[SQLQueryTestSuite]] provides six optional tables testdata, arraydata, mapdata,
+ *     aggtest, onek, tenk1 for testing. You can set multiple tables in one --TEST_TABLES, using
+ *     comma to separate them. For performance reasons, please do not add tables that are not used
+ *     in test cases to the back of --TEST_TABLES.
  *
  * For example:
  * {{{
