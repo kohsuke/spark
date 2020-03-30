@@ -308,6 +308,31 @@ class Column(object):
                 DeprecationWarning)
         return self[key]
 
+    @ignore_unicode_prefix
+    @since(3.0)
+    def withField(self, fieldName, fieldValue):
+        """
+        An expression that adds/replaces a field by name in a struct.
+
+        >>> from pyspark.sql import Row
+        >>> from pyspark.sql.types import StructType, StructField, IntegerType
+        >>> from pyspark.sql.functions import lit
+        >>> df = spark.createDataFrame(
+        >>>     [Row(Row(a=1, b=2, c=3))],
+        >>>     StructType([StructField("a", StructType([
+        >>>         StructField("a", IntegerType()),
+        >>>         StructField("b", IntegerType()),
+        >>>         StructField("c", IntegerType())]))]))
+        >>> df.select(df.a.withField("d", lit(4))).show()
+        +------------+
+        |           a|
+        +------------+
+        |[1, 2, 3, 4]|
+        +------------+
+        """
+        jc = self._jc.withField(fieldName, fieldValue._jc)
+        return Column(jc)
+
     @since(1.3)
     def getField(self, name):
         """
