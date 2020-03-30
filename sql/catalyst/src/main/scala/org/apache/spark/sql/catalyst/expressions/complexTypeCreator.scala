@@ -526,7 +526,7 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
   usage = "_FUNC_(struct, name1, val1, name2, val2, ...) - Adds/replaces fields in struct by name.",
   examples = """
     Examples:
-      > SELECT _FUNC_({"a":1}, "b", 2, "c", 3);
+      > SELECT _FUNC_(NAMED_STRUCT("a", 1), "b", 2, "c", 3);
        {"a":1,"b":2,"c":3}
   """)
 // scalastyle:on line.size.limit
