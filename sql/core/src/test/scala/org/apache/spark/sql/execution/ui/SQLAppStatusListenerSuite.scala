@@ -30,6 +30,7 @@ import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config.Status._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.resource.ResourceProfile
 import org.apache.spark.scheduler._
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -39,6 +40,7 @@ import org.apache.spark.sql.catalyst.util.quietly
 import org.apache.spark.sql.execution.{LeafExecNode, QueryExecution, SparkPlanInfo, SQLExecution}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.functions.count
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.internal.StaticSQLConf.UI_RETAINED_EXECUTIONS
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.status.ElementTrackingStore
@@ -85,7 +87,8 @@ class SQLAppStatusListenerSuite extends SharedSparkSession with JsonTestUtils
       name = "",
       rddInfos = Nil,
       parentIds = Nil,
-      details = "")
+      details = "",
+      resourceProfileId = ResourceProfile.DEFAULT_RESOURCE_PROFILE_ID)
   }
 
   private def createTaskInfo(
@@ -151,11 +154,14 @@ class SQLAppStatusListenerSuite extends SharedSparkSession with JsonTestUtils
       expected.foreach { case (id, value) =>
         // The values in actual can be SQL metrics meaning that they contain additional formatting
         // when converted to string. Verify that they start with the expected value.
-        // TODO: this is brittle. There is no requirement that the actual string needs to start
-        // with the accumulator value.
         assert(actual.contains(id))
         val v = actual(id).trim
-        assert(v.startsWith(value.toString), s"Wrong value for accumulator $id")
+        if (v.contains("\n")) {
+          // The actual value can be "total (max, ...)\n6 ms (5 ms, ...)".
+          assert(v.split("\n")(1).startsWith(value.toString), s"Wrong value for accumulator $id")
+        } else {
+          assert(v.startsWith(value.toString), s"Wrong value for accumulator $id")
+        }
       }
     }
 
@@ -505,7 +511,7 @@ class SQLAppStatusListenerSuite extends SharedSparkSession with JsonTestUtils
       override lazy val executedPlan = physicalPlan
     }
 
-    SQLExecution.withNewExecutionId(spark, dummyQueryExecution) {
+    SQLExecution.withNewExecutionId(dummyQueryExecution) {
       physicalPlan.execute().collect()
     }
 
@@ -620,9 +626,12 @@ class SQLAppStatusListenerSuite extends SharedSparkSession with JsonTestUtils
   }
 
   test("SPARK-29894 test Codegen Stage Id in SparkPlanInfo") {
-    val df = createTestDataFrame.select(count("*"))
-    val sparkPlanInfo = SparkPlanInfo.fromSparkPlan(df.queryExecution.executedPlan)
-    assert(sparkPlanInfo.nodeName === "WholeStageCodegen (2)")
+    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "false") {
+      // with AQE on, the WholeStageCodegen rule is applied when running QueryStageExec.
+      val df = createTestDataFrame.select(count("*"))
+      val sparkPlanInfo = SparkPlanInfo.fromSparkPlan(df.queryExecution.executedPlan)
+      assert(sparkPlanInfo.nodeName === "WholeStageCodegen (2)")
+    }
   }
 }
 

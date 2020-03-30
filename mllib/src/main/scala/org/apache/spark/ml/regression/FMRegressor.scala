@@ -25,7 +25,7 @@ import org.apache.hadoop.fs.Path
 
 import org.apache.spark.annotation.Since
 import org.apache.spark.internal.Logging
-import org.apache.spark.ml.{PredictionModel, Predictor, PredictorParams}
+import org.apache.spark.ml.PredictorParams
 import org.apache.spark.ml.linalg._
 import org.apache.spark.ml.linalg.BLAS._
 import org.apache.spark.ml.param._
@@ -40,7 +40,6 @@ import org.apache.spark.mllib.optimization.{Gradient, GradientDescent, SquaredL2
 import org.apache.spark.mllib.util.MLUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, Row}
-import org.apache.spark.sql.functions.col
 import org.apache.spark.storage.StorageLevel
 
 /**
@@ -248,7 +247,7 @@ private[ml] object FactorizationMachines {
     (0 until factors.numCols).foreach { f =>
       var sumSquare = 0.0
       var sum = 0.0
-      features.foreachActive { case (index, value) =>
+      features.foreachNonZero { case (index, value) =>
         val vx = factors(index, f) * value
         sumSquare += vx * vx
         sum += vx
@@ -277,12 +276,16 @@ private[regression] trait FMRegressorParams extends FactorizationMachinesParams 
  * FM is able to estimate interactions even in problems with huge sparsity
  * (like advertising and recommendation system).
  * FM formula is:
- * {{{
+ * <blockquote>
+ *   $$
+ *   \begin{align}
  *   y = w_0 + \sum\limits^n_{i-1} w_i x_i +
  *     \sum\limits^n_{i=1} \sum\limits^n_{j=i+1} \langle v_i, v_j \rangle x_i x_j
- * }}}
+ *   \end{align}
+ *   $$
+ * </blockquote>
  * First two terms denote global bias and linear term (as same as linear regression),
- * and last term denotes pairwise interactions term. {{{v_i}}} describes the i-th variable
+ * and last term denotes pairwise interactions term. v_i describes the i-th variable
  * with k factors.
  *
  * FM regression model uses MSE loss which can be solved by gradient descent method, and
@@ -291,7 +294,7 @@ private[regression] trait FMRegressorParams extends FactorizationMachinesParams 
 @Since("3.0.0")
 class FMRegressor @Since("3.0.0") (
     @Since("3.0.0") override val uid: String)
-  extends Predictor[Vector, FMRegressor, FMRegressionModel]
+  extends Regressor[Vector, FMRegressor, FMRegressionModel]
   with FactorizationMachines with FMRegressorParams with DefaultParamsWritable with Logging {
 
   @Since("3.0.0")
@@ -406,26 +409,23 @@ class FMRegressor @Since("3.0.0") (
   @Since("3.0.0")
   def setSeed(value: Long): this.type = set(seed, value)
 
-  override protected[spark] def train(
+  override protected def train(
       dataset: Dataset[_]
     ): FMRegressionModel = instrumented { instr =>
-
-    val handlePersistence = dataset.storageLevel == StorageLevel.NONE
-    val data: RDD[(Double, OldVector)] =
-      dataset.select(col($(labelCol)), col($(featuresCol))).rdd.map {
-        case Row(label: Double, features: Vector) =>
-          (label, features)
-      }
-
-    if (handlePersistence) data.persist(StorageLevel.MEMORY_AND_DISK)
 
     instr.logPipelineStage(this)
     instr.logDataset(dataset)
     instr.logParams(this, factorSize, fitIntercept, fitLinear, regParam,
       miniBatchFraction, initStd, maxIter, stepSize, tol, solver)
 
-    val numFeatures = data.first()._2.size
+    val numFeatures = MetadataUtils.getNumFeatures(dataset, $(featuresCol))
     instr.logNumFeatures(numFeatures)
+
+    val handlePersistence = dataset.storageLevel == StorageLevel.NONE
+    val labeledPoint = extractLabeledPoints(dataset)
+    val data: RDD[(Double, OldVector)] = labeledPoint.map(x => (x.label, x.features))
+
+    if (handlePersistence) data.persist(StorageLevel.MEMORY_AND_DISK)
 
     val coefficients = trainImpl(data, numFeatures, SquaredError)
 
@@ -457,12 +457,13 @@ class FMRegressionModel private[regression] (
     @Since("3.0.0") val intercept: Double,
     @Since("3.0.0") val linear: Vector,
     @Since("3.0.0") val factors: Matrix)
-  extends PredictionModel[Vector, FMRegressionModel]
+  extends RegressionModel[Vector, FMRegressionModel]
   with FMRegressorParams with MLWritable {
 
   @Since("3.0.0")
   override val numFeatures: Int = linear.size
 
+  @Since("3.0.0")
   override def predict(features: Vector): Double = {
     getRawPrediction(features, intercept, linear, factors)
   }
@@ -603,14 +604,14 @@ private[ml] abstract class BaseFactorizationMachinesGradient(
 
     if (fitIntercept) rawPrediction += weights(weights.size - 1)
     if (fitLinear) {
-      data.foreachActive { case (index, value) =>
+      data.foreachNonZero { case (index, value) =>
         rawPrediction += weights(vWeightsSize + index) * value
       }
     }
     (0 until factorSize).foreach { f =>
       var sumSquare = 0.0
       var sum = 0.0
-      data.foreachActive { case (index, value) =>
+      data.foreachNonZero { case (index, value) =>
         val vx = weights(index * factorSize + f) * value
         sumSquare += vx * vx
         sum += vx
@@ -634,12 +635,12 @@ private[ml] abstract class BaseFactorizationMachinesGradient(
         val gardSize = data.indices.length * factorSize +
           (if (fitLinear) data.indices.length else 0) +
           (if (fitIntercept) 1 else 0)
-        val gradIndex = Array.fill(gardSize)(0)
-        val gradValue = Array.fill(gardSize)(0.0)
+        val gradIndex = Array.ofDim[Int](gardSize)
+        val gradValue = Array.ofDim[Double](gardSize)
         var gradI = 0
         val vWeightsSize = numFeatures * factorSize
 
-        data.foreachActive { case (index, value) =>
+        data.foreachNonZero { case (index, value) =>
           (0 until factorSize).foreach { f =>
             gradIndex(gradI) = index * factorSize + f
             gradValue(gradI) = value * sumVX(f) - weights(index * factorSize + f) * value * value
@@ -647,7 +648,7 @@ private[ml] abstract class BaseFactorizationMachinesGradient(
           }
         }
         if (fitLinear) {
-          data.foreachActive { case (index, value) =>
+          data.foreachNonZero { case (index, value) =>
             gradIndex(gradI) = vWeightsSize + index
             gradValue(gradI) = value
             gradI += 1
@@ -660,17 +661,17 @@ private[ml] abstract class BaseFactorizationMachinesGradient(
 
         OldVectors.sparse(weights.size, gradIndex, gradValue)
       case data: OldLinalg.DenseVector =>
-        val gradient = Array.fill(weights.size)(0.0)
+        val gradient = Array.ofDim[Double](weights.size)
         val vWeightsSize = numFeatures * factorSize
 
         if (fitIntercept) gradient(weights.size - 1) += 1.0
         if (fitLinear) {
-          data.foreachActive { case (index, value) =>
+          data.foreachNonZero { case (index, value) =>
             gradient(vWeightsSize + index) += value
           }
         }
         (0 until factorSize).foreach { f =>
-          data.foreachActive { case (index, value) =>
+          data.foreachNonZero { case (index, value) =>
             gradient(index * factorSize + f) +=
               value * sumVX(f) - weights(index * factorSize + f) * value * value
           }
