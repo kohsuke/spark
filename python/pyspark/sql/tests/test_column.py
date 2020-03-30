@@ -93,6 +93,37 @@ class ColumnTests(ReusedSQLTestCase):
         self.assertIsInstance(col("foo")["bar"], Column)
         self.assertRaises(ValueError, lambda: col("foo")[0:10:2])
 
+    def test_column_getitem(self):
+        from pyspark.sql.functions import col, create_map, lit
+
+        map_col = create_map(lit(0), lit(100), lit(1), lit(200))
+        self.assertRaisesRegexp(
+            Py4JJavaError,
+            "Unsupported literal type class org.apache.spark.sql.Column id",
+            lambda: map_col.getItem(col('id'))
+        )
+
+    def test_column_withField(self):
+        from pyspark.sql import Row
+        from pyspark.sql.types import StructType, StructField, IntegerType
+        from pyspark.sql.functions import lit
+
+        df = self.spark.createDataFrame(
+            [Row(Row(a=1, b=2, c=3))],
+            StructType([StructField("a", StructType([
+                StructField("a", IntegerType()),
+                StructField("b", IntegerType()),
+                StructField("c", IntegerType())]))]))
+
+        result = df.select(df.a.withField("d", lit(4)))
+
+        self.assertEqual(result.collect(), [Row(Row(1, 2, 3, 4))])
+        self.assertEqual(result.schema, StructType([StructField("a", StructType([
+            StructField("a", IntegerType()),
+            StructField("b", IntegerType()),
+            StructField("c", IntegerType()),
+            StructField("d", IntegerType(), nullable=False)]))]))
+
     def test_column_select(self):
         df = self.df
         self.assertEqual(self.testData, df.select("*").collect())
