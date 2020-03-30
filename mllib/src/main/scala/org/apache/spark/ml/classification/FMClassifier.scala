@@ -31,7 +31,6 @@ import org.apache.spark.mllib.linalg.{Vector => OldVector}
 import org.apache.spark.mllib.linalg.VectorImplicits._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, Row}
-import org.apache.spark.sql.functions.col
 import org.apache.spark.storage.StorageLevel
 
 /**
@@ -52,12 +51,16 @@ private[classification] trait FMClassifierParams extends ProbabilisticClassifier
  * FM is able to estimate interactions even in problems with huge sparsity
  * (like advertising and recommendation system).
  * FM formula is:
- * {{{
+ * <blockquote>
+ *   $$
+ *   \begin{align}
  *   y = \sigma\left( w_0 + \sum\limits^n_{i-1} w_i x_i +
  *     \sum\limits^n_{i=1} \sum\limits^n_{j=i+1} \langle v_i, v_j \rangle x_i x_j \right)
- * }}}
+ *   \end{align}
+ *   $$
+ * </blockquote>
  * First two terms denote global bias and linear term (as same as linear regression),
- * and last term denotes pairwise interactions term. {{{v_i}}} describes the i-th variable
+ * and last term denotes pairwise interactions term. v_i describes the i-th variable
  * with k factors.
  *
  * FM classification model uses logistic loss which can be solved by gradient descent method, and
@@ -183,21 +186,9 @@ class FMClassifier @Since("3.0.0") (
   @Since("3.0.0")
   def setSeed(value: Long): this.type = set(seed, value)
 
-  override protected[spark] def train(
+  override protected def train(
       dataset: Dataset[_]
     ): FMClassificationModel = instrumented { instr =>
-
-    val handlePersistence = dataset.storageLevel == StorageLevel.NONE
-    val data: RDD[(Double, OldVector)] =
-      dataset.select(col($(labelCol)), col($(featuresCol))).rdd.map {
-        case Row(label: Double, features: Vector) =>
-          require(label == 0 || label == 1, s"FMClassifier was given" +
-            s" dataset with invalid label $label.  Labels must be in {0,1}; note that" +
-            s" FMClassifier currently only supports binary classification.")
-          (label, features)
-      }
-
-    if (handlePersistence) data.persist(StorageLevel.MEMORY_AND_DISK)
 
     val numClasses = 2
     if (isDefined(thresholds)) {
@@ -212,8 +203,14 @@ class FMClassifier @Since("3.0.0") (
       miniBatchFraction, initStd, maxIter, stepSize, tol, solver)
     instr.logNumClasses(numClasses)
 
-    val numFeatures = data.first()._2.size
+    val numFeatures = MetadataUtils.getNumFeatures(dataset, $(featuresCol))
     instr.logNumFeatures(numFeatures)
+
+    val handlePersistence = dataset.storageLevel == StorageLevel.NONE
+    val labeledPoint = extractLabeledPoints(dataset, numClasses)
+    val data: RDD[(Double, OldVector)] = labeledPoint.map(x => (x.label, x.features))
+
+    if (handlePersistence) data.persist(StorageLevel.MEMORY_AND_DISK)
 
     val coefficients = trainImpl(data, numFeatures, LogisticLoss)
 
@@ -254,7 +251,8 @@ class FMClassificationModel private[classification] (
   @Since("3.0.0")
   override val numFeatures: Int = linear.size
 
-  override protected def predictRaw(features: Vector): Vector = {
+  @Since("3.0.0")
+  override def predictRaw(features: Vector): Vector = {
     val rawPrediction = getRawPrediction(features, intercept, linear, factors)
     Vectors.dense(Array(-rawPrediction, rawPrediction))
   }
