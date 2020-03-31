@@ -2411,7 +2411,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
 
   /**
    * Type to keep track of table clauses:
-   * (partitioning, bucketSpec, properties, options, location, comment).
+   * (partTransforms, partCols, bucketSpec, properties, options, location, comment, serde).
    */
   type TableClauses = (
       Seq[Transform], Seq[StructField], Option[BucketSpec], Map[String, String],
@@ -2869,7 +2869,6 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     checkDuplicateClauses(ctx.TBLPROPERTIES, "TBLPROPERTIES", ctx)
     checkDuplicateClauses(ctx.OPTIONS, "OPTIONS", ctx)
     checkDuplicateClauses(ctx.PARTITIONED, "PARTITIONED BY", ctx)
-    checkDuplicateClauses(ctx.bucketSpec(), "CLUSTERED BY", ctx)
     checkDuplicateClauses(ctx.createFileFormat, "STORED AS/BY", ctx)
     checkDuplicateClauses(ctx.rowFormat, "ROW FORMAT", ctx)
     checkDuplicateClauses(ctx.commentSpec(), "COMMENT", ctx)
@@ -2952,9 +2951,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
    */
   override def visitCreateTable(ctx: CreateTableContext): LogicalPlan = withOrigin(ctx) {
     val (table, temp, ifNotExists, external) = visitCreateTableHeader(ctx.createTableHeader)
-    if (external) {
-      operationNotAllowed("CREATE EXTERNAL TABLE ...", ctx)
-    }
+
     val columns = Option(ctx.colTypeList()).map(visitColTypeList)
     val provider = Option(ctx.tableProvider).map(_.multipartIdentifier.getText)
     val (partTransforms, partCols, bucketSpec, properties, options, location, comment, serdeInfo) =
