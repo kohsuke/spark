@@ -469,10 +469,12 @@ class ComplexTypeSuite extends SparkFunSuite with ExpressionEvalHelper {
     val nonNullInputs: Seq[Literal] = differentDataTypes.map(Literal.default)
     val nullInputs: Seq[Literal] = differentDataTypes.map(Literal.create(null, _))
 
-    def checkEvaluationCustom(expression: => Expression,
-                              expected: Any,
-                              expectedDataType: DataType,
-                              inputRow: InternalRow = EmptyRow): Unit = {
+    def checkEvaluationCustom(
+      expression: => Expression,
+      expected: Any,
+      expectedDataType: DataType,
+      inputRow: InternalRow = EmptyRow): Unit = {
+
       checkEvaluation(expression = expression, expected = expected, inputRow = inputRow)
       assert(expression.dataType == expectedDataType)
     }

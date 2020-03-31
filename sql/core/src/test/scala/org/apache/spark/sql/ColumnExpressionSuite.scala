@@ -871,9 +871,10 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
   }
 
   {
-    def checkAnswerCustom(df: => DataFrame,
-                          expectedAnswer: Seq[Row],
-                          expectedSchema: StructType): Unit = {
+    def checkAnswerCustom(
+      df: => DataFrame,
+      expectedAnswer: Seq[Row],
+      expectedSchema: StructType): Unit = {
 
       assert(df.schema == expectedSchema)
       checkAnswer(df, expectedAnswer)
