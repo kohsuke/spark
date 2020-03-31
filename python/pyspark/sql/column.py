@@ -303,25 +303,6 @@ class Column(object):
         """
         return _bin_op("getItem")(self, key)
 
-    @ignore_unicode_prefix
-    @since(3.0)
-    def withField(self, fieldName, fieldValue):
-        """
-        An expression that adds/replaces a field by name in a struct.
-
-        >>> from pyspark.sql import Row
-        >>> from pyspark.sql.functions import lit, col
-        >>> df = spark.createDataFrame([Row(a=Row(a=1, b=2, c=3))])
-        >>> df.withColumn("a", col("a").withField("d", lit(4))).show()
-        +------------+
-        |           a|
-        +------------+
-        |[1, 2, 3, 4]|
-        +------------+
-        """
-        jc = self._jc.withField(fieldName, fieldValue._jc)
-        return Column(jc)
-
     @since(1.3)
     def getField(self, name):
         """
@@ -559,8 +540,7 @@ class Column(object):
 
         :param alias: strings of desired column names (collects all positional arguments passed)
         :param metadata: a dict of information to be stored in ``metadata`` attribute of the
-            corresponding :class:`StructField <pyspark.sql.types.StructField>` (optional, keyword
-            only argument)
+            corresponding :class: `StructField` (optional, keyword only argument)
 
         .. versionchanged:: 2.2
            Added optional ``metadata`` argument.
@@ -689,9 +669,8 @@ class Column(object):
         >>> window = Window.partitionBy("name").orderBy("age") \
                 .rowsBetween(Window.unboundedPreceding, Window.currentRow)
         >>> from pyspark.sql.functions import rank, min
-        >>> from pyspark.sql.functions import desc
         >>> df.withColumn("rank", rank().over(window)) \
-                .withColumn("min", min('age').over(window)).sort(desc("age")).show()
+                .withColumn("min", min('age').over(window)).show()
         +---+-----+----+---+
         |age| name|rank|min|
         +---+-----+----+---+

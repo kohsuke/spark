@@ -105,27 +105,6 @@ class ColumnTests(ReusedSQLTestCase):
             lambda: map_col.getItem(col('id'))
         )
 
-    def test_column_withField(self):
-        from pyspark.sql import Row
-        from pyspark.sql.types import StructType, StructField, IntegerType
-        from pyspark.sql.functions import lit, col
-
-        df = self.spark.createDataFrame(
-            [Row(Row(a=1, b=2, c=3))],
-            StructType([StructField("a", StructType([
-                StructField("a", IntegerType()),
-                StructField("b", IntegerType()),
-                StructField("c", IntegerType())]))]))
-
-        result = df.withColumn("a", col("a").withField("d", lit(4)))
-
-        self.assertEqual(result.collect(), [Row(a=Row(a=1, b=2, c=3, d=4))])
-        self.assertEqual(result.schema, StructType([StructField("a", StructType([
-            StructField("a", IntegerType()),
-            StructField("b", IntegerType()),
-            StructField("c", IntegerType()),
-            StructField("d", IntegerType(), nullable=False)]))]))
-
     def test_column_select(self):
         df = self.df
         self.assertEqual(self.testData, df.select("*").collect())
