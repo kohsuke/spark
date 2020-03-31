@@ -315,15 +315,9 @@ class Column(object):
         An expression that adds/replaces a field by name in a struct.
 
         >>> from pyspark.sql import Row
-        >>> from pyspark.sql.types import StructType, StructField, IntegerType
-        >>> from pyspark.sql.functions import lit
-        >>> df = spark.createDataFrame(
-        >>>     [Row(Row(a=1, b=2, c=3))],
-        >>>     StructType([StructField("a", StructType([
-        >>>         StructField("a", IntegerType()),
-        >>>         StructField("b", IntegerType()),
-        >>>         StructField("c", IntegerType())]))]))
-        >>> df.select(df.a.withField("d", lit(4))).show()
+        >>> from pyspark.sql.functions import lit, col
+        >>> df = spark.createDataFrame([Row(a=Row(a=1, b=2, c=3))])
+        >>> df.withColumn("a", col("a").withField("d", lit(4))).show()
         +------------+
         |           a|
         +------------+
