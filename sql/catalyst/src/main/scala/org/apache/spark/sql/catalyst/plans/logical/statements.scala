@@ -67,6 +67,18 @@ case class SerdeInfo(
   assert(storedAs.isEmpty || serde.isEmpty,
     s"Conflicting STORED AS $storedAs and SERDE $serde values")
 
+  def describe: String = {
+    val serdeString = serde.map(sd => s" SERDE $sd").getOrElse("")
+    this match {
+      case SerdeInfo(Some(format), _, _, _) =>
+        s"STORED AS $format$serdeString"
+      case SerdeInfo(_, Some((inFormat, outFormat)), _, _) =>
+        s"INPUTFORMAT $inFormat OUTPUTFORMAT $outFormat$serdeString"
+      case _ =>
+        serdeString;
+    }
+  }
+
   def merge(other: SerdeInfo): SerdeInfo = {
     def getOnly[T](desc: String, left: Option[T], right: Option[T]): Option[T] = {
       (left, right) match {
@@ -87,6 +99,12 @@ case class SerdeInfo(
       getOnly("INPUTFORMAT/OUTPUTFORMAT", formatClasses, other.formatClasses),
       getOnly("SERDE", serde, other.serde),
       serdeProperties ++ other.serdeProperties)
+  }
+}
+
+object SerdeInfo {
+  val empty: SerdeInfo = {
+    SerdeInfo(None, None, None, Map.empty)
   }
 }
 

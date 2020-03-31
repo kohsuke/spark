@@ -428,7 +428,7 @@ class PlanResolutionSuite extends AnalysisTest {
     val expectedProperties = Map(
       "p1" -> "v1",
       "p2" -> "v2",
-      "other" -> "20",
+      "option.other" -> "20",
       "provider" -> "parquet",
       "location" -> "s3://bucket/path/to/data",
       "comment" -> "table comment")
@@ -467,7 +467,7 @@ class PlanResolutionSuite extends AnalysisTest {
     val expectedProperties = Map(
       "p1" -> "v1",
       "p2" -> "v2",
-      "other" -> "20",
+      "option.other" -> "20",
       "provider" -> "parquet",
       "location" -> "s3://bucket/path/to/data",
       "comment" -> "table comment")
@@ -542,7 +542,7 @@ class PlanResolutionSuite extends AnalysisTest {
     val expectedProperties = Map(
       "p1" -> "v1",
       "p2" -> "v2",
-      "other" -> "20",
+      "option.other" -> "20",
       "provider" -> "parquet",
       "location" -> "s3://bucket/path/to/data",
       "comment" -> "table comment")
@@ -576,7 +576,7 @@ class PlanResolutionSuite extends AnalysisTest {
     val expectedProperties = Map(
       "p1" -> "v1",
       "p2" -> "v2",
-      "other" -> "20",
+      "option.other" -> "20",
       "provider" -> "parquet",
       "location" -> "s3://bucket/path/to/data",
       "comment" -> "table comment")
