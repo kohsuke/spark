@@ -554,29 +554,24 @@ case class AddFields(children: Seq[Expression]) extends Expression {
   }
 
   override def checkInputDataTypes(): TypeCheckResult = {
-    if (children.size % 2 == 0) {
-      return TypeCheckResult.TypeCheckFailure(s"$prettyName expects an odd number of arguments.")
-    }
-
-    val typeName = struct.dataType.typeName
     val expectedStructType = StructType(Nil).typeName
-    if (typeName != expectedStructType) {
-      return TypeCheckResult.TypeCheckFailure(
-        s"Only $expectedStructType is allowed to appear at first position, got: $typeName.")
-    }
 
-    if (nameExprs.exists(e => e == null || !(e.foldable && e.dataType == StringType))) {
-      return TypeCheckResult.TypeCheckFailure(
+    if (children.size % 2 == 0) {
+      TypeCheckResult.TypeCheckFailure(s"$prettyName expects an odd number of arguments.")
+    } else if (struct.dataType.typeName != expectedStructType) {
+      TypeCheckResult.TypeCheckFailure(
+        s"Only $expectedStructType is allowed to appear at first position, got: " +
+          s"${struct.dataType.typeName}.")
+    } else if (nameExprs.exists(e => e == null || !(e.foldable && e.dataType == StringType))) {
+      TypeCheckResult.TypeCheckFailure(
         s"Only non-null foldable ${StringType.catalogString} expressions are allowed to appear " +
           s"at even position.")
-    }
-
-    if (valExprs.contains(null)) {
-      return TypeCheckResult.TypeCheckFailure(
+    } else if (valExprs.contains(null)) {
+      TypeCheckResult.TypeCheckFailure(
         s"Only non-null expressions are allowed to appear at odd positions after first position.")
+    } else {
+      TypeCheckResult.TypeCheckSuccess
     }
-
-    TypeCheckResult.TypeCheckSuccess
   }
 
   override def eval(input: InternalRow): Any = {
