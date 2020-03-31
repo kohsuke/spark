@@ -665,11 +665,13 @@ case class AddFields(children: Seq[Expression]) extends Expression {
    * Recursively loop through addOrReplaceFields, adding or replacing fields by FieldName.
    */
   @scala.annotation.tailrec
-  private def loop[V](existingFields: Seq[(String, V)],
-                      addOrReplaceFields: Seq[(String, V)]): Seq[(String, V)] = {
+  private def loop[V](
+    existingFields: Seq[(FieldName, V)],
+    addOrReplaceFields: Seq[(FieldName, V)]): Seq[(FieldName, V)] = {
+
     if (addOrReplaceFields.nonEmpty) {
       val existingFieldNames = existingFields.map(_._1)
-      val newField@(newFieldName, _) = addOrReplaceFields.head
+      val newField @ (newFieldName, _) = addOrReplaceFields.head
 
       if (existingFieldNames.contains(newFieldName)) {
         loop(
