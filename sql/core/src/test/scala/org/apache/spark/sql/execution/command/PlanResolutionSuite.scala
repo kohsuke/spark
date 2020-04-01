@@ -1568,6 +1568,116 @@ class PlanResolutionSuite extends AnalysisTest {
     checkFailure("testcat.tab", "foo")
   }
 
+  private def compareNormalized(plan1: LogicalPlan, plan2: LogicalPlan): Unit = {
+    /**
+     * Normalizes plans:
+     * - CreateTable the createTime in tableDesc will replaced by -1L.
+     */
+    def normalizePlan(plan: LogicalPlan): LogicalPlan = {
+      plan match {
+        case CreateTable(tableDesc, mode, query) =>
+          val newTableDesc = tableDesc.copy(createTime = -1L)
+          CreateTable(newTableDesc, mode, query)
+        case _ => plan // Don't transform
+      }
+    }
+    comparePlans(normalizePlan(plan1), normalizePlan(plan2))
+  }
+
+  test("create table - schema") {
+    def createTable(
+        table: String,
+        database: Option[String] = None,
+        tableType: CatalogTableType = CatalogTableType.MANAGED,
+        storage: CatalogStorageFormat = CatalogStorageFormat.empty.copy(
+          inputFormat = HiveSerDe.sourceToSerDe("textfile").get.inputFormat,
+          outputFormat = HiveSerDe.sourceToSerDe("textfile").get.outputFormat,
+          serde = Some("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe")),
+        schema: StructType = new StructType,
+        provider: Option[String] = Some("hive"),
+        partitionColumnNames: Seq[String] = Seq.empty,
+        comment: Option[String] = None,
+        mode: SaveMode = SaveMode.ErrorIfExists,
+        query: Option[LogicalPlan] = None): CreateTable = {
+      CreateTable(
+        CatalogTable(
+          identifier = TableIdentifier(table, database),
+          tableType = tableType,
+          storage = storage,
+          schema = schema,
+          provider = provider,
+          partitionColumnNames = partitionColumnNames,
+          comment = comment
+        ), mode, query
+      )
+    }
+
+    def compare(sql: String, plan: LogicalPlan): Unit = {
+      compareNormalized(parseAndResolve(sql), plan)
+    }
+
+    compare("CREATE TABLE my_tab(a INT COMMENT 'test', b STRING) STORED AS textfile",
+      createTable(
+        table = "my_tab",
+        database = Some("default"),
+        schema = (new StructType)
+            .add("a", IntegerType, nullable = true, "test")
+            .add("b", StringType)
+      )
+    )
+    withSQLConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED.key -> "true") {
+      compare("CREATE TABLE my_tab(a INT COMMENT 'test', b STRING) " +
+          "PARTITIONED BY (c INT, d STRING COMMENT 'test2')",
+        createTable(
+          table = "my_tab",
+          database = Some("default"),
+          schema = (new StructType)
+              .add("a", IntegerType, nullable = true, "test")
+              .add("b", StringType)
+              .add("c", IntegerType)
+              .add("d", StringType, nullable = true, "test2"),
+          partitionColumnNames = Seq("c", "d")
+        )
+      )
+    }
+    compare("CREATE TABLE my_tab(id BIGINT, nested STRUCT<col1: STRING,col2: INT>) " +
+        "STORED AS textfile",
+      createTable(
+        table = "my_tab",
+        database = Some("default"),
+        schema = (new StructType)
+            .add("id", LongType)
+            .add("nested", (new StructType)
+                .add("col1", StringType)
+                .add("col2", IntegerType)
+            )
+      )
+    )
+    // Partitioned by a StructType should be accepted by `SparkSqlParser` but will fail an analyze
+    // rule in `AnalyzeCreateTable`.
+    withSQLConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED.key -> "true") {
+      compare("CREATE TABLE my_tab(a INT COMMENT 'test', b STRING) " +
+          "PARTITIONED BY (nested STRUCT<col1: STRING,col2: INT>)",
+        createTable(
+          table = "my_tab",
+          database = Some("default"),
+          schema = (new StructType)
+              .add("a", IntegerType, nullable = true, "test")
+              .add("b", StringType)
+              .add("nested", (new StructType)
+                  .add("col1", StringType)
+                  .add("col2", IntegerType)
+              ),
+          partitionColumnNames = Seq("nested")
+        )
+      )
+    }
+
+    interceptParseException(parsePlan)(
+      "CREATE TABLE my_tab(a: INT COMMENT 'test', b: STRING)",
+      "extraneous input ':'")
+  }
+
   test("create hive table - table file format") {
     val allSources = Seq("parquet", "parquetfile", "orc", "orcfile", "avro", "avrofile",
       "sequencefile", "rcfile", "textfile")
