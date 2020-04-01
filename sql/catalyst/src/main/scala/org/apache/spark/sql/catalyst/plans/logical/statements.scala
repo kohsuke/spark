@@ -64,8 +64,6 @@ case class SerdeInfo(
   // this uses assertions because validation is done in validateRowFormatFileFormat etc.
   assert(storedAs.isEmpty || formatClasses.isEmpty,
     s"Conflicting STORED AS $storedAs and INPUTFORMAT/OUTPUTFORMAT $formatClasses values")
-  assert(storedAs.isEmpty || serde.isEmpty,
-    s"Conflicting STORED AS $storedAs and SERDE $serde values")
 
   def describe: String = {
     val serdeString = serde.map(sd => s" SERDE $sd").getOrElse("")
