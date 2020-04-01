@@ -643,6 +643,7 @@ class ResolveSessionCatalog(
       c.options, c.location, c.comment, c.external)
   }
 
+  // scalastyle:off argcount
   private def buildV1Table(
       table: TableIdentifier,
       schema: StructType,
@@ -684,6 +685,7 @@ class ResolveSessionCatalog(
         None
     }
   }
+  // scalastyle:on argcount
 
   private def buildCatalogTable(
       table: TableIdentifier,
