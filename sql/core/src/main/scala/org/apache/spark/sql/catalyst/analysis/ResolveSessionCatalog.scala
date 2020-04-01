@@ -630,62 +630,70 @@ class ResolveSessionCatalog(
   private def buildV1Table(
       ident: TableIdentifier,
       c: CreateTableAsSelectStatement): Option[CatalogTable] = {
-    buildV1Table(
-      ident, new StructType, c.partitioning, c.bucketSpec, c.properties, c.provider, c.serde,
-      c.options, c.location, c.comment, c.external)
-  }
-
-  private def buildV1Table(
-      ident: TableIdentifier,
-      c: CreateTableStatement): Option[CatalogTable] = {
-    buildV1Table(
-      ident, c.tableSchema, c.partitioning, c.bucketSpec, c.properties, c.provider, c.serde,
-      c.options, c.location, c.comment, c.external)
-  }
-
-  // scalastyle:off argcount
-  private def buildV1Table(
-      table: TableIdentifier,
-      schema: StructType,
-      partitioning: Seq[Transform],
-      bucketSpec: Option[BucketSpec],
-      properties: Map[String, String],
-      providerOption: Option[String],
-      serdeInfo: Option[SerdeInfo],
-      options: Map[String, String],
-      location: Option[String],
-      comment: Option[String],
-      external: Boolean): Option[CatalogTable] = {
-    (providerOption, serdeInfo) match {
+    val schema = new StructType
+    (c.provider, c.serde) match {
       case (Some(provider), Some(serde)) =>
         throw new AnalysisException(
           s"Cannot create table with both USING $provider and ${serde.describe}")
 
       case (None, Some(serde)) =>
         Some(buildHiveCatalogTable(
-          table, schema, partitioning, bucketSpec, properties, serde, options, location,
-          comment, external))
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, serde, c.options, c.location,
+          c.comment, c.external))
 
-      case (None, None) if conf.createHiveTableByDefaultEnabled =>
+      case (None, None) if conf.createHiveTableByDefaultEnabled && !conf.convertCTAS =>
         Some(buildHiveCatalogTable(
-          table, schema, partitioning, bucketSpec, properties, SerdeInfo.empty, options, location,
-          comment, external))
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, SerdeInfo.empty, c.options,
+          c.location, c.comment, c.external))
 
       case (Some(provider), None) if !isV2Provider(provider) =>
         Some(buildCatalogTable(
-          table, schema, partitioning, bucketSpec, properties, provider, options, location,
-          comment, external))
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, provider, c.options,
+          c.location, c.comment, c.external))
 
       case (None, None) if !isV2Provider(conf.defaultDataSourceName) =>
         Some(buildCatalogTable(
-          table, schema, partitioning, bucketSpec, properties, conf.defaultDataSourceName, options,
-          location, comment, external))
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, conf.defaultDataSourceName,
+          c.options, c.location, c.comment, c.external))
 
       case _ =>
         None
     }
   }
-  // scalastyle:on argcount
+
+  private def buildV1Table(
+      ident: TableIdentifier,
+      c: CreateTableStatement): Option[CatalogTable] = {
+    val schema = c.tableSchema
+    (c.provider, c.serde) match {
+      case (Some(provider), Some(serde)) =>
+        throw new AnalysisException(
+          s"Cannot create table with both USING $provider and ${serde.describe}")
+
+      case (None, Some(serde)) =>
+        Some(buildHiveCatalogTable(
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, serde, c.options, c.location,
+          c.comment, c.external))
+
+      case (None, None) if conf.createHiveTableByDefaultEnabled =>
+        Some(buildHiveCatalogTable(
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, SerdeInfo.empty, c.options,
+          c.location, c.comment, c.external))
+
+      case (Some(provider), None) if !isV2Provider(provider) =>
+        Some(buildCatalogTable(
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, provider, c.options,
+          c.location, c.comment, c.external))
+
+      case (None, None) if !isV2Provider(conf.defaultDataSourceName) =>
+        Some(buildCatalogTable(
+          ident, schema, c.partitioning, c.bucketSpec, c.properties, conf.defaultDataSourceName,
+          c.options, c.location, c.comment, c.external))
+
+      case _ =>
+        None
+    }
+  }
 
   private def buildCatalogTable(
       table: TableIdentifier,

@@ -2026,9 +2026,11 @@ class PlanResolutionSuite extends AnalysisTest {
   }
 
   test("create table - external") {
-    val query = "CREATE EXTERNAL TABLE tab1 (id int, name string) LOCATION '/path/to/nowhere'"
-    val e = intercept[AnalysisException] { parseAndResolve(query) }
-    assert(e.message.contains("Operation not allowed: CREATE EXTERNAL TABLE ..."))
+    withSQLConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED.key -> "false") {
+      val query = "CREATE EXTERNAL TABLE tab1 (id int, name string) LOCATION '/path/to/nowhere'"
+      val e = intercept[AnalysisException] { parseAndResolve(query) }
+      assert(e.message.contains("Operation not allowed: CREATE EXTERNAL TABLE ..."))
+    }
   }
 
   test("create table - if not exists") {
