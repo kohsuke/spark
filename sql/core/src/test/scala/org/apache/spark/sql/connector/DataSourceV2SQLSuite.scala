@@ -423,7 +423,7 @@ class DataSourceV2SQLSuite
 
     intercept[Exception] {
       spark.sql("REPLACE TABLE testcat.table_name" +
-        s" USING foo OPTIONS (`${InMemoryTable.SIMULATE_FAILED_WRITE_OPTION}`=true)" +
+        s" USING foo TBLPROPERTIES (`${InMemoryTable.SIMULATE_FAILED_WRITE_OPTION}`=true)" +
         s" AS SELECT id FROM source")
     }
 
@@ -456,7 +456,7 @@ class DataSourceV2SQLSuite
 
     intercept[Exception] {
       spark.sql("REPLACE TABLE testcat_atomic.table_name" +
-        s" USING foo OPTIONS (`${InMemoryTable.SIMULATE_FAILED_WRITE_OPTION}=true)" +
+        s" USING foo TBLPROPERTIES (`${InMemoryTable.SIMULATE_FAILED_WRITE_OPTION}=true)" +
         s" AS SELECT id FROM source")
     }
 
