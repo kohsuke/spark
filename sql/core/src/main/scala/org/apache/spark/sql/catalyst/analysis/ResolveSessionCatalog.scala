@@ -649,13 +649,13 @@ class ResolveSessionCatalog(
       partitioning: Seq[Transform],
       bucketSpec: Option[BucketSpec],
       properties: Map[String, String],
-      provider: Option[String],
+      providerOption: Option[String],
       serdeInfo: Option[SerdeInfo],
       options: Map[String, String],
       location: Option[String],
       comment: Option[String],
       external: Boolean): Option[CatalogTable] = {
-    (provider, serdeInfo) match {
+    (providerOption, serdeInfo) match {
       case (Some(provider), Some(serde)) =>
         throw new AnalysisException(
           s"Cannot create table with both USING $provider and ${serde.describe}")
