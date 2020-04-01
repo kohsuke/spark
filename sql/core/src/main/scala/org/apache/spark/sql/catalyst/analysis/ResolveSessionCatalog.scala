@@ -632,7 +632,7 @@ class ResolveSessionCatalog(
       c: CreateTableAsSelectStatement): Option[CatalogTable] = {
     buildV1Table(
       ident, new StructType, c.partitioning, c.bucketSpec, c.properties, c.provider, c.serde,
-      c.options, c.location, c.comment)
+      c.options, c.location, c.comment, c.external)
   }
 
   private def buildV1Table(
@@ -640,7 +640,7 @@ class ResolveSessionCatalog(
       c: CreateTableStatement): Option[CatalogTable] = {
     buildV1Table(
       ident, c.tableSchema, c.partitioning, c.bucketSpec, c.properties, c.provider, c.serde,
-      c.options, c.location, c.comment)
+      c.options, c.location, c.comment, c.external)
   }
 
   private def buildV1Table(
@@ -653,7 +653,8 @@ class ResolveSessionCatalog(
       serdeInfo: Option[SerdeInfo],
       options: Map[String, String],
       location: Option[String],
-      comment: Option[String]): Option[CatalogTable] = {
+      comment: Option[String],
+      external: Boolean): Option[CatalogTable] = {
     (provider, serdeInfo) match {
       case (Some(provider), Some(serde)) =>
         throw new AnalysisException(
@@ -662,22 +663,22 @@ class ResolveSessionCatalog(
       case (None, Some(serde)) =>
         Some(buildHiveCatalogTable(
           table, schema, partitioning, bucketSpec, properties, serde, options, location,
-          comment))
+          comment, external))
 
       case (None, None) if conf.createHiveTableByDefaultEnabled =>
         Some(buildHiveCatalogTable(
           table, schema, partitioning, bucketSpec, properties, SerdeInfo.empty, options, location,
-          comment))
+          comment, external))
 
       case (Some(provider), None) if !isV2Provider(provider) =>
         Some(buildCatalogTable(
           table, schema, partitioning, bucketSpec, properties, provider, options, location,
-          comment))
+          comment, external))
 
       case (None, None) if !isV2Provider(conf.defaultDataSourceName) =>
         Some(buildCatalogTable(
           table, schema, partitioning, bucketSpec, properties, conf.defaultDataSourceName, options,
-          location, comment))
+          location, comment, external))
 
       case _ =>
         None
@@ -693,8 +694,12 @@ class ResolveSessionCatalog(
       provider: String,
       options: Map[String, String],
       location: Option[String],
-      comment: Option[String]): CatalogTable = {
+      comment: Option[String],
+      external: Boolean): CatalogTable = {
     assertNoCharTypeInSchema(schema)
+    if (external) {
+      throw new AnalysisException(s"Operation not allowed: CREATE EXTERNAL TABLE ... USING")
+    }
 
     val storage = CatalogStorageFormat.empty.copy(
       locationUri = location.map(CatalogUtils.stringToURI),
@@ -727,10 +732,12 @@ class ResolveSessionCatalog(
       serdeInfo: SerdeInfo,
       options: Map[String, String],
       location: Option[String],
-      comment: Option[String]): CatalogTable = {
-    val baseStorage = HiveSerDe.getDefaultStorage(conf).copy(
+      comment: Option[String],
+      external: Boolean): CatalogTable = {
+    val defaultStorage = HiveSerDe.getDefaultStorage(conf)
+    val baseStorage = defaultStorage.copy(
       locationUri = location.map(CatalogUtils.stringToURI),
-      serde = serdeInfo.serde,
+      serde = serdeInfo.serde.orElse(defaultStorage.serde),
       properties = options ++ serdeInfo.serdeProperties)
 
     val storage = (serdeInfo.storedAs, serdeInfo.formatClasses) match {
@@ -739,7 +746,8 @@ class ResolveSessionCatalog(
           case Some(hiveSerDe) =>
             baseStorage.copy(
               inputFormat = hiveSerDe.inputFormat,
-              outputFormat = hiveSerDe.outputFormat)
+              outputFormat = hiveSerDe.outputFormat,
+              serde = serdeInfo.serde.orElse(hiveSerDe.serde))
           case _ =>
             baseStorage
         }
@@ -750,6 +758,10 @@ class ResolveSessionCatalog(
 
       case _ =>
         baseStorage
+    }
+
+    if (external && location.isEmpty) {
+      throw new AnalysisException(s"CREATE EXTERNAL TABLE must be accompanied by LOCATION")
     }
 
     val tableType = if (location.isDefined) {
@@ -763,6 +775,7 @@ class ResolveSessionCatalog(
       tableType = tableType,
       storage = storage,
       schema = schema,
+      provider = Some(DDLUtils.HIVE_PROVIDER),
       partitionColumnNames = partitioning.asPartitionColumns,
       bucketSpec = bucketSpec,
       properties = properties,
