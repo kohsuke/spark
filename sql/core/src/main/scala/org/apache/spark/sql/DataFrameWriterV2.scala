@@ -129,7 +129,9 @@ final class DataFrameWriterV2[T] private[sql](table: String, ds: Dataset[T])
         None,
         None,
         options.toMap,
-        ifNotExists = false)
+        None,
+        ifNotExists = false,
+        external = false)
     }
   }
 
@@ -239,6 +241,7 @@ final class DataFrameWriterV2[T] private[sql](table: String, ds: Dataset[T])
         None,
         None,
         options.toMap,
+        None,
         orCreate = orCreate)
     }
   }
