@@ -26,6 +26,7 @@ import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, AttributeReference, SubqueryExpression}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, Project, View}
+import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.NamespaceHelper
 import org.apache.spark.sql.internal.StaticSQLConf
 import org.apache.spark.sql.types.{BooleanType, MetadataBuilder, StringType}
 import org.apache.spark.sql.util.SchemaUtils
@@ -321,7 +322,7 @@ case class ShowViewsCommand(
     val views = tableIdentifierPattern.map(catalog.listViews(db, _))
       .getOrElse(catalog.listViews(db, "*"))
     views.map { tableIdent =>
-      val namespace = tableIdent.database.getOrElse("")
+      val namespace = tableIdent.database.toArray.quoted
       val tableName = tableIdent.table
       val isTemp = catalog.isTemporaryTable(tableIdent)
 
