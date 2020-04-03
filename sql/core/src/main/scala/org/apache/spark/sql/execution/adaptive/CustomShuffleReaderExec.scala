@@ -17,7 +17,8 @@
 
 package org.apache.spark.sql.execution.adaptive
 
-import scala.collection.mutable.ArrayBuffer
+
+import scala.collection.mutable
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
@@ -26,7 +27,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartit
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-
 
 /**
  * A wrapper of shuffle query stage, which follows the given partition arrangement.
@@ -114,7 +114,7 @@ case class CustomShuffleReaderExec private(
       skewedMetric.set(numSkewedPartitions)
       driverAccumUpdates = driverAccumUpdates :+ (skewedMetric.id, numSkewedPartitions.toLong)
     }
-
+    
     if(!isLocalReader) {
       val partitionMetrics = metrics("partitionDataSize")
       val mapStats = shuffleStage.get.mapStats
