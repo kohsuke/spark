@@ -33,7 +33,11 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWri
 import org.apache.avro.generic.GenericData.{EnumSymbol, Fixed}
 import org.apache.commons.io.FileUtils
 
+<<<<<<< HEAD
 import org.apache.spark.SparkException
+=======
+import org.apache.spark.{SPARK_VERSION_SHORT, SparkConf, SparkException}
+>>>>>>> 6b1ca886c0... [SPARK-31327][SQL] Write Spark version into Avro file metadata
 import org.apache.spark.sql._
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.internal.SQLConf
@@ -1356,5 +1360,17 @@ class AvroSuite extends QueryTest with SharedSQLContext with SQLTestUtils {
       |  ]
       |}
     """.stripMargin)
+  }
+
+  test("SPARK-31327: Write Spark version into Avro file metadata") {
+    withTempPath { path =>
+      spark.range(1).repartition(1).write.format("avro").save(path.getCanonicalPath)
+      val avroFiles = path.listFiles()
+        .filter(f => f.isFile && !f.getName.startsWith(".") && !f.getName.startsWith("_"))
+      assert(avroFiles.length === 1)
+      val reader = DataFileReader.openReader(avroFiles(0), new GenericDatumReader[GenericRecord]())
+      val version = reader.asInstanceOf[DataFileReader[_]].getMetaString(SPARK_VERSION_METADATA_KEY)
+      assert(version === SPARK_VERSION_SHORT)
+    }
   }
 }
