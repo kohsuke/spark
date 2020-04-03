@@ -854,6 +854,7 @@ class AdaptiveQueryExecSuite
           assert(reader.hasCoalescedPartition)
           assert(reader.metrics.contains("numSkewedPartitions"))
           assert(reader.metrics("numSkewedPartitions").value > 0)
+          assert(reader.metrics("numSplitTasks").value > 0)
         }
       }
     }
