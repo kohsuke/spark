@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.adaptive
 
+import scala.collection.mutable
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -24,7 +26,6 @@ import org.apache.spark.sql.catalyst.plans.physical.{Partitioning, UnknownPartit
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.exchange.{ReusedExchangeExec, ShuffleExchangeExec}
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
-
 
 /**
  * A wrapper of shuffle query stage, which follows the given partition arrangement.
@@ -116,12 +117,24 @@ case class CustomShuffleReaderExec private(
   }
 
   private def skewedPartitionMetrics = {
-    val metrics = SQLMetrics.createMetric(sparkContext, "number of skewed partitions")
-    val numSkewedPartitions = partitionSpecs.collect {
-      case p: PartialReducerPartitionSpec => p.reducerIndex
-    }.distinct.length
-    metrics.set(numSkewedPartitions)
-    Map("numSkewedPartitions" -> metrics)
+    val skewedPartitions = SQLMetrics.createMetric(sparkContext, "number of skewed partitions")
+    val splitTasks = SQLMetrics.createMetric(sparkContext, "number of split tasks")
+
+    val skewedMetrics = new mutable.HashMap[Int, Long]()
+    partitionSpecs.map {
+      case p: PartialReducerPartitionSpec =>
+        if (skewedMetrics.contains(p.reducerIndex)) {
+          skewedMetrics.update(p.reducerIndex, skewedMetrics.get(p.reducerIndex).get + 1)
+        } else {
+          skewedMetrics.put(p.reducerIndex, 1)
+        }
+      case _ => None
+    }
+
+    skewedPartitions.set(skewedMetrics.keySet.size)
+    splitTasks.set(skewedMetrics.values.sum)
+    Map("numSkewedPartitions" -> skewedPartitions,
+         "numSplitTasks" -> splitTasks)
   }
 
   @transient override lazy val metrics: Map[String, SQLMetric] = {
