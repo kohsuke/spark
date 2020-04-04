@@ -378,7 +378,7 @@ select json_object_keys('')
 struct<>
 -- !query output
 java.lang.IllegalArgumentException
-json_object_keys expect a JSON object but nothing is provided.
+json_object_keys expects a JSON object but nothing is provided.
 
 
 -- !query
