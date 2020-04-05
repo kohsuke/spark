@@ -92,25 +92,25 @@ class HadoopMapReduceCommitProtocol(
   private def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
   /**
-   * Get a staging path for a task when dynamicPartitionOverwrite=true.
+   * Get staging path for a task with dynamicPartitionOverwrite=true.
    */
-  private def stagingTaskPath(dir: Option[String], taskContext: TaskAttemptContext): Path = {
+  private def dynamicStagingTaskPath(dir: Option[String], taskContext: TaskAttemptContext): Path = {
     assert(dynamicPartitionOverwrite && dir.isDefined)
     val attemptID = taskContext.getTaskAttemptID.getId
     new Path(stagingDir, s"${dir.get}-${attemptID}")
   }
 
   /**
-   * Tracks the staging task files when dynamicPartitionOverwrite=true.
+   * Tracks the staging task files with dynamicPartitionOverwrite=true.
    */
-  @transient private var stagingTaskFiles: mutable.Set[Path] = null
+  @transient private var dynamicStagingTaskFiles: mutable.Set[Path] = null
 
   /**
-   * Get responding partition path for a task when dynamicPartitionOverwrite=true.
+   * Get responding partition path for a task with dynamicPartitionOverwrite=true.
    */
-  private def getPartitionPath(stagingTaskFile: Path, taskContext: TaskAttemptContext): Path = {
+  private def getDynamicPartitionPath(stagingTaskFile: Path, context: TaskAttemptContext): Path = {
     assert(dynamicPartitionOverwrite)
-    val attemptID = taskContext.getTaskAttemptID.getId
+    val attemptID = context.getTaskAttemptID.getId
     val stagingPartitionPath = stagingTaskFile.getParent
     val partitionPathName = stagingPartitionPath.getName.stripSuffix(s"-$attemptID")
     new Path(stagingPartitionPath.getParent, partitionPathName)
@@ -144,8 +144,8 @@ class HadoopMapReduceCommitProtocol(
 
     dir.map { d =>
       if (dynamicPartitionOverwrite) {
-        val tempFile = new Path(stagingTaskPath(dir, taskContext), filename)
-        stagingTaskFiles += tempFile
+        val tempFile = new Path(dynamicStagingTaskPath(dir, taskContext), filename)
+        dynamicStagingTaskFiles += tempFile
         tempFile.toString
       } else {
         new Path(new Path(stagingDir, d), filename).toString
@@ -267,7 +267,7 @@ class HadoopMapReduceCommitProtocol(
     committer.setupTask(taskContext)
     addedAbsPathFiles = mutable.Map[String, String]()
     partitionPaths = mutable.Set[String]()
-    stagingTaskFiles = mutable.Set[Path]()
+    dynamicStagingTaskFiles = mutable.Set[Path]()
   }
 
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
@@ -277,9 +277,9 @@ class HadoopMapReduceCommitProtocol(
       committer, taskContext, attemptId.getJobID.getId, attemptId.getTaskID.getId)
     if (dynamicPartitionOverwrite) {
       val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
-      stagingTaskFiles.foreach { stagingTaskFile =>
+      dynamicStagingTaskFiles.foreach { stagingTaskFile =>
         val fileName = stagingTaskFile.getName
-        val taskPartitionPath = getPartitionPath(stagingTaskFile, taskContext)
+        val taskPartitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
         val destFile = new Path(taskPartitionPath, fileName)
         if (!fs.rename(stagingTaskFile, destFile)) {
          throw new IOException(s"Failed to rename $stagingTaskFile to $destFile")
