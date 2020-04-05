@@ -531,7 +531,7 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
        {"a":1,"b":3}
       > SELECT _FUNC_(CAST(NULL AS struct<a:int,b:int>), "b", 2);
        NULL
-      > SELECT _FUNC_(A, 'A', _FUNC_(A.A, 'C', 3)) AS A FROM (VALUES (NAMED_STRUCT('A', NAMED_STRUCT('A', 1, 'B', 2))) AS nested_struct(A))
+      > SELECT _FUNC_(A, 'A', _FUNC_(A.A, 'C', 3)) AS A FROM (VALUES (NAMED_STRUCT('A', NAMED_STRUCT('A', 1, 'B', 2))) AS nested_struct(A));
        {"A":{"A":1,"B":2,"C":3}}
   """)
 // scalastyle:on line.size.limit
