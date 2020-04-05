@@ -1130,7 +1130,8 @@ case class ShowCreateTableCommand(table: TableIdentifier)
 
       // TODO: [SPARK-28692] unify this after we unify the
       //  CREATE TABLE syntax for hive serde and data source table.
-      val metadata = if (DDLUtils.isDatasourceTable(tableMetadata)) {
+      val metadata = if (DDLUtils.isDatasourceTable(tableMetadata) ||
+          tableMetadata.tableType == VIEW) {
         tableMetadata
       } else {
         // For a Hive serde table, we try to convert it to Spark DDL.
@@ -1152,11 +1153,7 @@ case class ShowCreateTableCommand(table: TableIdentifier)
               "to show Hive DDL instead.")
         }
 
-        if (tableMetadata.tableType == VIEW) {
-          tableMetadata
-        } else {
-          convertTableMetadata(tableMetadata)
-        }
+        convertTableMetadata(tableMetadata)
       }
 
       val builder = StringBuilder.newBuilder
