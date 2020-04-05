@@ -536,7 +536,7 @@ case class AddFields(children: Seq[Expression]) extends Expression {
   private lazy val (nameExprs, valExprs) = children.drop(1).grouped(2).map {
     case Seq(name, value) => (name, value)
   }.toList.unzip
-  private lazy val fieldNames = nameExprs.map(_.eval().asInstanceOf[UTF8String].toString)
+  private lazy val fieldNames = nameExprs.map(_.eval().toString)
   private lazy val pairs = fieldNames.zip(valExprs)
 
   override def nullable: Boolean = struct.nullable
