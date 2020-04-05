@@ -3503,22 +3503,6 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
       assert(SQLConf.get.getConf(SQLConf.CODEGEN_FALLBACK) === true)
     }
   }
-
-  test("[SPARK-27194][SPARK-29302][SQL] Fix the issue that for dynamic partition overwrite a " +
-    "task would conflict with its speculative task") {
-    withTable("ta", "tb") {
-      withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key ->
-        SQLConf.PartitionOverwriteMode.DYNAMIC.toString) {
-        sql("create table ta (c1 int, p1 int, p2 int) using parquet partitioned by (p1, p2)")
-        val df = spark.sparkContext.parallelize(0 until 10000, 10)
-          .map(index => (index, index % 10))
-          .toDF("c1", "p2")
-        df.write.mode("overwrite").saveAsTable("tb")
-        sql("insert overwrite table ta partition(p1=1,p2) select * from tb")
-        checkAnswer(sql("select c1, p2 from ta where p1='1'"), df)
-      }
-    }
-  }
 }
 
 case class Foo(bar: Option[String])
