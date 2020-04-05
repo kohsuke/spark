@@ -542,6 +542,8 @@ case class AddFields(children: Seq[Expression]) extends Expression {
 
   override def nullable: Boolean = struct.nullable
 
+  override def foldable: Boolean = children.forall(_.foldable)
+
   private lazy val ogStructType: StructType =
     struct.dataType.asInstanceOf[StructType]
 
