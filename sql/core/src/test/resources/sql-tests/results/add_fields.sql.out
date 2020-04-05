@@ -42,30 +42,30 @@ cannot resolve 'add_fields(struct_level_1.`ID`, 'D', 2)' due to data type mismat
 
 
 -- !query
-SELECT ADD_FIELDS(A, NULL, 2) AS A FROM struct_level_1
--- !query schema
-struct<>
--- !query output
-org.apache.spark.sql.AnalysisException
-cannot resolve 'add_fields(struct_level_1.`A`, NULL, 2)' due to data type mismatch: Only non-null foldable string expressions are allowed to appear at even position.; line 1 pos 7
-
-
--- !query
 SELECT ADD_FIELDS(A, 1, 2) AS A FROM struct_level_1
 -- !query schema
 struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
-cannot resolve 'add_fields(struct_level_1.`A`, 1, 2)' due to data type mismatch: Only non-null foldable string expressions are allowed to appear at even position.; line 1 pos 7
+cannot resolve 'add_fields(struct_level_1.`A`, 1, 2)' due to data type mismatch: Only foldable string expressions are allowed to appear at even position.; line 1 pos 7
 
 
 -- !query
-SELECT ADD_FIELDS() AS A FROM struct_level_1
+SELECT ADD_FIELDS(A, NULL, 2) AS A FROM struct_level_1
 -- !query schema
 struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
-cannot resolve 'add_fields()' due to data type mismatch: add_fields expects an odd number of arguments.; line 1 pos 7
+cannot resolve 'add_fields(struct_level_1.`A`, NULL, 2)' due to data type mismatch: Field name should not be null.; line 1 pos 7
+
+
+-- !query
+SELECT ADD_FIELDS(A, 'D') AS A FROM struct_level_1
+-- !query schema
+struct<>
+-- !query output
+org.apache.spark.sql.AnalysisException
+cannot resolve 'add_fields(struct_level_1.`A`, 'D')' due to data type mismatch: add_fields expects an odd number of arguments.; line 1 pos 7
 
 
 -- !query

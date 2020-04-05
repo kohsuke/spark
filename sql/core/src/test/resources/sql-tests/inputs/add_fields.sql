@@ -10,17 +10,17 @@ CREATE TEMPORARY VIEW struct_level_2 AS VALUES
   (NAMED_STRUCT('A', NAMED_STRUCT('A', 1, 'B', 1, 'C', 1)))
   AS T(A);
 
--- Should fail if called on a non-struct column
+-- Should fail if first argument is not a struct
 SELECT ADD_FIELDS(ID, 'D', 2) AS A FROM struct_level_1;
-
--- Should fail if null fieldName supplied
-SELECT ADD_FIELDS(A, NULL, 2) AS A FROM struct_level_1;
 
 -- Should fail if fieldName is not a string
 SELECT ADD_FIELDS(A, 1, 2) AS A FROM struct_level_1;
 
--- Should fail if not given any fields to add
-SELECT ADD_FIELDS() AS A FROM struct_level_1;
+-- Should fail if given a null string for fieldName
+SELECT ADD_FIELDS(A, NULL, 2) AS A FROM struct_level_1;
+
+-- Should fail if name-value pairs aren't given
+SELECT ADD_FIELDS(A, 'D') AS A FROM struct_level_1;
 
 -- Should return original struct if given no fields to add/replace
 SELECT ADD_FIELDS(A) AS A FROM struct_level_1;

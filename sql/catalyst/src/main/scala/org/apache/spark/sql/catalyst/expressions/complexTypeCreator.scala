@@ -565,13 +565,12 @@ case class AddFields(children: Seq[Expression]) extends Expression {
       TypeCheckResult.TypeCheckFailure(
         s"Only $expectedStructType is allowed to appear at first position, got: " +
           s"${struct.dataType.typeName}.")
-    } else if (nameExprs.exists(e => e == null || !(e.foldable && e.dataType == StringType))) {
+    } else if (nameExprs.exists(e => e.eval() == null)) {
+      TypeCheckResult.TypeCheckFailure("Field name should not be null.")
+    } else if (nameExprs.exists(e => !(e.foldable && e.dataType == StringType))) {
       TypeCheckResult.TypeCheckFailure(
-        s"Only non-null foldable ${StringType.catalogString} expressions are allowed to appear " +
-          "at even position.")
-    } else if (valExprs.contains(null)) {
-      TypeCheckResult.TypeCheckFailure(
-        "Only non-null expressions are allowed to appear at odd positions after first position.")
+        s"Only foldable ${StringType.catalogString} expressions are allowed to appear at even " +
+          "position.")
     } else {
       TypeCheckResult.TypeCheckSuccess
     }
@@ -663,7 +662,7 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     existingFields: Seq[(String, V)],
     addOrReplaceFields: Seq[(String, V)]): Seq[V] = {
 
-    addOrReplaceFields.foldLeft(existingFields) { case (newFields, field@(fieldName, _)) =>
+    addOrReplaceFields.foldLeft(existingFields) { case (newFields, field @ (fieldName, _)) =>
       if (newFields.exists { case (name, _) => name == fieldName }) {
         newFields.map {
           case (name, _) if name == fieldName => field
