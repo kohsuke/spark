@@ -880,22 +880,10 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
       checkAnswer(df, expectedAnswer)
     }
 
-    val structLevel1Schema =
-      StructType(Seq(
-        StructField("a", IntegerType),
-        StructField("b", IntegerType),
-        StructField("c", IntegerType)))
-
-    val structLevel2Schema =
-      StructType(Seq(
-        StructField("a", structLevel1Schema)))
-
-    val structLevel1WithNewFieldSchema =
-      structLevel1Schema.add("d", IntegerType, nullable = false)
-
-    val structLevel2WithNewFieldSchema =
-      StructType(Seq(
-        StructField("a", structLevel1WithNewFieldSchema)))
+    val structLevel1Schema = StructType(Seq(
+      StructField("a", IntegerType),
+      StructField("b", IntegerType),
+      StructField("c", IntegerType)))
 
     lazy val structLevel1: DataFrame = spark.createDataFrame(sparkContext.parallelize(
       Row(Row(1, 1, 1)) :: Nil),
@@ -907,85 +895,95 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     lazy val structLevel2: DataFrame = spark.createDataFrame(sparkContext.parallelize(
       Row(Row(Row(1, 1, 1))) :: Nil),
-      StructType(Seq(StructField("a", structLevel2Schema))))
-
-    lazy val nullStructLevel2: DataFrame = spark.createDataFrame(sparkContext.parallelize(
-      Row(null) :: Nil),
-      StructType(Seq(StructField("a", structLevel2Schema))))
+      StructType(Seq(StructField("a", StructType(Seq(
+        StructField("a", StructType(Seq(
+          StructField("a", IntegerType),
+          StructField("b", IntegerType),
+          StructField("c", IntegerType))))))))))
 
     val testNamePrefix = "withField: "
 
     test(testNamePrefix +
-      "should throw error if withField is called on a column that is not struct dataType") {
+      "should throw error if withField is called on a column that is not a struct dataType") {
       intercept[AnalysisException] {
         testData.withColumn("key", $"key".withField("a", lit(2)))
-      }.getMessage should include(
-        "Only struct is allowed to appear at first position, got: integer")
+      }.getMessage should include("Only struct is allowed to appear at first position, got: " +
+        "integer")
     }
 
-    test(testNamePrefix + "should throw error if null fieldName supplied") {
+    test(testNamePrefix + "should throw error if given null fieldName") {
       intercept[AnalysisException] {
         structLevel1.withColumn("a", $"a".withField(null, lit(2)))
-      }.getMessage should include(
-        "Only non-null foldable string expressions are allowed to appear at even position")
+      }.getMessage should include("Field name should not be null.")
     }
 
-    test(testNamePrefix + "should add new field to struct") {
-      val expectedValue = Row(Row(1, 1, 1, 2)) :: Nil
-      val expectedSchema = StructType(Seq(StructField("a", structLevel1WithNewFieldSchema)))
+    test(testNamePrefix + "should return null if struct is null") {
+      checkAnswerCustom(
+        nullStructLevel1.withColumn("a", $"a".withField("d", lit(2))),
+        Row(null) :: Nil,
+        StructType(Seq(StructField("a", StructType(Seq(
+          StructField("a", IntegerType),
+          StructField("b", IntegerType),
+          StructField("c", IntegerType),
+          StructField("d", IntegerType, nullable = false)))))))
+    }
 
+    test(testNamePrefix + "should add field to struct") {
       checkAnswerCustom(
         structLevel1.withColumn("a", 'a.withField("d", lit(2))),
-        expectedValue,
-        expectedSchema)
-
-      checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("d", lit(2))),
-        expectedValue,
-        expectedSchema)
-    }
-
-    test(testNamePrefix + "should add multiple new fields to struct") {
-      checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("d", lit(2)).withField("e", lit(3))),
-        Row(Row(1, 1, 1, 2, 3)) :: Nil,
-        StructType(Seq(StructField("a", structLevel1Schema.add("d", IntegerType, nullable = false)
-          .add("e", IntegerType, nullable = false)))))
+        Row(Row(1, 1, 1, 2)) :: Nil,
+        StructType(Seq(StructField("a", StructType(Seq(
+          StructField("a", IntegerType),
+          StructField("b", IntegerType),
+          StructField("c", IntegerType),
+          StructField("d", IntegerType, nullable = false)))))))
     }
 
     test(testNamePrefix + "should replace field in struct") {
       checkAnswerCustom(
         structLevel1.withColumn("a", $"a".withField("b", lit(2))),
         Row(Row(1, 2, 1)) :: Nil,
-        StructType(Seq(StructField("a", StructType(structLevel1Schema.updated(1, StructField("b",
-          IntegerType, nullable = false)))))))
+        StructType(Seq(StructField("a",
+          StructType(Seq(
+            StructField("a", IntegerType),
+            StructField("b", IntegerType, nullable = false),
+            StructField("c", IntegerType)))))))
     }
 
-    test(testNamePrefix + "should replace multiple fields in struct") {
+    test(testNamePrefix + "should add null field to struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("a", lit(2)).withField("b", lit(2))),
-        Row(Row(2, 2, 1)) :: Nil,
-        StructType(Seq(
-          StructField("a", StructType(structLevel1Schema
-            .updated(0, StructField("a", IntegerType, nullable = false))
-            .updated(1, StructField("b", IntegerType, nullable = false)))))))
+        structLevel1.withColumn("a", 'a.withField("d", lit(null).cast(IntegerType))),
+        Row(Row(1, 1, 1, null)) :: Nil,
+        StructType(Seq(StructField("a", StructType(Seq(
+          StructField("a", IntegerType),
+          StructField("b", IntegerType),
+          StructField("c", IntegerType),
+          StructField("d", IntegerType)))))))
     }
 
-    test(testNamePrefix + "should add and replace fields in struct") {
+    test(testNamePrefix + "should replace field with null value in struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("b", lit(2)).withField("d", lit(2))),
-        Row(Row(1, 2, 1, 2)) :: Nil,
-        StructType(Seq(StructField("a", StructType(structLevel1WithNewFieldSchema.updated(1,
-          StructField("b", IntegerType, nullable = false)))))))
+        structLevel1.withColumn("a", $"a".withField("b", lit(null).cast(IntegerType))),
+        Row(Row(1, null, 1)) :: Nil,
+        StructType(Seq(StructField("a",
+          StructType(Seq(
+            StructField("a", IntegerType),
+            StructField("b", IntegerType),
+            StructField("c", IntegerType)))))))
     }
 
-    test(testNamePrefix + "should add new field to nested struct") {
+    test(testNamePrefix + "should add field to nested struct") {
       checkAnswerCustom(
         structLevel2.withColumn("a", $"a".withField(
           "a", $"a.a".withField(
             "d", lit(2)))),
         Row(Row(Row(1, 1, 1, 2))) :: Nil,
-        StructType(Seq(StructField("a", structLevel2WithNewFieldSchema))))
+        StructType(Seq(StructField("a", StructType(Seq(
+          StructField("a", StructType(Seq(
+            StructField("a", IntegerType),
+            StructField("b", IntegerType),
+            StructField("c", IntegerType),
+            StructField("d", IntegerType, nullable = false))))))))))
     }
 
     test(testNamePrefix + "should replace field in nested struct") {
@@ -994,40 +992,11 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
           "a", $"a.a".withField(
             "b", lit(2)))),
         Row(Row(Row(1, 2, 1))) :: Nil,
-        StructType(Seq(
+        StructType(Seq(StructField("a", StructType(Seq(
           StructField("a", StructType(Seq(
-            StructField("a", StructType(structLevel1Schema.updated(1, StructField("b",
-              IntegerType, nullable = false))))))))))
-    }
-
-    test(testNamePrefix + "should return null if struct is null") {
-      checkAnswerCustom(
-        nullStructLevel1.withColumn("a", $"a".withField("d", lit(2))),
-        Row(null) :: Nil,
-        StructType(Seq(StructField("a", structLevel1WithNewFieldSchema))))
-
-      checkAnswerCustom(
-        nullStructLevel2.withColumn("a", $"a".withField(
-          "a", $"a.a".withField(
-            "d", lit(2)))),
-        Row(null) :: Nil,
-        StructType(Seq(StructField("a", structLevel2WithNewFieldSchema))))
-    }
-
-    test(testNamePrefix + "should add new field with null value to struct") {
-      checkAnswerCustom(
-        structLevel1.withColumn("a", 'a.withField("d", lit(null).cast(IntegerType))),
-        Row(Row(1, 1, 1, null)) :: Nil,
-        StructType(Seq(StructField("a", structLevel1Schema.add("d", IntegerType,
-          nullable = true)))))
-    }
-
-    test(testNamePrefix + "should replace field with null value in struct") {
-      checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("b", lit(null).cast(IntegerType))),
-        Row(Row(1, null, 1)) :: Nil,
-        StructType(Seq(StructField("a", StructType(structLevel1Schema.updated(1, StructField("b",
-          IntegerType, nullable = true)))))))
+            StructField("a", IntegerType),
+            StructField("b", IntegerType, nullable = false),
+            StructField("c", IntegerType))))))))))
     }
   }
 }
