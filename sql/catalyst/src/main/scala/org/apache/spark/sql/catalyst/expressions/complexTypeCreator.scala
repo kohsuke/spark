@@ -564,10 +564,10 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     } else if (nameExprs.exists(e => e == null || !(e.foldable && e.dataType == StringType))) {
       TypeCheckResult.TypeCheckFailure(
         s"Only non-null foldable ${StringType.catalogString} expressions are allowed to appear " +
-          s"at even position.")
+          "at even position.")
     } else if (valExprs.contains(null)) {
       TypeCheckResult.TypeCheckFailure(
-        s"Only non-null expressions are allowed to appear at odd positions after first position.")
+        "Only non-null expressions are allowed to appear at odd positions after first position.")
     } else {
       TypeCheckResult.TypeCheckSuccess
     }
