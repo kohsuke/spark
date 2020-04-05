@@ -27,6 +27,7 @@ Many items of SQL migration can be applied when migrating PySpark to higher vers
 Please refer [Migration Guide: SQL, Datasets and DataFrame](sql-migration-guide.html).
 
 ## Upgrading from PySpark 2.4 to 3.0
+
 - In Spark 3.0, PySpark requires a pandas version of 0.23.2 or higher to use pandas related functionality, such as `toPandas`, `createDataFrame` from pandas DataFrame, and so on.
 
 - In Spark 3.0, PySpark requires a PyArrow version of 0.12.1 or higher to use PyArrow related functionality, such as `pandas_udf`, `toPandas` and `createDataFrame` with "spark.sql.execution.arrow.enabled=true", etc.
