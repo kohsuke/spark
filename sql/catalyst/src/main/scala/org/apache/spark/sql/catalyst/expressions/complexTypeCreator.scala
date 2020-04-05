@@ -548,7 +548,7 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     val addOrReplaceFields = pairs.map { case (fieldName, field) =>
       (fieldName, StructField(fieldName, field.dataType, field.nullable))
     }
-    val newFields = loop(existingFields, addOrReplaceFields).map(_._2)
+    val newFields = addOrReplaceByFieldName(existingFields, addOrReplaceFields)
     StructType(newFields)
   }
 
@@ -582,7 +582,7 @@ case class AddFields(children: Seq[Expression]) extends Expression {
         ogStructType.fieldNames.zip(structValue.asInstanceOf[InternalRow].toSeq(ogStructType))
       val addOrReplaceValues: Seq[(FieldName, Any)] =
         pairs.map { case (fieldName, expression) => (fieldName, expression.eval(input)) }
-      val newValues = loop(existingValues, addOrReplaceValues).map(_._2)
+      val newValues = addOrReplaceByFieldName(existingValues, addOrReplaceValues)
       InternalRow.fromSeq(newValues)
     }
   }
@@ -608,11 +608,11 @@ case class AddFields(children: Seq[Expression]) extends Expression {
             val nonNullValue = fieldExprCode.value.code
             (fieldName, (nullCheck, nonNullValue))
         }
-      val newFieldsCode = loop(existingFieldsCode, addOrReplaceFieldsCode)
+      val newFieldsCode = addOrReplaceByFieldName(existingFieldsCode, addOrReplaceFieldsCode)
       val rowClass = classOf[GenericInternalRow].getName
       val rowValuesVar = ctx.freshName("rowValues")
       val populateRowValuesVar = newFieldsCode.zipWithIndex.map {
-        case ((_, (nullCheck, nonNullValue)), i) =>
+        case ((nullCheck, nonNullValue), i) =>
           s"""
              |if ($nullCheck) {
              | $rowValuesVar[$i] = null;
@@ -660,32 +660,20 @@ case class AddFields(children: Seq[Expression]) extends Expression {
 
   private type FieldName = String
 
-  /**
-   * Recursively loop through addOrReplaceFields, adding or replacing fields by FieldName.
-   */
-  @scala.annotation.tailrec
-  private def loop[V](
+  // Add or replace elements by FieldName.
+  private def addOrReplaceByFieldName[V](
     existingFields: Seq[(FieldName, V)],
-    addOrReplaceFields: Seq[(FieldName, V)]): Seq[(FieldName, V)] = {
+    addOrReplaceFields: Seq[(FieldName, V)]): Seq[V] = {
 
-    if (addOrReplaceFields.nonEmpty) {
-      val existingFieldNames = existingFields.map(_._1)
-      val newField @ (newFieldName, _) = addOrReplaceFields.head
-
-      if (existingFieldNames.contains(newFieldName)) {
-        loop(
-          existingFields.map {
-            case (fieldName, _) if fieldName == newFieldName => newField
-            case x => x
-          },
-          addOrReplaceFields.drop(1))
+    addOrReplaceFields.foldLeft(existingFields) { case (newFields, field@(fieldName, _)) =>
+      if (newFields.exists { case (name, _) => name == fieldName }) {
+        newFields.map {
+          case (name, _) if name == fieldName => field
+          case x => x
+        }
       } else {
-        loop(
-          existingFields :+ newField,
-          addOrReplaceFields.drop(1))
+        newFields :+ field
       }
-    } else {
-      existingFields
-    }
+    }.map(_._2)
   }
 }
