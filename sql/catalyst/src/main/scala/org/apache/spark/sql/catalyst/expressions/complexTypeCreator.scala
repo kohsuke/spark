@@ -524,10 +524,14 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
   usage = "_FUNC_(struct, name1, val1, name2, val2, ...) - Adds/replaces fields in struct by name.",
   examples = """
     Examples:
-      > SELECT _FUNC_(NAMED_STRUCT("a", 1), "b", 2, "c", 3);
+      > SELECT _FUNC_(NAMED_STRUCT("a", 1, "b", 2), "c", 3);
        {"a":1,"b":2,"c":3}
-      > SELECT _FUNC_(CAST(NULL AS struct<a:int>), "b", 2);
+      > SELECT _FUNC_(NAMED_STRUCT("a", 1, "b", 2), "b", 3);
+       {"a":1,"b":3}
+      > SELECT _FUNC_(CAST(NULL AS struct<a:int,b:int>), "b", 2);
        NULL
+      > SELECT _FUNC_(A, 'A', _FUNC_(A.A, 'C', 3)) AS A FROM (VALUES (NAMED_STRUCT('A', NAMED_STRUCT('A', 1, 'B', 2))) AS nested_struct(A))
+       {"A":{"A":1,"B":2,"C":3}}
   """)
 // scalastyle:on line.size.limit
 case class AddFields(children: Seq[Expression]) extends Expression {
