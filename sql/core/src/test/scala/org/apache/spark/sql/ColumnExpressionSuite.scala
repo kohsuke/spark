@@ -890,26 +890,12 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
       StructType(Seq(
         StructField("a", structLevel1Schema)))
 
-    val structLevel3Schema =
-      StructType(Seq(
-        StructField("a", structLevel1Schema),
-        StructField("b", StructType(Seq(
-          StructField("a", structLevel1Schema),
-          StructField("b", structLevel1Schema))))))
-
     val structLevel1WithNewFieldSchema =
       structLevel1Schema.add("d", IntegerType, nullable = false)
 
     val structLevel2WithNewFieldSchema =
       StructType(Seq(
         StructField("a", structLevel1WithNewFieldSchema)))
-
-    val structLevel3WithNewFieldSchema =
-      StructType(Seq(
-        StructField("a", structLevel1Schema),
-        StructField("b", StructType(Seq(
-          StructField("a", structLevel1WithNewFieldSchema),
-          StructField("b", structLevel1Schema))))))
 
     lazy val structLevel1: DataFrame = spark.createDataFrame(sparkContext.parallelize(
       Row(Row(1, 1, 1)) :: Nil),
@@ -926,14 +912,6 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
     lazy val nullStructLevel2: DataFrame = spark.createDataFrame(sparkContext.parallelize(
       Row(null) :: Nil),
       StructType(Seq(StructField("a", structLevel2Schema))))
-
-    lazy val structLevel3: DataFrame = spark.createDataFrame(sparkContext.parallelize(
-      Seq(Row(Row(Row(1, 2, 3), Row(Row(4, null, 6), Row(7, 8, 9)))))),
-      StructType(Seq(StructField("a", structLevel3Schema))))
-
-    lazy val nullStructLevel3: DataFrame = spark.createDataFrame(sparkContext.parallelize(
-      Seq(Row(null))),
-      StructType(Seq(StructField("a", structLevel3Schema))))
 
     val testNamePrefix = "withField: "
 
@@ -1022,32 +1000,6 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
               IntegerType, nullable = false))))))))))
     }
 
-    test(testNamePrefix + "should add field to deeply nested struct") {
-      checkAnswerCustom(
-        structLevel3.withColumn("a", $"a".withField(
-          "b", $"a.b".withField(
-            "a", $"a.b.a".withField(
-              "d", lit(0))))),
-        Row(Row(Row(1, 2, 3), Row(Row(4, null, 6, 0), Row(7, 8, 9)))) :: Nil,
-        StructType(Seq(StructField("a", structLevel3WithNewFieldSchema))))
-    }
-
-    test(testNamePrefix + "should replace field in deeply nested struct") {
-      checkAnswerCustom(
-        structLevel3.withColumn("a", $"a".withField(
-          "b", $"a.b".withField(
-            "a", $"a.b.a".withField(
-              "b", lit(5))))),
-        Row(Row(Row(1, 2, 3), Row(Row(4, 5, 6), Row(7, 8, 9)))) :: Nil,
-        StructType(Seq(
-          StructField("a", StructType(Seq(
-            StructField("a", structLevel1Schema),
-            StructField("b", StructType(Seq(
-              StructField("a", StructType(
-                structLevel1Schema.updated(1, StructField("b", IntegerType, nullable = false)))),
-              StructField("b", structLevel1Schema))))))))))
-    }
-
     test(testNamePrefix + "should return null if struct is null") {
       checkAnswerCustom(
         nullStructLevel1.withColumn("a", $"a".withField("d", lit(2))),
@@ -1060,25 +1012,14 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
             "d", lit(2)))),
         Row(null) :: Nil,
         StructType(Seq(StructField("a", structLevel2WithNewFieldSchema))))
-
-      checkAnswerCustom(
-        nullStructLevel3.withColumn("a", $"a".withField(
-          "b", $"a.b".withField(
-            "a", $"a.b.a".withField(
-              "d", lit(0))))),
-        Row(null) :: Nil,
-        StructType(Seq(StructField("a", structLevel3WithNewFieldSchema))))
     }
 
     test(testNamePrefix + "should add new field with null value to struct") {
-      val expectedValue = Row(Row(1, 1, 1, null)) :: Nil
-      val expectedSchema = StructType(Seq(StructField("a", structLevel1Schema.add("d", IntegerType,
-        nullable = true))))
-
       checkAnswerCustom(
         structLevel1.withColumn("a", 'a.withField("d", lit(null).cast(IntegerType))),
-        expectedValue,
-        expectedSchema)
+        Row(Row(1, 1, 1, null)) :: Nil,
+        StructType(Seq(StructField("a", structLevel1Schema.add("d", IntegerType,
+          nullable = true)))))
     }
 
     test(testNamePrefix + "should replace field with null value in struct") {
