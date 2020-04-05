@@ -549,7 +549,7 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     val addOrReplaceFields = pairs.map { case (fieldName, field) =>
       (fieldName, StructField(fieldName, field.dataType, field.nullable))
     }
-    val newFields = addOrReplaceByFieldName(existingFields, addOrReplaceFields)
+    val newFields = addOrReplace(existingFields, addOrReplaceFields)
     StructType(newFields)
   }
 
@@ -579,11 +579,12 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     if (structValue == null) {
       null
     } else {
-      val existingValues: Seq[(FieldName, Any)] =
-        ogStructType.fieldNames.zip(structValue.asInstanceOf[InternalRow].toSeq(ogStructType))
-      val addOrReplaceValues: Seq[(FieldName, Any)] =
-        pairs.map { case (fieldName, expression) => (fieldName, expression.eval(input)) }
-      val newValues = addOrReplaceByFieldName(existingValues, addOrReplaceValues)
+      val existingValues = ogStructType.fieldNames.zip(structValue.asInstanceOf[InternalRow]
+        .toSeq(ogStructType))
+      val addOrReplaceValues = pairs.map { case (fieldName, expression) =>
+        (fieldName, expression.eval(input))
+      }
+      val newValues = addOrReplace(existingValues, addOrReplaceValues)
       InternalRow.fromSeq(newValues)
     }
   }
@@ -593,23 +594,19 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     val addOrReplaceFieldsGens = valExprs.map(_.genCode(ctx))
     val resultCode: String = {
       val structVar = structGen.value
-      type NullCheck = String
-      type NonNullValue = String
-      val existingFieldsCode: Seq[(FieldName, (NullCheck, NonNullValue))] =
-        ogStructType.fields.zipWithIndex.map {
-          case (structField, i) =>
-            val nullCheck = s"$structVar.isNullAt($i)"
-            val nonNullValue = CodeGenerator.getValue(structVar, structField.dataType, i.toString)
-            (structField.name, (nullCheck, nonNullValue))
-        }
-      val addOrReplaceFieldsCode: Seq[(FieldName, (NullCheck, NonNullValue))] =
-        fieldNames.zip(addOrReplaceFieldsGens).map {
-          case (fieldName, fieldExprCode) =>
-            val nullCheck = fieldExprCode.isNull.code
-            val nonNullValue = fieldExprCode.value.code
-            (fieldName, (nullCheck, nonNullValue))
-        }
-      val newFieldsCode = addOrReplaceByFieldName(existingFieldsCode, addOrReplaceFieldsCode)
+      val existingFieldsCode = ogStructType.fields.zipWithIndex.map {
+        case (structField, i) =>
+          val nullCheck = s"$structVar.isNullAt($i)"
+          val nonNullValue = CodeGenerator.getValue(structVar, structField.dataType, i.toString)
+          (structField.name, (nullCheck, nonNullValue))
+      }
+      val addOrReplaceFieldsCode = fieldNames.zip(addOrReplaceFieldsGens).map {
+        case (fieldName, fieldExprCode) =>
+          val nullCheck = fieldExprCode.isNull.code
+          val nonNullValue = fieldExprCode.value.code
+          (fieldName, (nullCheck, nonNullValue))
+      }
+      val newFieldsCode = addOrReplace(existingFieldsCode, addOrReplaceFieldsCode)
       val rowClass = classOf[GenericInternalRow].getName
       val rowValuesVar = ctx.freshName("rowValues")
       val populateRowValuesVar = newFieldsCode.zipWithIndex.map {
@@ -659,12 +656,9 @@ case class AddFields(children: Seq[Expression]) extends Expression {
 
   override def prettyName: String = "add_fields"
 
-  private type FieldName = String
-
-  // Add or replace elements by FieldName.
-  private def addOrReplaceByFieldName[V](
-    existingFields: Seq[(FieldName, V)],
-    addOrReplaceFields: Seq[(FieldName, V)]): Seq[V] = {
+  private def addOrReplace[V](
+    existingFields: Seq[(String, V)],
+    addOrReplaceFields: Seq[(String, V)]): Seq[V] = {
 
     addOrReplaceFields.foldLeft(existingFields) { case (newFields, field@(fieldName, _)) =>
       if (newFields.exists { case (name, _) => name == fieldName }) {
