@@ -518,7 +518,6 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
 
 /**
  * Adds/replaces fields in a struct.
- * Returns null if struct is null.
  * If multiple fields already exist with the one of the given fieldNames, they will all be replaced.
  */
 // scalastyle:off line.size.limit
@@ -528,6 +527,8 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
     Examples:
       > SELECT _FUNC_(NAMED_STRUCT("a", 1), "b", 2, "c", 3);
        {"a":1,"b":2,"c":3}
+      > SELECT _FUNC_(CAST(NULL AS struct<a:int>), "b", 2);
+       NULL
   """)
 // scalastyle:on line.size.limit
 case class AddFields(children: Seq[Expression]) extends Expression {
