@@ -95,7 +95,6 @@ class HadoopMapReduceCommitProtocol(
    * Get staging path for a task with dynamicPartitionOverwrite=true.
    */
   private def dynamicStagingTaskPath(dir: Option[String], taskContext: TaskAttemptContext): Path = {
-    assert(dynamicPartitionOverwrite && dir.isDefined)
     val attemptID = taskContext.getTaskAttemptID.getId
     new Path(stagingDir, s"${dir.get}-${attemptID}")
   }
@@ -109,7 +108,6 @@ class HadoopMapReduceCommitProtocol(
    * Get responding partition path for a task with dynamicPartitionOverwrite=true.
    */
   private def getDynamicPartitionPath(stagingTaskFile: Path, context: TaskAttemptContext): Path = {
-    assert(dynamicPartitionOverwrite)
     val attemptID = context.getTaskAttemptID.getId
     val stagingPartitionPath = stagingTaskFile.getParent
     val partitionPathName = stagingPartitionPath.getName.stripSuffix(s"-$attemptID")
