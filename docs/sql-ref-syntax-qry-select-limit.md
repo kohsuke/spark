@@ -24,11 +24,13 @@ is used in conjunction with [ORDER BY](sql-ref-syntax-qry-select-orderby.html) t
 ensure that the results are deterministic.
 
 ### Syntax
+
 {% highlight sql %}
 LIMIT { ALL | integer_expression }
 {% endhighlight %}
 
 ### Parameters
+
 <dl>
   <dt><code><em>ALL</em></code></dt>
   <dd>
@@ -42,6 +44,7 @@ LIMIT { ALL | integer_expression }
 </dl>
 
 ### Examples
+
 {% highlight sql %}
 CREATE TABLE person (name STRING, age INT);
 INSERT INTO person VALUES
@@ -54,31 +57,28 @@ INSERT INTO person VALUES
 
 -- Select the first two rows.
 SELECT name, age FROM person ORDER BY name LIMIT 2;
-
   +------+---+
-  |name  |age|
+  |  name|age|
   +------+---+
-  |Anil B|18 |
-  |Jack N|16 |
+  |Anil B| 18|
+  |Jack N| 16|
   +------+---+
 
 -- Specifying ALL option on LIMIT returns all the rows.
 SELECT name, age FROM person ORDER BY name LIMIT ALL;
-
   +-------+---+
-  |name   |age|
+  |   name|age|
   +-------+---+
-  |Anil B |18 |
-  |Jack N |16 |
-  |John A |18 |
-  |Mike A |25 |
-  |Shone S|16 |
-  |Zen Hui|25 |
+  | Anil B| 18|
+  | Jack N| 16|
+  | John A| 18|
+  | Mike A| 25|
+  |Shone S| 16|
+  |Zen Hui| 25|
   +-------+---+
 
 -- A function expression as an input to LIMIT.
-SELECT name, age FROM person ORDER BY name LIMIT length('SPARK')
-
+SELECT name, age FROM person ORDER BY name LIMIT length('SPARK');
   +-------+---+
   |   name|age|
   +-------+---+
@@ -90,17 +90,17 @@ SELECT name, age FROM person ORDER BY name LIMIT length('SPARK')
   +-------+---+
 
 -- A non-foldable expression as an input to LIMIT is not allowed.
-SELECT name, age FROM person ORDER BY name LIMIT length(name)
-
-org.apache.spark.sql.AnalysisException: The limit expression must evaluate to a constant value ...
+SELECT name, age FROM person ORDER BY name LIMIT length(name);
+  org.apache.spark.sql.AnalysisException: The limit expression must evaluate to a constant value ...
 {% endhighlight %}
 
-### Related Clauses
-- [SELECT Main](sql-ref-syntax-qry-select.html)
-- [WHERE Clause](sql-ref-syntax-qry-select-where.html)
-- [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
-- [HAVING Clause](sql-ref-syntax-qry-select-having.html)
-- [ORDER BY Clause](sql-ref-syntax-qry-select-orderby.html)
-- [SORT BY Clause](sql-ref-syntax-qry-select-sortby.html)
-- [CLUSTER BY Clause](sql-ref-syntax-qry-select-clusterby.html)
-- [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)
+### Related Statements
+
+ * [SELECT Main](sql-ref-syntax-qry-select.html)
+ * [WHERE Clause](sql-ref-syntax-qry-select-where.html)
+ * [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
+ * [HAVING Clause](sql-ref-syntax-qry-select-having.html)
+ * [ORDER BY Clause](sql-ref-syntax-qry-select-orderby.html)
+ * [SORT BY Clause](sql-ref-syntax-qry-select-sortby.html)
+ * [CLUSTER BY Clause](sql-ref-syntax-qry-select-clusterby.html)
+ * [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)

@@ -24,11 +24,13 @@ in conjunction with a [GROUP BY](sql-ref-syntax-qry-select-groupby.html)
 clause.
 
 ### Syntax
+
 {% highlight sql %}
 HAVING boolean_expression
 {% endhighlight %}
 
 ### Parameters
+
 <dl>
   <dt><code><em>boolean_expression</em></code></dt>
   <dd>
@@ -47,6 +49,7 @@ HAVING boolean_expression
 </dl>
 
 ### Examples
+
 {% highlight sql %}
 CREATE TABLE dealer (id INT, city STRING, car_model STRING, quantity INT);
 INSERT INTO dealer VALUES
@@ -61,16 +64,14 @@ INSERT INTO dealer VALUES
 
 -- `HAVING` clause referring to column in `GROUP BY`.
 SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING city = 'Fremont';
-
   +-------+---+
-  |city   |sum|
+  |   city|sum|
   +-------+---+
-  |Fremont|32 |
+  |Fremont| 32|
   +-------+---+
 
 -- `HAVING` clause referring to aggregate function.
 SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING sum(quantity) > 15;
-
   +-------+---+
   |   city|sum|
   +-------+---+
@@ -80,7 +81,6 @@ SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING sum(quantity)
 
 -- `HAVING` clause referring to aggregate function by its alias.
 SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING sum > 15;
-
   +-------+---+
   |   city|sum|
   +-------+---+
@@ -91,16 +91,14 @@ SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING sum > 15;
 -- `HAVING` clause referring to a different aggregate function than what is present in
 -- `SELECT` list.
 SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING max(quantity) > 15;
-
   +------+---+
-  |city  |sum|
+  |  city|sum|
   +------+---+
-  |Dublin|33 |
+  |Dublin| 33|
   +------+---+
 
 -- `HAVING` clause referring to constant expression.
 SELECT city, sum(quantity) AS sum FROM dealer GROUP BY city HAVING 1 > 0 ORDER BY city;
-
   +--------+---+
   |    city|sum|
   +--------+---+
@@ -116,15 +114,15 @@ SELECT sum(quantity) AS sum FROM dealer HAVING sum(quantity) > 10;
   +---+
   | 78|
   +---+
-
 {% endhighlight %}
 
-### Related Clauses
-- [SELECT Main](sql-ref-syntax-qry-select.html)
-- [WHERE Clause](sql-ref-syntax-qry-select-where.html)
-- [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
-- [ORDER BY Clause](sql-ref-syntax-qry-select-orderby.html)
-- [SORT BY Clause](sql-ref-syntax-qry-select-sortby.html)
-- [CLUSTER BY Clause](sql-ref-syntax-qry-select-clusterby.html)
-- [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)
-- [LIMIT Clause](sql-ref-syntax-qry-select-limit.html)
+### Related Statements
+
+ * [SELECT Main](sql-ref-syntax-qry-select.html)
+ * [WHERE Clause](sql-ref-syntax-qry-select-where.html)
+ * [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
+ * [ORDER BY Clause](sql-ref-syntax-qry-select-orderby.html)
+ * [SORT BY Clause](sql-ref-syntax-qry-select-sortby.html)
+ * [CLUSTER BY Clause](sql-ref-syntax-qry-select-clusterby.html)
+ * [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)
+ * [LIMIT Clause](sql-ref-syntax-qry-select-limit.html)
