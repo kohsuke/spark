@@ -156,6 +156,8 @@
                   url: sql-ref-syntax-qry-select-limit.html
                 - text: JOIN
                   url: sql-ref-syntax-qry-select-join.html
+                - text: JOIN HINTS
+                  url: sql-ref-syntax-qry-select-hints.html
             - text: EXPLAIN
               url: sql-ref-syntax-qry-explain.html
         - text: Auxiliary Statements
