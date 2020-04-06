@@ -24,27 +24,29 @@ describes the overall query syntax and the sub-sections cover different construc
 of a query along with examples.
 
 ### Syntax
+
 {% highlight sql %}
 [ WITH with_query [ , ... ] ]
 select_statement [ { UNION | INTERSECT | EXCEPT } [ ALL | DISTINCT ] select_statement, ... ]
-[ ORDER BY { expression [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [ , ...] } ]
-[ SORT BY { expression [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [ , ...] } ]
-[ CLUSTER BY { expression [ , ...] } ]
-[ DISTRIBUTE BY { expression [, ...] } ]
-[ WINDOW { named_window [ , WINDOW named_window, ... ] } ]
-[ LIMIT { ALL | expression } ]
+    [ ORDER BY { expression [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [ , ...] } ]
+    [ SORT BY { expression [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [ , ...] } ]
+    [ CLUSTER BY { expression [ , ...] } ]
+    [ DISTRIBUTE BY { expression [, ...] } ]
+    [ WINDOW { named_window [ , WINDOW named_window, ... ] } ]
+    [ LIMIT { ALL | expression } ]
 {% endhighlight %}
 
 While `select_statement` is defined as
 {% highlight sql %}
 SELECT [ hints , ... ] [ ALL | DISTINCT ] { named_expression [ , ... ] }
-  FROM { from_item [ , ...] }
-  [ WHERE boolean_expression ]
-  [ GROUP BY expression [ , ...] ]
-  [ HAVING boolean_expression ]
+    FROM { from_item [ , ...] }
+    [ WHERE boolean_expression ]
+    [ GROUP BY expression [ , ...] ]
+    [ HAVING boolean_expression ]
 {% endhighlight %}
 
 ### Parameters
+
 <dl>
   <dt><code><em>with_query</em></code></dt>
   <dd>
@@ -141,12 +143,13 @@ SELECT [ hints , ... ] [ ALL | DISTINCT ] { named_expression [ , ... ] }
   </dd>
 </dl>
 
-### Related Clauses
-- [WHERE Clause](sql-ref-syntax-qry-select-where.html)
-- [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
-- [HAVING Clause](sql-ref-syntax-qry-select-having.html)
-- [ORDER BY Clause](sql-ref-syntax-qry-select-orderby.html)
-- [SORT BY Clause](sql-ref-syntax-qry-select-sortby.html)
-- [CLUSTER BY Clause](sql-ref-syntax-qry-select-clusterby.html)
-- [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)
-- [LIMIT Clause](sql-ref-syntax-qry-select-limit.html)
+### Related Statements
+
+ * [WHERE Clause](sql-ref-syntax-qry-select-where.html)
+ * [GROUP BY Clause](sql-ref-syntax-qry-select-groupby.html)
+ * [HAVING Clause](sql-ref-syntax-qry-select-having.html)
+ * [ORDER BY Clause](sql-ref-syntax-qry-select-orderby.html)
+ * [SORT BY Clause](sql-ref-syntax-qry-select-sortby.html)
+ * [CLUSTER BY Clause](sql-ref-syntax-qry-select-clusterby.html)
+ * [DISTRIBUTE BY Clause](sql-ref-syntax-qry-select-distribute-by.html)
+ * [LIMIT Clause](sql-ref-syntax-qry-select-limit.html)
