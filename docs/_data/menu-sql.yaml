@@ -154,10 +154,10 @@
                   url: sql-ref-syntax-qry-select-distribute-by.html
                 - text: LIMIT Clause 
                   url: sql-ref-syntax-qry-select-limit.html
+                - text: TABLESAMPLE
+                  url: sql-ref-syntax-qry-sampling.html
             - text: EXPLAIN
               url: sql-ref-syntax-qry-explain.html
-            - text: TABLESAMPLE
-              url: sql-ref-syntax-qry-sampling.html
         - text: Auxiliary Statements
           url: sql-ref-syntax-aux.html
           subitems:
