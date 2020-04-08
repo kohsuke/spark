@@ -40,6 +40,7 @@ def _find_spark_home():
     paths = ["../", os.path.dirname(os.path.realpath(__file__))]
 
     # Add the path of the PySpark module if it exists
+    is_error_raised = False
     if sys.version < "3":
         import imp
         try:
@@ -49,7 +50,7 @@ def _find_spark_home():
             paths.append(os.path.join(module_home, "../../"))
         except ImportError:
             # Not pip installed no worries
-            pass
+            is_error_raised = True
     else:
         from importlib.util import find_spec
         try:
@@ -59,7 +60,7 @@ def _find_spark_home():
             paths.append(os.path.join(module_home, "../../"))
         except ImportError:
             # Not pip installed no worries
-            pass
+            is_error_raised = True
 
     # Normalize the paths
     paths = [os.path.abspath(p) for p in paths]
@@ -68,6 +69,14 @@ def _find_spark_home():
         return next(path for path in paths if is_spark_home(path))
     except StopIteration:
         print("Could not find valid SPARK_HOME while searching {0}".format(paths), file=sys.stderr)
+        if is_error_raised:
+            print(
+                "Did you install PySpark via PIP? If so, your Python executable does not have "
+                "the PySpark installed. It is possible your Python executable does not point out "
+                "your PIP. Please check your default 'python' and if you set PYSPARK_PYTHON and/or "
+                "PYSPARK_DRIVER_PYTHON environment variables, and see if you can import PySpark. "
+                "If you cannot import, you can install by using Python executble directly, "
+                "for example, 'python -m pip install pyspark'")
         sys.exit(-1)
 
 if __name__ == "__main__":
