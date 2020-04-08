@@ -277,10 +277,10 @@ class HadoopMapReduceCommitProtocol(
       val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
       dynamicStagingTaskFiles.foreach { stagingTaskFile =>
         val fileName = stagingTaskFile.getName
-        val taskPartitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
-        val destFile = new Path(taskPartitionPath, fileName)
-        if (!fs.exists(destFile) && !fs.rename(stagingTaskFile, destFile)) {
-         throw new IOException(s"Failed to rename $stagingTaskFile to $destFile")
+        val partitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
+        val finalFile = new Path(partitionPath, fileName)
+        if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
+         throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
         }
       }
     }
