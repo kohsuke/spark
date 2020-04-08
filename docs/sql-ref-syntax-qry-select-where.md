@@ -18,6 +18,9 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
+
+### Description
+
 The <code>WHERE</code> clause is used to limit the results of the <code>FROM</code>
 clause of a query or a subquery based on the specified condition.
 

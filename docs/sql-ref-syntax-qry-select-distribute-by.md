@@ -18,6 +18,9 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
+
+### Description
+
 The <code>DISTRIBUTE BY</code> clause is used to repartition the data based
 on the input expressions. Unlike the [CLUSTER BY](sql-ref-syntax-qry-select-clusterby.html)
 clause, this does not sort the data within each partition.

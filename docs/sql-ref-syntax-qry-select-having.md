@@ -18,6 +18,9 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
+
+### Description
+
 The <code>HAVING</code> clause is used to filter the results produced by
 <code>GROUP BY</code> based on the specified condition. It is often used
 in conjunction with a [GROUP BY](sql-ref-syntax-qry-select-groupby.html)

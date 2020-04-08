@@ -18,6 +18,9 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
+
+### Description
+
 The <code>ORDER BY</code> clause is used to return the result rows in a sorted manner
 in the user specified order. Unlike the [SORT BY](sql-ref-syntax-qry-select-sortby.html)
 clause, this clause guarantees a total order in the output.

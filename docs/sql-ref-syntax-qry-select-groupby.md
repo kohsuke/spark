@@ -18,6 +18,9 @@ license: |
   See the License for the specific language governing permissions and
   limitations under the License.
 ---
+
+### Description
+
 The <code>GROUP BY</code> clause is used to group the rows based on a set of specified grouping expressions and compute aggregations on
 the group of rows based on one or more specified aggregate functions. Spark also supports advanced aggregations to do multiple
 aggregations for the same input record set via `GROUPING SETS`, `CUBE`, `ROLLUP` clauses.
