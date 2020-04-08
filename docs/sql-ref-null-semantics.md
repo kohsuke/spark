@@ -709,7 +709,7 @@ SELECT * FROM person
   |name|age|
   +----+---+
   |Fred| 50|
-  | Da | 50|
+  | Dan| 50|
   +----+---+
 
 -- Since subquery has `NULL` value in the result set, the `NOT IN`

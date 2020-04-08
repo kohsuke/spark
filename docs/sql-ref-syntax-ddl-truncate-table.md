@@ -89,7 +89,6 @@ SELECT * from Student;
   |name|rollno|age|
   +----+------+---+
   +----+------+---+
-  No rows selected 
 {% endhighlight %}
 
 ### Related Statements
