@@ -98,7 +98,7 @@ In the following sections, it describes the combinations of the supported type h
 
 The type hint can be expressed as `pandas.Series`, ... -> `pandas.Series`.
 
-By using `pandas_udf` with the function having such type hints, it creates a Pandas UDF where the given
+By using `pandas_udf` with the function having such type hints above, it creates a Pandas UDF where the given
 function takes one or more `pandas.Series` and outputs one `pandas.Series`. The output of the function should
 always be of the same length as the input. Internally, PySpark will execute a Pandas UDF by splitting
 columns into batches and calling the function for each batch as a subset of the data, then concatenating
@@ -118,13 +118,15 @@ For detailed usage, please see [`pyspark.sql.functions.pandas_udf`](api/python/p
 
 The type hint can be expressed as `Iterator[pandas.Series]` -> `Iterator[pandas.Series]`.
 
-By using `pandas_udf` with the function having such type hints, it creates a Pandas UDF where the given
-function takes an iterator of `pandas.Series` and outputs an iterator of `pandas.Series`. The output of each
-series from the function should always be of the same length as the input. In this case, the created
-Pandas UDF requires one input column when the Pandas UDF is called. To use multiple input columns,
-a different type hint is required. See Iterator of Multiple Series to Iterator of Series.
+By using `pandas_udf` with the function having such type hints above, it creates a Pandas UDF where the given
+function takes an iterator of `pandas.Series` and outputs an iterator of `pandas.Series`. The
+length of the entire output from the function should be the same length of the entire input; therefore, it can
+prefetch the data from the input iterator as long as the lengths are the same.
+In this case, the created Pandas UDF requires one input column when the Pandas UDF is called. To use
+multiple input columns, a different type hint is required. See Iterator of Multiple Series to Iterator
+of Series.
 
-It is useful when the UDF execution requires initializing some states although internally it works
+It is also useful when the UDF execution requires initializing some states although internally it works
 identically as Series to Series case. The pseudocode below illustrates the example.
 
 {% highlight python %}
@@ -153,10 +155,11 @@ For detailed usage, please see [`pyspark.sql.functions.pandas_udf`](api/python/p
 
 The type hint can be expressed as `Iterator[Tuple[pandas.Series, ...]]` -> `Iterator[pandas.Series]`.
 
-By using `pandas_udf` with the function having such type hints, it creates a Pandas UDF where the
+By using `pandas_udf` with the function having such type hints above, it creates a Pandas UDF where the
 given function takes an iterator of a tuple of multiple `pandas.Series` and outputs an iterator of `pandas.Series`.
 In this case, the created pandas UDF requires multiple input columns as many as the series in the tuple
-when the Pandas UDF is called. It works identically as Iterator of Series to Iterator of Series case except the parameter difference.
+when the Pandas UDF is called. Otherwise, it has the same characteristics and restrictions as Iterator of Series
+to Iterator of Series case.
 
 The following example shows how to create this Pandas UDF:
 
