@@ -296,7 +296,6 @@ DESC student;
 ALTER TABLE Student RENAME TO StudentInfo;
 
 -- After Renaming the table
-
 DESC StudentInfo;
   +-----------------------+---------+-------+
   |               col_name|data_type|comment|
@@ -333,7 +332,6 @@ SHOW PARTITIONS StudentInfo;
   +---------+
 
 -- Add new columns to a table
-
 DESC StudentInfo;
   +-----------------------+---------+-------+
   |               col_name|data_type|comment|
@@ -364,7 +362,6 @@ DESC StudentInfo;
   +-----------------------+---------+-------+
 
 -- Add a new partition to a table 
-
 SHOW PARTITIONS StudentInfo;
   +---------+
   |partition|
@@ -388,7 +385,6 @@ SHOW PARTITIONS StudentInfo;
   +---------+
 
 -- Drop a partition from the table 
-
 SHOW PARTITIONS StudentInfo;
   +---------+
   |partition|
@@ -412,7 +408,6 @@ SHOW PARTITIONS StudentInfo;
   +---------+
 
 -- Adding multiple partitions to the table
-
 SHOW PARTITIONS StudentInfo;
   +---------+
   |partition|
@@ -437,7 +432,6 @@ SHOW PARTITIONS StudentInfo;
   +---------+
 
 -- ALTER OR CHANGE COLUMNS
-
 DESC StudentInfo;
   +-----------------------+---------+-------+
   |               col_name|data_type|comment|
