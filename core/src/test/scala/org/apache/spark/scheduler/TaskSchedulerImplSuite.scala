@@ -306,12 +306,14 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     // Locality levels increase at 3000 ms.
     val advanceAmount = 3000
 
-    // PROCESS_LOCAL full resource offer is accepted.
+    // PROCESS_LOCAL full resource offer is not rejected due to locality.
+    // It has 0 available cores, so no task is launched.
+    // Timer is reset and locality level remains at PROCESS_LOCAL.
     assert(taskScheduler
       .resourceOffers(
-        IndexedSeq(WorkerOffer("exec1", "host1", 1)),
+        IndexedSeq(WorkerOffer("exec1", "host1", 0)),
         isAllFreeResources = true)
-      .flatten.length === 1)
+      .flatten.length === 0)
 
     // Advancing clock increases locality level to NODE_LOCAL.
     clock.advance(advanceAmount)
