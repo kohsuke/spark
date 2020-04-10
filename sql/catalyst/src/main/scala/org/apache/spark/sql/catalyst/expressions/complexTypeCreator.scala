@@ -516,8 +516,9 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
 }
 
 /**
- * Adds/replaces fields in a struct.
- * If multiple fields already exist with the one of the given fieldNames, they will all be replaced.
+ * Adds/replaces fields in struct by name.
+ *
+ * @param children Seq(struct, name1, val1, name2, val2, ...)
  */
 // scalastyle:off line.size.limit
 @ExpressionDescription(
@@ -528,47 +529,34 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
        {"a":1,"b":2,"c":3}
       > SELECT _FUNC_(NAMED_STRUCT("a", 1, "b", 2), "b", 3);
        {"a":1,"b":3}
-      > SELECT _FUNC_(CAST(NULL AS struct<a:int,b:int>), "b", 2);
-       NULL
-      > SELECT _FUNC_(A, 'A', _FUNC_(A.A, 'C', 3)) AS A FROM (VALUES (NAMED_STRUCT('A', NAMED_STRUCT('A', 1, 'B', 2))) AS nested_struct(A));
-       {"A":{"A":1,"B":2,"C":3}}
+      > SELECT _FUNC_(CAST(NULL AS struct<a:int,b:int>), "c", 3);
+       {"a":null,"b":null,"c":3}
+      > SELECT _FUNC_(a, 'b', 100) AS a FROM (VALUES (NAMED_STRUCT('a', 1, 'b', 2, 'b', 3)) AS T(a));
+       {"a":1,"b":100,"c":100}
+      > SELECT _FUNC_(a, 'a', _FUNC_(a.a, 'c', 3)) AS a FROM (VALUES (NAMED_STRUCT('a', NAMED_STRUCT('a', 1, 'b', 2))) AS T(a));
+       {"a":{"a":1,"b":2,"c":3}}
   """)
 // scalastyle:on line.size.limit
-case class AddFields(children: Seq[Expression]) extends Expression {
+case class AddFields(children: Seq[Expression]) extends Unevaluable {
 
-  private lazy val struct: Expression = children.head
+  lazy val ogStructExpr = children.head
+  lazy val ogStructType = ogStructExpr.dataType.asInstanceOf[StructType]
   private lazy val (nameExprs, valExprs) = children.drop(1).grouped(2).map {
     case Seq(name, value) => (name, value)
   }.toList.unzip
-  private lazy val fieldNames = nameExprs.map(_.eval().toString)
-  private lazy val pairs = fieldNames.zip(valExprs)
-
-  override def nullable: Boolean = struct.nullable
-
-  override def foldable: Boolean = children.forall(_.foldable)
-
-  private lazy val ogStructType: StructType =
-    struct.dataType.asInstanceOf[StructType]
-
-  override lazy val dataType: StructType = {
-    val existingFields = ogStructType.fields.map { x => (x.name, x) }
-    val addOrReplaceFields = pairs.map { case (fieldName, field) =>
-      (fieldName, StructField(fieldName, field.dataType, field.nullable))
-    }
-    val newFields = addOrReplace(existingFields, addOrReplaceFields)
-    StructType(newFields)
-  }
+  private lazy val names = nameExprs.map(e => Option(e.eval()).map(_.toString).orNull)
+  lazy val addOrReplaceExprs = names.zip(valExprs)
 
   override def checkInputDataTypes(): TypeCheckResult = {
     val expectedStructType = StructType(Nil).typeName
 
     if (children.size % 2 == 0) {
       TypeCheckResult.TypeCheckFailure(s"$prettyName expects an odd number of arguments.")
-    } else if (struct.dataType.typeName != expectedStructType) {
+    } else if (ogStructExpr.dataType.typeName != expectedStructType) {
       TypeCheckResult.TypeCheckFailure(
         s"Only $expectedStructType is allowed to appear at first position, got: " +
-          s"${struct.dataType.typeName}.")
-    } else if (nameExprs.exists(e => e.eval() == null)) {
+          s"${ogStructExpr.dataType.typeName}.")
+    } else if (names.contains(null)) {
       TypeCheckResult.TypeCheckFailure("Field name should not be null.")
     } else if (nameExprs.exists(e => !(e.foldable && e.dataType == StringType))) {
       TypeCheckResult.TypeCheckFailure(
@@ -579,91 +567,26 @@ case class AddFields(children: Seq[Expression]) extends Expression {
     }
   }
 
-  override def eval(input: InternalRow): Any = {
-    val structValue = struct.eval(input)
-    if (structValue == null) {
-      null
-    } else {
-      val existingValues = ogStructType.fieldNames.zip(structValue.asInstanceOf[InternalRow]
-        .toSeq(ogStructType))
-      val addOrReplaceValues = pairs.map { case (fieldName, expression) =>
-        (fieldName, expression.eval(input))
-      }
-      val newValues = addOrReplace(existingValues, addOrReplaceValues)
-      InternalRow.fromSeq(newValues)
+  override def dataType: StructType = {
+    val ogStructFields = ogStructType.fields.map { f =>
+      (f.name, f.copy(nullable = ogStructExpr.nullable || f.nullable))
     }
+    val addOrReplaceStructFields = addOrReplaceExprs.map { case (name, expr) =>
+      (name, StructField(name, expr.dataType, expr.nullable))
+    }
+    val newStructFields = addOrReplace(ogStructFields, addOrReplaceStructFields).map(_._2)
+    StructType(newStructFields)
   }
 
-  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    val structGen = struct.genCode(ctx)
-    val addOrReplaceFieldsGens = valExprs.map(_.genCode(ctx))
-    val resultCode: String = {
-      val structVar = structGen.value
-      val existingFieldsCode = ogStructType.fields.zipWithIndex.map {
-        case (structField, i) =>
-          val nullCheck = s"$structVar.isNullAt($i)"
-          val nonNullValue = CodeGenerator.getValue(structVar, structField.dataType, i.toString)
-          (structField.name, (nullCheck, nonNullValue))
-      }
-      val addOrReplaceFieldsCode = fieldNames.zip(addOrReplaceFieldsGens).map {
-        case (fieldName, fieldExprCode) =>
-          val nullCheck = fieldExprCode.isNull.code
-          val nonNullValue = fieldExprCode.value.code
-          (fieldName, (nullCheck, nonNullValue))
-      }
-      val newFieldsCode = addOrReplace(existingFieldsCode, addOrReplaceFieldsCode)
-      val rowClass = classOf[GenericInternalRow].getName
-      val rowValuesVar = ctx.freshName("rowValues")
-      val populateRowValuesVar = newFieldsCode.zipWithIndex.map {
-        case ((nullCheck, nonNullValue), i) =>
-          s"""
-             |if ($nullCheck) {
-             | $rowValuesVar[$i] = null;
-             |} else {
-             | $rowValuesVar[$i] = $nonNullValue;
-             |}""".stripMargin
-      }.mkString("\n|")
+  override def foldable: Boolean = children.forall(_.foldable)
 
-      s"""
-         |Object[] $rowValuesVar = new Object[${dataType.length}];
-         |
-         |${addOrReplaceFieldsGens.map(_.code).mkString("\n")}
-         |$populateRowValuesVar
-         |
-         |${ev.value} = new $rowClass($rowValuesVar);
-          """.stripMargin
-    }
-
-    if (nullable) {
-      val nullSafeEval =
-        structGen.code + ctx.nullSafeExec(struct.nullable, structGen.isNull) {
-          s"""
-             |${ev.isNull} = false; // resultCode could change nullability.
-             |$resultCode
-             |""".stripMargin
-        }
-
-      ev.copy(code =
-        code"""
-          boolean ${ev.isNull} = true;
-          ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
-          $nullSafeEval
-          """)
-    } else {
-      ev.copy(code =
-        code"""
-          ${structGen.code}
-          ${CodeGenerator.javaType(dataType)} ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
-          $resultCode
-          """, isNull = FalseLiteral)
-    }
-  }
+  override def nullable: Boolean = false
 
   override def prettyName: String = "add_fields"
 
-  private def addOrReplace[V](
-    existingFields: Seq[(String, V)],
-    addOrReplaceFields: Seq[(String, V)]): Seq[V] = {
+  def addOrReplace[T](
+    existingFields: Seq[(String, T)],
+    addOrReplaceFields: Seq[(String, T)]): Seq[(String, T)] = {
 
     addOrReplaceFields.foldLeft(existingFields) { case (newFields, field @ (fieldName, _)) =>
       if (newFields.exists { case (name, _) => name == fieldName }) {
@@ -674,6 +597,6 @@ case class AddFields(children: Seq[Expression]) extends Expression {
       } else {
         newFields :+ field
       }
-    }.map(_._2)
+    }
   }
 }
