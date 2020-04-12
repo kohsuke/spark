@@ -41,9 +41,9 @@ case class UnaryMinus(child: Expression) extends UnaryExpression
 
   override def dataType: DataType = child.dataType
 
-  override def toString: String = s"-$child"
+  override def toString: String = s"negative($child)"
 
-  override def prettyName: String = "-"
+  override def prettyName: String = "negative"
 
   private lazy val numeric = TypeUtils.getNumeric(dataType, checkOverflow)
 
