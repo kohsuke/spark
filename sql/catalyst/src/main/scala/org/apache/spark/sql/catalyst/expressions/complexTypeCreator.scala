@@ -539,17 +539,16 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
 // scalastyle:on line.size.limit
 case class AddFields(children: Seq[Expression]) extends Unevaluable {
 
-  lazy val ogStructExpr = children.head
-  lazy val ogStructType = ogStructExpr.dataType.asInstanceOf[StructType]
+  private lazy val ogStructExpr = children.head
+  private lazy val ogStructType = ogStructExpr.dataType.asInstanceOf[StructType]
   private lazy val (nameExprs, valExprs) = children.drop(1).grouped(2).map {
     case Seq(name, value) => (name, value)
   }.toList.unzip
   private lazy val names = nameExprs.map(e => Option(e.eval()).map(_.toString).orNull)
-  lazy val addOrReplaceExprs = names.zip(valExprs)
+  private lazy val addOrReplaceExprs = names.zip(valExprs)
 
   override def checkInputDataTypes(): TypeCheckResult = {
     val expectedStructType = StructType(Nil).typeName
-
     if (children.size % 2 == 0) {
       TypeCheckResult.TypeCheckFailure(s"$prettyName expects an odd number of arguments.")
     } else if (ogStructExpr.dataType.typeName != expectedStructType) {
@@ -583,6 +582,16 @@ case class AddFields(children: Seq[Expression]) extends Unevaluable {
   override def nullable: Boolean = false
 
   override def prettyName: String = "add_fields"
+
+  def toCreateNamedStruct: CreateNamedStruct = {
+    val ogStructExprs = ogStructType.fieldNames.zipWithIndex.map {
+      case (name, i) => (name, GetStructField(ogStructExpr, i, Some(name)))
+    }
+    val newStructExprs = addOrReplace(ogStructExprs, addOrReplaceExprs).flatMap {
+      case (name, valExpr) => Seq(Literal(name), valExpr)
+    }
+    CreateNamedStruct(newStructExprs)
+  }
 
   def addOrReplace[T](
     existingFields: Seq[(String, T)],

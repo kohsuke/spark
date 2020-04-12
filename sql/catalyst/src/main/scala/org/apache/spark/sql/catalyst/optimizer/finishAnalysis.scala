@@ -49,15 +49,7 @@ object ReplaceExpressions extends Rule[LogicalPlan] {
     case CountIf(predicate) => Count(new NullIf(predicate, Literal.FalseLiteral))
     case BoolOr(arg) => Max(arg)
     case BoolAnd(arg) => Min(arg)
-    case addFields @ AddFields(_) =>
-      import addFields._
-      val ogStructExprs = ogStructType.fieldNames.zipWithIndex.map { case (name, i) =>
-        (name, GetStructField(ogStructExpr, i, Some(name)))
-      }
-      val newStructExprs = addOrReplace(ogStructExprs, addOrReplaceExprs).flatMap {
-        case (name, valExpr) => Seq(Literal(name), valExpr)
-      }
-      CreateNamedStruct(newStructExprs)
+    case addFields @ AddFields(_) => addFields.toCreateNamedStruct
   }
 }
 
