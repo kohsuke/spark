@@ -192,18 +192,17 @@ class PartitionedSpeculateWriteSuite extends QueryTest with SharedSparkSession {
 
   test("SPARK-27194 SPARK-29302: Fix the issue that for dynamic partition overwrite, a " +
     "task would conflict with its speculative task") {
-    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
+    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString,
+      SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
+        classOf[DetectDynamicSpeculationCommitProtocol].getName) {
       withTable("t") {
-        withSQLConf(SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
-          classOf[DetectDynamicSpeculationCommitProtocol].getName) {
-          spark.sparkContext.parallelize(0 until 10000, 10)
-            .map(index => (index, index % 10))
-            .toDF("c1", "p1")
-            .write
-            .partitionBy("p1")
-            .mode("overwrite")
-            .saveAsTable("t")
-        }
+        spark.sparkContext.parallelize(0 until 10000, 10)
+          .map(index => (index, index % 10))
+          .toDF("c1", "p1")
+          .write
+          .partitionBy("p1")
+          .mode("overwrite")
+          .saveAsTable("t")
       }
     }
   }
