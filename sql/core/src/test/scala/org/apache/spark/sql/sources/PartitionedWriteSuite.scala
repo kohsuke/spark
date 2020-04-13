@@ -20,16 +20,20 @@ package org.apache.spark.sql.sources
 import java.io.File
 import java.sql.Timestamp
 
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import org.apache.spark.TestUtils
-import org.apache.spark.internal.Logging
+import org.apache.spark.{SparkConf, TestUtils}
+import org.apache.spark.internal.{config, Logging}
+import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
+import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
 import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
 import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.util.Utils
 
@@ -153,6 +157,53 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
         assert(files.length == 1)
         // if there isn't timeZone option, then use session local timezone.
         checkPartitionValues(files.head, "2016-12-01 08:00:00")
+      }
+    }
+  }
+}
+
+private class DetectDynamicSpeculationCommitProtocol(
+    jobId: String,
+    path: String,
+    dynamicPartitionOverwrite: Boolean)
+  extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite) {
+
+  override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
+    if (dynamicPartitionOverwrite) {
+      val partitionPathSet = dynamicStagingTaskFiles
+        .map(taskFile => getDynamicPartitionPath(taskFile, taskContext))
+        .map(_.toUri.getPath.stripPrefix(stagingDir.toUri.getPath +
+          Path.SEPARATOR))
+      assert(partitionPathSet.equals(partitionPaths))
+    }
+    super.commitTask(taskContext)
+  }
+}
+
+class PartitionedSpeculateWriteSuite extends QueryTest with SharedSparkSession {
+  import testImplicits._
+
+  override def sparkConf(): SparkConf = {
+    super.sparkConf
+      .set(config.SPECULATION_MULTIPLIER, 0.0)
+      .set(config.SPECULATION_QUANTILE, 0.5)
+      .set(config.SPECULATION_ENABLED, true)
+  }
+
+  test("SPARK-27194 SPARK-29302: Fix the issue that for dynamic partition overwrite, a " +
+    "task would conflict with its speculative task") {
+    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
+      withTable("t") {
+        withSQLConf(SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
+          classOf[DetectDynamicSpeculationCommitProtocol].getName) {
+          spark.sparkContext.parallelize(0 until 10000, 10)
+            .map(index => (index, index % 10))
+            .toDF("c1", "p1")
+            .write
+            .partitionBy("p1")
+            .mode("overwrite")
+            .saveAsTable("t")
+        }
       }
     }
   }

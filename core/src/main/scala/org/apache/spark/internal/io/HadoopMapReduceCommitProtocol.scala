@@ -83,18 +83,18 @@ class HadoopMapReduceCommitProtocol(
    * e.g. a=1/b=2. Files under these partitions will be saved into staging directory and moved to
    * destination directory at the end, if `dynamicPartitionOverwrite` is true.
    */
-  @transient private var partitionPaths: mutable.Set[String] = null
+  @transient private[spark] var partitionPaths: mutable.Set[String] = null
 
   /**
    * The staging directory of this write job. Spark uses it to deal with files with absolute output
    * path, or writing data into partitioned directory with dynamicPartitionOverwrite=true.
    */
-  private def stagingDir = new Path(path, ".spark-staging-" + jobId)
+  private[spark] def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
   /**
    * Tracks the staging task files with dynamicPartitionOverwrite=true.
    */
-  @transient private var dynamicStagingTaskFiles: mutable.Set[Path] = null
+  @transient private[spark] var dynamicStagingTaskFiles: mutable.Set[Path] = null
 
   /**
    * Get staging path for a task with dynamicPartitionOverwrite=true.
@@ -107,7 +107,9 @@ class HadoopMapReduceCommitProtocol(
   /**
    * Get responding partition path for a task with dynamicPartitionOverwrite=true.
    */
-  private def getDynamicPartitionPath(stagingTaskFile: Path, context: TaskAttemptContext): Path = {
+  private[spark] def getDynamicPartitionPath(
+      stagingTaskFile: Path,
+      context: TaskAttemptContext): Path = {
     val attemptID = context.getTaskAttemptID.getId
     val stagingPartitionPath = stagingTaskFile.getParent
     val partitionPathName = stagingPartitionPath.getName.stripSuffix(s"-$attemptID")
