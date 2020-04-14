@@ -32,11 +32,13 @@ private case class AskPermissionToCommitOutput(
     stageAttempt: Int,
     partition: Int,
     attemptNumber: Int)
+
 private case class RevertCommittedState(
     stage: Int,
     stageAttempt: Int,
     partition: Int,
     attemptNumber: Int)
+
 /**
  * Authority that decides whether tasks can commit output to HDFS. Uses a "first committer wins"
  * policy.
