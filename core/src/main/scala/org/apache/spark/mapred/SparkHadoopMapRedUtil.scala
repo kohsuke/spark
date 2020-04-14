@@ -35,14 +35,17 @@ object SparkHadoopMapRedUtil extends Logging {
    *
    * Output commit coordinator is only used when `spark.hadoop.outputCommitCoordination.enabled`
    * is set to true (which is the default).
+   *
+   * @return whether has performed commit
    */
   def commitTask(
       committer: MapReduceOutputCommitter,
       mrTaskContext: MapReduceTaskAttemptContext,
       jobId: Int,
-      splitId: Int): Unit = {
+      splitId: Int): Boolean = {
 
     val mrTaskAttemptID = mrTaskContext.getTaskAttemptID
+    var performedCommit = false
 
     // Called after we have decided to commit
     def performCommit(): Unit = {
@@ -75,6 +78,7 @@ object SparkHadoopMapRedUtil extends Logging {
 
         if (canCommit) {
           performCommit()
+          performedCommit = true
         } else {
           val message =
             s"$mrTaskAttemptID: Not committed because the driver did not authorize commit"
@@ -86,10 +90,34 @@ object SparkHadoopMapRedUtil extends Logging {
       } else {
         // Speculation is disabled or a user has chosen to manually bypass the commit coordination
         performCommit()
+        performedCommit = true
       }
     } else {
       // Some other attempt committed the output, so we do nothing and signal success
       logInfo(s"No need to commit output of task because needsTaskCommit=false: $mrTaskAttemptID")
+    }
+    performedCommit
+  }
+
+  /**
+   * Revert a committed task attempt status. It is used for dynamicPartitionedOverwrite case.
+   * For dynamic partition overwrite operation, each task ask commit permission at first,
+   * then task rename staging task files, if exception occurred when renaming these staging task
+   * files, we need revert this task's committed state.
+   */
+  def revertCommitted(splitId: Int): Unit = {
+    val shouldCoordinateWithDriver: Boolean = {
+      val sparkConf = SparkEnv.get.conf
+      // We only need to coordinate with the driver if there are concurrent task attempts.
+      // Note that this could happen even when speculation is not enabled (e.g. see SPARK-8029).
+      // This (undocumented) setting is an escape-hatch in case the commit code introduces bugs.
+      sparkConf.getBoolean("spark.hadoop.outputCommitCoordination.enabled", defaultValue = true)
+    }
+    if (shouldCoordinateWithDriver) {
+      val outputCommitCoordinator = SparkEnv.get.outputCommitCoordinator
+      val ctx = TaskContext.get()
+      outputCommitCoordinator.revertCommitted(ctx.stageId(), ctx.stageAttemptNumber(),
+        splitId, ctx.attemptNumber())
     }
   }
 }

@@ -22,15 +22,15 @@ import java.util.{Date, UUID}
 
 import scala.collection.mutable
 import scala.util.Try
-
 import org.apache.hadoop.conf.Configurable
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
-
 import org.apache.spark.internal.Logging
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
+
+import scala.util.control.NonFatal
 
 /**
  * An [[FileCommitProtocol]] implementation backed by an underlying Hadoop OutputCommitter
@@ -273,17 +273,23 @@ class HadoopMapReduceCommitProtocol(
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
     val attemptId = taskContext.getTaskAttemptID
     logTrace(s"Commit task ${attemptId}")
-    SparkHadoopMapRedUtil.commitTask(
+    val performedCommit = SparkHadoopMapRedUtil.commitTask(
       committer, taskContext, attemptId.getJobID.getId, attemptId.getTaskID.getId)
-    if (dynamicPartitionOverwrite) {
-      val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
-      dynamicStagingTaskFiles.foreach { stagingTaskFile =>
-        val fileName = stagingTaskFile.getName
-        val partitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
-        val finalFile = new Path(partitionPath, fileName)
-        if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
-         throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
+    if (performedCommit && dynamicPartitionOverwrite) {
+      try {
+        val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
+        dynamicStagingTaskFiles.foreach { stagingTaskFile =>
+          val fileName = stagingTaskFile.getName
+          val partitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
+          val finalFile = new Path(partitionPath, fileName)
+          if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
+            throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
+          }
         }
+      } catch {
+        case NonFatal(e) =>
+          SparkHadoopMapRedUtil.revertCommitted(attemptId.getTaskID.getId)
+          throw e
       }
     }
     new TaskCommitMessage(addedAbsPathFiles.toMap -> partitionPaths.toSet)

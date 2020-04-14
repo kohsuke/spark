@@ -32,7 +32,11 @@ private case class AskPermissionToCommitOutput(
     stageAttempt: Int,
     partition: Int,
     attemptNumber: Int)
-
+private case class RevertCommittedState(
+    stage: Int,
+    stageAttempt: Int,
+    partition: Int,
+    attemptNumber: Int)
 /**
  * Authority that decides whether tasks can commit output to HDFS. Uses a "first committer wins"
  * policy.
@@ -106,6 +110,32 @@ private[spark] class OutputCommitCoordinator(conf: SparkConf, isDriver: Boolean)
         logError(
           "canCommit called after coordinator was stopped (is SparkEnv shutdown in progress)?")
         false
+    }
+  }
+
+  /**
+   * Called by tasks to revert their committed state for dynamic partition overwrite case.
+   *
+   * @param stage the stage number
+   * @param partition the partition number
+   * @param attemptNumber how many times this task has been attempted
+   *                      (see [[TaskContext.attemptNumber()]])
+   * @return true if this task is authorized to commit, false otherwise
+   */
+  def revertCommitted(
+      stage: Int,
+      stageAttempt: Int,
+      partition: Int,
+      attemptNumber: Int): Unit = {
+    val msg = RevertCommittedState(stage, stageAttempt, partition, attemptNumber)
+    coordinatorRef match {
+      case Some(endpointRef) =>
+        ThreadUtils.awaitResult(endpointRef.ask[Unit](msg),
+          RpcUtils.askRpcTimeout(conf).duration)
+      case None =>
+        logError(
+          "revertCommitted called after coordinator was stopped (is SparkEnv shutdown in" +
+            " progress)?")
     }
   }
 
@@ -200,6 +230,33 @@ private[spark] class OutputCommitCoordinator(conf: SparkConf, isDriver: Boolean)
     }
   }
 
+  // Marked private[scheduler] instead of private so this can be mocked in tests
+  private[scheduler] def handleRevertCommittedState(
+      stage: Int,
+      stageAttempt: Int,
+      partition: Int,
+      attemptNumber: Int): Unit = synchronized {
+    stageStates.get(stage) match {
+      case Some(state) if attemptFailed(state, stageAttempt, partition, attemptNumber) =>
+        logInfo(s"Revert committed state denied for stage=$stage.$stageAttempt, " +
+          s"partition=$partition: task attempt $attemptNumber already marked as failed.")
+      case Some(state) =>
+        val existing = state.authorizedCommitters(partition)
+        if (existing != null && existing.stageAttempt == stageAttempt &&
+          existing.taskAttempt == attemptNumber) {
+          logDebug(s"Revert committed state for stage=$stage.$stageAttempt, " +
+            "partition=$partition, attemptNumber=$attemptNumber successfully.")
+          state.authorizedCommitters(partition) = null
+        } else {
+          logDebug(s"Don't need revert committed state for stage=$stage.$stageAttempt, " +
+            s"partition=$partition, attemptNumber=$attemptNumber: relative stats does not exist.")
+        }
+      case None =>
+        logDebug(s"Don't need revert committed state for stage=$stage.$stageAttempt, " +
+          s"partition=$partition: stage already marked as completed.")
+    }
+  }
+
   private def attemptFailed(
       stageState: StageState,
       stageAttempt: Int,
@@ -229,6 +286,10 @@ private[spark] object OutputCommitCoordinator {
       case AskPermissionToCommitOutput(stage, stageAttempt, partition, attemptNumber) =>
         context.reply(
           outputCommitCoordinator.handleAskPermissionToCommit(stage, stageAttempt, partition,
+            attemptNumber))
+      case RevertCommittedState(stage, stageAttempt, partition, attemptNumber) =>
+        context.reply(
+          outputCommitCoordinator.handleRevertCommittedState(stage, stageAttempt, partition,
             attemptNumber))
     }
   }
