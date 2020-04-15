@@ -47,7 +47,8 @@ case class CustomShuffleReaderExec private(
     // If it is a local shuffle reader with one mapper per task, then the output partitioning is
     // the same as the plan before shuffle.
     // TODO this check is based on assumptions of callers' behavior but is sufficient for now.
-    if (partitionSpecs.forall(_.isInstanceOf[PartialMapperPartitionSpec]) &&
+    if (partitionSpecs.nonEmpty &&
+        partitionSpecs.forall(_.isInstanceOf[PartialMapperPartitionSpec]) &&
         partitionSpecs.map(_.asInstanceOf[PartialMapperPartitionSpec].mapIndex).toSet.size ==
           partitionSpecs.length) {
       child match {
@@ -99,7 +100,7 @@ case class CustomShuffleReaderExec private(
     val maxSize = SQLMetrics.createSizeMetric(sparkContext, "maximum partition data size")
     val minSize = SQLMetrics.createSizeMetric(sparkContext, "minimum partition data size")
     val avgSize = SQLMetrics.createSizeMetric(sparkContext, "average partition data size")
-    val mapStatsOpt = shuffleStage.get.mapStats
+    val mapStatsOpt = shuffleStage.get.mapStats.filter(_ => partitionSpecs.nonEmpty)
     val sizes = mapStatsOpt.map { mapStats =>
       val mapSizes = mapStats.bytesByPartitionId
       partitionSpecs.map {
