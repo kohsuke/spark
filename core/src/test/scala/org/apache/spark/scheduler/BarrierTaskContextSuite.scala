@@ -206,6 +206,7 @@ class BarrierTaskContextSuite extends SparkFunSuite with LocalSparkContext {
           // Due to some non-obvious reason, the code can trigger an Exception and skip the
           // following statements within the try ... catch block, including the first barrier()
           // call.
+          Thread.sleep(1000)
           throw new SparkException("test")
         }
         context.barrier()
