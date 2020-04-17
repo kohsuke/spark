@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.adaptive
 
+import scala.collection.mutable
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
@@ -104,14 +106,27 @@ case class CustomShuffleReaderExec private(
       (numPartitionsMetric.id, partitionSpecs.length.toLong)
 
     if (hasSkewedPartition) {
-      val skewedMetric = metrics("numSkewedPartitions")
-      val numSkewedPartitions = partitionSpecs.collect {
-        case p: PartialReducerPartitionSpec => p.reducerIndex
-      }.distinct.length
-      skewedMetric.set(numSkewedPartitions)
-      driverAccumUpdates = driverAccumUpdates :+ (skewedMetric.id, numSkewedPartitions.toLong)
+      val skewedPartitions = metrics("numSkewedPartitions")
+      val skewedSplits = metrics("numSkewedSplits")
+
+      val skewedMetrics = new mutable.HashMap[Int, Long]()
+      partitionSpecs.collect {
+        case p: PartialReducerPartitionSpec =>
+          if (skewedMetrics.contains(p.reducerIndex)) {
+            val value = skewedMetrics.get(p.reducerIndex).get
+            skewedMetrics(p.reducerIndex) = value + 1
+          } else {
+            skewedMetrics.put(p.reducerIndex, 1)
+          }
+      }
+      skewedPartitions.set(skewedMetrics.size)
+      driverAccumUpdates = driverAccumUpdates :+ (skewedPartitions.id, skewedMetrics.size.toLong)
+
+      skewedSplits.set(skewedMetrics.map(_._2).sum)
+      skewedMetrics.foreach { case skewedMetric =>
+        driverAccumUpdates = driverAccumUpdates :+ (skewedSplits.id, skewedMetric._2)
+      }
     }
-    
     if(!isLocalReader) {
       val partitionMetrics = metrics("partitionDataSize")
       val mapStats = shuffleStage.get.mapStats
@@ -154,7 +169,9 @@ case class CustomShuffleReaderExec private(
       } ++ {
         if (hasSkewedPartition) {
           Map("numSkewedPartitions" ->
-            SQLMetrics.createMetric(sparkContext, "number of skewed partitions"))
+            SQLMetrics.createMetric(sparkContext, "number of skewed partitions")) ++
+          Map("numSkewedSplits" ->
+            SQLMetrics.createNumMetric(sparkContext, "number of skewed partition splits"))
         } else {
           Map.empty
         }
