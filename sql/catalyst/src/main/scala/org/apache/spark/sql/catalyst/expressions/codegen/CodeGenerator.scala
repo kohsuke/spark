@@ -1316,15 +1316,15 @@ object CodeGenerator extends Logging {
   // of these Java source code will become a major part of the entire test runtime. When
   // running test cases, we summarize the total compilation time and output it to the execution
   // log for easy analysis and view.
-  private val _compileTime = new LongAccumulator
+  private val _compilationTime = new LongAccumulator
 
-  // Returns the total compile time of Java source code in nanoseconds.
+  // Returns the total compilation time of Java source code in nanoseconds.
   // Visible for testing
-  def compileTime: Long = _compileTime.sum
+  def compilationTime: Long = _compilationTime.sum
 
-  // Reset compile time.
+  // Reset compilation time.
   // Visible for testing
-  def resetCompileTime(): Unit = _compileTime.reset()
+  def resetCompilationTime(): Unit = _compilationTime.reset()
 
   /**
    * Compile the Java source code into a Java class, using Janino.
@@ -1488,7 +1488,7 @@ object CodeGenerator extends Logging {
           CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(code.body.length)
           CodegenMetrics.METRIC_COMPILATION_TIME.update(timeMs.toLong)
           logInfo(s"Code generated in $timeMs ms")
-          _compileTime.add(duration)
+          _compilationTime.add(duration)
           result
         }
       })
