@@ -239,8 +239,7 @@ class PartitionedSpeculateRenameFailedWriteSuite extends QueryTest with SharedSp
 
   override def sparkConf(): SparkConf = {
     super.sparkConf
-      .set(config.SPECULATION_MULTIPLIER, 0.0)
-      .set(config.SPECULATION_QUANTILE, 0.5)
+      .set(config.SPECULATION_QUANTILE, 0.9)
       .set(config.SPECULATION_ENABLED, true)
       .set("spark.hadoop.fs.file.impl",
         classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
