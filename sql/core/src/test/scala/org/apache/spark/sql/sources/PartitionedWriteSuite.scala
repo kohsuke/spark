@@ -230,6 +230,11 @@ class RenameFailedDynamicPartitionedWriteSuite extends QueryTest with SQLTestUti
     _spark = new SparkSession(new SparkContext("local[2, 2]", "test", sparkConf()))
   }
 
+  override def afterAll(): Unit = {
+    super.afterAll()
+    _spark.stop()
+  }
+
   test("SPARK-27194 SPARK-29302: Fix the issue that for dynamic partition overwrite, a " +
     "task would conflict with its speculative task") {
     withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString,
