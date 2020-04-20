@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.sources
 
-import java.io.{File, IOException}
+import java.io.File
 import java.sql.Timestamp
 
 import scala.util.{Success, Try}
@@ -25,18 +25,19 @@ import scala.util.{Success, Try}
 import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import org.apache.spark.{SparkConf, SparkException, TestUtils}
+import org.apache.spark.{SparkConf, SparkContext, TestUtils}
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
-import org.apache.spark.sql.{QueryTest, Row}
+import org.apache.spark.sql.{QueryTest, Row, SparkSession}
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
+import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
-import org.apache.spark.sql.test.SharedSparkSession
+import org.apache.spark.sql.test.{SharedSparkSession, SQLTestUtilsBase}
 import org.apache.spark.util.Utils
 
 private class OnlyDetectCustomPathFileCommitProtocol(jobId: String, path: String)
@@ -234,34 +235,48 @@ class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem 
   }
 }
 
-class PartitionedRenameFailedWriteSuite extends QueryTest with SharedSparkSession {
+class PartitionedRenameFailedWriteSuite extends QueryTest with SQLTestUtilsBase {
   import testImplicits._
 
-  override def sparkConf(): SparkConf = {
-    super.sparkConf
+  override protected def spark: SparkSession = _spark
+  private var _spark: SparkSession = _
+
+  private def sparkConf(): SparkConf = {
+    val conf = new SparkConf()
       .set("spark.hadoop.fs.file.impl",
         classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
-      .set(config.TASK_MAX_FAILURES, 2)
+      .set(config.UNSAFE_EXCEPTION_ON_MEMORY_LEAK, true)
+      .set(SQLConf.CODEGEN_FALLBACK.key, "false")
+      .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+      .set(config.SPECULATION_MULTIPLIER, 0.0)
+      .set(config.SPECULATION_QUANTILE, 0.5)
+      .set(config.SPECULATION_ENABLED, true)
+    conf.set(
+      StaticSQLConf.WAREHOUSE_PATH,
+      conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
   }
 
-    test("SPARK-27194 SPARK-29302: If renaming dynamic staging files to final files failed, " +
-      "job aborted") {
-      withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
-        withTable("t") {
-          val df = spark.sparkContext.parallelize(0 until 10000, 10)
-            .map(index => (index, index % 10))
-            .toDF("c1", "p1")
-          val e = intercept[SparkException] {
-            df.write
-              .partitionBy("p1")
-              .mode("overwrite")
-              .saveAsTable("t")
-          }
-          assert(e.getMessage.contains("Job aborted"))
-          val rc = e.getCause.getCause.getCause
-          assert(rc.isInstanceOf[IOException])
-          assert(rc.getMessage.contains("Failed to rename file"))
-        }
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    // set master to local[thread, maxRetries] to enable retry failed task
+    _spark = new SparkSession(new SparkContext("local[2, 2]", "test", sparkConf()))
+  }
+
+  test("SPARK-27194 SPARK-29302: Fix the issue that for dynamic partition overwrite, a " +
+    "task would conflict with its speculative task") {
+    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString,
+      SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
+        classOf[DetectDynamicSpeculationCommitProtocol].getName) {
+      withTable("t") {
+        val df = spark.sparkContext.parallelize(0 until 10000, 10)
+          .map(index => (index, index % 10))
+          .toDF("c1", "p1")
+        df.write
+          .partitionBy("p1")
+          .mode("overwrite")
+          .saveAsTable("t")
+        checkAnswer(sql("select * from t"), df)
       }
     }
+  }
 }
