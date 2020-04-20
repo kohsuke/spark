@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtoc
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
 import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
-import org.apache.spark.sql.test.{SharedSparkSession, SharedSparkSessionBase, SQLTestUtilsBase}
+import org.apache.spark.sql.test.{SharedSparkSession, SQLTestUtilsBase}
 import org.apache.spark.util.Utils
 
 private class OnlyDetectCustomPathFileCommitProtocol(jobId: String, path: String)
@@ -208,10 +208,12 @@ class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem 
 class RenameFailedDynamicPartitionedWriteSuite extends QueryTest with SQLTestUtilsBase {
   import testImplicits._
 
-  override protected def spark: SparkSession = _spark
-  private var _spark: SparkSession = _
+  override def spark: SparkSession = _spark
+  protected var _spark: SparkSession = _
 
-  /** referred the sparkConf method of [[SharedSparkSessionBase]] */
+  /**
+   * Referred the sparkConf method of SharedSparkSessionBase.
+   */
   protected def sparkConf(): SparkConf = {
     val conf = new SparkConf()
       .set("spark.hadoop.fs.file.impl",
