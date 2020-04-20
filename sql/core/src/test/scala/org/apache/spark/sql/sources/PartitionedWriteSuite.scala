@@ -17,13 +17,15 @@
 
 package org.apache.spark.sql.sources
 
-import java.io.File
+import java.io.{File, IOException}
 import java.sql.Timestamp
 
-import org.apache.hadoop.fs.Path
+import scala.util.{Success, Try}
+
+import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import org.apache.spark.{SparkConf, TestUtils}
+import org.apache.spark.{SparkConf, SparkException, TestUtils}
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
@@ -196,14 +198,75 @@ class PartitionedSpeculateWriteSuite extends QueryTest with SharedSparkSession {
       SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
         classOf[DetectDynamicSpeculationCommitProtocol].getName) {
       withTable("t") {
-        spark.sparkContext.parallelize(0 until 10000, 10)
+        val df = spark.sparkContext.parallelize(0 until 10000, 10)
           .map(index => (index, index % 10))
           .toDF("c1", "p1")
-          .write
+        df.write
           .partitionBy("p1")
           .mode("overwrite")
           .saveAsTable("t")
+        checkAnswer(sql("select * from t"), df)
       }
     }
   }
+}
+
+/**
+ * This file system is used to simulate the scene that exception occurred when renaming dynamic
+ * staging files to final files. IOException would be thrown when renaming for the task, whose
+ * taskId is 0 and attempt id is 0.
+ */
+class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
+  override def rename(src: Path, dst: Path): Boolean = {
+    if (src.getName.startsWith("part-")) {
+      Try {
+        // File name format is part-$split%05d-$jobId$ext
+        val taskId = src.getName.split("-").apply(1).toInt
+        val attemptId = src.getParent.getName.split("-").last.toInt
+        taskId == 0 && attemptId == 0
+      } match {
+        case Success(shouldRenameFailed) if shouldRenameFailed => false
+        case _ => super.rename(src, dst)
+      }
+    } else {
+      super.rename(src, dst)
+    }
+  }
+}
+
+class PartitionedSpeculateRenameFailedWriteSuite extends QueryTest with SharedSparkSession {
+  import testImplicits._
+
+  override def sparkConf(): SparkConf = {
+    super.sparkConf
+      .set(config.SPECULATION_MULTIPLIER, 0.0)
+      .set(config.SPECULATION_QUANTILE, 0.5)
+      .set(config.SPECULATION_ENABLED, true)
+      .set("spark.hadoop.fs.file.impl",
+        classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
+      .set(config.TASK_MAX_FAILURES, 2)
+  }
+
+    test("SPARK-27194 SPARK-29302: If renaming dynamic staging files to final files failed, " +
+      "job aborted") {
+      withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString,
+        SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
+          classOf[DetectDynamicSpeculationCommitProtocol].getName) {
+        withTable("t") {
+          val df = spark.sparkContext.parallelize(0 until 10000, 10)
+            .map(index => (index, index % 10))
+            .toDF("c1", "p1")
+          val e = intercept[SparkException] {
+            df.write
+              .partitionBy("p1")
+              .mode("overwrite")
+              .saveAsTable("t")
+          }
+          assert(e.getMessage.contains("Job aborted"))
+          val rc = e.getCause.getCause.getCause
+          assert(rc.isInstanceOf[IOException])
+          assert(rc.getMessage.contains("Failed to rename file"))
+        }
+      }
+    }
 }
