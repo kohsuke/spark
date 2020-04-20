@@ -234,13 +234,11 @@ class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem 
   }
 }
 
-class PartitionedSpeculateRenameFailedWriteSuite extends QueryTest with SharedSparkSession {
+class PartitionedRenameFailedWriteSuite extends QueryTest with SharedSparkSession {
   import testImplicits._
 
   override def sparkConf(): SparkConf = {
     super.sparkConf
-      .set(config.SPECULATION_QUANTILE, 0.9)
-      .set(config.SPECULATION_ENABLED, true)
       .set("spark.hadoop.fs.file.impl",
         classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
       .set(config.TASK_MAX_FAILURES, 2)
@@ -248,9 +246,7 @@ class PartitionedSpeculateRenameFailedWriteSuite extends QueryTest with SharedSp
 
     test("SPARK-27194 SPARK-29302: If renaming dynamic staging files to final files failed, " +
       "job aborted") {
-      withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString,
-        SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
-          classOf[DetectDynamicSpeculationCommitProtocol].getName) {
+      withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString) {
         withTable("t") {
           val df = spark.sparkContext.parallelize(0 until 10000, 10)
             .map(index => (index, index % 10))
