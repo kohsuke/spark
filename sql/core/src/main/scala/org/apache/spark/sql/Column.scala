@@ -887,7 +887,7 @@ class Column(val expr: Expression) extends Logging {
    * @since 3.1.0
    */
   def withField(fieldName: String, fieldValue: Column): Column = withExpr {
-    AddFields(expr :: Literal(fieldName) :: fieldValue.expr :: Nil)
+    WithFields(expr :: Literal(fieldName) :: fieldValue.expr :: Nil)
   }
 
   /**
