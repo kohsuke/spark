@@ -568,14 +568,13 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
   }
 
   override def dataType: StructType = {
-    val existingStructFields = structType.fields.map { f =>
+    val existingStructFields: Seq[(String, StructField)] = structType.fields.map { f =>
       (f.name, f.copy(nullable = structExpr.nullable || f.nullable))
     }
-    val addOrReplaceStructFields = addOrReplaceExprs.map { case (name, expr) =>
-      (name, StructField(name, expr.dataType, expr.nullable))
+    val addOrReplaceStructFields: Seq[(String, StructField)] = addOrReplaceExprs.map {
+      case (name, expr) => (name, StructField(name, expr.dataType, expr.nullable))
     }
-    val newStructFields = addOrReplace(existingStructFields, addOrReplaceStructFields).map(_._2)
-    StructType(newStructFields)
+    StructType(addOrReplace(existingStructFields, addOrReplaceStructFields).map(_._2))
   }
 
   override def foldable: Boolean = children.forall(_.foldable)
