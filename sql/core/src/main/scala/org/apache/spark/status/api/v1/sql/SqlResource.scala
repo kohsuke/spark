@@ -83,13 +83,16 @@ private[v1] class SqlResource extends BaseAppResource {
     val metrics = groupedMap.mapValues[Seq[Metric]](sqlPlanMetrics =>
       sqlPlanMetrics.flatMap(m => getMetric(metricValues, m.accumulatorId, m.name.trim)))
 
-    val metricDetails = metrics.map {
+    val sortedMetrics = metrics.toSeq.sortBy
+    { case ((nodeId, nodeName), metrics) => nodeId }.reverse
+
+    val metricDetails = sortedMetrics.map {
       case ((nodeId: Long, nodeName: String), metrics: Seq[Metric]) =>
         val wholeStageCodegenId = nodeIdAndWSCGIdMap.get(nodeId).flatten
-        MetricDetails(nodeId = nodeId, nodeName = nodeName.trim, wholeStageCodegenId, metrics)
-    }.toSeq
+        MetricDetails(nodeName = nodeName.trim, wholeStageCodegenId, metrics)
+    }
 
-    metricDetails.sortBy(_.nodeId).reverse
+    metricDetails
   }
 
   private def prepareExecutionData(

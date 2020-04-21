@@ -75,11 +75,11 @@ object SqlResourceSuite {
   }
 
   private def getExpectedMetricDetails(): Seq[MetricDetails] = {
-    val metricDetails = MetricDetails(1, WHOLE_STAGE_CODEGEN_1,
+    val metricDetails = MetricDetails(WHOLE_STAGE_CODEGEN_1,
       wholeStageCodegenId = None, metrics = Seq(Metric(DURATION, "0 ms")))
-    val metricDetails2 = MetricDetails(2, FILTER,
+    val metricDetails2 = MetricDetails(FILTER,
       wholeStageCodegenId = Some(1), metrics = Seq(Metric(NUMBER_OF_OUTPUT_ROWS, "1")))
-    val metricDetails3 = MetricDetails(3, SCAN_TEXT, wholeStageCodegenId = Some(1),
+    val metricDetails3 = MetricDetails(SCAN_TEXT, wholeStageCodegenId = Some(1),
       metrics = Seq(Metric(METADATA_TIME, "2 ms"),
         Metric(NUMBER_OF_FILES_READ, "1"),
         Metric(NUMBER_OF_OUTPUT_ROWS, "1"),
@@ -91,9 +91,9 @@ object SqlResourceSuite {
 
   private def getExpectedMetricDetailsWhenWholeStageCodegenIsOff(): Seq[MetricDetails] = {
     val metricDetails =
-      MetricDetails(1, WHOLE_STAGE_CODEGEN_1, metrics = Seq(Metric(DURATION, "0 ms")))
-    val metricDetails2 = MetricDetails(2, FILTER, metrics = Seq(Metric(NUMBER_OF_OUTPUT_ROWS, "1")))
-    val metricDetails3 = MetricDetails(3, SCAN_TEXT,
+      MetricDetails(WHOLE_STAGE_CODEGEN_1, metrics = Seq(Metric(DURATION, "0 ms")))
+    val metricDetails2 = MetricDetails(FILTER, metrics = Seq(Metric(NUMBER_OF_OUTPUT_ROWS, "1")))
+    val metricDetails3 = MetricDetails(SCAN_TEXT,
       metrics = Seq(Metric(METADATA_TIME, "2 ms"),
         Metric(NUMBER_OF_FILES_READ, "1"),
         Metric(NUMBER_OF_OUTPUT_ROWS, "1"),

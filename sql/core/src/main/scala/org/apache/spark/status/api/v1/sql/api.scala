@@ -31,7 +31,6 @@ class ExecutionData private[spark] (
     val metricDetails: Seq[MetricDetails])
 
 case class MetricDetails private[spark] (
-    nodeId: Long,
     nodeName: String,
     wholeStageCodegenId: Option[Long] = None,
     metrics: Seq[Metric])
