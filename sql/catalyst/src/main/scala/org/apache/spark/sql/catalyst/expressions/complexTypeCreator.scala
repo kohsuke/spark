@@ -539,8 +539,8 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
 // scalastyle:on line.size.limit
 case class WithFields(children: Seq[Expression]) extends Unevaluable {
 
-  private lazy val ogStructExpr = children.head
-  private lazy val ogStructType = ogStructExpr.dataType.asInstanceOf[StructType]
+  private lazy val structExpr = children.head
+  private lazy val structType = structExpr.dataType.asInstanceOf[StructType]
   private lazy val (nameExprs, valExprs) = children.drop(1).grouped(2).map {
     case Seq(name, value) => (name, value)
   }.toList.unzip
@@ -551,10 +551,10 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
     val expectedStructType = StructType(Nil).typeName
     if (children.size % 2 == 0) {
       TypeCheckResult.TypeCheckFailure(s"$prettyName expects an odd number of arguments.")
-    } else if (ogStructExpr.dataType.typeName != expectedStructType) {
+    } else if (structExpr.dataType.typeName != expectedStructType) {
       TypeCheckResult.TypeCheckFailure(
         s"Only $expectedStructType is allowed to appear at first position, got: " +
-          s"${ogStructExpr.dataType.typeName}.")
+          s"${structExpr.dataType.typeName}.")
     } else if (names.contains(null)) {
       TypeCheckResult.TypeCheckFailure("Field name should not be null.")
     } else if (nameExprs.exists(e => !(e.foldable && e.dataType == StringType))) {
@@ -567,13 +567,13 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
   }
 
   override def dataType: StructType = {
-    val ogStructFields = ogStructType.fields.map { f =>
-      (f.name, f.copy(nullable = ogStructExpr.nullable || f.nullable))
+    val existingStructFields = structType.fields.map { f =>
+      (f.name, f.copy(nullable = structExpr.nullable || f.nullable))
     }
     val addOrReplaceStructFields = addOrReplaceExprs.map { case (name, expr) =>
       (name, StructField(name, expr.dataType, expr.nullable))
     }
-    val newStructFields = addOrReplace(ogStructFields, addOrReplaceStructFields).map(_._2)
+    val newStructFields = addOrReplace(existingStructFields, addOrReplaceStructFields).map(_._2)
     StructType(newStructFields)
   }
 
@@ -584,13 +584,13 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
   override def prettyName: String = "with_fields"
 
   def toCreateNamedStruct: CreateNamedStruct = {
-    val ogStructExprs = ogStructType.fieldNames.zipWithIndex.map {
-      case (name, i) => (name, GetStructField(ogStructExpr, i, Some(name)))
+    val existingExprs = structType.fieldNames.zipWithIndex.map {
+      case (name, i) => (name, GetStructField(structExpr, i, Some(name)))
     }
-    val newStructExprs = addOrReplace(ogStructExprs, addOrReplaceExprs).flatMap {
+    val newExprs = addOrReplace(existingExprs, addOrReplaceExprs).flatMap {
       case (name, valExpr) => Seq(Literal(name), valExpr)
     }
-    CreateNamedStruct(newStructExprs)
+    CreateNamedStruct(newExprs)
   }
 
   private def addOrReplace[T](
