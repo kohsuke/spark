@@ -538,7 +538,7 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
        {"a":{"a":1,"b":2,"c":3}}
   """)
 // scalastyle:on line.size.limit
-case class AddFields(children: Seq[Expression]) extends Unevaluable {
+case class WithFields(children: Seq[Expression]) extends Unevaluable {
 
   private lazy val ogStructExpr = children.head
   private lazy val ogStructType = ogStructExpr.dataType.asInstanceOf[StructType]
@@ -582,7 +582,7 @@ case class AddFields(children: Seq[Expression]) extends Unevaluable {
 
   override def nullable: Boolean = false
 
-  override def prettyName: String = "add_fields"
+  override def prettyName: String = "with_fields"
 
   def toCreateNamedStruct: CreateNamedStruct = {
     val ogStructExprs = ogStructType.fieldNames.zipWithIndex.map {
@@ -594,7 +594,7 @@ case class AddFields(children: Seq[Expression]) extends Unevaluable {
     CreateNamedStruct(newStructExprs)
   }
 
-  def addOrReplace[T](
+  private def addOrReplace[T](
     existingFields: Seq[(String, T)],
     addOrReplaceFields: Seq[(String, T)]): Seq[(String, T)] = {
 
