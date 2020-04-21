@@ -597,15 +597,16 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
     existingFields: Seq[(String, T)],
     addOrReplaceFields: Seq[(String, T)]): Seq[(String, T)] = {
 
-    addOrReplaceFields.foldLeft(existingFields) { case (newFields, field @ (fieldName, _)) =>
-      if (newFields.exists { case (name, _) => name == fieldName }) {
-        newFields.map {
-          case (name, _) if name == fieldName => field
-          case x => x
+    addOrReplaceFields.foldLeft(existingFields) {
+      case (resultFields, newField @ (newFieldName, _)) =>
+        if (resultFields.exists { case (name, _) => name == newFieldName }) {
+          resultFields.map {
+            case (name, _) if name == newFieldName => newField
+            case x => x
+          }
+        } else {
+          resultFields :+ newField
         }
-      } else {
-        newFields :+ field
-      }
     }
   }
 }
