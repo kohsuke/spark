@@ -83,3 +83,21 @@ select extract(epoch from c) from t;
 
 select extract(not_supported from c) from t;
 select extract(not_supported from i) from t;
+
+-- In SPARK-31476, we've supported extract('field', source), too
+select date_part('millennium', c) from t;
+select date_part('century', c) from t;
+select date_part('decade', c) from t;
+select date_part('year', c) from t;
+select date_part('quarter', c) from t;
+select date_part('month', c) from t;
+select date_part('week', c) from t;
+select date_part('day', c) from t;
+select date_part('days', c) from t;
+select date_part('dayofweek', c) from t;
+select date_part('dow', c) from t;
+select date_part('isodow', c) from t;
+select date_part('doy', c) from t;
+select date_part('hour', c) from t;
+select date_part('minute', c) from t;
+select date_part('second', c) from t;
