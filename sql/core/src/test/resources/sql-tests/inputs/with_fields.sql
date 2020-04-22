@@ -63,3 +63,6 @@ SELECT WITH_FIELDS(a, 'b', 2, 'b', 20) AS a FROM struct_level_1;
 
 -- Should add and replace fields in struct
 SELECT WITH_FIELDS(a, 'b', 2, 'd', 4) AS a FROM struct_level_1;
+
+-- Should add and replace fields with same name in struct in given order
+SELECT WITH_FIELDS(a, 'd', 4, 'd', 5) AS a FROM struct_level_1;
