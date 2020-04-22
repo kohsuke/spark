@@ -516,13 +516,13 @@ case class StringToMap(text: Expression, pairDelim: Expression, keyValueDelim: E
 }
 
 /**
- * Adds/replaces fields in struct by name.
+ * Adds/replaces fields in struct by name in given order.
  *
  * @param children Seq(struct, name1, val1, name2, val2, ...)
  */
 // scalastyle:off line.size.limit
 @ExpressionDescription(
-  usage = "_FUNC_(struct, name1, val1, name2, val2, ...) - Adds/replaces fields in struct by name.",
+  usage = "_FUNC_(struct, name1, val1, name2, val2, ...) - Adds/replaces fields in struct by name in given order.",
   examples = """
     Examples:
       > SELECT _FUNC_(NAMED_STRUCT("a", 1, "b", 2), "c", 3);
