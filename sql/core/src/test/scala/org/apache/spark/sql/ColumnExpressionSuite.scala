@@ -1107,5 +1107,18 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
             StructField("d", IntegerType, nullable = false))),
           nullable = false))))
     }
+
+    test(testNamePrefix + "should add and replace fields with same name in struct in given order") {
+      checkAnswerCustom(
+        structLevel1.withColumn("a", $"a".withField("d", lit(4)).withField("d", lit(5))),
+        Row(Row(1, null, 3, 5)) :: Nil,
+        StructType(Seq(StructField("a",
+          StructType(Seq(
+            StructField("a", IntegerType, nullable = false),
+            StructField("b", IntegerType, nullable = true),
+            StructField("c", IntegerType, nullable = false),
+            StructField("d", IntegerType, nullable = false))),
+          nullable = false))))
+    }
   }
 }
