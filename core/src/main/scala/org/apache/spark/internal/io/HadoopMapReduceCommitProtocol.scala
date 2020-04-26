@@ -291,8 +291,8 @@ class HadoopMapReduceCommitProtocol(
             logWarning(
               s"""
                 | For dynamic partition overwrite operation with speculation enabled, failed to
-                | rename the staging file:$stagingTaskFile to $finalFile. Some other task might
-                | have renamed to the $finalFile. See details in SPARK-29302.
+                | rename the staging dynamic file:$stagingTaskFile to $finalFile. Some other task
+                | has renamed a staging dynamic file to $finalFile. See details in SPARK-29302.
               """.stripMargin)
           } else {
             throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
