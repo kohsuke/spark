@@ -92,13 +92,15 @@ class HadoopMapReduceCommitProtocol(
    */
   private[spark] def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
+  @transient private val isSpeculationEnabled = SparkEnv.get.conf.get(config.SPECULATION_ENABLED)
+
   /**
-   * Tracks the staging task files with dynamicPartitionOverwrite=true.
+   * Tracks the staging task files with dynamicPartitionOverwrite=true and speculation enabled.
    */
   @transient private[spark] var dynamicStagingTaskFiles: mutable.Set[Path] = null
 
   /**
-   * Get staging path for a task with dynamicPartitionOverwrite=true.
+   * Get staging path for a task with dynamicPartitionOverwrite=true and speculation enabled.
    */
   private def dynamicStagingTaskPath(dir: String, taskContext: TaskAttemptContext): Path = {
     val attemptID = taskContext.getTaskAttemptID.getId
@@ -106,7 +108,8 @@ class HadoopMapReduceCommitProtocol(
   }
 
   /**
-   * Get responding partition path for a task with dynamicPartitionOverwrite=true.
+   * Get responding partition path for a task with dynamicPartitionOverwrite=true and speculation
+   * enabled.
    */
   private[spark] def getDynamicPartitionPath(
       stagingTaskFile: Path,
@@ -144,7 +147,7 @@ class HadoopMapReduceCommitProtocol(
     }
 
     dir.map { d =>
-      if (dynamicPartitionOverwrite) {
+      if (dynamicPartitionOverwrite && isSpeculationEnabled) {
         val tempFile = new Path(dynamicStagingTaskPath(dir.get, taskContext), filename)
         dynamicStagingTaskFiles += tempFile
         tempFile.toString
@@ -276,7 +279,7 @@ class HadoopMapReduceCommitProtocol(
     logTrace(s"Commit task ${attemptId}")
     SparkHadoopMapRedUtil.commitTask(
       committer, taskContext, attemptId.getJobID.getId, attemptId.getTaskID.getId)
-    if (dynamicPartitionOverwrite) {
+    if (dynamicPartitionOverwrite && isSpeculationEnabled) {
       val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
       dynamicStagingTaskFiles.foreach { stagingTaskFile =>
         val fileName = stagingTaskFile.getName
@@ -284,16 +287,12 @@ class HadoopMapReduceCommitProtocol(
         fs.mkdirs(partitionPath)
         val finalFile = new Path(partitionPath, fileName)
         if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
-          if (SparkEnv.get.conf.get(config.SPECULATION_ENABLED)) {
-            logError(
-              s"""
-                 | For dynamic partition overwrite operation with speculation enabled, failed to
-                 | rename the staging file:$stagingTaskFile to $finalFile. Some other task might
-                 | have renamed to the $finalFile. See details in SPARK-29302.
-              """.stripMargin)
-          } else {
-            throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
-          }
+          logWarning(
+            s"""
+              | For dynamic partition overwrite operation with speculation enabled, failed to
+              | rename the staging file:$stagingTaskFile to $finalFile. Some other task might
+              | have renamed to the $finalFile. See details in SPARK-29302.
+            """.stripMargin)
         }
       }
     }
