@@ -171,8 +171,6 @@ private class DetectDynamicStagingTaskPartitionPathCommitProtocol(
     dynamicPartitionOverwrite: Boolean)
   extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite) {
 
-  private val isSpeculationEnabled = SparkEnv.get.conf.get(config.SPECULATION_ENABLED)
-
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
     if (dynamicPartitionOverwrite && isSpeculationEnabled) {
       val partitionPathSet = dynamicStagingTaskFiles

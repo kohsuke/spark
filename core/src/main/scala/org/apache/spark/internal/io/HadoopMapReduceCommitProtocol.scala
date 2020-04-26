@@ -92,7 +92,7 @@ class HadoopMapReduceCommitProtocol(
    */
   private[spark] def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
-  private val isSpeculationEnabled = SparkEnv.get.conf.get(config.SPECULATION_ENABLED)
+  private[spark] def isSpeculationEnabled = SparkEnv.get.conf.get(config.SPECULATION_ENABLED)
 
   /**
    * Tracks the staging task files with dynamicPartitionOverwrite=true and speculation enabled.
