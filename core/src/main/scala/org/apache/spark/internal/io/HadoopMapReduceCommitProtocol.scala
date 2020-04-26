@@ -284,15 +284,16 @@ class HadoopMapReduceCommitProtocol(
       dynamicStagingTaskFiles.foreach { stagingTaskFile =>
         val fileName = stagingTaskFile.getName
         val partitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
-        fs.mkdirs(partitionPath)
+        if (!fs.exists(partitionPath)) {
+          fs.mkdirs(partitionPath)
+        }
         val finalFile = new Path(partitionPath, fileName)
         if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
           if (fs.exists(finalFile)) {
             logWarning(
               s"""
-                | For dynamic partition overwrite operation with speculation enabled, failed to
-                | rename the staging dynamic file:$stagingTaskFile to $finalFile. Some other task
-                | has renamed a staging dynamic file to $finalFile. See details in SPARK-29302.
+                | Some other task had renamed a staging dynamic file to $finalFile.
+                | See details in SPARK-29302.
               """.stripMargin)
           } else {
             throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
