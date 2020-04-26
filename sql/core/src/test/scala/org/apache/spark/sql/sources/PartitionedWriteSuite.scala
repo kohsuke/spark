@@ -25,7 +25,7 @@ import scala.util.{Success, Try}
 import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext, TestUtils}
+import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext, SparkEnv, TestUtils}
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
@@ -171,8 +171,10 @@ private class DetectDynamicStagingTaskPartitionPathCommitProtocol(
     dynamicPartitionOverwrite: Boolean)
   extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite) {
 
+  private val isSpeculationEnabled = SparkEnv.get.conf.get(config.SPECULATION_ENABLED)
+
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
-    if (dynamicPartitionOverwrite) {
+    if (dynamicPartitionOverwrite && isSpeculationEnabled) {
       val partitionPathSet = dynamicStagingTaskFiles
         .map(taskFile => getDynamicPartitionPath(taskFile, taskContext))
         .map(_.toUri.getPath.stripPrefix(stagingDir.toUri.getPath +
@@ -184,8 +186,36 @@ private class DetectDynamicStagingTaskPartitionPathCommitProtocol(
 }
 
 /**
- * This file system is used to simulate the scene that for dynamic partition overwrite, rename from
- * dynamic staging files to final files failed for the task, whose taskId and attemptId are 0.
+ * This file system is used to simulate the scene that for dynamic partition overwrite operation
+ * with speculation enabled, rename from dynamic staging files to final files failed for the task,
+ * whose taskId and attemptId are 0, because another task has renamed a dynamic staging file to the
+ * final file.
+ */
+class AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
+  override def rename(src: Path, dst: Path): Boolean = {
+    if (src.getName.startsWith("part-")) {
+      Try {
+        // File name format is part-$split%05d-$jobId$ext
+        val taskId = src.getName.split("-").apply(1).toInt
+        val attemptId = src.getParent.getName.split("-").last.toInt
+        taskId == 0 && attemptId == 0
+      } match {
+        case Success(shouldRenameFailed) if shouldRenameFailed =>
+          super.rename(src, dst)
+          false
+        case _ => super.rename(src, dst)
+      }
+    } else {
+      super.rename(src, dst)
+    }
+  }
+}
+
+/**
+ * This file system is used to simulate the scene that for dynamic partition overwrite operation
+ * with speculation enabled, rename from dynamic staging files to final files failed for the task,
+ * whose taskId and attemptId are 0, and there is no another task has renamed a dynamic staging
+ * file to the final file.
  */
 class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
   override def rename(src: Path, dst: Path): Boolean = {
@@ -205,7 +235,7 @@ class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem 
   }
 }
 
-class RenameFailedDynamicPartitionedWriteSuite extends QueryTest with SQLTestUtilsBase {
+class SpeculationEnabledDynamicPartitionedWriteSuite extends QueryTest with SQLTestUtilsBase {
   import testImplicits._
 
   override def spark: SparkSession = _spark
@@ -216,11 +246,13 @@ class RenameFailedDynamicPartitionedWriteSuite extends QueryTest with SQLTestUti
    */
   protected def sparkConf(): SparkConf = {
     val conf = new SparkConf()
-      .set("spark.hadoop.fs.file.impl",
-        classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
+      .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
       .set(config.UNSAFE_EXCEPTION_ON_MEMORY_LEAK, true)
       .set(SQLConf.CODEGEN_FALLBACK.key, "false")
       .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
+      .set(config.SPECULATION_MULTIPLIER, 0.0)
+      .set(config.SPECULATION_QUANTILE, 0.5)
+      .set(config.SPECULATION_ENABLED, true)
     conf.set(
       StaticSQLConf.WAREHOUSE_PATH,
       conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
@@ -256,12 +288,20 @@ class RenameFailedDynamicPartitionedWriteSuite extends QueryTest with SQLTestUti
   }
 }
 
-class SpeculateDynamicPartitionedWriteSuite extends RenameFailedDynamicPartitionedWriteSuite {
+class RenameFailedSpeculateDynamicPartitionedWriteSuite
+  extends SpeculationEnabledDynamicPartitionedWriteSuite {
   override def sparkConf(): SparkConf = {
     super.sparkConf()
-      .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
-      .set(config.SPECULATION_MULTIPLIER, 0.0)
-      .set(config.SPECULATION_QUANTILE, 0.5)
-      .set(config.SPECULATION_ENABLED, true)
+      .set("spark.hadoop.fs.file.impl",
+        classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
+  }
+}
+
+class AnotherTaskRenamedSpeculateDynamicPartitionedWriteSuite
+  extends SpeculationEnabledDynamicPartitionedWriteSuite {
+  override protected def sparkConf(): SparkConf = {
+    super.sparkConf()
+      .set("spark.hadoop.fs.file.impl",
+        classOf[AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem].getName)
   }
 }
