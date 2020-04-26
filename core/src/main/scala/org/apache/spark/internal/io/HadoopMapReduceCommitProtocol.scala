@@ -29,7 +29,8 @@ import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
-import org.apache.spark.internal.Logging
+import org.apache.spark.SparkEnv
+import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
 
 /**
@@ -283,7 +284,16 @@ class HadoopMapReduceCommitProtocol(
         fs.mkdirs(partitionPath)
         val finalFile = new Path(partitionPath, fileName)
         if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
-         throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
+          if (SparkEnv.get.conf.get(config.SPECULATION_ENABLED)) {
+            logError(
+              s"""
+                 | For dynamic partition overwrite operation with speculation enabled, failed to
+                 | rename the staging file:$stagingTaskFile to $finalFile. Some other task might
+                 | have renamed to the $finalFile. See details in SPARK-29302.
+              """.stripMargin)
+          } else {
+            throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
+          }
         }
       }
     }
