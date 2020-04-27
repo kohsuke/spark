@@ -1271,9 +1271,11 @@ private object Client extends Logging {
    */
   private[yarn] def populateHadoopClasspath(conf: Configuration, env: HashMap[String, String])
     : Unit = {
-    val classPathElementsToAdd = getYarnAppClasspath(conf) ++ getMRAppClasspath(conf)
-    classPathElementsToAdd.foreach { c =>
-      YarnSparkHadoopUtil.addPathToEnvironment(env, Environment.CLASSPATH.name, c.trim)
+    if (sparkConf.get(POPULATE_HADOOP_CLASSPATH)) {
+      val classPathElementsToAdd = getYarnAppClasspath(conf) ++ getMRAppClasspath(conf)
+      classPathElementsToAdd.foreach { c =>
+        YarnSparkHadoopUtil.addPathToEnvironment(env, Environment.CLASSPATH.name, c.trim)
+      }
     }
   }
 

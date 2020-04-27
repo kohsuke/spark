@@ -70,6 +70,13 @@ package object config {
     .booleanConf
     .createWithDefault(false)
 
+  private[spark] val POPULATE_HADOOP_CLASSPATH = ConfigBuilder("spark.yarn.populateHadoopClasspath")
+    .doc("Whether to populate Hadoop classpath from `yarn.application.classpath` and " +
+      "`mapreduce.application.classpath`")
+    .version("3.1.0")
+    .booleanConf
+    .createWithDefault(true)
+
   private[spark] val GATEWAY_ROOT_PATH = ConfigBuilder("spark.yarn.config.gatewayPath")
     .doc("Root of configuration paths that is present on gateway nodes, and will be replaced " +
       "with the corresponding path in cluster machines.")
