@@ -51,6 +51,7 @@ Function InstallR {
 Function InstallRtools {
   $rtoolsver = $rToolsVer.Split('.')[0..1] -Join ''
   $rtoolsurl = $CRAN + "/bin/windows/Rtools/Rtools$rtoolsver-x86_64.exe"
+  echo "$rtoolsurl"
 
   # Downloading Rtools
   Start-FileDownload $rtoolsurl "Rtools-current.exe"
