@@ -24,13 +24,12 @@ import scala.collection.mutable
 import scala.util.Try
 
 import org.apache.hadoop.conf.Configurable
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.mapreduce._
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
 
-import org.apache.spark.SparkEnv
-import org.apache.spark.internal.{config, Logging}
+import org.apache.spark.internal.Logging
 import org.apache.spark.mapred.SparkHadoopMapRedUtil
 
 /**
@@ -92,15 +91,13 @@ class HadoopMapReduceCommitProtocol(
    */
   private[spark] def stagingDir = new Path(path, ".spark-staging-" + jobId)
 
-  private[spark] def isSpeculationEnabled = SparkEnv.get.conf.get(config.SPECULATION_ENABLED)
-
   /**
-   * Tracks the staging task files with dynamicPartitionOverwrite=true and speculation enabled.
+   * Tracks the staging task files with dynamicPartitionOverwrite=true.
    */
   @transient private[spark] var dynamicStagingTaskFiles: mutable.Set[Path] = null
 
   /**
-   * Get staging path for a task with dynamicPartitionOverwrite=true and speculation enabled.
+   * Get staging path for a task with dynamicPartitionOverwrite=true.
    */
   private def dynamicStagingTaskPath(dir: String, taskContext: TaskAttemptContext): Path = {
     val attemptID = taskContext.getTaskAttemptID.getId
@@ -108,16 +105,20 @@ class HadoopMapReduceCommitProtocol(
   }
 
   /**
-   * Get responding partition path for a task with dynamicPartitionOverwrite=true and speculation
-   * enabled.
+   * Get responding partition path for a task with dynamicPartitionOverwrite=true.
    */
   private[spark] def getDynamicPartitionPath(
+      fs: FileSystem,
       stagingTaskFile: Path,
       context: TaskAttemptContext): Path = {
     val attemptID = context.getTaskAttemptID.getId
     val stagingPartitionPath = stagingTaskFile.getParent
     val partitionPathName = stagingPartitionPath.getName.stripSuffix(s"-$attemptID")
-    new Path(stagingPartitionPath.getParent, partitionPathName)
+    val partitionPath = new Path(stagingPartitionPath.getParent, partitionPathName)
+    if (!fs.exists(partitionPath)) {
+      fs.mkdirs(partitionPath)
+    }
+    partitionPath
   }
 
   protected def setupCommitter(context: TaskAttemptContext): OutputCommitter = {
@@ -147,7 +148,7 @@ class HadoopMapReduceCommitProtocol(
     }
 
     dir.map { d =>
-      if (dynamicPartitionOverwrite && isSpeculationEnabled) {
+      if (dynamicPartitionOverwrite) {
         val tempFile = new Path(dynamicStagingTaskPath(dir.get, taskContext), filename)
         dynamicStagingTaskFiles += tempFile
         tempFile.toString
@@ -279,14 +280,11 @@ class HadoopMapReduceCommitProtocol(
     logTrace(s"Commit task ${attemptId}")
     SparkHadoopMapRedUtil.commitTask(
       committer, taskContext, attemptId.getJobID.getId, attemptId.getTaskID.getId)
-    if (dynamicPartitionOverwrite && isSpeculationEnabled) {
+    if (dynamicPartitionOverwrite) {
       val fs = stagingDir.getFileSystem(taskContext.getConfiguration)
       dynamicStagingTaskFiles.foreach { stagingTaskFile =>
         val fileName = stagingTaskFile.getName
-        val partitionPath = getDynamicPartitionPath(stagingTaskFile, taskContext)
-        if (!fs.exists(partitionPath)) {
-          fs.mkdirs(partitionPath)
-        }
+        val partitionPath = getDynamicPartitionPath(fs, stagingTaskFile, taskContext)
         val finalFile = new Path(partitionPath, fileName)
         if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
           if (fs.exists(finalFile)) {

@@ -172,9 +172,12 @@ private class DetectDynamicStagingTaskPartitionPathCommitProtocol(
   extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite) {
 
   override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
-    if (dynamicPartitionOverwrite && isSpeculationEnabled) {
+    if (dynamicPartitionOverwrite) {
       val partitionPathSet = dynamicStagingTaskFiles
-        .map(taskFile => getDynamicPartitionPath(taskFile, taskContext))
+        .map { stagingTaskFile =>
+          val fs = stagingTaskFile.getFileSystem(taskContext.getConfiguration)
+          getDynamicPartitionPath(fs, stagingTaskFile, taskContext)
+        }
         .map(_.toUri.getPath.stripPrefix(stagingDir.toUri.getPath +
           Path.SEPARATOR))
       assert(partitionPathSet.equals(partitionPaths))
