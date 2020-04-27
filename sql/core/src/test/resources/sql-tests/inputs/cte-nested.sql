@@ -111,3 +111,19 @@ WHERE c IN (
   WITH t(c) AS (SELECT 2)
   SELECT * FROM t
 );
+
+-- case insensitive name conflicts: in other CTE relations
+WITH
+  abc AS (SELECT 1),
+  t AS (
+    WITH aBc AS (SELECT 2)
+    SELECT * FROM aBC
+  )
+SELECT * FROM t;
+
+-- case insensitive name conflicts: in subquery expressions
+WITH abc AS (SELECT 1)
+SELECT (
+  WITH aBc AS (SELECT 2)
+  SELECT * FROM aBC
+);
