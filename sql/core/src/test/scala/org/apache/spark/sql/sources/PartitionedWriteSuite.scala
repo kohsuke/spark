@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.sources
 
-import java.io.File
+import java.io.{File, FileNotFoundException}
 import java.sql.Timestamp
 
 import scala.util.{Success, Try}
@@ -25,7 +25,7 @@ import scala.util.{Success, Try}
 import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext, SparkEnv, TestUtils}
+import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext, TestUtils}
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
@@ -192,6 +192,10 @@ private class DetectDynamicStagingTaskPartitionPathCommitProtocol(
 class AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
   override def rename(src: Path, dst: Path): Boolean = {
     if (src.getName.startsWith("part-")) {
+      val destParent = dst.getParent
+      if (!exists(destParent)) {
+        throw new FileNotFoundException(s"rename destination parent $destParent not found")
+      }
       Try {
         // File name format is part-$split%05d-$jobId$ext
         val taskId = src.getName.split("-").apply(1).toInt
@@ -218,6 +222,10 @@ class AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem extends RawLocalFileS
 class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
   override def rename(src: Path, dst: Path): Boolean = {
     if (src.getName.startsWith("part-")) {
+      val destParent = dst.getParent
+      if (!exists(destParent)) {
+        throw new FileNotFoundException(s"rename destination parent $destParent not found")
+      }
       Try {
         // File name format is part-$split%05d-$jobId$ext
         val taskId = src.getName.split("-").apply(1).toInt
