@@ -51,7 +51,8 @@ Function InstallR {
 Function InstallRtools {
   $rtoolsver = $rToolsVer.Split('.')[0..1] -Join ''
   $rtoolsurl = $CRAN + "/bin/windows/Rtools/Rtools$rtoolsver-x86_64.exe"
-  echo "$rtoolsurl"
+  # R Tools 4.0 is not on cloud.r-project.org yet
+  $rtoolsurl = "https://cran.r-project.org/bin/windows/Rtools/Rtools$rtoolsver-x86_64.exe"
 
   # Downloading Rtools
   Start-FileDownload $rtoolsurl "Rtools-current.exe"
