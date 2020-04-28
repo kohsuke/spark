@@ -303,7 +303,6 @@ class RenameFailedSpeculateDynamicPartitionedWriteSuite
     super.sparkConf()
       .set("spark.hadoop.fs.file.impl",
         classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
-
   }
 }
 
