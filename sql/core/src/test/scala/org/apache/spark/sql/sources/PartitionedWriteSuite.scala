@@ -311,6 +311,7 @@ class AnotherTaskRenamedSpeculateDynamicPartitionedWriteSuite
   override protected def sparkConf(): SparkConf = {
     super.sparkConf()
       .set("spark.hadoop.fs.file.impl",
+
         classOf[AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem].getName)
   }
 }
