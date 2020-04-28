@@ -287,15 +287,11 @@ class HadoopMapReduceCommitProtocol(
         val partitionPath = getDynamicPartitionPath(fs, stagingTaskFile, taskContext)
         val finalFile = new Path(partitionPath, fileName)
         if (!fs.exists(finalFile) && !fs.rename(stagingTaskFile, finalFile)) {
-          if (fs.exists(finalFile)) {
-            logWarning(
-              s"""
-                | Some other task had renamed a staging dynamic file to $finalFile.
-                | See details in SPARK-29302.
-              """.stripMargin)
-          } else {
-            throw new IOException(s"Failed to rename $stagingTaskFile to $finalFile")
-          }
+          logWarning(
+            s"""
+              | Some other task had renamed a staging dynamic file to $finalFile.
+              | See details in SPARK-29302.
+            """.stripMargin)
         }
       }
     }
