@@ -72,8 +72,10 @@ package object config {
 
   private[spark] val POPULATE_HADOOP_CLASSPATH = ConfigBuilder("spark.yarn.populateHadoopClasspath")
     .doc("Whether to populate Hadoop classpath from `yarn.application.classpath` and " +
-      "`mapreduce.application.classpath`")
-    .version("3.1.0")
+      "`mapreduce.application.classpath` Note that if this is set to `false`, it requires " +
+      "a `with-Hadoop` Spark distribution that bundles Hadoop runtime or user has to provide " +
+      "a Hadoop installation separately.")
+    .version("2.4.6")
     .booleanConf
     .createWithDefault(true)
 
