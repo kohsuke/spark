@@ -486,14 +486,14 @@ class ClientSuite extends SparkFunSuite with Matchers {
   }
 
   test("SPARK-31582 Being able to not populate Hadoop classpath") {
-    Seq(true, false).foreach { ifPopulateHadoopClassPath =>
+    Seq(true, false).foreach { populateHadoopClassPath =>
       withAppConf(Fixtures.mapAppConf) { conf =>
         val sparkConf = new SparkConf()
-          .set(POPULATE_HADOOP_CLASSPATH, ifPopulateHadoopClassPath)
+          .set(POPULATE_HADOOP_CLASSPATH, populateHadoopClassPath)
         val env = new MutableHashMap[String, String]()
         val args = new ClientArguments(Array("--jar", USER))
         populateClasspath(args, conf, sparkConf, env)
-        if (ifPopulateHadoopClassPath) {
+        if (populateHadoopClassPath) {
           classpath(env) should
             (contain (Fixtures.knownYARNAppCP) and contain (Fixtures.knownMRAppCP))
         } else {
