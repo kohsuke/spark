@@ -23,9 +23,12 @@ import java.nio.file.attribute.PosixFilePermission._
 import java.util.EnumSet
 
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.metrics2.impl.MetricsSystemImpl
+import org.apache.hadoop.metrics2.lib.DefaultMetricsSystem
 import org.apache.hadoop.service.ServiceStateException
 import org.apache.hadoop.yarn.api.records.ApplicationId
 import org.apache.hadoop.yarn.conf.YarnConfiguration
@@ -381,4 +384,24 @@ class YarnShuffleServiceSuite extends SparkFunSuite with Matchers with BeforeAnd
     s1.secretsFile should be (null)
   }
 
+  test("SPARK-31611: register metrics into Node Manager's metrics system") {
+    s1 = new YarnShuffleService
+    s1.init(yarnConfig)
+
+    val metricsSystem = DefaultMetricsSystem.instance.asInstanceOf[MetricsSystemImpl]
+    val metrics = metricsSystem.getSource("sparkShuffleService")
+      .asInstanceOf[YarnShuffleServiceMetrics].getMetricSet.getMetrics
+
+    assert(metrics.keySet().asScala == Set(
+      "blockTransferRateBytes",
+      "numActiveConnections",
+      "numCaughtExceptions",
+      "numRegisteredConnections",
+      "openBlockRequestLatencyMillis",
+      "registeredExecutorsSize",
+      "registerExecutorRequestLatencyMillis",
+      "shuffle-server.usedDirectMemory",
+      "shuffle-server.usedHeapMemory"
+    ))
+  }
 }
