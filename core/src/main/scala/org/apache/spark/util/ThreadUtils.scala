@@ -57,67 +57,50 @@ private[spark] object ThreadUtils {
 
   }
 
-  class MDCAwareScheduledThreadPoolExecutor(
-    corePoolSize: Int,
-    threadFactory: ThreadFactory)
-    extends ScheduledThreadPoolExecutor(corePoolSize, threadFactory) {
-    override def execute(runnable: Runnable) {
-      super.execute(new Runnable {
-        val callerThreadMDC: util.Map[String, String] = getMDCMap
-
-        override def run() {
-          val threadMDC = getMDCMap
-          org.slf4j.MDC.setContextMap(callerThreadMDC)
-          try {
-            runnable.run()
-          } finally {
-            org.slf4j.MDC.setContextMap(threadMDC)
-          }
-        }
-      })
-    }
+  class MDCAwareRunnable(proxy: Runnable) extends Runnable {
+    val callerThreadMDC: util.Map[String, String] = getMDCMap
 
     @inline
     private def getMDCMap: util.Map[String, String] = {
       org.slf4j.MDC.getCopyOfContextMap match {
         case null => new util.HashMap[String, String]()
         case m => m
+      }
+    }
+
+    override def run(): Unit = {
+      val threadMDC = getMDCMap
+      org.slf4j.MDC.setContextMap(callerThreadMDC)
+      try {
+        proxy.run()
+      } finally {
+        org.slf4j.MDC.setContextMap(threadMDC)
       }
     }
   }
 
+  class MDCAwareScheduledThreadPoolExecutor(
+    corePoolSize: Int,
+    threadFactory: ThreadFactory)
+    extends ScheduledThreadPoolExecutor(corePoolSize, threadFactory) {
+
+    override def execute(runnable: Runnable) {
+      super.execute(new MDCAwareRunnable(runnable))
+    }
+  }
+
   class MDCAwareThreadPoolExecutor(
-        corePoolSize: Int,
-        maximumPoolSize: Int,
-        keepAliveTime: Long,
-        unit: TimeUnit,
-        workQueue: BlockingQueue[Runnable],
-        threadFactory: ThreadFactory)
+    corePoolSize: Int,
+    maximumPoolSize: Int,
+    keepAliveTime: Long,
+    unit: TimeUnit,
+    workQueue: BlockingQueue[Runnable],
+    threadFactory: ThreadFactory)
     extends ThreadPoolExecutor(corePoolSize, maximumPoolSize,
       keepAliveTime, unit, workQueue, threadFactory) {
 
     override def execute(runnable: Runnable) {
-      super.execute(new Runnable {
-        val callerThreadMDC: util.Map[String, String] = getMDCMap
-
-        override def run() {
-          val threadMDC = getMDCMap
-          org.slf4j.MDC.setContextMap(callerThreadMDC)
-          try {
-            runnable.run()
-          } finally {
-            org.slf4j.MDC.setContextMap(threadMDC)
-          }
-        }
-      })
-    }
-
-    @inline
-    private def getMDCMap: util.Map[String, String] = {
-      org.slf4j.MDC.getCopyOfContextMap match {
-        case null => new util.HashMap[String, String]()
-        case m => m
-      }
+      super.execute(new MDCAwareRunnable(runnable))
     }
   }
 
