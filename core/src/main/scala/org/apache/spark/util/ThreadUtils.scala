@@ -35,22 +35,22 @@ private[spark] object ThreadUtils {
   object MDCAwareThreadPoolExecutor {
     def newCachedThreadPool(threadFactory: ThreadFactory): ThreadPoolExecutor = {
       new MDCAwareThreadPoolExecutor(0, Integer.MAX_VALUE,
-      60L, TimeUnit.SECONDS,
+       60L, TimeUnit.SECONDS,
       new SynchronousQueue[Runnable],
       threadFactory)
     }
 
     def newFixedThreadPool(nThreads: Int, threadFactory: ThreadFactory): ThreadPoolExecutor = {
       new MDCAwareThreadPoolExecutor(nThreads, nThreads,
-      0L,
-      TimeUnit.MILLISECONDS,
-      new LinkedBlockingQueue[Runnable],
-      threadFactory)
+        0L,
+        TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue[Runnable],
+        threadFactory)
     }
 
     def newSingleThreadExecutor(threadFactory: ThreadFactory): ThreadPoolExecutor = {
       new MDCAwareThreadPoolExecutor(1, 1,
-      0L, TimeUnit.MILLISECONDS,
+        0L, TimeUnit.MILLISECONDS,
       new LinkedBlockingQueue[Runnable],
       threadFactory)
     }
@@ -58,8 +58,8 @@ private[spark] object ThreadUtils {
   }
 
   class MDCAwareScheduledThreadPoolExecutor(
-        corePoolSize: Int,
-        threadFactory: ThreadFactory)
+    corePoolSize: Int,
+    threadFactory: ThreadFactory)
     extends ScheduledThreadPoolExecutor(corePoolSize, threadFactory) {
     override def execute(runnable: Runnable) {
       super.execute(new Runnable {
