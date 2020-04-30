@@ -34,6 +34,7 @@ private[spark] object ThreadUtils {
 
   object MDCAwareThreadPoolExecutor {
     def newCachedThreadPool(threadFactory: ThreadFactory): ThreadPoolExecutor = {
+      // The values needs to be synced with [[Executors.newCachedThreadPool]]
       new MDCAwareThreadPoolExecutor(
         0,
         Integer.MAX_VALUE,
@@ -44,6 +45,7 @@ private[spark] object ThreadUtils {
     }
 
     def newFixedThreadPool(nThreads: Int, threadFactory: ThreadFactory): ThreadPoolExecutor = {
+      // The values needs to be synced with [[Executors.newFixedThreadPool]]
       new MDCAwareThreadPoolExecutor(
         nThreads,
         nThreads,
@@ -54,6 +56,7 @@ private[spark] object ThreadUtils {
     }
 
     def newSingleThreadExecutor(threadFactory: ThreadFactory): ThreadPoolExecutor = {
+      // The values needs to be synced with [[Executors.newSingleThreadExecutor]]
       new MDCAwareThreadPoolExecutor(
         1,
         1,
