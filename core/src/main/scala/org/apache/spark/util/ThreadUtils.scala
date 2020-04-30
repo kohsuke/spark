@@ -35,7 +35,7 @@ private[spark] object ThreadUtils {
   object MDCAwareThreadPoolExecutor {
     def newCachedThreadPool(threadFactory: ThreadFactory): ThreadPoolExecutor = {
       new MDCAwareThreadPoolExecutor(0, Integer.MAX_VALUE,
-       60L, TimeUnit.SECONDS,
+        60L, TimeUnit.SECONDS,
       new SynchronousQueue[Runnable],
       threadFactory)
     }
