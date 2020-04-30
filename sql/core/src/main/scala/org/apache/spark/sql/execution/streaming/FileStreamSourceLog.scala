@@ -28,11 +28,14 @@ import org.json4s.jackson.Serialization
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.streaming.FileStreamSource.FileEntry
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.util.Clock
 
 class FileStreamSourceLog(
     metadataLogVersion: Int,
     sparkSession: SparkSession,
-    path: String)
+    path: String,
+    clock: Clock,
+    inputRetentionMs: Long)
   extends CompactibleFileStreamLog[FileEntry](metadataLogVersion, sparkSession, path) {
 
   import CompactibleFileStreamLog._
@@ -62,7 +65,8 @@ class FileStreamSourceLog(
   }
 
   def compactLogs(logs: Seq[FileEntry]): Seq[FileEntry] = {
-    logs
+    val curTime = clock.getTimeMillis()
+    logs.filter { f => curTime - f.timestamp <= inputRetentionMs }
   }
 
   override def add(batchId: Long, logs: Array[FileEntry]): Boolean = {
