@@ -34,14 +34,19 @@ private[spark] object ThreadUtils {
 
   object MDCAwareThreadPoolExecutor {
     def newCachedThreadPool(threadFactory: ThreadFactory): ThreadPoolExecutor = {
-      new MDCAwareThreadPoolExecutor(0, Integer.MAX_VALUE,
-        60L, TimeUnit.SECONDS,
-      new SynchronousQueue[Runnable],
-      threadFactory)
+      new MDCAwareThreadPoolExecutor(
+        0,
+        Integer.MAX_VALUE,
+        60L,
+        TimeUnit.SECONDS,
+        new SynchronousQueue[Runnable],
+        threadFactory)
     }
 
     def newFixedThreadPool(nThreads: Int, threadFactory: ThreadFactory): ThreadPoolExecutor = {
-      new MDCAwareThreadPoolExecutor(nThreads, nThreads,
+      new MDCAwareThreadPoolExecutor(
+        nThreads,
+        nThreads,
         0L,
         TimeUnit.MILLISECONDS,
         new LinkedBlockingQueue[Runnable],
@@ -49,10 +54,13 @@ private[spark] object ThreadUtils {
     }
 
     def newSingleThreadExecutor(threadFactory: ThreadFactory): ThreadPoolExecutor = {
-      new MDCAwareThreadPoolExecutor(1, 1,
-        0L, TimeUnit.MILLISECONDS,
-      new LinkedBlockingQueue[Runnable],
-      threadFactory)
+      new MDCAwareThreadPoolExecutor(
+        1,
+        1,
+        0L,
+        TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue[Runnable],
+        threadFactory)
     }
 
   }
@@ -80,8 +88,8 @@ private[spark] object ThreadUtils {
   }
 
   class MDCAwareScheduledThreadPoolExecutor(
-    corePoolSize: Int,
-    threadFactory: ThreadFactory)
+      corePoolSize: Int,
+      threadFactory: ThreadFactory)
     extends ScheduledThreadPoolExecutor(corePoolSize, threadFactory) {
 
     override def execute(runnable: Runnable) {
@@ -90,12 +98,12 @@ private[spark] object ThreadUtils {
   }
 
   class MDCAwareThreadPoolExecutor(
-    corePoolSize: Int,
-    maximumPoolSize: Int,
-    keepAliveTime: Long,
-    unit: TimeUnit,
-    workQueue: BlockingQueue[Runnable],
-    threadFactory: ThreadFactory)
+      corePoolSize: Int,
+      maximumPoolSize: Int,
+      keepAliveTime: Long,
+      unit: TimeUnit,
+      workQueue: BlockingQueue[Runnable],
+      threadFactory: ThreadFactory)
     extends ThreadPoolExecutor(corePoolSize, maximumPoolSize,
       keepAliveTime, unit, workQueue, threadFactory) {
 
