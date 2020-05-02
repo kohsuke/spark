@@ -547,7 +547,7 @@ Here are the details of all the sources in Spark.
         <br/>
         <code>maxFileAge</code>: Maximum age of a file that can be found in this directory, before it is ignored. For the first batch all files will be considered valid. If <code>latestFirst</code> is set to `true` and <code>maxFilesPerTrigger</code> is set, then this parameter will be ignored, because old files that are valid, and should be processed, may be ignored. The max age is specified with respect to the timestamp of the latest file, and not the timestamp of the current system.(default: 1 week)
         <br/>
-        <code>inputRetention</code>: Maximum age of a file that can be found in this directory, before it is ignored.<br/>
+        <code>inputRetention</code>: Maximum age of a file that can be found in this directory, before it is ignored. (e.g. 14d, default: None)<br/>
         This is the "hard" limit of input data retention - input files older than the max age will be ignored regardless of source options (while `maxFileAgeMs` depends on the condition), as well as entries in checkpoint metadata will be purged based on this.<br/>
         Unlike `maxFileAgeMs`, the max age is specified with respect to the timestamp of the current system, to provide consistent behavior regardless of metadata entries.<br/>
         NOTE 1: Please be careful to set the value if the query replays from the old input files.<br/>
