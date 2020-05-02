@@ -72,7 +72,7 @@ class FileStreamSource(
     }}
 
   /** exposed for testing */
-  private[sql] var clockForRetention: Clock = new SystemClock
+  var clockForRetention: Clock = new SystemClock
   private val inputRetentionMs = sourceOptions.inputRetentionMs.getOrElse(Long.MaxValue)
 
   private val metadataLog =
