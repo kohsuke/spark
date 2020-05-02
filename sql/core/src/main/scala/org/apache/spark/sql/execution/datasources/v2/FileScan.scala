@@ -95,19 +95,8 @@ trait FileScan extends Scan
 
   override def hashCode(): Int = getClass.hashCode()
 
-  def metaData: Map[String, String] = {
-    val locationDesc =
-      fileIndex.getClass.getSimpleName + fileIndex.rootPaths.mkString("[", ", ", "]")
-   Map(
-      "Format" -> s"${this.getClass.getSimpleName.replace("Scan", "").toLowerCase(Locale.ROOT)}",
-      "ReadSchema" -> readDataSchema.catalogString,
-      "PartitionFilters" -> seqToString(partitionFilters),
-      "DataFilters" -> seqToString(dataFilters),
-      "Location" -> locationDesc)
-  }
-
   override def description(): String = {
-    val metadataStr = metaData.toSeq.sorted.map {
+    val metadataStr = getMetaData().toSeq.sorted.map {
       case (key, value) =>
         val redactedValue =
           Utils.redact(sparkSession.sessionState.conf.stringRedactionPattern, value)
@@ -116,8 +105,15 @@ trait FileScan extends Scan
     s"${this.getClass.getSimpleName} $metadataStr"
   }
 
-  protected def getMetadata(): Map[String, String] = {
-    metaData
+  override def getMetaData(): Map[String, String] = {
+    val locationDesc =
+      fileIndex.getClass.getSimpleName + fileIndex.rootPaths.mkString("[", ", ", "]")
+    Map(
+      "Format" -> s"${this.getClass.getSimpleName.replace("Scan", "").toLowerCase(Locale.ROOT)}",
+      "ReadSchema" -> readDataSchema.catalogString,
+      "PartitionFilters" -> seqToString(partitionFilters),
+      "DataFilters" -> seqToString(dataFilters),
+      "Location" -> locationDesc)
   }
 
   protected def partitions: Seq[FilePartition] = {
