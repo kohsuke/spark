@@ -55,15 +55,17 @@ private[spark] object ThreadUtils {
         threadFactory)
     }
 
-    def newSingleThreadExecutor(threadFactory: ThreadFactory): ThreadPoolExecutor = {
+    def newSingleThreadExecutor(threadFactory: ThreadFactory): ExecutorService = {
       // The values needs to be synced with `Executors.newSingleThreadExecutor`
-      new MDCAwareThreadPoolExecutor(
-        1,
-        1,
-        0L,
-        TimeUnit.MILLISECONDS,
-        new LinkedBlockingQueue[Runnable],
-        threadFactory)
+      Executors.unconfigurableExecutorService(
+        new MDCAwareThreadPoolExecutor(
+          1,
+          1,
+          0L,
+          TimeUnit.MILLISECONDS,
+          new LinkedBlockingQueue[Runnable],
+          threadFactory)
+        )
     }
 
   }
