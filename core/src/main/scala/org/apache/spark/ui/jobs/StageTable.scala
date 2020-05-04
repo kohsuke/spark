@@ -383,15 +383,9 @@ private[ui] class StageDataSource(
   // table so that we can avoid creating duplicate contents during sorting the data
   private val data = stages.map(stageRow).sorted(ordering(sortColumn, desc))
 
-  private var _slicedStageIds: Set[Int] = _
-
   override def dataSize: Int = data.size
 
-  override def sliceData(from: Int, to: Int): Seq[StageTableRowData] = {
-    val r = data.slice(from, to)
-    _slicedStageIds = r.map(_.stageId).toSet
-    r
-  }
+  override def sliceData(from: Int, to: Int): Seq[StageTableRowData] = data.slice(from, to)
 
   private def stageRow(stageData: v1.StageData): StageTableRowData = {
     val formattedSubmissionTime = stageData.submissionTime match {
@@ -421,7 +415,6 @@ private[ui] class StageDataSource(
     val shuffleReadWithUnit = if (shuffleRead > 0) Utils.bytesToString(shuffleRead) else ""
     val shuffleWrite = stageData.shuffleWriteBytes
     val shuffleWriteWithUnit = if (shuffleWrite > 0) Utils.bytesToString(shuffleWrite) else ""
-
 
     new StageTableRowData(
       stageData,

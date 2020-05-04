@@ -421,7 +421,6 @@ private[ui] class JobDataSource(
     store: AppStatusStore,
     jobs: Seq[v1.JobData],
     basePath: String,
-    currentTime: Long,
     pageSize: Int,
     sortColumn: String,
     desc: Boolean) extends PagedDataSource[JobTableRowData](pageSize) {
@@ -432,15 +431,9 @@ private[ui] class JobDataSource(
   // so that we can avoid creating duplicate contents during sorting the data
   private val data = jobs.map(jobRow).sorted(ordering(sortColumn, desc))
 
-  private var _slicedJobIds: Set[Int] = null
-
   override def dataSize: Int = data.size
 
-  override def sliceData(from: Int, to: Int): Seq[JobTableRowData] = {
-    val r = data.slice(from, to)
-    _slicedJobIds = r.map(_.jobData.jobId).toSet
-    r
-  }
+  override def sliceData(from: Int, to: Int): Seq[JobTableRowData] = data.slice(from, to)
 
   private def jobRow(jobData: v1.JobData): JobTableRowData = {
     val duration: Option[Long] = JobDataUtil.getDuration(jobData)
@@ -489,7 +482,6 @@ private[ui] class JobDataSource(
       ordering
     }
   }
-
 }
 
 private[ui] class JobPagedTable(
@@ -507,13 +499,15 @@ private[ui] class JobPagedTable(
     sortColumn: String,
     desc: Boolean
   ) extends PagedTable[JobTableRowData] {
-  val parameterPath = basePath + s"/$subPath/?" + parameterOtherTable.mkString("&")
+
+  private val parameterPath = basePath + s"/$subPath/?" + parameterOtherTable.mkString("&")
+
+  private val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
 
   override def tableId: String = jobTag + "-table"
 
   override def tableCssClass: String =
-    "table table-bordered table-sm table-striped " +
-      "table-head-clickable table-cell-width-limited"
+    "table table-bordered table-sm table-striped table-head-clickable table-cell-width-limited"
 
   override def pageSizeFormField: String = jobTag + ".pageSize"
 
@@ -523,13 +517,11 @@ private[ui] class JobPagedTable(
     store,
     data,
     basePath,
-    currentTime,
     pageSize,
     sortColumn,
     desc)
 
   override def pageLink(page: Int): String = {
-    val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
     parameterPath +
       s"&$pageNumberFormField=$page" +
       s"&$jobTag.sort=$encodedSortColumn" +
@@ -538,13 +530,11 @@ private[ui] class JobPagedTable(
       s"#$tableHeaderId"
   }
 
-  override def goButtonFormPath: String = {
-    val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
+  override def goButtonFormPath: String =
     s"$parameterPath&$jobTag.sort=$encodedSortColumn&$jobTag.desc=$desc#$tableHeaderId"
-  }
 
   override def headers: Seq[Node] = {
-    // Information for each header: title, cssClass, and sortable
+    // Information for each header: title, cssClass, sortable and tooltip
     val jobHeadersAndCssClasses: Seq[(String, String, Boolean, Option[String])] =
       Seq(
         (jobIdTitle, "", true, None),
@@ -573,17 +563,9 @@ private[ui] class JobPagedTable(
 
           <th class={cssClass}>
             <a href={headerLink}>
-              {
-                if (tooltip.nonEmpty) {
-                  <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
-                    {header}&nbsp;{Unparsed(arrow)}
-                  </span>
-                } else {
-                  <span>
-                    {header}&nbsp;{Unparsed(arrow)}
-                  </span>
-                }
-              }
+              <span data-toggle="tooltip" data-placement="top" title={tooltip.getOrElse("")}>
+                {header}&nbsp;{Unparsed(arrow)}
+              </span>
             </a>
           </th>
         } else {
@@ -596,32 +578,16 @@ private[ui] class JobPagedTable(
 
             <th class={cssClass}>
               <a href={headerLink}>
-                {
-                  if (tooltip.nonEmpty) {
-                    <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
-                      {header}
-                    </span>
-                  } else {
-                    <span>
-                      {header}
-                    </span>
-                  }
-                }
-               </a>
+                <span data-toggle="tooltip" data-placement="top" title={tooltip.getOrElse("")}>
+                  {header}
+                </span>
+              </a>
             </th>
           } else {
             <th class={cssClass}>
-              {
-                if (tooltip.nonEmpty) {
-                  <span data-toggle="tooltip" data-placement="top" title={tooltip.get}>
-                    {header}
-                  </span>
-                } else {
-                  <span>
-                    {header}
-                  </span>
-                }
-              }
+              <span data-toggle="tooltip" data-placement="top" title={tooltip.getOrElse("")}>
+                {header}
+              </span>
             </th>
           }
         }

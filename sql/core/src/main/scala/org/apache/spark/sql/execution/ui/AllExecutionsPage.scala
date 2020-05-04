@@ -229,10 +229,7 @@ private[ui] class ExecutionPagedTable(
     showFailedJobs: Boolean) extends PagedTable[ExecutionTableRowData] {
 
   override val dataSource = new ExecutionDataSource(
-    request,
-    parent,
     data,
-    basePath,
     currentTime,
     pageSize,
     sortColumn,
@@ -243,14 +240,14 @@ private[ui] class ExecutionPagedTable(
 
   private val parameterPath = s"$basePath/$subPath/?${parameterOtherTable.mkString("&")}"
 
+  private val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
+
   override def tableId: String = s"$executionTag-table"
 
   override def tableCssClass: String =
-    "table table-bordered table-sm table-striped " +
-      "table-head-clickable table-cell-width-limited"
+    "table table-bordered table-sm table-striped table-head-clickable table-cell-width-limited"
 
   override def pageLink(page: Int): String = {
-    val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
     parameterPath +
       s"&$pageNumberFormField=$page" +
       s"&$executionTag.sort=$encodedSortColumn" +
@@ -263,41 +260,40 @@ private[ui] class ExecutionPagedTable(
 
   override def pageNumberFormField: String = s"$executionTag.page"
 
-  override def goButtonFormPath: String = {
-    val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
+  override def goButtonFormPath: String =
     s"$parameterPath&$executionTag.sort=$encodedSortColumn&$executionTag.desc=$desc#$tableHeaderId"
-  }
 
   override def headers: Seq[Node] = {
-    // Information for each header: title, sortable
-    val executionHeadersAndCssClasses: Seq[(String, Boolean)] =
+    // Information for each header: title, sortable, tooltip
+    val executionHeadersAndCssClasses: Seq[(String, Boolean, Option[String])] =
       Seq(
-        ("ID", true),
-        ("Description", true),
-        ("Submitted", true),
-        ("Duration", true)) ++ {
+        ("ID", true, None),
+        ("Description", true, None),
+        ("Submitted", true, None),
+        ("Duration", true, Some("Time from query submission to completion " +
+          "(or if still executing, time since submission)"))) ++ {
         if (showRunningJobs && showSucceededJobs && showFailedJobs) {
           Seq(
-            ("Running Job IDs", true),
-            ("Succeeded Job IDs", true),
-            ("Failed Job IDs", true))
+            ("Running Job IDs", true, None),
+            ("Succeeded Job IDs", true, None),
+            ("Failed Job IDs", true, None))
         } else if (showSucceededJobs && showFailedJobs) {
           Seq(
-            ("Succeeded Job IDs", true),
-            ("Failed Job IDs", true))
+            ("Succeeded Job IDs", true, None),
+            ("Failed Job IDs", true, None))
         } else {
-          Seq(("Job IDs", true))
+          Seq(("Job IDs", true, None))
         }
       }
 
     val sortableColumnHeaders = executionHeadersAndCssClasses.filter {
-      case (_, sortable) => sortable
-    }.map { case (title, _) => title }
+      case (_, sortable, _) => sortable
+    }.map { case (title, _, _) => title }
 
     require(sortableColumnHeaders.contains(sortColumn), s"Unknown column: $sortColumn")
 
     val headerRow: Seq[Node] = {
-      executionHeadersAndCssClasses.map { case (header, sortable) =>
+      executionHeadersAndCssClasses.map { case (header, sortable, tooltip) =>
         if (header == sortColumn) {
           val headerLink = Unparsed(
             parameterPath +
@@ -309,9 +305,9 @@ private[ui] class ExecutionPagedTable(
 
           <th>
             <a href={headerLink}>
-              {header}<span>
-              &nbsp;{Unparsed(arrow)}
-            </span>
+              <span data-toggle="tooltip" data-placement="top" title={tooltip.getOrElse("")}>
+                {header}&nbsp;{Unparsed(arrow)}
+              </span>
             </a>
           </th>
         } else {
@@ -324,15 +320,9 @@ private[ui] class ExecutionPagedTable(
 
             <th>
               <a href={headerLink}>
-                {if (header == "Duration") {
-                  <span data-toggle="tooltip" data-placement="top"
-                    title="Time from query submission to completion
-                    (or if still executing, time since submission)">
-                    {header}
-                  </span>
-                } else {
+                <span data-toggle="tooltip" data-placement="top" title={tooltip.getOrElse("")}>
                   {header}
-                }}
+                </span>
               </a>
             </th>
           } else {
@@ -432,10 +422,7 @@ private[ui] class ExecutionTableRowData(
 
 
 private[ui] class ExecutionDataSource(
-    request: HttpServletRequest,
-    parent: SQLTab,
     executionData: Seq[SQLExecutionUIData],
-    basePath: String,
     currentTime: Long,
     pageSize: Int,
     sortColumn: String,
@@ -448,15 +435,9 @@ private[ui] class ExecutionDataSource(
   // in the table so that we can avoid creating duplicate contents during sorting the data
   private val data = executionData.map(executionRow).sorted(ordering(sortColumn, desc))
 
-  private var _sliceExecutionIds: Set[Int] = _
-
   override def dataSize: Int = data.size
 
-  override def sliceData(from: Int, to: Int): Seq[ExecutionTableRowData] = {
-    val r = data.slice(from, to)
-    _sliceExecutionIds = r.map(_.executionUIData.executionId.toInt).toSet
-    r
-  }
+  override def sliceData(from: Int, to: Int): Seq[ExecutionTableRowData] = data.slice(from, to)
 
   private def executionRow(executionUIData: SQLExecutionUIData): ExecutionTableRowData = {
     val submissionTime = executionUIData.submissionTime

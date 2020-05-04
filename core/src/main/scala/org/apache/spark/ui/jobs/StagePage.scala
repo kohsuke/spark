@@ -448,7 +448,6 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
 
 private[ui] class TaskDataSource(
     stage: StageData,
-    currentTime: Long,
     pageSize: Int,
     sortColumn: String,
     desc: Boolean,
@@ -470,13 +469,10 @@ private[ui] class TaskDataSource(
     _tasksToShow
   }
 
-  def tasks: Seq[TaskData] = _tasksToShow
-
   def executorLogs(id: String): Map[String, String] = {
     executorIdToLogs.getOrElseUpdate(id,
       store.asOption(store.executorSummary(id)).map(_.executorLogs).getOrElse(Map.empty))
   }
-
 }
 
 private[ui] class TaskPagedTable(
@@ -490,6 +486,8 @@ private[ui] class TaskPagedTable(
 
   import ApiHelper._
 
+  private val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
+
   override def tableId: String = "task-table"
 
   override def tableCssClass: String =
@@ -501,14 +499,12 @@ private[ui] class TaskPagedTable(
 
   override val dataSource: TaskDataSource = new TaskDataSource(
     stage,
-    currentTime,
     pageSize,
     sortColumn,
     desc,
     store)
 
   override def pageLink(page: Int): String = {
-    val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
     basePath +
       s"&$pageNumberFormField=$page" +
       s"&task.sort=$encodedSortColumn" +
@@ -516,10 +512,8 @@ private[ui] class TaskPagedTable(
       s"&$pageSizeFormField=$pageSize"
   }
 
-  override def goButtonFormPath: String = {
-    val encodedSortColumn = URLEncoder.encode(sortColumn, UTF_8.name())
+  override def goButtonFormPath: String =
     s"$basePath&task.sort=$encodedSortColumn&task.desc=$desc"
-  }
 
   def headers: Seq[Node] = {
     import ApiHelper._
