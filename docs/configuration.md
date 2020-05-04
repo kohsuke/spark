@@ -2670,6 +2670,9 @@ Spark uses [log4j](http://logging.apache.org/log4j/) for logging. You can config
 `log4j.properties` file in the `conf` directory. One way to start is to copy the existing
 `log4j.properties.template` located there.
 
+By default, spark adds to the MDC 2 records: `appId` and `appName` you can add that to your patternLayout `%X{appId}` in order to print in the logs
+More over, you can use `spark.sparkContext.setLocalProperty("mdc." + name, "value")` to add user specific data into MDC.
+
 # Overriding configuration directory
 
 To specify a different configuration directory other than the default "SPARK_HOME/conf",
