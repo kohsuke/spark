@@ -22,11 +22,12 @@ import java.util.{Collections, UUID}
 import java.util.Properties
 
 import io.fabric8.kubernetes.api.model._
+import io.fabric8.kubernetes.client.Watcher.Action
 import io.fabric8.kubernetes.client.{KubernetesClient, KubernetesClientException, Watch}
+
 import scala.collection.mutable
 import scala.util.control.NonFatal
 import util.control.Breaks._
-
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.SparkApplication
 import org.apache.spark.deploy.k8s._
@@ -145,10 +146,9 @@ private[spark] class Client(
     breakable {
       while (true) {
         try {
-            watch = kubernetesClient
-              .pods()
-              .withName(driverPodName)
-              .watch(watcher)
+            val podWithName = kubernetesClient.pods().withName(driverPodName)
+            watch = podWithName.watch(watcher)
+            watcher.eventReceived(Action.MODIFIED, podWithName.get())
             watcher.watchOrStop(sId)
             break
         } catch {
