@@ -686,6 +686,7 @@ private[spark] class Executor(
 
     org.slf4j.MDC.put("appId", getProperty("spark.app.id"))
     org.slf4j.MDC.put("appName", getProperty("spark.app.name"))
+    org.slf4j.MDC.put("taskName", taskDescription.name)
 
     properties.asScala.filter(_._1.startsWith("mdc.")).foreach { item =>
       val key = item._1.substring(4)
