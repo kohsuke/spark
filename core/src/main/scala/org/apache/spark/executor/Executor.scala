@@ -680,12 +680,6 @@ private[spark] class Executor(
   private def setMDCForTask(taskDescription: TaskDescription): Unit = {
     val properties = taskDescription.properties
 
-    def getProperty(id: String): String = {
-      Option(properties.getProperty(id)).getOrElse(conf.get(id, ""))
-    }
-
-    org.slf4j.MDC.put("appId", getProperty("spark.app.id"))
-    org.slf4j.MDC.put("appName", getProperty("spark.app.name"))
     org.slf4j.MDC.put("taskName", taskDescription.name)
 
     properties.asScala.filter(_._1.startsWith("mdc.")).foreach { item =>
