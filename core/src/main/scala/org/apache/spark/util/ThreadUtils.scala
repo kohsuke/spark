@@ -55,6 +55,11 @@ private[spark] object ThreadUtils {
         threadFactory)
     }
 
+    /**
+     * This method differ from the [[Executors.newSingleThreadExecutor]] in 2 ways:
+     *   1. It use [[MDCAwareThreadPoolExecutor]] as underline [[ExecutorService]]
+     *   2. It does not use the [[FinalizableDelegatedExecutorService]]
+     */
     def newSingleThreadExecutor(threadFactory: ThreadFactory): ExecutorService = {
       // The values needs to be synced with `Executors.newSingleThreadExecutor`
       Executors.unconfigurableExecutorService(
