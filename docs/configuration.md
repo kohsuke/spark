@@ -2674,6 +2674,7 @@ By default, Spark adds 1 record to the MDC: `taskName`, which shows something
 like `task 1.0 in stage 0.0`. You can add `%X{taskName}` to your patternLayout in
 order to print it in the logs.
 Moreover, you can use `spark.sparkContext.setLocalProperty("mdc." + name, "value")` to add user specific data into MDC.
+The key in MDC will be the string after the `mdc.` prefix.
 
 # Overriding configuration directory
 
