@@ -56,9 +56,9 @@ private[spark] object ThreadUtils {
     }
 
     /**
-     * This method differ from the [[Executors.newSingleThreadExecutor]] in 2 ways:
-     *   1. It use [[MDCAwareThreadPoolExecutor]] as underline [[ExecutorService]]
-     *   2. It does not use the Executors.FinalizableDelegatedExecutorService from JDK
+     * This method differ from the [[java.util.concurrent.Executors#newSingleThreadExecutor]] in 2 ways:
+     *   1. It use [[org.apache.spark.util.ThreadUtils.MDCAwareThreadPoolExecutor]] as underline [[java.util.concurrent.ExecutorService]]
+     *   2. It does not use the [[java.util.concurrent.Executors.FinalizableDelegatedExecutorService]] from JDK
      */
     def newSingleThreadExecutor(threadFactory: ThreadFactory): ExecutorService = {
       // The values needs to be synced with `Executors.newSingleThreadExecutor`
