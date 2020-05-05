@@ -21,11 +21,12 @@ import java.util
 import java.util.concurrent._
 import java.util.concurrent.locks.ReentrantLock
 
-import com.google.common.util.concurrent.{MoreExecutors, ThreadFactoryBuilder}
 import scala.concurrent.{Awaitable, ExecutionContext, ExecutionContextExecutor, Future}
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.language.higherKinds
 import scala.util.control.NonFatal
+
+import com.google.common.util.concurrent.ThreadFactoryBuilder
 
 import org.apache.spark.SparkException
 import org.apache.spark.rpc.RpcAbortException
@@ -61,7 +62,7 @@ private[spark] object ThreadUtils {
      *   1. It use [[org.apache.spark.util.ThreadUtils.MDCAwareThreadPoolExecutor]]
      *   as underline [[java.util.concurrent.ExecutorService]]
      *   2. It does not use the
-     *   [[java.util.concurrent.Executors.FinalizableDelegatedExecutorService]] from JDK
+     *   [[java.util.concurrent.Executors#FinalizableDelegatedExecutorService]] from JDK
      */
     def newSingleThreadExecutor(threadFactory: ThreadFactory): ExecutorService = {
       // The values needs to be synced with `Executors.newSingleThreadExecutor`
