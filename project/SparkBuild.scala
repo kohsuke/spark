@@ -172,7 +172,7 @@ object SparkBuild extends PomBuild {
         val configV = (baseDirectory in ThisBuild).value / scalaStyleOnCompileConfig
         val configUrlV = scalastyleConfigUrl.in(config).value
         val streamsV = streams.in(config).value
-        val failOnErrorV = false
+        val failOnErrorV = true
         val failOnWarningV = false
         val scalastyleTargetV = scalastyleTarget.in(config).value
         val configRefreshHoursV = scalastyleConfigRefreshHours.in(config).value
