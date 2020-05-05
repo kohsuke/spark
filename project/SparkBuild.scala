@@ -905,7 +905,7 @@ object Unidoc {
 
 object Checkstyle {
   lazy val settings = Seq(
-    checkstyleSeverityLevel := Some(CheckstyleSeverityLevel.Warning),
+    checkstyleSeverityLevel := Some(CheckstyleSeverityLevel.Error),
     javaSource in (Compile, checkstyle) := baseDirectory.value / "src/main/java",
     javaSource in (Test, checkstyle) := baseDirectory.value / "src/test/java",
     checkstyleConfigLocation := CheckstyleConfigLocation.File("dev/checkstyle.xml"),
