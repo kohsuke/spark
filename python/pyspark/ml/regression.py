@@ -1597,7 +1597,7 @@ class GBTRegressionModel(
 
 
 class _AFTSurvivalRegressionParams(_PredictorParams, HasMaxIter, HasTol, HasFitIntercept,
-                                   HasAggregationDepth):
+                                   HasAggregationDepth, HasBlockSize):
     """
     Params for :py:class:`AFTSurvivalRegression` and :py:class:`AFTSurvivalRegressionModel`.
 
@@ -1664,6 +1664,8 @@ class AFTSurvivalRegression(_JavaRegressor, _AFTSurvivalRegressionParams,
     10
     >>> aftsr.clear(aftsr.maxIter)
     >>> model = aftsr.fit(df)
+    >>> model.getBlockSize()
+    1
     >>> model.setFeaturesCol("features")
     AFTSurvivalRegressionModel...
     >>> model.predict(Vectors.dense(6.3))
@@ -1700,19 +1702,19 @@ class AFTSurvivalRegression(_JavaRegressor, _AFTSurvivalRegressionParams,
     def __init__(self, featuresCol="features", labelCol="label", predictionCol="prediction",
                  fitIntercept=True, maxIter=100, tol=1E-6, censorCol="censor",
                  quantileProbabilities=list([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]),
-                 quantilesCol=None, aggregationDepth=2):
+                 quantilesCol=None, aggregationDepth=2, blockSize=1):
         """
         __init__(self, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  fitIntercept=True, maxIter=100, tol=1E-6, censorCol="censor", \
                  quantileProbabilities=[0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99], \
-                 quantilesCol=None, aggregationDepth=2)
+                 quantilesCol=None, aggregationDepth=2, blockSize=1)
         """
         super(AFTSurvivalRegression, self).__init__()
         self._java_obj = self._new_java_obj(
             "org.apache.spark.ml.regression.AFTSurvivalRegression", self.uid)
         self._setDefault(censorCol="censor",
                          quantileProbabilities=[0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99],
-                         maxIter=100, tol=1E-6)
+                         maxIter=100, tol=1E-6, blockSize=1)
         kwargs = self._input_kwargs
         self.setParams(**kwargs)
 
@@ -1721,12 +1723,12 @@ class AFTSurvivalRegression(_JavaRegressor, _AFTSurvivalRegressionParams,
     def setParams(self, featuresCol="features", labelCol="label", predictionCol="prediction",
                   fitIntercept=True, maxIter=100, tol=1E-6, censorCol="censor",
                   quantileProbabilities=list([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]),
-                  quantilesCol=None, aggregationDepth=2):
+                  quantilesCol=None, aggregationDepth=2, blockSize=1):
         """
         setParams(self, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   fitIntercept=True, maxIter=100, tol=1E-6, censorCol="censor", \
                   quantileProbabilities=[0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99], \
-                  quantilesCol=None, aggregationDepth=2):
+                  quantilesCol=None, aggregationDepth=2, blockSize=1):
         """
         kwargs = self._input_kwargs
         return self._set(**kwargs)
@@ -1782,6 +1784,13 @@ class AFTSurvivalRegression(_JavaRegressor, _AFTSurvivalRegressionParams,
         Sets the value of :py:attr:`aggregationDepth`.
         """
         return self._set(aggregationDepth=value)
+
+    @since("3.1.0")
+    def setBlockSize(self, value):
+        """
+        Sets the value of :py:attr:`blockSize`.
+        """
+        return self._set(blockSize=value)
 
 
 class AFTSurvivalRegressionModel(_JavaRegressionModel, _AFTSurvivalRegressionParams,
