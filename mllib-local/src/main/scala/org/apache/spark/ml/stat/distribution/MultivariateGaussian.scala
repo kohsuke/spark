@@ -81,41 +81,34 @@ class MultivariateGaussian @Since("2.0.0") (
     u - 0.5 * BLAS.dot(v, v)
   }
 
-  private[ml] def pdf(X: Matrix): Vector = {
-    val m = X.numRows
-    val n = X.numCols
-    val mat = new DenseMatrix(m, n, Array.ofDim[Double](m * n))
+  private[ml] def pdf(X: Matrix): DenseVector = {
+    val mat = DenseMatrix.zeros(X.numRows, X.numCols)
     pdf(X, mat)
   }
 
-  private[ml] def pdf(X: Matrix, mat: DenseMatrix): Vector = {
+  private[ml] def pdf(X: Matrix, mat: DenseMatrix): DenseVector = {
     require(!mat.isTransposed)
-    val localU = u
-    val localRootSigmaInvMat = rootSigmaInvMat
-    val localRootSigmaInvMulMu = rootSigmaInvMulMu.toArray
 
-    BLAS.gemm(1.0, X, localRootSigmaInvMat.transpose, 0.0, mat)
-    val arr = mat.values
+    BLAS.gemm(1.0, X, rootSigmaInvMat.transpose, 0.0, mat)
     val m = mat.numRows
     val n = mat.numCols
 
-    val pdfArr = Array.ofDim[Double](m)
+    val pdfVec = mat.multiply(rootSigmaInvMulMu)
+
+    val blas = BLAS.getBLAS(n)
+    val squared1 = BLAS.dot(rootSigmaInvMulMu, rootSigmaInvMulMu)
+
+    val localU = u
     var i = 0
     while (i < m) {
-      var squaredSum = 0.0
-      var index = i
-      var j = 0
-      while (j < n) {
-        val d = arr(index) - localRootSigmaInvMulMu(j)
-        squaredSum += d * d
-        index += m
-        j += 1
-      }
-      pdfArr(i) = math.exp(localU - 0.5 * squaredSum)
+      val squared2 = blas.ddot(n, mat.values, i, m, mat.values, i, m)
+      val dot = pdfVec(i)
+      val squaredSum = squared1 + squared2 - dot - dot
+      pdfVec.values(i) = math.exp(localU - 0.5 * squaredSum)
       i += 1
     }
 
-    Vectors.dense(pdfArr)
+    pdfVec
   }
 
   /**

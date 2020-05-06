@@ -376,6 +376,15 @@ class GaussianMixture @Since("2.0.0") (
 
   /**
    * Set block size for stacking input data in matrices.
+   * If blockSize == 1, then stacking will be skipped, and each vector is treated individually;
+   * If blockSize &gt; 1, then vectors will be stacked to blocks, and high-level BLAS routines
+   * will be used if possible (for example, GEMV instead of DOT, GEMM instead of GEMV).
+   * Recommended size is between 10 and 1000. An appropriate choice of the block size depends
+   * on the sparsity and dim of input datasets, the underlying BLAS implementation (for example,
+   * f2jBLAS, OpenBLAS, intel MKL) and its configuration (for example, number of threads).
+   * Note that existing BLAS implementations are mainly optimized for dense matrices, if the
+   * input dataset is sparse, stacking may bring no performance gain, the worse is possible
+   * performance regression.
    * Default is 1.
    *
    * @group expertSetParam
@@ -809,6 +818,7 @@ private class BlockExpectationAggregator(
   private lazy val newWeights = Array.ofDim[Double](k)
   @transient private lazy val newMeansMat = DenseMatrix.zeros(numFeatures, k)
   @transient private lazy val newCovsMat = DenseMatrix.zeros(covSize, k)
+  @transient private lazy val auxiliaryProbMat = DenseMatrix.zeros(blockSize, k)
   @transient private lazy val auxiliaryMat = DenseMatrix.zeros(blockSize, numFeatures)
   @transient private lazy val auxiliaryCovVec = Vectors.zeros(covSize).toDense
 
@@ -840,15 +850,19 @@ private class BlockExpectationAggregator(
     val (matrix: Matrix, weights: Array[Double]) = weightedBlock
     require(matrix.isTransposed)
     val size = matrix.numRows
-    val weightArr = bcWeights.value
+    require(weights.length == size)
 
-    val probMat = DenseMatrix.zeros(size, k)
+    val probMat = if (blockSize == size) auxiliaryProbMat else DenseMatrix.zeros(size, k)
+    require(!probMat.isTransposed)
+    java.util.Arrays.fill(probMat.values, EPSILON)
+
     val mat = if (blockSize == size) auxiliaryMat else DenseMatrix.zeros(size, numFeatures)
     var j = 0
+    val blas1 = BLAS.getBLAS(size)
     while (j < k) {
       val pdfVec = oldGaussians(j).pdf(matrix, mat)
-      var i = 0
-      while (i < size) { probMat.update(i, j, EPSILON + weightArr(j) * pdfVec(i)); i += 1 }
+      blas1.daxpy(size, bcWeights.value(j), pdfVec.values, 0, 1,
+        probMat.values, j * size, 1)
       j += 1
     }
 
@@ -858,7 +872,7 @@ private class BlockExpectationAggregator(
       case dm: DenseMatrix =>
         Iterator.tabulate(size) { i =>
           java.util.Arrays.fill(covVec.values, 0.0)
-          // when input block is dense, directly using nativeBLAS to avoid array copy
+          // when input block is dense, directly use nativeBLAS to avoid array copy
           BLAS.nativeBLAS.dspr("U", numFeatures, 1.0, dm.values, i * numFeatures, 1,
             covVec.values, 0)
           covVec
@@ -872,25 +886,15 @@ private class BlockExpectationAggregator(
         }
     }
 
-    val probArr = Array.ofDim[Double](k)
+    val blas2 = BLAS.getBLAS(k)
     covVecIter.zip(weights.iterator).zipWithIndex.foreach {
       case ((covVec, weight), i) =>
-        var j = 0
-        var probSum = 0.0
-        while (j < k) { probSum += probMat(i, j); j += 1 }
+        val probSum = blas2.dasum(k, probMat.values, i, size)
+        blas2.dscal(k, weight / probSum, probMat.values, i, size)
+        blas2.daxpy(k, 1.0, probMat.values, i, size, newWeights, 0, 1)
+        BLAS.nativeBLAS.dger(covSize, k, 1.0, covVec.values, 0, 1,
+          probMat.values, i, size, newCovsMat.values, 0, covSize)
         newLogLikelihood += math.log(probSum) * weight
-
-        j = 0
-        while (j < k) {
-          val w = probMat(i, j) / probSum * weight
-          newWeights(j) += w
-          probArr(j) = w
-          probMat.update(i, j, w)
-          j += 1
-        }
-
-        BLAS.nativeBLAS.dger(covSize, k, 1.0, covVec.values, 1,
-          probArr, 1, newCovsMat.values, covSize)
     }
 
     BLAS.gemm(1.0, matrix.transpose, probMat, 1.0, newMeansMat)
