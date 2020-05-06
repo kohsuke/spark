@@ -149,7 +149,7 @@ class HadoopMapReduceCommitProtocol(
 
     dir.map { d =>
       if (dynamicPartitionOverwrite) {
-        val tempFile = new Path(dynamicStagingTaskPath(dir.get, taskContext), filename)
+        val tempFile = new Path(dynamicStagingTaskPath(d, taskContext), filename)
         dynamicStagingTaskFiles += tempFile
         tempFile.toString
       } else {
