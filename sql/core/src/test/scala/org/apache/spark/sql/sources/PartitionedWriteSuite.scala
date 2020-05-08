@@ -164,8 +164,8 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
       SQLConf.PartitionOverwriteMode.DYNAMIC.toString,
       SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
         classOf[ConstantJobIdCommitProtocol].getName) {
-      withTable("t") {
-        withTempDir { d =>
+      withTempDir { d =>
+        withTable("t") {
           sql(
             s"""
               | create table t(c1 int, p1 int) using parquet partitioned by (p1)
