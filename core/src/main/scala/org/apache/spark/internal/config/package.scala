@@ -1938,4 +1938,43 @@ package object config {
       .version("3.0.1")
       .booleanConf
       .createWithDefault(false)
+
+  private[spark] val PUSH_BASED_SHUFFLE_ENABLED =
+    ConfigBuilder("spark.shuffle.push.based.enabled")
+      .doc("Set to 'true' to enable push based shuffle")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val PUSH_BASED_SHUFFLE_MERGE_RESULTS_TIMEOUT =
+    ConfigBuilder("spark.shuffle.push.based.merge.results.timeout")
+      .doc("Specify the max amount of time DAGScheduler waits for the merge results from " +
+        "all remote shuffle services for a given shuffle. DAGScheduler will start to submit " +
+        "following stages if not all results are received within the timeout.")
+      .stringConf
+      .createWithDefault("10s")
+
+  private[spark] val PUSH_BASED_SHUFFLE_PUSHER_THREADS =
+    ConfigBuilder("spark.shuffle.push.based.pusherThreads")
+      .doc("Specify the number of threads in the block pusher pool. These threads assist  " +
+        "in creating connections and pushing blocks to remote shuffle services when push based " +
+        "shuffle is enabled. By default, the threadpool size is equal to the number of cores")
+      .intConf
+      .createOptional
+
+  private[spark] val PUSH_BASED_SHUFFLE_MAX_BLOCK_SIZE_TO_PUSH =
+    ConfigBuilder("spark.shuffle.push.based.maxBlockSizeToPush")
+      .doc("The max size of an individual block to push to the remote shuffle services when push " +
+        "based shuffle is enabled. Blocks larger than this threshold are not pushed.")
+      .bytesConf(ByteUnit.KiB)
+      .createWithDefaultString("800k")
+
+  private[spark] val PUSH_BASED_SHUFFLE_MAX_BLOCK_BATCH_SIZE =
+    ConfigBuilder("spark.shuffle.push.based.maxBlockBatchSize")
+      .doc("The max size of a batch of shuffle blocks to be grouped into a single push request " +
+        "when push based shuffle is enabled.")
+      .bytesConf(ByteUnit.MiB)
+      // 2m is also the default value for TransportConf#memoryMapBytes.
+      // Having this default to 2m will very likely make each batch of block loaded in memory with
+      // memory mapping, which has higher overhead with small MB sized chunk of data.
+      .createWithDefaultString("3m")
 }
