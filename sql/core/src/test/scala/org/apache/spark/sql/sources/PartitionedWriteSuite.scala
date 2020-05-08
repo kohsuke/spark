@@ -17,27 +17,21 @@
 
 package org.apache.spark.sql.sources
 
-import java.io.{File, FileNotFoundException}
+import java.io.File
 import java.sql.Timestamp
 
-import scala.util.{Success, Try}
-
-import org.apache.hadoop.fs.{Path, RawLocalFileSystem}
 import org.apache.hadoop.mapreduce.TaskAttemptContext
 
-import org.apache.spark.{DebugFilesystem, SparkConf, SparkContext, TestUtils}
-import org.apache.spark.internal.{config, Logging}
-import org.apache.spark.internal.io.FileCommitProtocol.TaskCommitMessage
+import org.apache.spark.TestUtils
+import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol
-import org.apache.spark.sql.{QueryTest, Row, SparkSession}
+import org.apache.spark.sql.{QueryTest, Row}
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils
-import org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.datasources.SQLHadoopMapReduceCommitProtocol
 import org.apache.spark.sql.functions._
-import org.apache.spark.sql.internal.{SQLConf, StaticSQLConf}
-import org.apache.spark.sql.internal.SQLConf.PartitionOverwriteMode
-import org.apache.spark.sql.test.{SharedSparkSession, SQLTestUtilsBase}
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.test.SharedSparkSession
 import org.apache.spark.util.Utils
 
 private class OnlyDetectCustomPathFileCommitProtocol(jobId: String, path: String)
@@ -163,154 +157,45 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
       }
     }
   }
+
+  test("SPARK-27194 SPARK-29302: For dynamic partition overwrite operation, fix speculation task" +
+    " conflict issue and FileAlreadyExistsException issue ") {
+    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key ->
+      SQLConf.PartitionOverwriteMode.DYNAMIC.toString,
+      SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
+        classOf[ConstantJobIdCommitProtocol].getName) {
+      withTable("t") {
+        withTempDir { d =>
+          sql(
+            s"""
+              | create table t(c1 int, p1 int) using parquet partitioned by (p1)
+              | location '${d.getAbsolutePath}'
+            """.stripMargin)
+
+          // File commit protocol is ConstantJobIdCommitProtocol, whose jobId is 'jobId'.
+          val stagingDir = new File(d, ".spark-staging-jobId")
+          stagingDir.mkdirs()
+          val conflictTaskFile = new File(stagingDir, "part-00000-jobId-c000.snappy.parquet")
+          conflictTaskFile.createNewFile()
+
+          val df = Seq((1, 2)).toDF("c1", "p1")
+          df.write
+            .partitionBy("p1")
+            .mode("overwrite")
+            .saveAsTable("t")
+          checkAnswer(sql("select * from t"), df)
+        }
+      }
+    }
+  }
 }
 
-private class DetectDynamicStagingTaskPartitionPathCommitProtocol(
+/**
+ * A file commit protocol with constant jobId.
+ */
+private class ConstantJobIdCommitProtocol(
     jobId: String,
     path: String,
     dynamicPartitionOverwrite: Boolean)
-  extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite) {
-
-  override def commitTask(taskContext: TaskAttemptContext): TaskCommitMessage = {
-    if (dynamicPartitionOverwrite) {
-      val partitionPathSet = dynamicStagingTaskFiles
-        .map { stagingTaskFile =>
-          val fs = stagingTaskFile.getFileSystem(taskContext.getConfiguration)
-          getDynamicPartitionPath(fs, stagingTaskFile, taskContext)
-        }
-        .map(_.toUri.getPath.stripPrefix(stagingDir.toUri.getPath +
-          Path.SEPARATOR))
-      assert(partitionPathSet.equals(partitionPaths))
-    }
-    super.commitTask(taskContext)
-  }
-}
-
-/**
- * This file system is used to simulate the scene that for dynamic partition overwrite operation
- * with speculation enabled, rename from dynamic staging files to final files failed for the task,
- * whose taskId and attemptId are 0, because another task has renamed a dynamic staging file to the
- * final file.
- */
-class AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
-  override def rename(src: Path, dst: Path): Boolean = {
-    if (src.getName.startsWith("part-")) {
-      val destParent = dst.getParent
-      if (!exists(destParent)) {
-        throw new FileNotFoundException(s"rename destination parent $destParent not found")
-      }
-      Try {
-        // File name format is part-$split%05d-$jobId$ext
-        val taskId = src.getName.split("-").apply(1).toInt
-        val attemptId = src.getParent.getName.split("-").last.toInt
-        taskId == 0 && attemptId == 0
-      } match {
-        case Success(shouldRenameFailed) if shouldRenameFailed =>
-          super.rename(src, dst)
-          false
-        case _ => super.rename(src, dst)
-      }
-    } else {
-      super.rename(src, dst)
-    }
-  }
-}
-
-/**
- * This file system is used to simulate the scene that for dynamic partition overwrite operation
- * with speculation enabled, rename from dynamic staging files to final files failed for the task,
- * whose taskId and attemptId are 0, and there is no another task has renamed a dynamic staging
- * file to the final file.
- */
-class RenameFailedForFirstTaskFirstAttemptFileSystem extends RawLocalFileSystem {
-  override def rename(src: Path, dst: Path): Boolean = {
-    if (src.getName.startsWith("part-")) {
-      val destParent = dst.getParent
-      if (!exists(destParent)) {
-        throw new FileNotFoundException(s"rename destination parent $destParent not found")
-      }
-      Try {
-        // File name format is part-$split%05d-$jobId$ext
-        val taskId = src.getName.split("-").apply(1).toInt
-        val attemptId = src.getParent.getName.split("-").last.toInt
-        taskId == 0 && attemptId == 0
-      } match {
-        case Success(shouldRenameFailed) if shouldRenameFailed => false
-        case _ => super.rename(src, dst)
-      }
-    } else {
-      super.rename(src, dst)
-    }
-  }
-}
-
-class SpeculationEnabledDynamicPartitionedWriteSuite extends QueryTest with SQLTestUtilsBase {
-  import testImplicits._
-
-  override def spark: SparkSession = _spark
-  protected var _spark: SparkSession = _
-
-  /**
-   * Referred the sparkConf method of SharedSparkSessionBase.
-   */
-  protected def sparkConf(): SparkConf = {
-    val conf = new SparkConf()
-      .set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
-      .set(config.UNSAFE_EXCEPTION_ON_MEMORY_LEAK, true)
-      .set(SQLConf.CODEGEN_FALLBACK.key, "false")
-      .set(SQLConf.OPTIMIZER_EXCLUDED_RULES.key, ConvertToLocalRelation.ruleName)
-      .set(config.SPECULATION_MULTIPLIER, 0.0)
-      .set(config.SPECULATION_QUANTILE, 0.5)
-      .set(config.SPECULATION_ENABLED, true)
-    conf.set(
-      StaticSQLConf.WAREHOUSE_PATH,
-      conf.get(StaticSQLConf.WAREHOUSE_PATH) + "/" + getClass.getCanonicalName)
-  }
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    // set master to local[thread, maxRetries] to enable task retry.
-    _spark = new SparkSession(new SparkContext("local[2, 2]", "test", sparkConf()))
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
-    _spark.stop()
-  }
-
-  test("SPARK-27194 SPARK-29302: Fix the issue that for dynamic partition overwrite, a " +
-    "task would conflict with its speculative task") {
-    withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key -> PartitionOverwriteMode.DYNAMIC.toString,
-      SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
-        classOf[DetectDynamicStagingTaskPartitionPathCommitProtocol].getName) {
-      withTable("t") {
-        val df = spark.sparkContext.parallelize(0 until 10000, 10)
-          .map(index => (index, index % 10))
-          .toDF("c1", "p1")
-        df.write
-          .partitionBy("p1")
-          .mode("overwrite")
-          .saveAsTable("t")
-        checkAnswer(sql("select * from t"), df)
-      }
-    }
-  }
-}
-
-class RenameFailedSpeculateDynamicPartitionedWriteSuite
-  extends SpeculationEnabledDynamicPartitionedWriteSuite {
-  override def sparkConf(): SparkConf = {
-    super.sparkConf()
-      .set("spark.hadoop.fs.file.impl",
-        classOf[RenameFailedForFirstTaskFirstAttemptFileSystem].getName)
-  }
-}
-
-class AnotherTaskRenamedSpeculateDynamicPartitionedWriteSuite
-  extends SpeculationEnabledDynamicPartitionedWriteSuite {
-  override protected def sparkConf(): SparkConf = {
-    super.sparkConf()
-      .set("spark.hadoop.fs.file.impl",
-        classOf[AnotherTaskRenamedForFirstTaskFirstAttemptFileSystem].getName)
-  }
+  extends HadoopMapReduceCommitProtocol("jobId", path, dynamicPartitionOverwrite) {
 }
