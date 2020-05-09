@@ -93,7 +93,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
             findAll(cssSelector("h3")).map(_.text).toSeq should contain("Streaming Query")
             findAll(cssSelector("""#activeQueries-table th""")).map(_.text).toSeq should be {
               List("Name", "Status", "Id", "Run ID", "Start Time", "Duration", "Avg Input /sec",
-                "Avg Process /sec", "Lastest Batch")
+                "Avg Process /sec", "Latest Batch")
             }
             val activeQueries =
               findAll(cssSelector("""#activeQueries-table td""")).map(_.text).toSeq
@@ -102,7 +102,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
             findAll(cssSelector("""#completedQueries-table th"""))
               .map(_.text).toSeq should be {
                 List("Name", "Status", "Id", "Run ID", "Start Time", "Duration", "Avg Input /sec",
-                  "Avg Process /sec", "Lastest Batch", "Error")
+                  "Avg Process /sec", "Latest Batch", "Error")
               }
             val completedQueries =
               findAll(cssSelector("""#completedQueries-table td""")).map(_.text).toSeq
