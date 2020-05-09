@@ -522,7 +522,7 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
       }
     }
   }
-  
+
   private def testReplayListenerBusWithBrokenEventJsons(
       fileName: String,
       expectedEventSize: Int): Unit = {
