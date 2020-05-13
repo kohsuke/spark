@@ -25,7 +25,6 @@ Suggests:
     survival,
     arrow
 Collate:
-    'backports.R'
     'schema.R'
     'generics.R'
     'jobj.R'
