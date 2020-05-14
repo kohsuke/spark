@@ -803,6 +803,13 @@ package object config {
       .booleanConf
       .createWithDefault(true)
 
+  private[spark] val METRICS_EXECUTOR_SOURCE_ENABLED =
+    ConfigBuilder("spark.metrics.executorSource.enabled")
+      .doc("Whether to register the Executor source with the metrics system.")
+      .version("3.1.0")
+      .booleanConf
+      .createWithDefault(true)
+
   private[spark] val METRICS_STATIC_SOURCES_ENABLED =
     ConfigBuilder("spark.metrics.staticSources.enabled")
       .doc("Whether to register static sources with the metrics system.")

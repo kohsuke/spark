@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import org.apache.hadoop.fs.FileSystem
 
+import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.metrics.source.Source
 
 private[spark]
@@ -37,6 +38,10 @@ class ExecutorSource(threadPool: ThreadPoolExecutor, executorId: String) extends
     metricRegistry.register(MetricRegistry.name("filesystem", scheme, name), new Gauge[T] {
       override def getValue: T = fileStats(scheme).map(f).getOrElse(defaultValue)
     })
+  }
+
+  def register(metricsSystem: MetricsSystem): Unit = {
+    metricsSystem.registerSource(this)
   }
 
   override val metricRegistry = new MetricRegistry()

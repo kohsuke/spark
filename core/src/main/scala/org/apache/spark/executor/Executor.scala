@@ -109,7 +109,6 @@ private[spark] class Executor(
       .build()
     Executors.newCachedThreadPool(threadFactory).asInstanceOf[ThreadPoolExecutor]
   }
-  private val executorSource = new ExecutorSource(threadPool, executorId)
   // Pool used for threads that supervise task killing / cancellation
   private val taskReaperPool = ThreadUtils.newDaemonCachedThreadPool("Task reaper")
   // For tasks which are in the process of being killed, this map holds the most recently created
@@ -121,7 +120,14 @@ private[spark] class Executor(
   // create. The map key is a task id.
   private val taskReaperForTask: HashMap[Long, TaskReaper] = HashMap[Long, TaskReaper]()
 
-  val executorMetricsSource =
+  private val executorSource =
+    if (conf.get(METRICS_EXECUTOR_SOURCE_ENABLED)) {
+      Some(new ExecutorSource(threadPool, executorId))
+    } else {
+      None
+    }
+
+  private val executorMetricsSource =
     if (conf.get(METRICS_EXECUTORMETRICS_SOURCE_ENABLED)) {
       Some(new ExecutorMetricsSource)
     } else {
@@ -130,10 +136,12 @@ private[spark] class Executor(
 
   if (!isLocal) {
     env.blockManager.initialize(conf.getAppId)
-    env.metricsSystem.registerSource(executorSource)
+    executorSource.foreach(_.register(env.metricsSystem))
     env.metricsSystem.registerSource(new JVMCPUSource())
     executorMetricsSource.foreach(_.register(env.metricsSystem))
     env.metricsSystem.registerSource(env.blockManager.shuffleMetricsSource)
+  } else {
+    Executor.executorSource = executorSource
   }
 
   // Whether to load classes in user jars before those in Spark jars
@@ -522,44 +530,48 @@ private[spark] class Executor(
 
         // Expose task metrics using the Dropwizard metrics system.
         // Update task metrics counters
-        executorSource.METRIC_CPU_TIME.inc(task.metrics.executorCpuTime)
-        executorSource.METRIC_RUN_TIME.inc(task.metrics.executorRunTime)
-        executorSource.METRIC_JVM_GC_TIME.inc(task.metrics.jvmGCTime)
-        executorSource.METRIC_DESERIALIZE_TIME.inc(task.metrics.executorDeserializeTime)
-        executorSource.METRIC_DESERIALIZE_CPU_TIME.inc(task.metrics.executorDeserializeCpuTime)
-        executorSource.METRIC_RESULT_SERIALIZE_TIME.inc(task.metrics.resultSerializationTime)
-        executorSource.METRIC_SHUFFLE_FETCH_WAIT_TIME
-          .inc(task.metrics.shuffleReadMetrics.fetchWaitTime)
-        executorSource.METRIC_SHUFFLE_WRITE_TIME.inc(task.metrics.shuffleWriteMetrics.writeTime)
-        executorSource.METRIC_SHUFFLE_TOTAL_BYTES_READ
-          .inc(task.metrics.shuffleReadMetrics.totalBytesRead)
-        executorSource.METRIC_SHUFFLE_REMOTE_BYTES_READ
-          .inc(task.metrics.shuffleReadMetrics.remoteBytesRead)
-        executorSource.METRIC_SHUFFLE_REMOTE_BYTES_READ_TO_DISK
-          .inc(task.metrics.shuffleReadMetrics.remoteBytesReadToDisk)
-        executorSource.METRIC_SHUFFLE_LOCAL_BYTES_READ
-          .inc(task.metrics.shuffleReadMetrics.localBytesRead)
-        executorSource.METRIC_SHUFFLE_RECORDS_READ
-          .inc(task.metrics.shuffleReadMetrics.recordsRead)
-        executorSource.METRIC_SHUFFLE_REMOTE_BLOCKS_FETCHED
-          .inc(task.metrics.shuffleReadMetrics.remoteBlocksFetched)
-        executorSource.METRIC_SHUFFLE_LOCAL_BLOCKS_FETCHED
-          .inc(task.metrics.shuffleReadMetrics.localBlocksFetched)
-        executorSource.METRIC_SHUFFLE_BYTES_WRITTEN
-          .inc(task.metrics.shuffleWriteMetrics.bytesWritten)
-        executorSource.METRIC_SHUFFLE_RECORDS_WRITTEN
-          .inc(task.metrics.shuffleWriteMetrics.recordsWritten)
-        executorSource.METRIC_INPUT_BYTES_READ
-          .inc(task.metrics.inputMetrics.bytesRead)
-        executorSource.METRIC_INPUT_RECORDS_READ
-          .inc(task.metrics.inputMetrics.recordsRead)
-        executorSource.METRIC_OUTPUT_BYTES_WRITTEN
-          .inc(task.metrics.outputMetrics.bytesWritten)
-        executorSource.METRIC_OUTPUT_RECORDS_WRITTEN
-          .inc(task.metrics.outputMetrics.recordsWritten)
-        executorSource.METRIC_RESULT_SIZE.inc(task.metrics.resultSize)
-        executorSource.METRIC_DISK_BYTES_SPILLED.inc(task.metrics.diskBytesSpilled)
-        executorSource.METRIC_MEMORY_BYTES_SPILLED.inc(task.metrics.memoryBytesSpilled)
+        executorSource match {
+          case None => None
+          case Some(source: ExecutorSource) =>
+            source.METRIC_CPU_TIME.inc(task.metrics.executorCpuTime)
+            source.METRIC_RUN_TIME.inc(task.metrics.executorRunTime)
+            source.METRIC_JVM_GC_TIME.inc(task.metrics.jvmGCTime)
+            source.METRIC_DESERIALIZE_TIME.inc(task.metrics.executorDeserializeTime)
+            source.METRIC_DESERIALIZE_CPU_TIME.inc(task.metrics.executorDeserializeCpuTime)
+            source.METRIC_RESULT_SERIALIZE_TIME.inc(task.metrics.resultSerializationTime)
+            source.METRIC_SHUFFLE_FETCH_WAIT_TIME
+              .inc(task.metrics.shuffleReadMetrics.fetchWaitTime)
+            source.METRIC_SHUFFLE_WRITE_TIME.inc(task.metrics.shuffleWriteMetrics.writeTime)
+            source.METRIC_SHUFFLE_TOTAL_BYTES_READ
+              .inc(task.metrics.shuffleReadMetrics.totalBytesRead)
+            source.METRIC_SHUFFLE_REMOTE_BYTES_READ
+              .inc(task.metrics.shuffleReadMetrics.remoteBytesRead)
+            source.METRIC_SHUFFLE_REMOTE_BYTES_READ_TO_DISK
+              .inc(task.metrics.shuffleReadMetrics.remoteBytesReadToDisk)
+            source.METRIC_SHUFFLE_LOCAL_BYTES_READ
+              .inc(task.metrics.shuffleReadMetrics.localBytesRead)
+            source.METRIC_SHUFFLE_RECORDS_READ
+              .inc(task.metrics.shuffleReadMetrics.recordsRead)
+            source.METRIC_SHUFFLE_REMOTE_BLOCKS_FETCHED
+              .inc(task.metrics.shuffleReadMetrics.remoteBlocksFetched)
+            source.METRIC_SHUFFLE_LOCAL_BLOCKS_FETCHED
+              .inc(task.metrics.shuffleReadMetrics.localBlocksFetched)
+            source.METRIC_SHUFFLE_BYTES_WRITTEN
+              .inc(task.metrics.shuffleWriteMetrics.bytesWritten)
+            source.METRIC_SHUFFLE_RECORDS_WRITTEN
+              .inc(task.metrics.shuffleWriteMetrics.recordsWritten)
+            source.METRIC_INPUT_BYTES_READ
+              .inc(task.metrics.inputMetrics.bytesRead)
+            source.METRIC_INPUT_RECORDS_READ
+              .inc(task.metrics.inputMetrics.recordsRead)
+            source.METRIC_OUTPUT_BYTES_WRITTEN
+              .inc(task.metrics.outputMetrics.bytesWritten)
+            source.METRIC_OUTPUT_RECORDS_WRITTEN
+              .inc(task.metrics.outputMetrics.recordsWritten)
+            source.METRIC_RESULT_SIZE.inc(task.metrics.resultSize)
+            source.METRIC_DISK_BYTES_SPILLED.inc(task.metrics.diskBytesSpilled)
+            source.METRIC_MEMORY_BYTES_SPILLED.inc(task.metrics.memoryBytesSpilled)
+        }
 
         // Note: accumulator updates must be collected after TaskMetrics is updated
         val accumUpdates = task.collectAccumulatorUpdates()
@@ -591,7 +603,11 @@ private[spark] class Executor(
           }
         }
 
-        executorSource.SUCCEEDED_TASKS.inc(1L)
+        executorSource match {
+          case None => None
+          case Some(source: ExecutorSource) =>
+            source.SUCCEEDED_TASKS.inc(1L)
+        }
         setTaskFinishedAndClearInterruptStatus()
         execBackend.statusUpdate(taskId, TaskState.FINISHED, serializedResult)
       } catch {
@@ -949,4 +965,7 @@ private[spark] object Executor {
   // task is fully deserialized. When possible, the TaskContext.getLocalProperty call should be
   // used instead.
   val taskDeserializationProps: ThreadLocal[Properties] = new ThreadLocal[Properties]
+
+  // Used to store executorSource, for local mode only
+  var executorSource: Option[ExecutorSource] = None
 }
