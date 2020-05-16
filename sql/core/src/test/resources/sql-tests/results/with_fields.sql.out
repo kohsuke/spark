@@ -47,7 +47,7 @@ SELECT WITH_FIELDS(a, 1, 2) AS a FROM struct_level_1
 struct<>
 -- !query output
 org.apache.spark.sql.AnalysisException
-cannot resolve 'with_fields(struct_level_1.`a`, 1, 2)' due to data type mismatch: Only foldable string expressions are allowed to appear at even position.; line 1 pos 7
+cannot resolve 'with_fields(struct_level_1.`a`, 1, 2)' due to data type mismatch: Only foldable string expressions are allowed to appear at odd position.; line 1 pos 7
 
 
 -- !query
