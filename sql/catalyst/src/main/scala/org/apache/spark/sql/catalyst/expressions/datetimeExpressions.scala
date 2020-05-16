@@ -807,7 +807,7 @@ abstract class ToTimestamp
     }
 
   private lazy val scaleFactor = right.toString match {
-    case "mill" => MICROS_PER_MILLIS
+    case "milli" => MICROS_PER_MILLIS
     case "micro" => 1L
     case o => throw new IllegalArgumentException(
       "current param is '" +  o + "'" + ";param must be 'mill' or 'micro' when use Long type time")

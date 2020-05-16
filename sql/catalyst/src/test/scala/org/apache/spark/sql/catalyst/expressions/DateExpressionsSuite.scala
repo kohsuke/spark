@@ -1152,7 +1152,7 @@ class DateExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
       checkEvaluation(
         GetTimestamp(
           Literal(1580184371847000L),
-          Literal("mill")), 1580184371847000000L)
+          Literal("milli")), 1580184371847000000L)
       checkEvaluation(
         GetTimestamp(
           Literal(1580184371847000L),
