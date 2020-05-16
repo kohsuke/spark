@@ -219,6 +219,7 @@ class Analyzer(
       ResolveTables ::
       ResolveReferences ::
       ResolveCreateNamedStruct ::
+      ResolveWithFields ::
       ResolveDeserializer ::
       ResolveNewInstance ::
       ResolveUpCast ::
@@ -3557,6 +3558,24 @@ object ResolveCreateNamedStruct extends Rule[LogicalPlan] {
           kv
       }
       CreateNamedStruct(children.toList)
+  }
+}
+
+/**
+ * Resolve a [[WithFields]] if it contains [[NamePlaceholder]]s.
+ */
+// TODO: Maybe just transform WithFields to CreateNamedStruct in here?
+object ResolveWithFields extends Rule[LogicalPlan] {
+  override def apply(plan: LogicalPlan): LogicalPlan = plan.resolveExpressions {
+    case e: WithFields if !e.resolved =>
+      val structExpr = e.children.head
+      val addOrReplaceExprs = e.children.drop(1).grouped(2).flatMap {
+        case Seq(NamePlaceholder, e: NamedExpression) if e.resolved =>
+          Seq(Literal(e.name), e)
+        case kv =>
+          kv
+      }.toList
+      WithFields(structExpr +: addOrReplaceExprs)
   }
 }
 
