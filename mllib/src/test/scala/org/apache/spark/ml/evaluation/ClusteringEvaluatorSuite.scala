@@ -25,7 +25,7 @@ import org.apache.spark.ml.util.{DefaultReadWriteTest, MLTestingUtils}
 import org.apache.spark.ml.util.TestingUtils._
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.sql.DataFrame
-import org.apache.spark.sql.functions._
+import org.apache.spark.sql.functions.lit
 
 
 class ClusteringEvaluatorSuite
@@ -45,7 +45,6 @@ class ClusteringEvaluatorSuite
     newIrisDataset = datasets._1
     newIrisDatasetD = datasets._2
     newIrisDatasetF = datasets._3
-
   }
 
   test("params") {
