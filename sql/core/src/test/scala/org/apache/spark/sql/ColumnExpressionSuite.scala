@@ -927,6 +927,18 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
       }.getMessage should include("Field name should not be null.")
     }
 
+    test(testNamePrefix + "should return original struct if given no fields to add/replace") {
+      checkAnswerCustom(
+        structLevel1.withColumn("a", 'a.withFields()),
+        Row(Row(1, null, 3)) :: Nil,
+        StructType(Seq(StructField("a",
+          StructType(Seq(
+            StructField("a", IntegerType, nullable = false),
+            StructField("b", IntegerType, nullable = true),
+            StructField("c", IntegerType, nullable = false))),
+          nullable = false))))
+    }
+
     test(testNamePrefix + "should add field to struct") {
       checkAnswerCustom(
         structLevel1.withColumn("a", 'a.withFields(lit(4).as("d"))),
