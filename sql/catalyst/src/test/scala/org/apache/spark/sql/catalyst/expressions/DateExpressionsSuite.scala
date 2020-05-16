@@ -1147,7 +1147,7 @@ class DateExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
     }
   }
 
-  test("SPARK-31710:Fix timestamp and long convert not compatible with hive issue") {
+  test("SPARK-31710:Fix millisecond and microsecond convert to timestamp in to_timestamp") {
     withSQLConf() {
       checkEvaluation(
         GetTimestamp(
