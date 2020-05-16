@@ -789,7 +789,7 @@ abstract class ToTimestamp
   protected def downScaleFactor: Long
 
   override def inputTypes: Seq[AbstractDataType] =
-    Seq(TypeCollection(StringType, DateType, TimestampType), StringType)
+    Seq(TypeCollection(StringType, DateType, TimestampType, LongType ), StringType)
 
   override def dataType: DataType = LongType
   override def nullable: Boolean = true
@@ -805,6 +805,13 @@ abstract class ToTimestamp
     } catch {
       case NonFatal(_) => null
     }
+
+  private lazy val scaleFactor = right.toString match {
+    case "mill" => MICROS_PER_MILLIS
+    case "micro" => 1L
+    case o => throw new IllegalArgumentException(
+      "current param is '" +  o + "'" + ";param must be 'mill' or 'micro' when use Long type time")
+  }
 
   override def eval(input: InternalRow): Any = {
     val t = left.eval(input)
@@ -846,6 +853,8 @@ abstract class ToTimestamp
               case NonFatal(_) => null
             }
           }
+        case LongType =>
+          Math.multiplyExact(t.asInstanceOf[Long], scaleFactor.asInstanceOf[Long])
       }
     }
   }
@@ -921,6 +930,15 @@ abstract class ToTimestamp
           $javaType ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
           if (!${ev.isNull}) {
             ${ev.value} = $dtu.epochDaysToMicros(${eval1.value}, $zid) / $downScaleFactor;
+          }""")
+      case LongType =>
+        val eval1 = left.genCode(ctx)
+        ev.copy(code = code"""
+          ${eval1.code}
+          boolean ${ev.isNull} = ${eval1.isNull};
+          $javaType ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
+          if (!${ev.isNull}) {
+            ${ev.value} = ${eval1.value} * $scaleFactor;
           }""")
     }
   }

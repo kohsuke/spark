@@ -1146,4 +1146,23 @@ class DateExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
           Literal("yyyy-MM-dd'T'HH:mm:ss.SSSz")), "Fail to parse")
     }
   }
+
+  test("SPARK-31710:Fix timestamp and long convert not compatible with hive issue") {
+    withSQLConf() {
+      checkEvaluation(
+        GetTimestamp(
+          Literal(1580184371847000L),
+          Literal("mill")), 1580184371847000000L)
+      checkEvaluation(
+        GetTimestamp(
+          Literal(1580184371847000L),
+          Literal("micro")), 1580184371847000L)
+      checkExceptionInExpression[IllegalArgumentException](
+        GetTimestamp(
+          Literal(1580184371847000L),
+          Literal("other")),
+        "current param is 'other';param must be 'mill' or 'micro' when use Long type time")
+    }
+  }
+
 }
