@@ -565,6 +565,7 @@ def main():
         sys.exit(2)
 
     hostname
+    set
     sys.exit(2)
 
     # install SparkR
