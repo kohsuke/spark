@@ -38,17 +38,8 @@ SELECT WITH_FIELDS(a, 'd', 4) a FROM null_struct_level_1;
 -- Should add field with null value to struct
 SELECT WITH_FIELDS(a, 'd', NULL) AS a FROM struct_level_1;
 
--- Should add unnamed field to struct
-
-
 -- Should add multiple fields to struct
 SELECT WITH_FIELDS(a, 'd', 4, 'e', 5) AS a FROM struct_level_1;
-
--- Should add multiple unnamed fields to struct
-
-
--- Should add multiple fields with the same name to struct
-
 
 -- Should add field to nested struct
 SELECT WITH_FIELDS(a, 'a', WITH_FIELDS(a.a, 'd', 4)) AS a FROM struct_level_2;
