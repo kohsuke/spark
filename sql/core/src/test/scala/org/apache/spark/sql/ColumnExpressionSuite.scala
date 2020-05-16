@@ -1147,6 +1147,60 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
             StructField("d", IntegerType, nullable = false))),
           nullable = false))))
     }
+
+    lazy val mixedCaseStructLevel1: DataFrame = spark.createDataFrame(
+      sparkContext.parallelize(Row(Row(1, 1)) :: Nil),
+      StructType(Seq(StructField("a",
+        StructType(Seq(
+          StructField("a", IntegerType, nullable = false),
+          StructField("B", IntegerType, nullable = false))),
+        nullable = false))))
+
+    test(testNamePrefix + "should replace field in struct even though casing is different") {
+      withSQLConf(SQLConf.CASE_SENSITIVE.key -> false.toString) {
+        checkAnswerCustom(
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(lit(1).as("A"))),
+          Row(Row(1, 1)) :: Nil,
+          StructType(Seq(StructField("a",
+            StructType(Seq(
+              StructField("A", IntegerType, nullable = false),
+              StructField("B", IntegerType, nullable = false))),
+            nullable = false))))
+
+        checkAnswerCustom(
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(lit(1).as("b"))),
+          Row(Row(1, 1)) :: Nil,
+          StructType(Seq(StructField("a",
+            StructType(Seq(
+              StructField("a", IntegerType, nullable = false),
+              StructField("b", IntegerType, nullable = false))),
+            nullable = false))))
+      }
+    }
+
+    test(testNamePrefix + "should add field in struct because casing is different") {
+      withSQLConf(SQLConf.CASE_SENSITIVE.key -> true.toString) {
+        checkAnswerCustom(
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(lit(1).as("A"))),
+          Row(Row(1, 1, 1)) :: Nil,
+          StructType(Seq(StructField("a",
+            StructType(Seq(
+              StructField("a", IntegerType, nullable = false),
+              StructField("B", IntegerType, nullable = false),
+              StructField("A", IntegerType, nullable = false))),
+            nullable = false))))
+
+        checkAnswerCustom(
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(lit(1).as("b"))),
+          Row(Row(1, 1, 1)) :: Nil,
+          StructType(Seq(StructField("a",
+            StructType(Seq(
+              StructField("a", IntegerType, nullable = false),
+              StructField("B", IntegerType, nullable = false),
+              StructField("b", IntegerType, nullable = false))),
+            nullable = false))))
+      }
+    }
   }
 
   test("SPARK-31563: sql of InSet for UTF8String collection") {
