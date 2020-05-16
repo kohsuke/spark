@@ -264,7 +264,6 @@ object StatFunctions extends Logging {
     }
 
     val selectedCols = ds.logicalPlan.output
-      .filter(a => a.dataType.isInstanceOf[NumericType] || a.dataType.isInstanceOf[StringType])
 
     val aggExprs = statisticFns.flatMap { func =>
       selectedCols.map(c => Column(Cast(func(c), StringType)).as(c.name))
