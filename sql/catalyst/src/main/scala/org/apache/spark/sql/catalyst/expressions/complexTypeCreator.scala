@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.catalyst.expressions
 
+import java.util.Locale
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{TypeCheckResult, TypeCoercion}
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
@@ -593,17 +595,20 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
     CreateNamedStruct(newExprs)
   }
 
+  private def formatCase(s: String): String =
+    if (SQLConf.get.caseSensitiveAnalysis) s else s.toLowerCase(Locale.ROOT)
+
+  private lazy val existingFieldNames = structType.fieldNames.map(formatCase).toSet
+
   private def addOrReplace[T](
     existingFields: Seq[(String, T)],
     addOrReplaceFields: Seq[(String, T)]): Seq[(String, T)] = {
 
-    val existingFieldNames = existingFields.map(_._1).toSet
-
     addOrReplaceFields.foldLeft(existingFields) {
       case (resultFields, newField @ (newFieldName, _)) =>
-        if (existingFieldNames(newFieldName)) {
+        if (existingFieldNames.contains(formatCase(newFieldName))) {
           resultFields.map {
-            case (name, _) if name == newFieldName => newField
+            case (name, _) if formatCase(name) == formatCase(newFieldName) => newField
             case x => x
           }
         } else {
