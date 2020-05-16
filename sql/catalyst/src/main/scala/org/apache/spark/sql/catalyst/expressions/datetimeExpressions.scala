@@ -810,7 +810,7 @@ abstract class ToTimestamp
     case "milli" => MICROS_PER_MILLIS
     case "micro" => 1L
     case o => throw new IllegalArgumentException(
-      "current param is '" +  o + "'" + ";param must be 'mill' or 'micro' when use Long type time")
+      "current param is '" +  o + "'" + ";param must be 'milli' or 'micro' when use Long type time")
   }
 
   override def eval(input: InternalRow): Any = {
