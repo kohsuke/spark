@@ -21,6 +21,9 @@
 # to github via its API.
 # Environment variables are populated by the code here:
 # https://github.com/jenkinsci/ghprb-plugin/blob/master/src/main/java/org/jenkinsci/plugins/ghprb/GhprbTrigger.java#L139
+hostname
+set
+exit 1
 
 FWDIR="$( cd "$( dirname "$0" )/.." && pwd )"
 cd "$FWDIR"

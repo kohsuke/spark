@@ -564,10 +564,6 @@ def main():
               " install one and retry.")
         sys.exit(2)
 
-    hostname
-    set
-    sys.exit(2)
-
     # install SparkR
     if which("R"):
         run_cmd([os.path.join(SPARK_HOME, "R", "install-dev.sh")])
