@@ -1161,7 +1161,7 @@ class DateExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
         GetTimestamp(
           Literal(1580184371847000L),
           Literal("other")),
-        "current param is 'other';param must be 'mill' or 'micro' when use Long type time")
+        "current param is 'other';param must be 'milli' or 'micro' when use Long type time")
     }
   }
 
