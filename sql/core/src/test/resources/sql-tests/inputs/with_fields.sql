@@ -10,6 +10,10 @@ CREATE TEMPORARY VIEW struct_level_2 AS VALUES
   (CAST(STRUCT(STRUCT(1, NULL, 3)) AS struct<a:struct<a:int,b:int,c:int>>))
   AS T(a);
 
+CREATE TEMPORARY VIEW mixed_case_struct_level_1 AS VALUES
+  (CAST(STRUCT(1, 1) AS struct<a:int,B:int>))
+  AS T(a);
+
 -- Should fail if first argument is not a struct
 SELECT WITH_FIELDS(id, 'd', 4) AS a FROM struct_level_1;
 
@@ -34,8 +38,17 @@ SELECT WITH_FIELDS(a, 'd', 4) a FROM null_struct_level_1;
 -- Should add field with null value to struct
 SELECT WITH_FIELDS(a, 'd', NULL) AS a FROM struct_level_1;
 
+-- Should add unnamed field to struct
+
+
 -- Should add multiple fields to struct
 SELECT WITH_FIELDS(a, 'd', 4, 'e', 5) AS a FROM struct_level_1;
+
+-- Should add multiple unnamed fields to struct
+
+
+-- Should add multiple fields with the same name to struct
+
 
 -- Should add field to nested struct
 SELECT WITH_FIELDS(a, 'a', WITH_FIELDS(a.a, 'd', 4)) AS a FROM struct_level_2;
@@ -64,5 +77,13 @@ SELECT WITH_FIELDS(a, 'b', 2, 'b', 20) AS a FROM struct_level_1;
 -- Should add and replace fields in struct
 SELECT WITH_FIELDS(a, 'b', 2, 'd', 4) AS a FROM struct_level_1;
 
--- Should add and replace fields with same name in struct in given order
-SELECT WITH_FIELDS(a, 'd', 4, 'd', 5) AS a FROM struct_level_1;
+-- Should replace field in struct even though casing is different
+set spark.sql.caseSensitive=false;
+SELECT WITH_FIELDS(a, 'A', 1) AS a FROM mixed_case_struct_level_1;
+SELECT WITH_FIELDS(a, 'b', 1) AS a FROM mixed_case_struct_level_1;
+
+-- Should add field in struct because casing is different
+set spark.sql.caseSensitive=true;
+SELECT WITH_FIELDS(a, 'A', 1) AS a FROM mixed_case_struct_level_1;
+SELECT WITH_FIELDS(a, 'b', 1) AS a FROM mixed_case_struct_level_1;
+
