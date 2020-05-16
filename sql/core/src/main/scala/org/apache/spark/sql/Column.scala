@@ -880,7 +880,7 @@ class Column(val expr: Expression) extends Logging {
   def getItem(key: Any): Column = withExpr { UnresolvedExtractValue(expr, Literal(key)) }
 
   /**
-   * Returns a new StructType column by adding a field or replacing the existing field that has
+   * Returns a new StructType column by adding fields or replacing existing fields that have
    * the same name inside the given StructType column.
    *
    * @group expr_ops
@@ -888,11 +888,11 @@ class Column(val expr: Expression) extends Logging {
    */
   @scala.annotation.varargs
   def withFields(cols: Column*): Column = withExpr {
-    WithFields(expr +: (cols.map(_.expr).zipWithIndex.flatMap {
+    WithFields(expr +: cols.map(_.expr).zipWithIndex.flatMap {
       case (e: NamedExpression, _) if e.resolved => Seq(Literal(e.name), e)
       case (e: NamedExpression, _) => Seq(NamePlaceholder, e)
       case (e, index) => Seq(Literal(s"col${index + 1}"), e)
-    }))
+    })
   }
 
   /**
