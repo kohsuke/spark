@@ -560,7 +560,7 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
       TypeCheckResult.TypeCheckFailure("Field name should not be null.")
     } else if (nameExprs.exists(e => !(e.foldable && e.dataType == StringType))) {
       TypeCheckResult.TypeCheckFailure(
-        s"Only foldable ${StringType.catalogString} expressions are allowed to appear at even " +
+        s"Only foldable ${StringType.catalogString} expressions are allowed to appear at odd " +
           "position.")
     } else {
       TypeCheckResult.TypeCheckSuccess
