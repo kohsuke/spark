@@ -547,7 +547,7 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
   private lazy val (nameExprs, valExprs) = children.drop(1).grouped(2).map {
     case Seq(name, value) => (name, value)
   }.toList.unzip
-  private lazy val names = nameExprs.map(e => Option(e.eval()).map(_.toString).orNull)
+  private lazy val names = nameExprs.map(e => e.eval().toString)
   private lazy val addOrReplaceExprs = names.zip(valExprs)
 
   override def checkInputDataTypes(): TypeCheckResult = {
@@ -558,12 +558,12 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
       TypeCheckResult.TypeCheckFailure(
         s"Only $expectedStructType is allowed to appear at first position, got: " +
           s"${structExpr.dataType.typeName}.")
-    } else if (names.contains(null)) {
-      TypeCheckResult.TypeCheckFailure("Field name should not be null.")
-    } else if (nameExprs.exists(e => !(e.foldable && e.dataType == StringType))) {
+    } else if (!nameExprs.forall(e => e.foldable && e.dataType == StringType)) {
       TypeCheckResult.TypeCheckFailure(
         s"Only foldable ${StringType.catalogString} expressions are allowed to appear at odd " +
           "position.")
+    } else if (names.contains(null)) {
+      TypeCheckResult.TypeCheckFailure("Field name should not be null.")
     } else {
       TypeCheckResult.TypeCheckSuccess
     }
@@ -579,7 +579,7 @@ case class WithFields(children: Seq[Expression]) extends Unevaluable {
     StructType(addOrReplace(existingStructFields, addOrReplaceStructFields).map(_._2))
   }
 
-  override def foldable: Boolean = children.forall(_.foldable)
+  override def foldable: Boolean = structExpr.foldable && valExprs.forall(_.foldable)
 
   override def nullable: Boolean = false
 
