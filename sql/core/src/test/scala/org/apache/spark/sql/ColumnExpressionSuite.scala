@@ -964,25 +964,37 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
             nullable = false))),
         nullable = false))))
 
-    val testNamePrefix = "withField: "
+    val testNamePrefix = "withFields: "
 
     test(testNamePrefix +
       "should throw error if withField is called on a column that is not a struct dataType") {
       intercept[AnalysisException] {
-        testData.withColumn("key", $"key".withField("a", lit(2)))
+        testData.withColumn("key", $"key".withFields(("a", lit(2))))
       }.getMessage should include("Only struct is allowed to appear at first position, got: " +
         "integer")
     }
 
     test(testNamePrefix + "should throw error if given null fieldName") {
       intercept[AnalysisException] {
-        structLevel1.withColumn("a", $"a".withField(null, lit(2)))
+        structLevel1.withColumn("a", $"a".withFields((null, lit(2))))
       }.getMessage should include("Field name should not be null.")
+    }
+
+    test(testNamePrefix + "should return original struct if given no fields to add/replace") {
+      checkAnswerCustom(
+        structLevel1.withColumn("a", 'a.withFields()),
+        Row(Row(1, null, 3)) :: Nil,
+        StructType(Seq(StructField("a",
+          StructType(Seq(
+            StructField("a", IntegerType, nullable = false),
+            StructField("b", IntegerType, nullable = true),
+            StructField("c", IntegerType, nullable = false))),
+          nullable = false))))
     }
 
     test(testNamePrefix + "should add field to struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", 'a.withField("d", lit(4))),
+        structLevel1.withColumn("a", 'a.withFields(("d", lit(4)))),
         Row(Row(1, null, 3, 4)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -995,7 +1007,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should add field to null struct") {
       checkAnswerCustom(
-        nullStructLevel1.withColumn("a", $"a".withField("d", lit(4))),
+        nullStructLevel1.withColumn("a", $"a".withFields(("d", lit(4)))),
         Row(Row(null, null, null, 4)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1008,7 +1020,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should add null field to struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", 'a.withField("d", lit(null).cast(IntegerType))),
+        structLevel1.withColumn("a", 'a.withFields(("d", lit(null).cast(IntegerType)))),
         Row(Row(1, null, 3, null)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1021,7 +1033,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should add multiple fields to struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", 'a.withField("d", lit(4)).withField("e", lit(5))),
+        structLevel1.withColumn("a", 'a.withFields(("d", lit(4)), ("e", lit(5)))),
         Row(Row(1, null, 3, 4, 5)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1033,9 +1045,23 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
           nullable = false))))
     }
 
+    test(testNamePrefix + "should add multiple fields with same name in struct in given order") {
+      checkAnswerCustom(
+        structLevel1.withColumn("a", $"a".withFields(("d", lit(4)), ("d", lit(5)))),
+        Row(Row(1, null, 3, 4, 5)) :: Nil,
+        StructType(Seq(StructField("a",
+          StructType(Seq(
+            StructField("a", IntegerType, nullable = false),
+            StructField("b", IntegerType, nullable = true),
+            StructField("c", IntegerType, nullable = false),
+            StructField("d", IntegerType, nullable = false),
+            StructField("d", IntegerType, nullable = false))),
+          nullable = false))))
+    }
+
     test(testNamePrefix + "should add field to nested struct") {
       checkAnswerCustom(
-        structLevel2.withColumn("a", $"a".withField("a", $"a.a".withField("d", lit(4)))),
+        structLevel2.withColumn("a", $"a".withFields(("a", $"a.a".withFields(("d", lit(4)))))),
         Row(Row(Row(1, null, 3, 4))) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1051,7 +1077,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should replace field in struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("b", lit(2))),
+        structLevel1.withColumn("a", $"a".withFields(("b", lit(2)))),
         Row(Row(1, 2, 3)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1063,7 +1089,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should replace field in null struct") {
       checkAnswerCustom(
-        nullStructLevel1.withColumn("a", $"a".withField("b", lit(2))),
+        nullStructLevel1.withColumn("a", $"a".withFields(("b", lit(2)))),
         Row(Row(null, 2, null)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1075,7 +1101,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should replace field with null value in struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("c", lit(null).cast(IntegerType))),
+        structLevel1.withColumn("a", $"a".withFields(("c", lit(null).cast(IntegerType)))),
         Row(Row(1, null, null)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1087,7 +1113,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should replace multiple fields in struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("a", lit(10)).withField("b", lit(20))),
+        structLevel1.withColumn("a", $"a".withFields(("a", lit(10)), ("b", lit(20)))),
         Row(Row(10, 20, 3)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1099,7 +1125,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should replace field in nested struct") {
       checkAnswerCustom(
-        structLevel2.withColumn("a", $"a".withField("a", $"a.a".withField("b", lit(2)))),
+        structLevel2.withColumn("a", $"a".withFields(("a", $"a.a".withFields(("b", lit(2)))))),
         Row(Row(Row(1, 2, 3))) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1123,7 +1149,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
           nullable = false))))
 
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("b", lit(100))),
+        structLevel1.withColumn("a", $"a".withFields(("b", lit(100)))),
         Row(Row(1, 100, 100)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1135,7 +1161,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should replace field in struct in given order") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("b", lit(2)).withField("b", lit(20))),
+        structLevel1.withColumn("a", $"a".withFields(("b", lit(2)), ("b", lit(20)))),
         Row(Row(1, 20, 3)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
@@ -1147,25 +1173,12 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
 
     test(testNamePrefix + "should add and replace fields in struct") {
       checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("b", lit(2)).withField("d", lit(4))),
+        structLevel1.withColumn("a", $"a".withFields(("b", lit(2)), ("d", lit(4)))),
         Row(Row(1, 2, 3, 4)) :: Nil,
         StructType(Seq(StructField("a",
           StructType(Seq(
             StructField("a", IntegerType, nullable = false),
             StructField("b", IntegerType, nullable = false),
-            StructField("c", IntegerType, nullable = false),
-            StructField("d", IntegerType, nullable = false))),
-          nullable = false))))
-    }
-
-    test(testNamePrefix + "should add and replace fields with same name in struct in given order") {
-      checkAnswerCustom(
-        structLevel1.withColumn("a", $"a".withField("d", lit(4)).withField("d", lit(5))),
-        Row(Row(1, null, 3, 5)) :: Nil,
-        StructType(Seq(StructField("a",
-          StructType(Seq(
-            StructField("a", IntegerType, nullable = false),
-            StructField("b", IntegerType, nullable = true),
             StructField("c", IntegerType, nullable = false),
             StructField("d", IntegerType, nullable = false))),
           nullable = false))))
@@ -1182,7 +1195,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
     test(testNamePrefix + "should replace field in struct even though casing is different") {
       withSQLConf(SQLConf.CASE_SENSITIVE.key -> false.toString) {
         checkAnswerCustom(
-          mixedCaseStructLevel1.withColumn("a", $"a".withField("A", lit(1))),
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(("A", lit(1)))),
           Row(Row(1, 1)) :: Nil,
           StructType(Seq(StructField("a",
             StructType(Seq(
@@ -1191,7 +1204,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
             nullable = false))))
 
         checkAnswerCustom(
-          mixedCaseStructLevel1.withColumn("a", $"a".withField("b", lit(1))),
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(("b", lit(1)))),
           Row(Row(1, 1)) :: Nil,
           StructType(Seq(StructField("a",
             StructType(Seq(
@@ -1204,7 +1217,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
     test(testNamePrefix + "should add field in struct because casing is different") {
       withSQLConf(SQLConf.CASE_SENSITIVE.key -> true.toString) {
         checkAnswerCustom(
-          mixedCaseStructLevel1.withColumn("a", $"a".withField("A", lit(1))),
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(("A", lit(1)))),
           Row(Row(1, 1, 1)) :: Nil,
           StructType(Seq(StructField("a",
             StructType(Seq(
@@ -1214,7 +1227,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
             nullable = false))))
 
         checkAnswerCustom(
-          mixedCaseStructLevel1.withColumn("a", $"a".withField("b", lit(1))),
+          mixedCaseStructLevel1.withColumn("a", $"a".withFields(("b", lit(1)))),
           Row(Row(1, 1, 1)) :: Nil,
           StructType(Seq(StructField("a",
             StructType(Seq(
