@@ -924,7 +924,8 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
     test(testNamePrefix + "should throw error if given null fieldName") {
       intercept[AnalysisException] {
         structLevel1.withColumn("a", $"a".withFields((null, lit(2))))
-      }.getMessage should include("Field name should not be null.")
+      }.getMessage should include(s"Only foldable ${StringType.catalogString} expressions are " +
+        "allowed to appear at odd position.")
     }
 
     test(testNamePrefix + "should return original struct if given no fields to add/replace") {
