@@ -992,7 +992,7 @@ class ColumnExpressionSuite extends QueryTest with SharedSparkSession {
           nullable = false))))
     }
 
-    test(testNamePrefix + "should add multiple fields with same name in struct in given order") {
+    test(testNamePrefix + "should add multiple fields with same name to struct in given order") {
       checkAnswerCustom(
         structLevel1.withColumn("a", $"a".withFields(("d", lit(4)), ("d", lit(5)))),
         Row(Row(1, null, 3, 4, 5)) :: Nil,
