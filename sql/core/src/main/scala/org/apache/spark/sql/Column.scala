@@ -880,14 +880,15 @@ class Column(val expr: Expression) extends Logging {
   def getItem(key: Any): Column = withExpr { UnresolvedExtractValue(expr, Literal(key)) }
 
   /**
-   * Returns a new StructType column by adding field or replacing an existing field that has the
+   * Returns a new StructType column by adding fields or replacing existing fields that have the
    * same name inside the given StructType column.
    *
    * @group expr_ops
    * @since 3.1.0
    */
-  def withField(fieldName: String, fieldValue: Column): Column = withExpr {
-    WithFields(expr :: Literal(fieldName) :: fieldValue.expr :: Nil)
+  @scala.annotation.varargs
+  def withFields(cols: (String, Column)*): Column = withExpr {
+    WithFields(expr +: cols.flatMap { case (name, col) => Seq(Literal(name), col.expr) })
   }
 
   /**
