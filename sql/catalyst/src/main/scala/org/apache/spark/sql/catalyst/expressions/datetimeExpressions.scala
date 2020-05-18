@@ -810,7 +810,7 @@ abstract class ToTimestamp
     case "milli" => MICROS_PER_MILLIS
     case "micro" => 1L
     case o => throw new IllegalArgumentException(
-      "current param is '" +  o + "'" + ";param must be 'milli' or 'micro' when use Long type time")
+      "format must be 'milli' or 'micro' when converting from Long type; specified format is '" +  o + "'")
   }
 
   override def eval(input: InternalRow): Any = {
@@ -2281,4 +2281,3 @@ case class SubtractDates(left: Expression, right: Expression)
     })
   }
 }
-
