@@ -1166,18 +1166,22 @@ class DateExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
           Literal(-1580184371847123L),
           Literal("micro")), -1580184371847123L)
 
-//      checkEvaluation(
-//        GetTimestamp(Literal(9223372036854776L), Literal("milli")),
-//        "input='9223372036854776' is not valid,\n" +
-//          "which valid range is from -9223372036854775 to 9223372036854775 for 'milli'"
-//      )
-
+//      out of range check
       checkExceptionInExpression[IllegalArgumentException](
         GetTimestamp(Literal(9223372036854776L), Literal("milli")),
-        "input='9223372036854776' is not valid,\n" +
-          "which valid range is from -9223372036854775 to 9223372036854775 for 'milli'"
+        "input [9223372036854776] not from " +
+          "-9223372036854775 to 9223372036854775 for format milli"
       )
 
+      checkExceptionInExpression[IllegalArgumentException](
+        GetTimestamp(Literal(-9223372036854776L), Literal("milli")),
+        "input [-9223372036854776] not from " +
+          "-9223372036854775 to 9223372036854775 for format milli"
+      )
+
+//      micro range could not out of range
+
+//      illegal format check
       checkExceptionInExpression[IllegalArgumentException](
         GetTimestamp(
           Literal(1580184371847123L),

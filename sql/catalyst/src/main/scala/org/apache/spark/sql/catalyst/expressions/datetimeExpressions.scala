@@ -814,6 +814,9 @@ abstract class ToTimestamp
         "specified format is '" + o + "'")
   }
 
+  private lazy val minRange = Long.MinValue / scaleFactor
+  private lazy val maxRange = Long.MaxValue / scaleFactor
+
   override def eval(input: InternalRow): Any = {
     val t = left.eval(input)
     if (t == null) {
@@ -856,15 +859,12 @@ abstract class ToTimestamp
           }
         case LongType =>
           val input = t.asInstanceOf[Long]
-          val minRange = Long.MinValue / scaleFactor
-          val maxRange = Long.MaxValue / scaleFactor
           if ( minRange < input && input < maxRange ) {
             Math.multiplyExact(input, scaleFactor.asInstanceOf[Long])
           } else {
             throw new IllegalArgumentException(
-              s"""|input='$input' is not valid,
-                  |which valid range is from $minRange to $maxRange for '$right'""".stripMargin
-            )
+              "input [" + input + "] not from " + minRange + " to "
+                + maxRange + " for format " + right)
           }
       }
     }
@@ -949,7 +949,13 @@ abstract class ToTimestamp
           boolean ${ev.isNull} = ${eval1.isNull};
           $javaType ${ev.value} = ${CodeGenerator.defaultValue(dataType)};
           if (!${ev.isNull}) {
-            ${ev.value} = ${eval1.value} * $scaleFactor;
+            if ( (${minRange}L < ${eval1.value}) && (${eval1.value} < ${maxRange}L) ) {
+              ${ev.value} = ${eval1.value} * $scaleFactor;
+            } else {
+              throw new java.lang.IllegalArgumentException(
+              "input [" + ${eval1.value} + "] not from " + ${minRange}L + " to "
+               + ${maxRange}L + " for format " + "${right.toString}");
+            }
           }""")
     }
   }
