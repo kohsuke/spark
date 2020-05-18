@@ -1151,17 +1151,39 @@ class DateExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper {
     withSQLConf() {
       checkEvaluation(
         GetTimestamp(
-          Literal(1580184371847000L),
-          Literal("milli")), 1580184371847000000L)
+          Literal(1580184371847123L),
+          Literal("milli")), 1580184371847123000L)
       checkEvaluation(
         GetTimestamp(
-          Literal(1580184371847000L),
-          Literal("micro")), 1580184371847000L)
+          Literal(1580184371847123L),
+          Literal("micro")), 1580184371847123L)
+      checkEvaluation(
+        GetTimestamp(
+          Literal(-1580184371847123L),
+          Literal("milli")), -1580184371847123000L)
+      checkEvaluation(
+        GetTimestamp(
+          Literal(-1580184371847123L),
+          Literal("micro")), -1580184371847123L)
+
+//      checkEvaluation(
+//        GetTimestamp(Literal(9223372036854776L), Literal("milli")),
+//        "input='9223372036854776' is not valid,\n" +
+//          "which valid range is from -9223372036854775 to 9223372036854775 for 'milli'"
+//      )
+
+      checkExceptionInExpression[IllegalArgumentException](
+        GetTimestamp(Literal(9223372036854776L), Literal("milli")),
+        "input='9223372036854776' is not valid,\n" +
+          "which valid range is from -9223372036854775 to 9223372036854775 for 'milli'"
+      )
+
       checkExceptionInExpression[IllegalArgumentException](
         GetTimestamp(
-          Literal(1580184371847000L),
+          Literal(1580184371847123L),
           Literal("other")),
-        "current param is 'other';param must be 'milli' or 'micro' when use Long type time")
+        "format must be 'milli' or 'micro' when converting " +
+          "from Long type;specified format is 'other'")
     }
   }
 

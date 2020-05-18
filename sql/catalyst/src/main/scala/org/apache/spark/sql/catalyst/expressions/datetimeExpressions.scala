@@ -810,7 +810,8 @@ abstract class ToTimestamp
     case "milli" => MICROS_PER_MILLIS
     case "micro" => 1L
     case o => throw new IllegalArgumentException(
-      "current param is '" +  o + "'" + ";param must be 'milli' or 'micro' when use Long type time")
+      "format must be 'milli' or 'micro' when converting from Long type;" +
+        "specified format is '" + o + "'")
   }
 
   override def eval(input: InternalRow): Any = {
@@ -854,7 +855,17 @@ abstract class ToTimestamp
             }
           }
         case LongType =>
-          Math.multiplyExact(t.asInstanceOf[Long], scaleFactor.asInstanceOf[Long])
+          val input = t.asInstanceOf[Long]
+          val minRange = Long.MinValue / scaleFactor
+          val maxRange = Long.MaxValue / scaleFactor
+          if ( minRange < input && input < maxRange ) {
+            Math.multiplyExact(input, scaleFactor.asInstanceOf[Long])
+          } else {
+            throw new IllegalArgumentException(
+              s"""|input='$input' is not valid,
+                  |which valid range is from $minRange to $maxRange for '$right'""".stripMargin
+            )
+          }
       }
     }
   }
