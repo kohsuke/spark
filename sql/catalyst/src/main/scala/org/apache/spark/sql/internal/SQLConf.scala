@@ -2228,15 +2228,6 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
-  val LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED =
-    buildConf("spark.sql.legacy.createHiveTableByDefault.enabled")
-      .internal()
-      .doc("When set to true, CREATE TABLE syntax without a provider will use hive " +
-        s"instead of the value of ${DEFAULT_DATA_SOURCE_NAME.key}.")
-      .version("3.0.0")
-      .booleanConf
-      .createWithDefault(false)
-
   val LEGACY_BUCKETED_TABLE_SCAN_OUTPUT_ORDERING =
     buildConf("spark.sql.legacy.bucketedTableScan.outputOrdering")
       .internal()
@@ -2585,6 +2576,15 @@ object SQLConf {
       .transform(_.toUpperCase(Locale.ROOT))
       .checkValues(LegacyBehaviorPolicy.values.map(_.toString))
       .createWithDefault(LegacyBehaviorPolicy.EXCEPTION.toString)
+
+  val SCRIPT_TRANSFORMATION_EXIT_TIMEOUT =
+    buildConf("spark.sql.scriptTransformation.exitTimeoutInSeconds")
+      .internal()
+      .doc("Timeout for executor to wait for the termination of transformation script when EOF.")
+      .version("3.0.0")
+      .timeConf(TimeUnit.SECONDS)
+      .checkValue(_ > 0, "The timeout value must be positive")
+      .createWithDefault(10L)
 
   /**
    * Holds information about keys that have been deprecated.
@@ -3143,9 +3143,6 @@ class SQLConf extends Serializable with Logging {
 
   def allowNegativeScaleOfDecimalEnabled: Boolean =
     getConf(SQLConf.LEGACY_ALLOW_NEGATIVE_SCALE_OF_DECIMAL_ENABLED)
-
-  def createHiveTableByDefaultEnabled: Boolean =
-    getConf(SQLConf.LEGACY_CREATE_HIVE_TABLE_BY_DEFAULT_ENABLED)
 
   def truncateTableIgnorePermissionAcl: Boolean =
     getConf(SQLConf.TRUNCATE_TABLE_IGNORE_PERMISSION_ACL)
