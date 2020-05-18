@@ -93,16 +93,6 @@ class ColumnTests(ReusedSQLTestCase):
         self.assertIsInstance(col("foo")["bar"], Column)
         self.assertRaises(ValueError, lambda: col("foo")[0:10:2])
 
-    def test_column_getitem(self):
-        from pyspark.sql.functions import col, create_map, lit
-
-        map_col = create_map(lit(0), lit(100), lit(1), lit(200))
-        self.assertRaisesRegexp(
-            Py4JJavaError,
-            "Unsupported literal type class org.apache.spark.sql.Column id",
-            lambda: map_col.getItem(col('id'))
-        )
-
     def test_column_select(self):
         df = self.df
         self.assertEqual(self.testData, df.select("*").collect())
