@@ -1349,9 +1349,9 @@ class CastSuite extends CastSuiteBase {
         def checkDoubleToTimestamp(d: Double, expected: Long): Unit = {
           assert(!cast(d, TimestampType).resolved)
         }
-        checkLongToTimestamp(1.toByte, 0L)
-        checkLongToTimestamp(1.toShort, 0L)
-        checkLongToTimestamp(1, 0L)
+        checkByteToTimestamp(1.toByte, 0L)
+        checkShortToTimestamp(1.toShort, 0L)
+        checkIntToTimestamp(1, 0L)
         checkLongToTimestamp(1L, 0L)
         checkDecimalToTimestamp(Decimal(1.5), 0L)
         checkFloatToTimestamp(1.5f, 0L)
@@ -1383,9 +1383,9 @@ class CastSuite extends CastSuiteBase {
           assert(!cast(d, TimestampType).resolved)
         }
 
-        checkLongToTimestamp(1.toByte, 0L)
-        checkLongToTimestamp(1.toShort, 0L)
-        checkLongToTimestamp(1, 0L)
+        checkByteToTimestamp(1.toByte, 0L)
+        checkShortToTimestamp(1.toShort, 0L)
+        checkIntToTimestamp(1, 0L)
         checkLongToTimestamp(1L, 0L)
         checkDecimalToTimestamp(Decimal(1.5), 0L)
         checkFloatToTimestamp(1.5f, 0L)
