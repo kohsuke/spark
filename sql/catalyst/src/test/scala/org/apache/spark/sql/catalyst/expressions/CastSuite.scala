@@ -1302,8 +1302,8 @@ class CastSuite extends CastSuiteBase {
 
   test("SPARK-31710:Add legacy when casting long to timestamp") {
     withSQLConf(
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "true",
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "false") {
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "true",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "false") {
         def checkLongToTimestamp(l: Long, expected: Long): Unit = {
           checkEvaluation(cast(l, TimestampType), expected)
         }
@@ -1314,8 +1314,8 @@ class CastSuite extends CastSuiteBase {
         checkLongToTimestamp(123L, 123000L)
     }
     withSQLConf(
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "true",
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "true") {
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "true",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "true") {
         def checkLongToTimestamp(l: Long, expected: Long): Unit = {
           checkEvaluation(cast(l, TimestampType), expected)
         }
@@ -1327,8 +1327,8 @@ class CastSuite extends CastSuiteBase {
     }
 
     withSQLConf(
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "false",
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "false") {
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "false",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "false") {
         def checkByteToTimestamp(b: Byte, expected: Long): Unit = {
           assert(!cast(b, TimestampType).resolved)
         }
@@ -1360,8 +1360,8 @@ class CastSuite extends CastSuiteBase {
     }
 
     withSQLConf(
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "false",
-      SQLConf.NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "true") {
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "false",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "true") {
         def checkByteToTimestamp(b: Byte, expected: Long): Unit = {
           assert(!cast(b, TimestampType).resolved)
         }
