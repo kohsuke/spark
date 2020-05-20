@@ -59,8 +59,8 @@ object Cast {
     case (StringType, TimestampType) => true
     case (BooleanType, TimestampType) => true
     case (DateType, TimestampType) => true
-    case (_: NumericType, TimestampType) => true
-
+    case (_: NumericType, TimestampType) => if ( SQLConf.get.numericConvertToTimestampEnable ) true
+    else false
     case (StringType, DateType) => true
     case (TimestampType, DateType) => true
 
@@ -266,7 +266,12 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
       TypeCheckResult.TypeCheckSuccess
     } else {
       TypeCheckResult.TypeCheckFailure(
-        s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}")
+        if ( child.dataType.isInstanceOf[NumericType] && dataType.isInstanceOf[TimestampType]) {
+          s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}," +
+            s"please use function TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instand"
+        } else {
+          s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}"
+        })
     }
   }
 
@@ -454,7 +459,10 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
   }
 
   // converting seconds to us
-  private[this] def longToTimestamp(t: Long): Long = SECONDS.toMicros(t)
+  private[this] def longToTimestamp(t: Long): Long = {
+    if (SQLConf.get.numericConvertToTimestampInSeconds) t * MICROS_PER_SECOND
+    else t * MILLIS_PER_SECOND
+  }
   // converting us to seconds
   private[this] def timestampToLong(ts: Long): Long = {
     Math.floorDiv(ts, MICROS_PER_SECOND)
@@ -1270,7 +1278,11 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
     val block = inline"new java.math.BigDecimal($MICROS_PER_SECOND)"
     code"($d.toBigDecimal().bigDecimal().multiply($block)).longValue()"
   }
-  private[this] def longToTimeStampCode(l: ExprValue): Block = code"$l * (long)$MICROS_PER_SECOND"
+  private[this] def longToTimeStampCode(l: ExprValue): Block = {
+    if (SQLConf.get.numericConvertToTimestampInSeconds) code"" +
+      code"$l * $MICROS_PER_SECOND"
+    else code"$l * $MILLIS_PER_SECOND"
+  }
   private[this] def timestampToLongCode(ts: ExprValue): Block =
     code"java.lang.Math.floorDiv($ts, $MICROS_PER_SECOND)"
   private[this] def timestampToDoubleCode(ts: ExprValue): Block =
