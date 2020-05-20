@@ -266,7 +266,7 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
       TypeCheckResult.TypeCheckSuccess
     } else {
       TypeCheckResult.TypeCheckFailure(
-        if ( child.dataType.isInstanceOf[NumericType] && dataType.isInstanceOf[TimestampType]) {
+        if (child.dataType.isInstanceOf[NumericType] && dataType.isInstanceOf[TimestampType]) {
           s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}," +
             s"please use function TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instand"
         } else {
