@@ -2586,6 +2586,23 @@ object SQLConf {
       .checkValue(_ > 0, "The timeout value must be positive")
       .createWithDefault(10L)
 
+  val LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE =
+    buildConf("spark.sql.legacy.numericConvertToTimestampEnable")
+      .internal()
+      .doc("when true,use legacy numberic can convert to timestamp")
+      .version("3.0.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  val LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS =
+    buildConf("spark.sql.legacy.numericConvertToTimestampInSeconds")
+      .internal()
+      .doc("The legacy only works when LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE is true." +
+        "when true,the value will be  interpreted as seconds,which follow spark style," +
+        "when false,value is interpreted as milliseconds,which follow hive style")
+      .version("3.0.0")
+      .booleanConf
+      .createWithDefault(true)
   /**
    * Holds information about keys that have been deprecated.
    *
@@ -3164,6 +3181,11 @@ class SQLConf extends Serializable with Logging {
   def csvFilterPushDown: Boolean = getConf(CSV_FILTER_PUSHDOWN_ENABLED)
 
   def integerGroupingIdEnabled: Boolean = getConf(SQLConf.LEGACY_INTEGER_GROUPING_ID)
+
+  def numericConvertToTimestampEnable: Boolean = getConf(LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE)
+
+  def numericConvertToTimestampInSeconds: Boolean =
+    getConf(LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS)
 
   /** ********************** SQLConf functionality methods ************ */
 
