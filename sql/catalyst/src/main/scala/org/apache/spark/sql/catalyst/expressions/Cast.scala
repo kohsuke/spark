@@ -61,7 +61,6 @@ object Cast {
     case (DateType, TimestampType) => true
     case (_: NumericType, TimestampType) => if (SQLConf.get.numericConvertToTimestampEnable) true
     else false
-
     case (StringType, DateType) => true
     case (TimestampType, DateType) => true
 
@@ -464,7 +463,6 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
     if (SQLConf.get.numericConvertToTimestampInSeconds) t * MICROS_PER_SECOND
     else t * MILLIS_PER_SECOND
   }
-
   // converting us to seconds
   private[this] def timestampToLong(ts: Long): Long = {
     Math.floorDiv(ts, MICROS_PER_SECOND)
@@ -1287,13 +1285,11 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
     val block = inline"new java.math.BigDecimal($MICROS_PER_SECOND)"
     code"($d.toBigDecimal().bigDecimal().multiply($block)).longValue()"
   }
-
   private[this] def longToTimeStampCode(l: ExprValue): Block = {
     if (SQLConf.get.numericConvertToTimestampInSeconds) code"" +
       code"$l * $MICROS_PER_SECOND"
     else code"$l * $MILLIS_PER_SECOND"
   }
-
   private[this] def timestampToLongCode(ts: ExprValue): Block =
     code"java.lang.Math.floorDiv($ts, $MICROS_PER_SECOND)"
   private[this] def timestampToDoubleCode(ts: ExprValue): Block =

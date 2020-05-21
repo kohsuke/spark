@@ -1300,15 +1300,97 @@ class CastSuite extends CastSuiteBase {
     }
   }
 
-  test("cast a timestamp before the epoch 1970-01-01 00:00:00Z") {
-    withDefaultTimeZone(UTC) {
-      val negativeTs = Timestamp.valueOf("1900-05-05 18:34:56.1")
-      assert(negativeTs.getTime < 0)
-      val expectedSecs = Math.floorDiv(negativeTs.getTime, MILLIS_PER_SECOND)
-      checkEvaluation(cast(negativeTs, ByteType), expectedSecs.toByte)
-      checkEvaluation(cast(negativeTs, ShortType), expectedSecs.toShort)
-      checkEvaluation(cast(negativeTs, IntegerType), expectedSecs.toInt)
-      checkEvaluation(cast(negativeTs, LongType), expectedSecs)
+  test("SPARK-31710:Add legacy when casting long to timestamp") {
+    withSQLConf(
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "true",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "false") {
+        def checkLongToTimestamp(l: Long, expected: Long): Unit = {
+          checkEvaluation(cast(l, TimestampType), expected)
+        }
+        checkLongToTimestamp(253402272000L, 253402272000000L)
+        checkLongToTimestamp(-5L, -5000L)
+        checkLongToTimestamp(1L, 1000L)
+        checkLongToTimestamp(0L, 0L)
+        checkLongToTimestamp(123L, 123000L)
+    }
+    withSQLConf(
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "true",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "true") {
+        def checkLongToTimestamp(l: Long, expected: Long): Unit = {
+          checkEvaluation(cast(l, TimestampType), expected)
+        }
+        checkLongToTimestamp(253402272000L, 253402272000000000L)
+        checkLongToTimestamp(-5L, -5000000L)
+        checkLongToTimestamp(1L, 1000000L)
+        checkLongToTimestamp(0L, 0L)
+        checkLongToTimestamp(123L, 123000000L)
+    }
+
+    withSQLConf(
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "false",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "false") {
+        def checkByteToTimestamp(b: Byte, expected: Long): Unit = {
+          assert(!cast(b, TimestampType).resolved)
+        }
+        def checkShortToTimestamp(s: Short, expected: Long): Unit = {
+          assert(!cast(s, TimestampType).resolved)
+        }
+        def checkIntToTimestamp(str: Int, expected: Long): Unit = {
+          assert(!cast(str, TimestampType).resolved)
+        }
+        def checkLongToTimestamp(l: Long, expected: Long): Unit = {
+          assert(!cast(l, TimestampType).resolved)
+        }
+        def checkDecimalToTimestamp(d: Decimal, expected: Long): Unit = {
+          assert(!cast(d, TimestampType).resolved)
+        }
+        def checkFloatToTimestamp(f: Float, expected: Long): Unit = {
+          assert(!cast(f, TimestampType).resolved)
+        }
+        def checkDoubleToTimestamp(d: Double, expected: Long): Unit = {
+          assert(!cast(d, TimestampType).resolved)
+        }
+        checkByteToTimestamp(1.toByte, 0L)
+        checkShortToTimestamp(1.toShort, 0L)
+        checkIntToTimestamp(1, 0L)
+        checkLongToTimestamp(1L, 0L)
+        checkDecimalToTimestamp(Decimal(1.5), 0L)
+        checkFloatToTimestamp(1.5f, 0L)
+        checkDoubleToTimestamp(2.1D, 0L)
+    }
+
+    withSQLConf(
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_ENABLE.key -> "false",
+      SQLConf.LEGACY_NUMERIC_CONVERT_TO_TIMESTAMP_IN_SECONDS.key -> "true") {
+        def checkByteToTimestamp(b: Byte, expected: Long): Unit = {
+          assert(!cast(b, TimestampType).resolved)
+        }
+        def checkShortToTimestamp(s: Short, expected: Long): Unit = {
+          assert(!cast(s, TimestampType).resolved)
+        }
+        def checkIntToTimestamp(str: Int, expected: Long): Unit = {
+          assert(!cast(str, TimestampType).resolved)
+        }
+        def checkLongToTimestamp(l: Long, expected: Long): Unit = {
+          assert(!cast(l, TimestampType).resolved)
+        }
+        def checkDecimalToTimestamp(d: Decimal, expected: Long): Unit = {
+          assert(!cast(d, TimestampType).resolved)
+        }
+        def checkFloatToTimestamp(f: Float, expected: Long): Unit = {
+          assert(!cast(f, TimestampType).resolved)
+        }
+        def checkDoubleToTimestamp(d: Double, expected: Long): Unit = {
+          assert(!cast(d, TimestampType).resolved)
+        }
+
+        checkByteToTimestamp(1.toByte, 0L)
+        checkShortToTimestamp(1.toShort, 0L)
+        checkIntToTimestamp(1, 0L)
+        checkLongToTimestamp(1L, 0L)
+        checkDecimalToTimestamp(Decimal(1.5), 0L)
+        checkFloatToTimestamp(1.5f, 0L)
+        checkDoubleToTimestamp(2.1D, 0L)
     }
   }
 
