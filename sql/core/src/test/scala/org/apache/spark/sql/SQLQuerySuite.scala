@@ -49,6 +49,24 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
 
   setupTestData()
 
+  test("lpad/rpad should throw an exception for invalid length input if the ANSI mode enabled") {
+    def checkQuery(f: String): Unit = {
+      checkAnswer(sql(s"SELECT $f('hi', 'invalid_length')"), Row(null))
+    }
+
+    Seq("lpad", "rpad").foreach { func =>
+      withSQLConf(SQLConf.ANSI_ENABLED.key -> "false") {
+        checkQuery(func)
+      }
+      val errMsg = intercept[NumberFormatException] {
+        withSQLConf(SQLConf.ANSI_ENABLED.key -> "true") {
+          checkQuery(func)
+        }
+      }.getMessage
+      assert(errMsg.contains("invalid input syntax for type numeric:"))
+    }
+  }
+
   test("SPARK-8010: promote numeric to string") {
     withTempView("src") {
       val df = Seq((1, 1)).toDF("key", "value")
