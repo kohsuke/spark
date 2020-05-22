@@ -45,7 +45,9 @@ object MimaExcludes {
     // after: class ChiSqSelector extends PSelector
     // false positive, no binary incompatibility
     ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.ml.feature.ChiSqSelectorModel"),
-    ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.ml.feature.ChiSqSelector")
+    ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.ml.feature.ChiSqSelector"),
+    // [SPARK-24634] Add a new metric regarding number of inputs later than watermark plus allowed delay
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.sql.streaming.StateOperatorProgress")
   )
 
   // Exclude rules for 3.0.x
