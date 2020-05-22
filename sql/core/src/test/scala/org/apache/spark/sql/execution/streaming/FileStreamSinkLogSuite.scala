@@ -85,9 +85,9 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
 
       // scalastyle:off
       val expected = s"""v$VERSION
-          |{"path":"/a/b/x","size":100,"isDir":false,"modificationTime":1000,"blockReplication":1,"blockSize":10000,"action":"add","commitTime":1000}
-          |{"path":"/a/b/y","size":200,"isDir":false,"modificationTime":2000,"blockReplication":2,"blockSize":20000,"action":"delete","commitTime":2000}
-          |{"path":"/a/b/z","size":300,"isDir":false,"modificationTime":3000,"blockReplication":3,"blockSize":30000,"action":"add","commitTime":3000}""".stripMargin
+          |{"path":"/a/b/x","size":100,"isDir":false,"modificationTime":1000,"blockReplication":1,"blockSize":10000,"action":"add"}
+          |{"path":"/a/b/y","size":200,"isDir":false,"modificationTime":2000,"blockReplication":2,"blockSize":20000,"action":"delete"}
+          |{"path":"/a/b/z","size":300,"isDir":false,"modificationTime":3000,"blockReplication":3,"blockSize":30000,"action":"add"}""".stripMargin
       // scalastyle:on
       val baos = new ByteArrayOutputStream()
       sinkLog.serialize(logs, baos)
@@ -102,9 +102,9 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
     withFileStreamSinkLog { sinkLog =>
       // scalastyle:off
       val logs = s"""v$VERSION
-          |{"path":"/a/b/x","size":100,"isDir":false,"modificationTime":1000,"blockReplication":1,"blockSize":10000,"action":"add","commitTime":1000}
-          |{"path":"/a/b/y","size":200,"isDir":false,"modificationTime":2000,"blockReplication":2,"blockSize":20000,"action":"delete","commitTime":2000}
-          |{"path":"/a/b/z","size":300,"isDir":false,"modificationTime":3000,"blockReplication":3,"blockSize":30000,"action":"add","commitTime":3000}""".stripMargin
+          |{"path":"/a/b/x","size":100,"isDir":false,"modificationTime":1000,"blockReplication":1,"blockSize":10000,"action":"add"}
+          |{"path":"/a/b/y","size":200,"isDir":false,"modificationTime":2000,"blockReplication":2,"blockSize":20000,"action":"delete"}
+          |{"path":"/a/b/z","size":300,"isDir":false,"modificationTime":3000,"blockReplication":3,"blockSize":30000,"action":"add"}""".stripMargin
       // scalastyle:on
 
       val expected = Seq(
