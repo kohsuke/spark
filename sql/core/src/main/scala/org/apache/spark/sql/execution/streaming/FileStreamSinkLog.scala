@@ -37,7 +37,6 @@ import org.apache.spark.sql.internal.SQLConf
  * @param blockReplication the block replication.
  * @param blockSize the block size.
  * @param action the file action. Must be either "add" or "delete".
- * @param commitTime the time which batch for the file is committed
  */
 case class SinkFileStatus(
     path: String,
@@ -46,20 +45,7 @@ case class SinkFileStatus(
     modificationTime: Long,
     blockReplication: Int,
     blockSize: Long,
-    action: String,
-    commitTime: Long) {
-
-  def this(
-      path: String,
-      size: Long,
-      isDir: Boolean,
-      modificationTime: Long,
-      blockReplication: Int,
-      blockSize: Long,
-      action: String) {
-    // use Long.MaxValue if we don't know about exact commit time, which means they will not evicted
-    this(path, size, isDir, modificationTime, blockReplication, blockSize, action, Long.MaxValue)
-  }
+    action: String) {
 
   def toFileStatus: FileStatus = {
     new FileStatus(
@@ -69,14 +55,14 @@ case class SinkFileStatus(
 
 object SinkFileStatus {
   def apply(f: FileStatus): SinkFileStatus = {
-    new SinkFileStatus(
-      f.getPath.toUri.toString,
-      f.getLen,
-      f.isDirectory,
-      f.getModificationTime,
-      f.getReplication,
-      f.getBlockSize,
-      FileStreamSinkLog.ADD_ACTION)
+    SinkFileStatus(
+      path = f.getPath.toUri.toString,
+      size = f.getLen,
+      isDir = f.isDirectory,
+      modificationTime = f.getModificationTime,
+      blockReplication = f.getReplication,
+      blockSize = f.getBlockSize,
+      action = FileStreamSinkLog.ADD_ACTION)
   }
 }
 
@@ -117,7 +103,7 @@ class FileStreamSinkLog(
   override def compactLogs(logs: Seq[SinkFileStatus]): Seq[SinkFileStatus] = {
     val curTime = System.currentTimeMillis()
     val deletedFiles = logs.filter { log =>
-      log.action == FileStreamSinkLog.DELETE_ACTION || (curTime - log.commitTime) > ttlMs
+      log.action == FileStreamSinkLog.DELETE_ACTION || (curTime - log.modificationTime) > ttlMs
     }.map(_.path).toSet
     if (deletedFiles.isEmpty) {
       logs
