@@ -115,8 +115,10 @@ class BinaryClassificationEvaluator @Since("1.4.0") (@Since("1.4.0") override va
         if (!isDefined(weightCol) || $(weightCol).isEmpty) lit(1.0)
         else col($(weightCol)).cast(DoubleType)).rdd.map {
         case Row(rawPrediction: Vector, label: Double, weight: Double) =>
+          require (weight >= 0.0, "illegal weight value: " + weight + " weight must be >= 0.0")
           (rawPrediction(1), label, weight)
         case Row(rawPrediction: Double, label: Double, weight: Double) =>
+          require (weight >= 0.0, "illegal weight value: " + weight + " weight must be >= 0.0")
           (rawPrediction, label, weight)
       }
     val metrics = new BinaryClassificationMetrics(scoreAndLabelsWithWeights, $(numBins))
