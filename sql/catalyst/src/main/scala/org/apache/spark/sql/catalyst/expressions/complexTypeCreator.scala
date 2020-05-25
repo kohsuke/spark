@@ -314,7 +314,7 @@ case object NamePlaceholder extends LeafExpression with Unevaluable {
 object CreateStruct extends FunctionBuilder {
   /**
    * Returns a named struct with generating names or using the names when available.
-   * It should be used only for the an internal purpose.
+   * It should be used only for an internal purpose.
    */
   def apply(children: Seq[Expression]): CreateNamedStruct = {
     CreateNamedStruct(children.zipWithIndex.flatMap {
