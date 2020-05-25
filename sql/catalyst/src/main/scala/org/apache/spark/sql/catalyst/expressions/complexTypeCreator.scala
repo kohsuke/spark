@@ -314,7 +314,8 @@ case object NamePlaceholder extends LeafExpression with Unevaluable {
 object CreateStruct extends FunctionBuilder {
   /**
    * Returns a named struct with generating names or using the names when available.
-   * It should be used only for an internal purpose.
+   * It should not be used for `struct` expressions or functions explicitly called
+   * by users.
    */
   def apply(children: Seq[Expression]): CreateNamedStruct = {
     CreateNamedStruct(children.zipWithIndex.flatMap {
@@ -326,8 +327,8 @@ object CreateStruct extends FunctionBuilder {
 
   /**
    * Returns a named struct with a pretty SQL name. It will show the pretty SQL string
-   * in its output column name as if `struct(...)` was called. Should be used for an
-   * external purpose.
+   * in its output column name as if `struct(...)` was called. Should be
+   * used for `struct` expressions or functions explicitly called by users.
    */
   def create(children: Seq[Expression]): CreateNamedStruct = {
     val expr = CreateStruct(children)
@@ -448,7 +449,7 @@ case class CreateNamedStruct(children: Seq[Expression]) extends Expression {
        """.stripMargin, isNull = FalseLiteral)
   }
 
-  override def prettyName: String = "named_struct"
+  override def prettyName: String = getTagValue(FUNC_ALIAS).getOrElse("named_struct")
 
   override def sql: String = getTagValue(FUNC_ALIAS).map { alias =>
     val childrenSQL = children.indices.filter(_ % 2 == 1).map(children(_).sql).mkString(", ")
