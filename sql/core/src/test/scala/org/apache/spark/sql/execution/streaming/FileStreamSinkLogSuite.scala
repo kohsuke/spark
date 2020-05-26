@@ -226,7 +226,7 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
 
   test("filter out outdated entries when compacting") {
     val curTime = System.currentTimeMillis()
-    withFileStreamSinkLog(Some(60000), sinkLog => {
+    withFileStreamSinkLog(sinkLog => {
       val logs = Seq(
         newFakeSinkFileStatus("/a/b/x", FileStreamSinkLog.ADD_ACTION, curTime),
         newFakeSinkFileStatus("/a/b/y", FileStreamSinkLog.ADD_ACTION, curTime),
@@ -237,7 +237,7 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
         newFakeSinkFileStatus("/a/b/m", FileStreamSinkLog.ADD_ACTION, curTime - 80000),
         newFakeSinkFileStatus("/a/b/n", FileStreamSinkLog.ADD_ACTION, curTime - 120000))
       assert(logs === sinkLog.compactLogs(logs ++ logs2))
-    })
+    }, Some(60000))
   }
 
   test("read Spark 2.1.0 log format") {
@@ -294,19 +294,13 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
   }
 
   /**
-   * Create a fake SinkFileStatus using path and action. Most of tests don't care about other fields
-   * in SinkFileStatus.
-   */
-  private def newFakeSinkFileStatus(path: String, action: String): SinkFileStatus =
-    newFakeSinkFileStatus(path, action, Long.MaxValue)
-
-  /**
-   * Create a fake SinkFileStatus using path and action, and modification time.
+   * Create a fake SinkFileStatus using path and action, and optionally modification time.
+   * Most of tests don't care about other fields in SinkFileStatus.
    */
   private def newFakeSinkFileStatus(
       path: String,
       action: String,
-      modificationTime: Long): SinkFileStatus = {
+      modificationTime: Long = Long.MaxValue): SinkFileStatus = {
     SinkFileStatus(
       path = path,
       size = 100L,
@@ -317,10 +311,9 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
       action = action)
   }
 
-  private def withFileStreamSinkLog(f: FileStreamSinkLog => Unit): Unit =
-    withFileStreamSinkLog(None, f)
-
-  private def withFileStreamSinkLog(ttl: Option[Long], f: FileStreamSinkLog => Unit): Unit = {
+  private def withFileStreamSinkLog(
+      f: FileStreamSinkLog => Unit,
+      ttl: Option[Long] = None): Unit = {
     withTempDir { file =>
       val sinkLog = new FileStreamSinkLog(FileStreamSinkLog.VERSION, spark, file.getCanonicalPath,
         ttl)

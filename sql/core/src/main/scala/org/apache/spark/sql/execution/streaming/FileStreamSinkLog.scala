@@ -103,7 +103,16 @@ class FileStreamSinkLog(
   override def compactLogs(logs: Seq[SinkFileStatus]): Seq[SinkFileStatus] = {
     val curTime = System.currentTimeMillis()
     val deletedFiles = logs.filter { log =>
-      log.action == FileStreamSinkLog.DELETE_ACTION || (curTime - log.modificationTime) > ttlMs
+      if (log.action == FileStreamSinkLog.DELETE_ACTION) {
+        logDebug(s"${log.path} excluded by delete action.")
+        true
+      } else if (curTime - log.modificationTime > ttlMs) {
+        logDebug(s"${log.path} excluded by retention - current time: $curTime / " +
+          s"modification time: ${log.modificationTime} / TTL: $ttlMs.")
+        true
+      } else {
+        false
+      }
     }.map(_.path).toSet
     if (deletedFiles.isEmpty) {
       logs
