@@ -294,4 +294,50 @@ class ResolveHintsSuite extends AnalysisTest {
         caseSensitive = true)
     }
   }
+
+  test("disable hint resolution when spark.sql.optimizer.hints.enabled = false") {
+    checkAnalysis(
+      UnresolvedHint("COALESCE", Seq(Literal(10)), table("TaBlE")),
+      testRelation,
+      caseSensitive = true,
+      enableHints = false
+    )
+    checkAnalysis(
+      UnresolvedHint("coalesce", Seq(Literal(20)), table("TaBlE")),
+      testRelation,
+      caseSensitive = true,
+      enableHints = false
+    )
+    checkAnalysis(
+      UnresolvedHint("REPARTITION", Seq(Literal(100)), table("TaBlE")),
+      testRelation,
+      caseSensitive = true,
+      enableHints = false
+    )
+    checkAnalysis(
+      UnresolvedHint("RePARTITion", Seq(Literal(200)), table("TaBlE")),
+      testRelation,
+      caseSensitive = true,
+      enableHints = false
+    )
+
+    Seq(("MAPJOIN", BROADCAST),
+      ("MERGEJOIN", SHUFFLE_MERGE),
+      ("SHUFFLE_HASH", SHUFFLE_HASH),
+      ("SHUFFLE_REPLICATE_NL", SHUFFLE_REPLICATE_NL)).foreach { case (hintName, st) =>
+      // local temp table (single-part identifier case)
+      checkAnalysis(
+        UnresolvedHint(hintName, Seq("table", "table2"),
+          table("TaBlE").join(table("TaBlE2"))),
+        Join(
+          testRelation,
+          testRelation2,
+          Inner,
+          None,
+          JoinHint.NONE),
+        caseSensitive = false,
+        enableHints = false
+      )
+    }
+  }
 }

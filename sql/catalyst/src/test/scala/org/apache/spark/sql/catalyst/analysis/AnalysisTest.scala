@@ -31,13 +31,22 @@ import org.apache.spark.sql.internal.SQLConf
 
 trait AnalysisTest extends PlanTest {
 
-  protected lazy val caseSensitiveAnalyzer = makeAnalyzer(caseSensitive = true)
-  protected lazy val caseInsensitiveAnalyzer = makeAnalyzer(caseSensitive = false)
+  protected lazy val caseSensitiveAnalyzer =
+    makeAnalyzer(caseSensitive = true, enableHints = true)
+  protected lazy val caseInsensitiveAnalyzer =
+    makeAnalyzer(caseSensitive = false, enableHints = true)
+
+  protected def caseSensitiveAnalyzer(enableHints: Boolean) =
+    makeAnalyzer(caseSensitive = true, enableHints)
+  protected def caseInsensitiveAnalyzer(enableHints: Boolean) =
+    makeAnalyzer(caseSensitive = false, enableHints)
 
   protected def extendedAnalysisRules: Seq[Rule[LogicalPlan]] = Nil
 
-  private def makeAnalyzer(caseSensitive: Boolean): Analyzer = {
-    val conf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> caseSensitive)
+  private def makeAnalyzer(caseSensitive: Boolean, enableHints: Boolean): Analyzer = {
+    val conf = new SQLConf()
+      .copy(SQLConf.CASE_SENSITIVE -> caseSensitive)
+      .copy(SQLConf.OPTIMIZER_HINTS_ENABLED -> enableHints)
     val catalog = new SessionCatalog(new InMemoryCatalog, FunctionRegistry.builtin, conf)
     catalog.createDatabase(
       CatalogDatabase("default", "", new URI("loc"), Map.empty),
@@ -56,11 +65,25 @@ trait AnalysisTest extends PlanTest {
     if (caseSensitive) caseSensitiveAnalyzer else caseInsensitiveAnalyzer
   }
 
+  protected def getAnalyzer(caseSensitive: Boolean, enableHints: Boolean) = {
+    if (caseSensitive) caseSensitiveAnalyzer(enableHints) else caseInsensitiveAnalyzer(enableHints)
+  }
+
   protected def checkAnalysis(
       inputPlan: LogicalPlan,
       expectedPlan: LogicalPlan,
       caseSensitive: Boolean = true): Unit = {
     val analyzer = getAnalyzer(caseSensitive)
+    val actualPlan = analyzer.executeAndCheck(inputPlan, new QueryPlanningTracker)
+    comparePlans(actualPlan, expectedPlan)
+  }
+
+  protected def checkAnalysis(
+      inputPlan: LogicalPlan,
+      expectedPlan: LogicalPlan,
+      caseSensitive: Boolean,
+      enableHints: Boolean): Unit = {
+    val analyzer = getAnalyzer(caseSensitive, enableHints)
     val actualPlan = analyzer.executeAndCheck(inputPlan, new QueryPlanningTracker)
     comparePlans(actualPlan, expectedPlan)
   }
