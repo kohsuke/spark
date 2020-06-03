@@ -53,7 +53,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
 
   test("GenerateExec should be included in WholeStageCodegen") {
     val arrayData1 = Seq(
-      Row("James", List("Java", "Scala"), Map("hair" -> "black", "eye" -> "brown")),
+      Row("James", List("Java", "Scala"), Map("hair" -> "black", "eye" -> "brown"))
     )
 
     val arraySchema1 = new StructType()
@@ -64,7 +64,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
     val df = spark.createDataFrame(spark.sparkContext.parallelize(arrayData1), arraySchema1)
 
     // Array - explode
-    var expDF = df.select($"name",explode($"knownLanguages"), $"properties")
+    var expDF = df.select($"name", explode($"knownLanguages"), $"properties")
     var plan = expDF.queryExecution.executedPlan
     assert(plan.find {
       case stage: WholeStageCodegenExec =>
@@ -72,13 +72,13 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
       case _ =>
         false
     }.isDefined)
-    var results  = expDF.collect()
+    var results = expDF.collect()
     assert(results.size ==2 && results ===
       Array(Row("James", "Java", Map("hair" -> "black", "eye" -> "brown")),
         Row("James", "Scala", Map("hair" -> "black", "eye" -> "brown"))))
 
     // Map - explode
-    expDF = df.select($"name",$"knownLanguages", explode($"properties"))
+    expDF = df.select($"name", $"knownLanguages", explode($"properties"))
     plan = expDF.queryExecution.executedPlan
     assert(plan.find {
       case stage: WholeStageCodegenExec =>
@@ -92,7 +92,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         Row("James", List("Java", "Scala"), "eye", "brown")))
 
     // Array - posexplode
-    expDF = df.select($"name",posexplode($"knownLanguages"))
+    expDF = df.select($"name", posexplode($"knownLanguages"))
     plan = expDF.queryExecution.executedPlan
     assert(plan.find {
       case stage: WholeStageCodegenExec =>
