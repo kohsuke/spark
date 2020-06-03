@@ -234,7 +234,7 @@ private object DateTimeFormatterHelper {
     val formatter = DateTimeFormatter.ofPattern("LLL qqq", Locale.US)
     formatter.format(LocalDate.of(2000, 1, 1)) == "1 1"
   }
-  final val unsupportedLetters = Set('A', 'c', 'e', 'n', 'N', 'p')
+  final val unsupportedLetters = Set('A', 'c', 'u', 'n', 'N', 'p')
   // SPARK-31892: The week-based date fields are rarely used and really confusing for parsing values
   // to datetime, especially when they are mixed with other non-week-based ones
   // The quarter fields will also be parsed strangely, e.g. when the pattern contains `yMd` and can
@@ -282,20 +282,13 @@ private object DateTimeFormatterHelper {
               "or upgrade your Java version. For more details, please read " +
               "https://bugs.openjdk.java.net/browse/JDK-8114833")
           }
-          // The meaning of 'u' was day number of week in SimpleDateFormat, it was changed to year
-          // in DateTimeFormatter. Substitute 'u' to 'e' and use DateTimeFormatter to parse the
-          // string. If parsable, return the result; otherwise, fall back to 'u', and then use the
-          // legacy SimpleDateFormat parser to parse. When it is successfully parsed, throw an
-          // exception and ask users to change the pattern strings or turn on the legacy mode;
-          // otherwise, return NULL as what Spark 2.4 does.
-          val res = patternPart.replace("u", "e")
           // In DateTimeFormatter, 'u' supports negative years. We substitute 'y' to 'u' here for
           // keeping the support in Spark 3.0. If parse failed in Spark 3.0, fall back to 'y'.
           // We only do this substitution when there is no era designator found in the pattern.
           if (!eraDesignatorContained) {
-            res.replace("y", "u")
+            patternPart.replace("y", "u")
           } else {
-            res
+            patternPart
           }
         } else {
           patternPart
