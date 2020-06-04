@@ -1249,7 +1249,6 @@ class LogisticRegressionTrainingSummary(LogisticRegressionSummary, _TrainingSumm
 
     .. versionadded:: 2.0.0
     """
-
     pass
 
 
@@ -1261,8 +1260,8 @@ class BinaryLogisticRegressionSummary(_BinaryClassificationSummary,
 
     .. versionadded:: 2.0.0
     """
-
     pass
+
 
 @inherit_doc
 class BinaryLogisticRegressionTrainingSummary(BinaryLogisticRegressionSummary,
