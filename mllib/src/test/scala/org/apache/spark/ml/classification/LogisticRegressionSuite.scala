@@ -263,11 +263,13 @@ class LogisticRegressionSuite extends MLTest with DefaultReadWriteTest {
       .setMaxIter(1)
 
     val blorModel = lr.fit(smallBinaryDataset)
+    assert(blorModel.summary.probabilityCol.equals("probability"))
     assert(blorModel.summary.isInstanceOf[BinaryLogisticRegressionTrainingSummary])
     assert(blorModel.summary.asBinary.isInstanceOf[BinaryLogisticRegressionSummary])
     assert(blorModel.binarySummary.isInstanceOf[BinaryLogisticRegressionTrainingSummary])
 
     val mlorModel = lr.setFamily("multinomial").fit(smallMultinomialDataset)
+    assert(mlorModel.summary.probabilityCol.equals("probability"))
     assert(mlorModel.summary.isInstanceOf[LogisticRegressionTrainingSummary])
     withClue("cannot get binary summary for multiclass model") {
       intercept[RuntimeException] {
@@ -281,6 +283,7 @@ class LogisticRegressionSuite extends MLTest with DefaultReadWriteTest {
     }
 
     val mlorBinaryModel = lr.setFamily("multinomial").fit(smallBinaryDataset)
+    assert(mlorBinaryModel.summary.probabilityCol.equals("probability"))
     assert(mlorBinaryModel.summary.isInstanceOf[BinaryLogisticRegressionTrainingSummary])
     assert(mlorBinaryModel.binarySummary.isInstanceOf[BinaryLogisticRegressionTrainingSummary])
 
@@ -288,6 +291,8 @@ class LogisticRegressionSuite extends MLTest with DefaultReadWriteTest {
     val mlorSummary = mlorModel.evaluate(smallMultinomialDataset)
     assert(blorSummary.isInstanceOf[BinaryLogisticRegressionSummary])
     assert(mlorSummary.isInstanceOf[LogisticRegressionSummary])
+    assert(blorSummary.probabilityCol.equals("probability"))
+    assert(mlorSummary.probabilityCol.equals("probability"))
 
     // verify instance weight works
     val lr2 = new LogisticRegression()
@@ -310,12 +315,12 @@ class LogisticRegressionSuite extends MLTest with DefaultReadWriteTest {
     assert(mlorModel2.summary.isInstanceOf[LogisticRegressionTrainingSummary])
     withClue("cannot get binary summary for multiclass model") {
       intercept[RuntimeException] {
-        mlorModel.binarySummary
+        mlorModel2.binarySummary
       }
     }
     withClue("cannot cast summary to binary summary multiclass model") {
       intercept[RuntimeException] {
-        mlorModel.summary.asBinary
+        mlorModel2.summary.asBinary
       }
     }
 
