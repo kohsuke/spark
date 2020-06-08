@@ -557,7 +557,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
     }
   }
 
-  override def reviveOffers(): Unit = {
+  override def reviveOffers(): Unit = Utils.tryLogNonFatalError {
     driverEndpoint.send(ReviveOffers)
   }
 
