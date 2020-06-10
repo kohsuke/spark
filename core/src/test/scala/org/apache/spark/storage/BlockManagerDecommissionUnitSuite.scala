@@ -38,6 +38,9 @@ class BlockManagerDecommissionUnitSuite extends SparkFunSuite with Matchers {
   private val sparkConf = new SparkConf(false)
     .set(config.STORAGE_SHUFFLE_DECOMMISSION_ENABLED, true)
     .set(config.STORAGE_RDD_DECOMMISSION_ENABLED, true)
+    // Just replicate blocks as fast as we can during testing, there isn't another
+    // workload we need to worry about.
+    .set(config.STORAGE_DECOMMISSION_REPLICATION_REATTEMPT_INTERVAL, 10L)
 
   private def registerShuffleBlocks(
       mockMigratableShuffleResolver: MigratableResolver,
@@ -76,7 +79,8 @@ class BlockManagerDecommissionUnitSuite extends SparkFunSuite with Matchers {
 
     bmDecomManager.start()
 
-    eventually(timeout(5.second), interval(10.milliseconds)) {
+    // We don't check that all blocks are migrated because out mock is always returning an RDD.
+    eventually(timeout(10.second), interval(10.milliseconds)) {
       assert(bmDecomManager.shufflesToMigrate.isEmpty == true)
       verify(bm, times(1)).replicateBlock(
         mc.eq(storedBlockId1), mc.any(), mc.any(), mc.eq(Some(3)))
@@ -84,5 +88,7 @@ class BlockManagerDecommissionUnitSuite extends SparkFunSuite with Matchers {
         .uploadBlockSync(mc.eq("host2"), mc.eq(bmPort), mc.eq("exec2"), mc.any(), mc.any(),
           mc.eq(StorageLevel.DISK_ONLY), mc.isNull())
     }
+
+    bmDecomManager.stop()
   }
 }
