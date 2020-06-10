@@ -406,7 +406,7 @@ package object config extends Logging {
     } catch {
       case e: Exception =>
         log.warn(s"Can not load the default value of `$propertyKey` from " +
-          s"$configPath with error, ${e.toString}. Using false as a default value."
+          s"$configPath with error, ${e.toString}. Using false as a default value.")
         false
     }
   }
