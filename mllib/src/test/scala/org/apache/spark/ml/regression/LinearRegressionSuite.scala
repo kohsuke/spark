@@ -760,6 +760,7 @@ class LinearRegressionSuite extends MLTest with DefaultReadWriteTest with PMMLRe
           .fit(datasetWithWeightConstantLabel)
         if (fitIntercept) {
           assert(model1.summary.objectiveHistory(0) ~== 0.0 absTol 1e-4)
+          assert(model1.summary.totalIterations === 0)
         }
         val model2 = new LinearRegression()
           .setFitIntercept(fitIntercept)
@@ -767,6 +768,7 @@ class LinearRegressionSuite extends MLTest with DefaultReadWriteTest with PMMLRe
           .setSolver("l-bfgs")
           .fit(datasetWithWeightZeroLabel)
         assert(model2.summary.objectiveHistory(0) ~== 0.0 absTol 1e-4)
+        assert(model2.summary.totalIterations === 0)
       }
     }
   }
@@ -896,6 +898,19 @@ class LinearRegressionSuite extends MLTest with DefaultReadWriteTest with PMMLRe
       model.summary.residuals.select("residuals").collect()
         .zip(testSummary.residuals.select("residuals").collect())
         .forall { case (Row(r1: Double), Row(r2: Double)) => r1 ~== r2 relTol 1E-5 }
+    }
+  }
+
+  test("linear regression training summary totalIterations") {
+    Seq(1, 5, 10, 20).foreach { maxIter =>
+      val trainer = new LinearRegression().setSolver("l-bfgs").setMaxIter(maxIter)
+      val model = trainer.fit(datasetWithDenseFeature)
+      assert(model.summary.totalIterations <= maxIter)
+    }
+    Seq("auto", "normal").foreach { solver =>
+      val trainer = new LinearRegression().setSolver(solver)
+      val model = trainer.fit(datasetWithDenseFeature)
+      assert(model.summary.totalIterations === 0)
     }
   }
 
