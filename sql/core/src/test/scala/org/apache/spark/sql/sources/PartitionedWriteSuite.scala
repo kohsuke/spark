@@ -38,12 +38,13 @@ private class OnlyDetectCustomPathFileCommitProtocol(jobId: String, path: String
     with Serializable with Logging {
 
   override def newTaskTempFileAbsPath(
-      taskContext: TaskAttemptContext, absoluteDir: String, ext: String): String = {
+                                       taskContext: TaskAttemptContext, absoluteDir: String, ext: String): String = {
     throw new Exception("there should be no custom partition path")
   }
 }
 
 class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
+
   import testImplicits._
 
   test("write many partitions") {
@@ -130,6 +131,7 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
         dir.getName.substring(dir.getName.indexOf("=") + 1))
       assert(value == expected)
     }
+
     val ts = Timestamp.valueOf("2016-12-01 00:00:00")
     val df = Seq((1, ts)).toDF("i", "ts")
     withTempPath { f =>
@@ -157,12 +159,13 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
     }
   }
 
-  test("SPARK-31968:duplicate partition columns check") {
-    val ds = Seq((3, 2)).toDF("a", "b")
-    val e = intercept[AnalysisException](ds
-      .write.mode(org.apache.spark.sql.SaveMode.Overwrite)
-      .partitionBy("b", "b").csv("/tmp/111"))
-    assert(e.getMessage.contains(
-      "Found duplicate column(s) b,b: `b`;"))
+  test("SPARK-31968: duplicate partition columns check") {
+    withTempPath { f =>
+      val ds = Seq((3, 2)).toDF("a", "b")
+      val e = intercept[AnalysisException](ds
+        .write.partitionBy("b", "b").csv(f.getAbsolutePath))
+      assert(e.getMessage.contains(
+        "Found duplicate column(s) b, b: `b`;"))
+    }
   }
 }
