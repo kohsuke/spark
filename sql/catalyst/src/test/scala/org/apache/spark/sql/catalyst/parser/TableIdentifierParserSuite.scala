@@ -16,6 +16,13 @@
  */
 package org.apache.spark.sql.catalyst.parser
 
+import java.io.File
+import java.nio.file.Files
+import java.util.Locale
+
+import collection.JavaConverters._
+import scala.collection.mutable
+
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.plans.SQLHelper
@@ -537,7 +544,6 @@ class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
   val reservedKeywordsInAnsiMode = Set(
     "all",
     "and",
-    "anti",
     "any",
     "as",
     "authorization",
@@ -593,9 +599,7 @@ class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
     "references",
     "right",
     "select",
-    "semi",
     "session_user",
-    "minus",
     "second",
     "some",
     "table",
@@ -613,6 +617,18 @@ class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
     "year")
 
   val nonReservedKeywordsInAnsiMode = allCandidateKeywords -- reservedKeywordsInAnsiMode
+
+  test("should follow reserved keywords in SQL:2016") {
+    withTempDir { dir =>
+      val tmpFile = new File(dir, "tmp")
+      val is = Thread.currentThread().getContextClassLoader
+        .getResourceAsStream("ansi-sql-2016-reserved-keywords.txt")
+      Files.copy(is, tmpFile.toPath)
+      val reservedKeywordsInSql2016 = Files.readAllLines(tmpFile.toPath)
+        .asScala.filterNot(_.startsWith("--")).map(_.trim.toLowerCase(Locale.ROOT)).toSet
+      assert((reservedKeywordsInAnsiMode -- reservedKeywordsInSql2016).isEmpty)
+    }
+  }
 
   test("table identifier") {
     // Regular names.
