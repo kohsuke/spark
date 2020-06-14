@@ -455,8 +455,6 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
   /**
    * Request that the cluster manager decommission the specified executors.
-   * Default implementation delegates to kill, scheduler must override
-   * if it supports graceful decommissioning.
    *
    * @param executorIds identifiers of executors to decommission
    * @return the ids of the executors acknowledged by the cluster manager to be removed.
