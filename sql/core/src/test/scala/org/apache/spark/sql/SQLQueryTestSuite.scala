@@ -19,9 +19,8 @@ package org.apache.spark.sql
 
 import java.io.File
 import java.util.Locale
-import java.util.regex.Pattern
 
-import scala.collection.mutable.{ArrayBuffer, HashMap}
+import scala.collection.mutable.{ArrayBuffer}
 import scala.util.control.NonFatal
 
 import org.apache.spark.{SparkConf, SparkException}
@@ -135,8 +134,9 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     //   1. Maven can't get correct resource directory when resources in other jars.
     //   2. We test subclasses in the hive-thriftserver module.
     val sparkHome = {
-      assert(sys.props.contains("spark.test.home") ||
-        sys.env.contains("SPARK_HOME"), "spark.test.home or SPARK_HOME is not set.")
+      if (!(sys.props.contains("spark.test.home") ||  sys.env.contains("SPARK_HOME"))) {
+        fail("spark.test.home or SPARK_HOME is not set.")
+      }
       sys.props.getOrElse("spark.test.home", sys.env("SPARK_HOME"))
     }
 
