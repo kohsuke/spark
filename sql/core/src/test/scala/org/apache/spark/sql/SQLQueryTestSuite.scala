@@ -20,7 +20,7 @@ package org.apache.spark.sql
 import java.io.File
 import java.util.Locale
 
-import scala.collection.mutable.{ArrayBuffer}
+import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
 import org.apache.spark.{SparkConf, SparkException}
