@@ -16,8 +16,6 @@
  */
 package org.apache.spark.sql.catalyst.parser
 
-import java.util.Locale
-
 import scala.collection.mutable
 
 import org.apache.spark.SparkFunSuite
@@ -293,8 +291,9 @@ class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
   private val sqlSyntaxDefs = {
     val sqlBasePath = {
       val sparkHome = {
-        assert(sys.props.contains("spark.test.home") ||
-          sys.env.contains("SPARK_HOME"), "spark.test.home or SPARK_HOME is not set.")
+        if (!(sys.props.contains("spark.test.home") ||  sys.env.contains("SPARK_HOME"))) {
+          fail("spark.test.home or SPARK_HOME is not set.")
+        }
         sys.props.getOrElse("spark.test.home", sys.env("SPARK_HOME"))
       }
       java.nio.file.Paths.get(sparkHome, "sql", "catalyst", "src", "main", "antlr4", "org",
