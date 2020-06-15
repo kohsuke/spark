@@ -111,7 +111,11 @@ trait SharedThriftServer extends SharedSparkSession {
         logError("Error start hive server with Context ", e)
         if (hiveServer2 != null) {
           hiveServer2.stop()
+          hiveServer2 = null
         }
+        SessionState.detachSession()
+        Hive.closeCurrent()
+        throw e
     }
   }
 }
