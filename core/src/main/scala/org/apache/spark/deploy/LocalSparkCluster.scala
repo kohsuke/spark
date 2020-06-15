@@ -83,7 +83,7 @@ class LocalSparkCluster(
     var busyWorkers = workerRefs
     while (busyWorkers.nonEmpty) {
       Thread.sleep(100)
-      busyWorkers = busyWorkers.filter(_.askSync[Boolean](IsWorkerReadyToStop))
+      busyWorkers = busyWorkers.filterNot(_.askSync[Boolean](IsWorkerReadyToStop))
     }
 
     // Stop the workers before the master so they don't get upset that it disconnected
