@@ -261,4 +261,7 @@ private[deploy] object DeployMessages {
 
   case object SendHeartbeat
 
+  // From LocalSparkCluster to Worker when stop() is called, in order to check whether
+  // the Worker is ready to stop or not.
+  case object IsWorkerReadyToStop
 }

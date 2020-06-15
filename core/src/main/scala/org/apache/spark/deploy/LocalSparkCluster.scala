@@ -20,10 +20,11 @@ package org.apache.spark.deploy
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.SparkConf
+import org.apache.spark.deploy.DeployMessages.IsWorkerReadyToStop
 import org.apache.spark.deploy.master.Master
 import org.apache.spark.deploy.worker.Worker
 import org.apache.spark.internal.{config, Logging}
-import org.apache.spark.rpc.RpcEnv
+import org.apache.spark.rpc.{RpcEndpointRef, RpcEnv}
 import org.apache.spark.util.Utils
 
 /**
@@ -43,6 +44,7 @@ class LocalSparkCluster(
   private val localHostname = Utils.localHostName()
   private val masterRpcEnvs = ArrayBuffer[RpcEnv]()
   private val workerRpcEnvs = ArrayBuffer[RpcEnv]()
+  private val workerRefs = ArrayBuffer[RpcEndpointRef]()
   // exposed for testing
   var masterWebUIPort = -1
 
@@ -63,10 +65,11 @@ class LocalSparkCluster(
 
     /* Start the Workers */
     for (workerNum <- 1 to numWorkers) {
-      val workerEnv = Worker.startRpcEnvAndEndpoint(localHostname, 0, 0, coresPerWorker,
-        memoryPerWorker, masters, null, Some(workerNum), _conf,
+      val (workerEnv, workerRef) = Worker.startRpcEnvAndEndpoint(localHostname, 0, 0,
+        coresPerWorker, memoryPerWorker, masters, null, Some(workerNum), _conf,
         conf.get(config.Worker.SPARK_WORKER_RESOURCE_FILE))
       workerRpcEnvs += workerEnv
+      workerRefs += workerRef
     }
 
     masters
@@ -74,10 +77,15 @@ class LocalSparkCluster(
 
   def stop(): Unit = {
     logInfo("Shutting down local Spark cluster.")
-    // SPARK-31922: wait one more second before shutting down rpcEnvs of master and worker,
-    // in order to let the cluster have time to handle the `UnregisterApplication` message.
+    // SPARK-31922: make sure all the workers have handled the messages(`KillExecutor`,
+    // `ApplicationFinished`) from the Master before we shutdown the workers' rpcEnvs.
     // Otherwise, we could hit "RpcEnv already stopped" error.
-    Thread.sleep(1000)
+    var busyWorkers = workerRefs
+    while (busyWorkers.nonEmpty) {
+      Thread.sleep(100)
+      busyWorkers = busyWorkers.filter(_.askSync[Boolean](IsWorkerReadyToStop))
+    }
+
     // Stop the workers before the master so they don't get upset that it disconnected
     Seq(workerRpcEnvs, masterRpcEnvs).foreach { rpcEnvArr =>
       rpcEnvArr.foreach { rpcEnv => Utils.tryLog {

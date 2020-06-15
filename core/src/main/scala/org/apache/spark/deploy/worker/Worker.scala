@@ -153,6 +153,8 @@ private[deploy] class Worker(
   val finishedDrivers = new LinkedHashMap[String, DriverRunner]
   val appDirectories = new HashMap[String, Seq[String]]
   val finishedApps = new HashSet[String]
+  // Used for `LocalSparkCluster` only
+  private var hasAppFinished = false
 
   val retainedExecutors = conf.get(WORKER_UI_RETAINED_EXECUTORS)
   val retainedDrivers = conf.get(WORKER_UI_RETAINED_DRIVERS)
@@ -665,6 +667,7 @@ private[deploy] class Worker(
       reregisterWithMaster()
 
     case ApplicationFinished(id) =>
+      hasAppFinished = true
       finishedApps += id
       maybeCleanupApplication(id)
 
@@ -679,6 +682,9 @@ private[deploy] class Worker(
         finishedDrivers.values.toList, activeMasterUrl, cores, memory,
         coresUsed, memoryUsed, activeMasterWebUiUrl, resources,
         resourcesUsed.toMap.map { case (k, v) => (k, v.toResourceInformation)}))
+
+    case IsWorkerReadyToStop =>
+      context.reply(executors.isEmpty && hasAppFinished)
   }
 
   override def onDisconnected(remoteAddress: RpcAddress): Unit = {
@@ -852,7 +858,7 @@ private[deploy] object Worker extends Logging {
     val args = new WorkerArguments(argStrings, conf)
     val rpcEnv = startRpcEnvAndEndpoint(args.host, args.port, args.webUiPort, args.cores,
       args.memory, args.masters, args.workDir, conf = conf,
-      resourceFileOpt = conf.get(SPARK_WORKER_RESOURCE_FILE))
+      resourceFileOpt = conf.get(SPARK_WORKER_RESOURCE_FILE))._1
     // With external shuffle service enabled, if we request to launch multiple workers on one host,
     // we can only successfully launch the first worker and the rest fails, because with the port
     // bound, we may launch no more than one external shuffle service on each host.
@@ -877,16 +883,16 @@ private[deploy] object Worker extends Logging {
       workDir: String,
       workerNumber: Option[Int] = None,
       conf: SparkConf = new SparkConf,
-      resourceFileOpt: Option[String] = None): RpcEnv = {
+      resourceFileOpt: Option[String] = None): (RpcEnv, RpcEndpointRef) = {
 
     // The LocalSparkCluster runs multiple local sparkWorkerX RPC Environments
     val systemName = SYSTEM_NAME + workerNumber.map(_.toString).getOrElse("")
     val securityMgr = new SecurityManager(conf)
     val rpcEnv = RpcEnv.create(systemName, host, port, conf, securityMgr)
     val masterAddresses = masterUrls.map(RpcAddress.fromSparkURL)
-    rpcEnv.setupEndpoint(ENDPOINT_NAME, new Worker(rpcEnv, webUiPort, cores, memory,
+    val workerRef = rpcEnv.setupEndpoint(ENDPOINT_NAME, new Worker(rpcEnv, webUiPort, cores, memory,
       masterAddresses, ENDPOINT_NAME, workDir, conf, securityMgr, resourceFileOpt))
-    rpcEnv
+    (rpcEnv, workerRef)
   }
 
   def isUseLocalNodeSSLConfig(cmd: Command): Boolean = {
