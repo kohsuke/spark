@@ -154,40 +154,14 @@ case class ConcatWs(children: Seq[Expression])
         }
       }.unzip
 
-      val codes = ctx.splitExpressionsWithCurrentInputs(evals.map(_.code.toString))
-
-      val varargCounts = ctx.splitExpressionsWithCurrentInputs(
-        expressions = varargCount,
-        funcName = "varargCountsConcatWs",
-        returnType = "int",
-        makeSplitFunction = body =>
-          s"""
-             |int $varargNum = 0;
-             |$body
-             |return $varargNum;
-           """.stripMargin,
-        foldFunctions = _.map(funcCall => s"$varargNum += $funcCall;").mkString("\n"))
-
-      val varargBuilds = ctx.splitExpressionsWithCurrentInputs(
-        expressions = varargBuild,
-        funcName = "varargBuildsConcatWs",
-        extraArguments = ("UTF8String []", array) :: ("int", idxVararg) :: Nil,
-        returnType = "int",
-        makeSplitFunction = body =>
-          s"""
-             |$body
-             |return $idxVararg;
-           """.stripMargin,
-        foldFunctions = _.map(funcCall => s"$idxVararg = $funcCall;").mkString("\n"))
-
       ev.copy(
         code"""
-        $codes
+        ${evals.map(_.code).mkString("\n")}
         int $varargNum = ${children.count(_.dataType == StringType) - 1};
         int $idxVararg = 0;
-        $varargCounts
+        ${varargCount.mkString("\n")}
         UTF8String[] $array = new UTF8String[$varargNum];
-        $varargBuilds
+        ${varargBuild.mkString("\n")}
         UTF8String ${ev.value} = UTF8String.concatWs(${evals.head.value}, $array);
         boolean ${ev.isNull} = ${ev.value} == null;
       """)
