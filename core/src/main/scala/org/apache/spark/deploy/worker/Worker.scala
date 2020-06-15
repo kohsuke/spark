@@ -57,7 +57,8 @@ private[deploy] class Worker(
     val conf: SparkConf,
     val securityMgr: SecurityManager,
     resourceFileOpt: Option[String] = None,
-    externalShuffleServiceSupplier: Supplier[ExternalShuffleService] = null)
+    externalShuffleServiceSupplier: Supplier[ExternalShuffleService] = null,
+    isLocalCluster: Boolean = false)
   extends ThreadSafeRpcEndpoint with Logging {
 
   private val host = rpcEnv.address.host
@@ -81,8 +82,14 @@ private[deploy] class Worker(
 
   // A separated thread to clean up the workDir and the directories of finished applications.
   // Used to provide the implicit parameter of `Future` methods.
-  private val cleanupThreadExecutor = ExecutionContext.fromExecutorService(
+  private val cleanupThreadExecutor = if (isLocalCluster) {
+    // use same thread executor service to avoid hitting `InterruptedException` in case of
+    // the worker stopped before cleaning finishes.
+    ExecutionContext.fromExecutorService(ThreadUtils.sameThreadExecutorService())
+  } else {
+    ExecutionContext.fromExecutorService(
     ThreadUtils.newDaemonSingleThreadExecutor("worker-cleanup-thread"))
+  }
 
   // For worker and executor IDs
   private def createDateFormat = new SimpleDateFormat("yyyyMMddHHmmss", Locale.US)
@@ -154,7 +161,7 @@ private[deploy] class Worker(
   val appDirectories = new HashMap[String, Seq[String]]
   val finishedApps = new HashSet[String]
   // Used for `LocalSparkCluster` only
-  private var hasAppFinished = false
+  private var isLocalClusterAppFinished = !isLocalCluster
 
   val retainedExecutors = conf.get(WORKER_UI_RETAINED_EXECUTORS)
   val retainedDrivers = conf.get(WORKER_UI_RETAINED_DRIVERS)
@@ -667,7 +674,9 @@ private[deploy] class Worker(
       reregisterWithMaster()
 
     case ApplicationFinished(id) =>
-      hasAppFinished = true
+      if (isLocalCluster) {
+        isLocalClusterAppFinished = true
+      }
       finishedApps += id
       maybeCleanupApplication(id)
 
@@ -684,7 +693,7 @@ private[deploy] class Worker(
         resourcesUsed.toMap.map { case (k, v) => (k, v.toResourceInformation)}))
 
     case IsWorkerReadyToStop =>
-      context.reply(executors.isEmpty && hasAppFinished)
+      context.reply(isLocalCluster && executors.isEmpty && isLocalClusterAppFinished)
   }
 
   override def onDisconnected(remoteAddress: RpcAddress): Unit = {
@@ -873,6 +882,7 @@ private[deploy] object Worker extends Logging {
     rpcEnv.awaitTermination()
   }
 
+  // scalastyle:off argcount
   def startRpcEnvAndEndpoint(
       host: String,
       port: Int,
@@ -883,7 +893,9 @@ private[deploy] object Worker extends Logging {
       workDir: String,
       workerNumber: Option[Int] = None,
       conf: SparkConf = new SparkConf,
-      resourceFileOpt: Option[String] = None): (RpcEnv, RpcEndpointRef) = {
+      resourceFileOpt: Option[String] = None,
+      isLocalCluster: Boolean = false): (RpcEnv, RpcEndpointRef) = {
+    // scalastyle:on argcount
 
     // The LocalSparkCluster runs multiple local sparkWorkerX RPC Environments
     val systemName = SYSTEM_NAME + workerNumber.map(_.toString).getOrElse("")
@@ -891,7 +903,8 @@ private[deploy] object Worker extends Logging {
     val rpcEnv = RpcEnv.create(systemName, host, port, conf, securityMgr)
     val masterAddresses = masterUrls.map(RpcAddress.fromSparkURL)
     val workerRef = rpcEnv.setupEndpoint(ENDPOINT_NAME, new Worker(rpcEnv, webUiPort, cores, memory,
-      masterAddresses, ENDPOINT_NAME, workDir, conf, securityMgr, resourceFileOpt))
+      masterAddresses, ENDPOINT_NAME, workDir, conf, securityMgr, resourceFileOpt,
+      null, isLocalCluster))
     (rpcEnv, workerRef)
   }
 

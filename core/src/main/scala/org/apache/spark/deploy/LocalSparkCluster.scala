@@ -67,7 +67,7 @@ class LocalSparkCluster(
     for (workerNum <- 1 to numWorkers) {
       val (workerEnv, workerRef) = Worker.startRpcEnvAndEndpoint(localHostname, 0, 0,
         coresPerWorker, memoryPerWorker, masters, null, Some(workerNum), _conf,
-        conf.get(config.Worker.SPARK_WORKER_RESOURCE_FILE))
+        conf.get(config.Worker.SPARK_WORKER_RESOURCE_FILE), isLocalCluster = true)
       workerRpcEnvs += workerEnv
       workerRefs += workerRef
     }
@@ -82,7 +82,7 @@ class LocalSparkCluster(
     // Otherwise, we could hit "RpcEnv already stopped" error.
     var busyWorkers = workerRefs
     while (busyWorkers.nonEmpty) {
-      Thread.sleep(100)
+      Thread.sleep(300)
       busyWorkers = busyWorkers.filterNot(_.askSync[Boolean](IsWorkerReadyToStop))
     }
 
