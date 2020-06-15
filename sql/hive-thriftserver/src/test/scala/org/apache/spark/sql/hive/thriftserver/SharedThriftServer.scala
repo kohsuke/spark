@@ -24,6 +24,7 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars
+import org.apache.hadoop.hive.ql.metadata.Hive
 import org.apache.hadoop.hive.ql.session.SessionState
 import org.apache.hive.service.cli.thrift.ThriftCLIService
 
@@ -50,10 +51,13 @@ trait SharedThriftServer extends SharedSparkSession {
 
   override def afterAll(): Unit = {
     try {
-      hiveServer2.stop()
+      if (hiveServer2 != null) {
+        hiveServer2.stop()
+      }
     } finally {
       super.afterAll()
       SessionState.detachSession()
+      Hive.closeCurrent()
     }
   }
 
