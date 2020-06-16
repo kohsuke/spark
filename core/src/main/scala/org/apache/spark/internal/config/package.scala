@@ -28,6 +28,7 @@ import org.apache.spark.shuffle.sort.io.LocalDiskShuffleDataIO
 import org.apache.spark.storage.{DefaultTopologyMapper, RandomBlockReplicationPolicy}
 import org.apache.spark.unsafe.array.ByteArrayMethods
 import org.apache.spark.util.Utils
+import org.apache.spark.util.collection.unsafe.sort.UnsafeSorterSpillReader.DEFAULT_BUFFER_SIZE_RATIO
 import org.apache.spark.util.collection.unsafe.sort.UnsafeSorterSpillReader.MAX_BUFFER_SIZE_BYTES
 
 package object config {
@@ -1237,6 +1238,18 @@ package object config {
       .checkValue(v => 1024 * 1024 <= v && v <= MAX_BUFFER_SIZE_BYTES,
         s"The value must be in allowed range [1,048,576, ${MAX_BUFFER_SIZE_BYTES}].")
       .createWithDefault(1024 * 1024)
+
+  private[spark] val UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE_RATIO =
+    ConfigBuilder("spark.unsafe.sorter.spill.reader.buffer.size.ratio")
+      .doc("The multiplication ratio is the parameter that controls the initial read buffer " +
+        "size. The multiplication ratio value range is from 1 to 1024. This parameter changes "  +
+        "the initial read buffer size in 1KB increments. It will result in the initial buffer " +
+        "size in the range from 1KB to 1MB. The read buffer size is dynamically adjusted " +
+        "afterward based on data length read from the spilled file.")
+      .intConf
+      .checkValue(v => 1 <= v && v <= DEFAULT_BUFFER_SIZE_RATIO,
+        s"The value must be in allowed range [1, ${DEFAULT_BUFFER_SIZE_RATIO}].")
+      .createWithDefault(DEFAULT_BUFFER_SIZE_RATIO)
 
   private[spark] val DEFAULT_PLUGINS_LIST = "spark.plugins.defaultList"
 

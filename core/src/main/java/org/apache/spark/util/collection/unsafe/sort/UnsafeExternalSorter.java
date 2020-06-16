@@ -506,7 +506,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     private boolean loaded = false;
     private int numRecords = 0;
 
-    SpillableIterator(UnsafeSorterIterator inMemIterator) {
+    SpillableIterator(UnsafeSorterIterator inMemIterator) throws IOException {
       this.upstream = inMemIterator;
       this.numRecords = inMemIterator.getNumRecords();
     }
@@ -681,20 +681,19 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
     ChainedIterator(Queue<UnsafeSorterIterator> iterators) {
       assert iterators.size() > 0;
       this.numRecords = 0;
-      for (UnsafeSorterIterator iter: iterators) {
-        this.numRecords += iter.getNumRecords();
-      }
       this.iterators = iterators;
-      this.current = iterators.remove();
+      this.current = null;
     }
 
     @Override
-    public int getNumRecords() {
+    public int getNumRecords() throws IOException {
+      initializeNumRecords();
       return numRecords;
     }
 
     @Override
-    public boolean hasNext() {
+    public boolean hasNext() throws IOException {
+      initializeNumRecords();
       while (!current.hasNext() && !iterators.isEmpty()) {
         current = iterators.remove();
       }
@@ -703,6 +702,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
     @Override
     public void loadNext() throws IOException {
+      initializeNumRecords();
       while (!current.hasNext() && !iterators.isEmpty()) {
         current = iterators.remove();
       }
@@ -720,5 +720,14 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
 
     @Override
     public long getKeyPrefix() { return current.getKeyPrefix(); }
+
+    private void initializeNumRecords() throws IOException {
+      if (numRecords == 0) {
+        for (UnsafeSorterIterator iter: iterators) {
+          numRecords += iter.getNumRecords();
+        }
+        this.current = iterators.remove();
+      }
+    }
   }
 }
