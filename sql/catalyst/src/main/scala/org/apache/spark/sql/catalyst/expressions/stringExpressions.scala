@@ -130,7 +130,10 @@ case class ConcatWs(children: Seq[Expression])
              if (eval.isNull == TrueLiteral) {
                ""
              } else {
-               s"$array[$idxVararg ++] = ${eval.isNull} ? (UTF8String) null : ${eval.value};"
+               s"""
+                ${eval.code}
+                $array[$idxVararg ++] = ${eval.isNull} ? (UTF8String) null : ${eval.value};
+                """
              })
           case _: ArrayType =>
             val size = ctx.freshName("n")
@@ -138,11 +141,13 @@ case class ConcatWs(children: Seq[Expression])
               ("", "")
             } else {
               (s"""
+                ${eval.code}
                 if (!${eval.isNull}) {
                   $varargNum += ${eval.value}.numElements();
                 }
                 """,
                s"""
+                ${eval.code}
                 if (!${eval.isNull}) {
                   final int $size = ${eval.value}.numElements();
                   for (int j = 0; j < $size; j ++) {
@@ -154,14 +159,37 @@ case class ConcatWs(children: Seq[Expression])
         }
       }.unzip
 
+      val varargCounts = ctx.splitExpressionsWithCurrentInputs(
+        expressions = varargCount,
+        funcName = "varargCountsConcatWs",
+        returnType = "int",
+        makeSplitFunction = body =>
+          s"""
+             |int $varargNum = 0;
+             |$body
+             |return $varargNum;
+           """.stripMargin,
+        foldFunctions = _.map(funcCall => s"$varargNum += $funcCall;").mkString("\n"))
+
+      val varargBuilds = ctx.splitExpressionsWithCurrentInputs(
+        expressions = varargBuild,
+        funcName = "varargBuildsConcatWs",
+        extraArguments = ("UTF8String []", array) :: ("int", idxVararg) :: Nil,
+        returnType = "int",
+        makeSplitFunction = body =>
+          s"""
+             |$body
+             |return $idxVararg;
+           """.stripMargin,
+        foldFunctions = _.map(funcCall => s"$idxVararg = $funcCall;").mkString("\n"))
+
       ev.copy(
         code"""
-        ${evals.map(_.code).mkString("\n")}
         int $varargNum = ${children.count(_.dataType == StringType) - 1};
         int $idxVararg = 0;
-        ${varargCount.mkString("\n")}
+        $varargCounts
         UTF8String[] $array = new UTF8String[$varargNum];
-        ${varargBuild.mkString("\n")}
+        $varargBuilds
         UTF8String ${ev.value} = UTF8String.concatWs(${evals.head.value}, $array);
         boolean ${ev.isNull} = ${ev.value} == null;
       """)
