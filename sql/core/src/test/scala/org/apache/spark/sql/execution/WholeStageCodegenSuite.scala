@@ -64,10 +64,8 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         stage.find(_.isInstanceOf[GenerateExec]).isDefined
       case _ => false
     }.isDefined)
-    var results = expDF.collect()
-    assert(results ===
-      Array(Row("James", "Java", Map("hair" -> "black", "eye" -> "brown")),
-        Row("James", "Scala", Map("hair" -> "black", "eye" -> "brown"))))
+    checkAnswer(expDF, Array(Row("James", "Java", Map("hair" -> "black", "eye" -> "brown")),
+      Row("James", "Scala", Map("hair" -> "black", "eye" -> "brown"))))
 
 
     // Map - explode
@@ -78,8 +76,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         stage.find(_.isInstanceOf[GenerateExec]).isDefined
       case _ => false
     }.isDefined)
-    results = expDF.collect()
-    assert(results ===
+    checkAnswer(expDF,
       Array(Row("James", List("Java", "Scala"), "hair", "black"),
         Row("James", List("Java", "Scala"), "eye", "brown")))
 
@@ -91,8 +88,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         stage.find(_.isInstanceOf[GenerateExec]).isDefined
       case _ => false
     }.isDefined)
-    results = expDF.collect()
-    assert(results ===
+    checkAnswer(expDF,
       Array(Row("James", 0, "Java"), Row("James", 1, "Scala")))
 
     // Map - posexplode
@@ -103,8 +99,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         stage.find(_.isInstanceOf[GenerateExec]).isDefined
       case _ => false
     }.isDefined)
-    results = expDF.collect()
-    assert(results ===
+    checkAnswer(expDF,
       Array(Row("James", 0, "hair", "black"), Row("James", 1, "eye", "brown")))
 
 
@@ -116,8 +111,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         stage.find(_.isInstanceOf[GenerateExec]).isDefined
       case _ => false
     }.isDefined)
-    results = expDF.collect()
-    assert(results ===
+    checkAnswer(expDF,
       Array(Row("James", Seq("Java", "Scala"), Map("hair" -> "black", "eye" -> "brown"), "Java"),
         Row("James", Seq("Java", "Scala"), Map("hair" -> "black", "eye" -> "brown"), "Scala")))
 
@@ -129,8 +123,7 @@ class WholeStageCodegenSuite extends QueryTest with SharedSparkSession
         stage.find(_.isInstanceOf[GenerateExec]).isDefined
       case _ => false
     }.isDefined)
-    results = expDF.collect()
-    assert(results ===
+    checkAnswer(expDF,
       Array(
         Row("James", List("Java", "Scala"),
           Map("hair" -> "black", "eye" -> "brown"), "hair", "black"),
