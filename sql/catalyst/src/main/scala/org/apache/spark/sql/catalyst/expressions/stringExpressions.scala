@@ -123,6 +123,14 @@ case class ConcatWs(children: Seq[Expression])
       val idxVararg = ctx.freshName("idxInVararg")
 
       val evals = children.map(_.genCode(ctx))
+      val supportSplitExpressions = ctx.supportSplitExpressionsWithCurrentInputs
+
+      // Here we apply different approaches according to the availability of splitting expressions.
+      // - If the code context supports splitting expressions with current inputs, inline eval into
+      // each of code block in varargCount and varargBuild whenever necessary. (see SPARK-31993)
+      // - If the code context doesn't support splitting expressions with current inputs, we simply
+      // apply inlining these parts into the generated code directly.
+
       val (varargCount, varargBuild) = children.tail.zip(evals.tail).map { case (child, eval) =>
         child.dataType match {
           case StringType =>
@@ -130,8 +138,9 @@ case class ConcatWs(children: Seq[Expression])
              if (eval.isNull == TrueLiteral) {
                ""
              } else {
+               val code = if (supportSplitExpressions) eval.code.toString else ""
                s"""
-                ${eval.code}
+                $code
                 $array[$idxVararg ++] = ${eval.isNull} ? (UTF8String) null : ${eval.value};
                 """
              })
@@ -140,14 +149,15 @@ case class ConcatWs(children: Seq[Expression])
             if (eval.isNull == TrueLiteral) {
               ("", "")
             } else {
+              val code = if (supportSplitExpressions) s"${eval.code}" else ""
               (s"""
-                ${eval.code}
+                $code
                 if (!${eval.isNull}) {
                   $varargNum += ${eval.value}.numElements();
                 }
                 """,
                s"""
-                ${eval.code}
+                $code
                 if (!${eval.isNull}) {
                   final int $size = ${eval.value}.numElements();
                   for (int j = 0; j < $size; j ++) {
@@ -159,32 +169,41 @@ case class ConcatWs(children: Seq[Expression])
         }
       }.unzip
 
-      val varargCounts = ctx.splitExpressionsWithCurrentInputs(
-        expressions = varargCount,
-        funcName = "varargCountsConcatWs",
-        returnType = "int",
-        makeSplitFunction = body =>
-          s"""
-             |int $varargNum = 0;
-             |$body
-             |return $varargNum;
+      val (codes, varargCounts, varargBuilds) = if (!supportSplitExpressions) {
+        (evals.map(_.code).filterNot(_.isEmpty).mkString("\n"),
+          varargCount.filterNot(_.isEmpty).mkString("\n"),
+          varargBuild.filterNot(_.isEmpty).mkString("\n"))
+      } else {
+        val varargCounts = ctx.splitExpressionsWithCurrentInputs(
+          expressions = varargCount,
+          funcName = "varargCountsConcatWs",
+          returnType = "int",
+          makeSplitFunction = body =>
+            s"""
+               |int $varargNum = 0;
+               |$body
+               |return $varargNum;
            """.stripMargin,
-        foldFunctions = _.map(funcCall => s"$varargNum += $funcCall;").mkString("\n"))
+          foldFunctions = _.map(funcCall => s"$varargNum += $funcCall;").mkString("\n"))
 
-      val varargBuilds = ctx.splitExpressionsWithCurrentInputs(
-        expressions = varargBuild,
-        funcName = "varargBuildsConcatWs",
-        extraArguments = ("UTF8String []", array) :: ("int", idxVararg) :: Nil,
-        returnType = "int",
-        makeSplitFunction = body =>
-          s"""
-             |$body
-             |return $idxVararg;
+        val varargBuilds = ctx.splitExpressionsWithCurrentInputs(
+          expressions = varargBuild,
+          funcName = "varargBuildsConcatWs",
+          extraArguments = ("UTF8String []", array) :: ("int", idxVararg) :: Nil,
+          returnType = "int",
+          makeSplitFunction = body =>
+            s"""
+               |$body
+               |return $idxVararg;
            """.stripMargin,
-        foldFunctions = _.map(funcCall => s"$idxVararg = $funcCall;").mkString("\n"))
+          foldFunctions = _.map(funcCall => s"$idxVararg = $funcCall;").mkString("\n"))
+
+        ("", varargCounts, varargBuilds)
+      }
 
       ev.copy(
         code"""
+        $codes
         int $varargNum = ${children.count(_.dataType == StringType) - 1};
         int $idxVararg = 0;
         $varargCounts
