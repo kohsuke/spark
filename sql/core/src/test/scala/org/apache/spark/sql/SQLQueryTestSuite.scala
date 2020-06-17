@@ -26,6 +26,7 @@ import scala.util.control.NonFatal
 import org.apache.spark.{SparkConf, SparkException}
 import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator
 import org.apache.spark.sql.catalyst.planning.PhysicalOperation
+import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.RuleExecutor
 import org.apache.spark.sql.catalyst.util.{fileToString, stringToFile}
@@ -123,7 +124,7 @@ import org.apache.spark.tags.ExtendedSQLTest
  * different types of UDFs. See 'udf/udf-inner-join.sql' as an example.
  */
 @ExtendedSQLTest
-class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
+class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper {
 
   import IntegratedUDFTestUtils._
 
@@ -133,13 +134,7 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession {
     // We use a path based on Spark home for 2 reasons:
     //   1. Maven can't get correct resource directory when resources in other jars.
     //   2. We test subclasses in the hive-thriftserver module.
-    val sparkHome = {
-      if (!(sys.props.contains("spark.test.home") ||  sys.env.contains("SPARK_HOME"))) {
-        fail("spark.test.home or SPARK_HOME is not set.")
-      }
-      sys.props.getOrElse("spark.test.home", sys.env("SPARK_HOME"))
-    }
-
+    val sparkHome = getSparkHome()
     java.nio.file.Paths.get(sparkHome,
       "sql", "core", "src", "test", "resources", "sql-tests").toFile
   }

@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.plans.SQLHelper
 import org.apache.spark.sql.catalyst.util.fileToString
 import org.apache.spark.sql.internal.SQLConf
 
-class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
+class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper  {
   import CatalystSqlParser._
 
   // Add "$elem$", "$value$" & "$key$"
@@ -290,12 +290,7 @@ class TableIdentifierParserSuite extends SparkFunSuite with SQLHelper {
 
   private val sqlSyntaxDefs = {
     val sqlBasePath = {
-      val sparkHome = {
-        if (!(sys.props.contains("spark.test.home") ||  sys.env.contains("SPARK_HOME"))) {
-          fail("spark.test.home or SPARK_HOME is not set.")
-        }
-        sys.props.getOrElse("spark.test.home", sys.env("SPARK_HOME"))
-      }
+      val sparkHome = getSparkHome()
       java.nio.file.Paths.get(sparkHome, "sql", "catalyst", "src", "main", "antlr4", "org",
         "apache", "spark", "sql", "catalyst", "parser", "SqlBase.g4").toFile
     }
