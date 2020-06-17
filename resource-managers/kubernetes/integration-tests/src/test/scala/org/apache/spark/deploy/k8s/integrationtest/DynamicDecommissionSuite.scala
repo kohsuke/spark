@@ -36,8 +36,12 @@ private[spark] trait DynamicDecommissionSuite { k8sSuite: KubernetesSuite =>
       .set("spark.dynamicAllocation.initialExecutors", "3")
       // The default of 30 seconds is fine, but for testing we just want to get this done fast.
       .set("spark.storage.decommission.replicationReattemptInterval", "1")
+      // Enable dynamic allocation
+      .set("spark.dynamicAllocation.enabled", "true")
       // Set the idle timeouts really low
-      .set("spark.dynamicAllocation.executorIdleTimeout", "10s")
+      .set(config.DYN_ALLOCATION_EXECUTOR_IDLE_TIMEOUT.key, "10s")
+      .set(config.DYN_ALLOCATION_CACHED_EXECUTOR_IDLE_TIMEOUT.key, "15s")
+      .set(config.DYN_ALLOCATION_SHUFFLE_TRACKING_TIMEOUT.key, "15s")
       // We only want to decommission one node
       .set("spark.dynamicAllocation.minExecutors", "2")
 
