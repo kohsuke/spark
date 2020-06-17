@@ -59,7 +59,7 @@ private[spark] trait DynamicDecommissionSuite { k8sSuite: KubernetesSuite =>
   }
 }
 
-private[spark] object DecommissionSuite {
+private[spark] object DynamicDecommissionSuite {
   val TEST_LOCAL_PYSPARK: String = "local:///opt/spark/tests/"
   val PYSPARK_DECOMISSIONING: String = TEST_LOCAL_PYSPARK + "dynamic_decommissioning.py"
 }
