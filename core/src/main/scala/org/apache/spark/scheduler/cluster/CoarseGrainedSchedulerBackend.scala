@@ -416,13 +416,6 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
     }
 
     /**
-     * Mark given executors as decommissioned and stop making resource offers for it.
-     */
-    private def decommissionExecutor(executorId: String): Boolean = {
-      (! decommissionExecutors(List(executorId)).isEmpty)
-    }
-
-    /**
      * Stop making resource offers for the given executor. The executor is marked as lost with
      * the loss reason still pending.
      *
@@ -457,23 +450,47 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
    * Request that the cluster manager decommission the specified executors.
    *
    * @param executorIds identifiers of executors to decommission
+   * @param adjustTargetNumExecutors whether the target number of executors will be adjusted down
+   *                                 after these executors have been decommissioned.
    * @return the ids of the executors acknowledged by the cluster manager to be removed.
    */
-  override def decommissionExecutors(executorIds: Seq[String]): Seq[String] = {
-    val executorsToDecommission = executorIds.filter{executorId =>
-      CoarseGrainedSchedulerBackend.this.synchronized {
-        // Only bother decommissioning executors which are alive.
-        if (isExecutorActive(executorId)) {
-          executorsPendingDecommission += executorId
-          true
-        } else {
-          false
+  override def decommissionExecutors(executorIds: Seq[String],
+    adjustTargetNumExecutors: Boolean): Seq[String] = {
+
+    withLock {
+      val executorsToDecommission = executorIds.filter{executorId =>
+        CoarseGrainedSchedulerBackend.this.synchronized {
+          // Only bother decommissioning executors which are alive.
+          if (isExecutorActive(executorId)) {
+            executorsPendingDecommission += executorId
+            true
+          } else {
+            false
+          }
         }
       }
-    }
 
-    executorsToDecommission.filter{executorId =>
-      doDecommission(executorId)
+      // If we don't want to replace the executors we are decommissioning
+      if (adjustTargetNumExecutors) {
+        executorsToDecommission.foreach { exec =>
+          val rpId = executorDataMap(exec).resourceProfileId
+          val rp = scheduler.sc.resourceProfileManager.resourceProfileFromId(rpId)
+          if (requestedTotalExecutorsPerResourceProfile.isEmpty) {
+            // Assume that we are killing an executor that was started by default and
+            // not through the request api
+            requestedTotalExecutorsPerResourceProfile(rp) = 0
+          } else {
+            val requestedTotalForRp = requestedTotalExecutorsPerResourceProfile(rp)
+            requestedTotalExecutorsPerResourceProfile(rp) = math.max(requestedTotalForRp - 1, 0)
+          }
+        }
+        doRequestTotalExecutors(requestedTotalExecutorsPerResourceProfile.toMap)
+      }
+
+      val decommissioned = executorsToDecommission.filter{executorId =>
+        doDecommission(executorId)
+      }
+      decommissioned
     }
   }
 
@@ -481,6 +498,10 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
     logInfo(s"Starting decommissioning executor $executorId.")
     try {
       scheduler.executorDecommission(executorId)
+      if (driverEndpoint != null) {
+        logInfo("Propagating executor decommission to driver.")
+        driverEndpoint.send(DecommissionExecutor(executorId))
+      }
     } catch {
       case e: Exception =>
         logError(s"Unexpected error during decommissioning ${e.toString}", e)
@@ -607,16 +628,6 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
   protected def removeWorker(workerId: String, host: String, message: String): Unit = {
     driverEndpoint.send(RemoveWorker(workerId, host, message))
-  }
-
-  /**
-   * Called by subclasses when notified of a decommissioning executor.
-   */
-  private[spark] def decommissionExecutor(executorId: String): Unit = {
-    if (driverEndpoint != null) {
-      logInfo("Propagating executor decommission to driver.")
-      driverEndpoint.send(DecommissionExecutor(executorId))
-    }
   }
 
   def sufficientResourcesRegistered(): Boolean = true
