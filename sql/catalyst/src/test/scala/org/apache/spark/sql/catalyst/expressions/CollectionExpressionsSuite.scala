@@ -1838,7 +1838,7 @@ class CollectionExpressionsSuite extends SparkFunSuite with ExpressionEvalHelper
   }
 
   test("SPARK-31982: sequence doesn't handle date increments that cross DST") {
-    Array("America/Chicago", "GMT").foreach(tz => {
+    Array("America/Chicago", "GMT", "Asia/Shanghai").foreach(tz => {
       checkEvaluation(Sequence(
         Cast(Literal("2011-03-01"), DateType),
         Cast(Literal("2011-04-01"), DateType),
