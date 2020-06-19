@@ -1016,7 +1016,7 @@ case class Deduplicate(
 
 /**
  * A trait to represent the commands that support subqueries.
- * This is used to whitelist such commands in the subquery-related checks.
+ * This is used to allow such commands in the subquery-related checks.
  */
 trait SupportsSubquery extends LogicalPlan
 
