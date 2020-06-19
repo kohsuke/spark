@@ -2644,7 +2644,7 @@ object Sequence {
 
         while (t < exclusiveItem ^ stepSign < 0) {
           arr(i) = if (scale == 1) {
-            fromLong(t / scale)
+            fromLong(t)
           } else {
             fromLong(Math.round(t / scale.toFloat))
           }
@@ -2722,7 +2722,7 @@ object Sequence {
          |
          |  while ($t < $exclusiveItem ^ $stepSign < 0) {
          |    if (${scale}L == 1L) {
-         |      $arr[$i] = ($elemType) ($t / ${scale}L);
+         |      $arr[$i] = ($elemType) $t;
          |    } else {
          |      $arr[$i] = ($elemType) (Math.round($t / (float)${scale}L));
          |    }
