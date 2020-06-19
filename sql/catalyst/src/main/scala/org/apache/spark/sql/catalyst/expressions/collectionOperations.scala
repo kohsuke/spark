@@ -2704,10 +2704,10 @@ object Sequence {
          |    $stopMicros = $stop;
          |  } else {
          |    $startMicros =
-         |      org.apache.spark.sql.catalyst.util.DateTimeUtils.epochDaysToMicros(
+         |      org.apache.spark.sql.catalyst.util.DateTimeUtils.daysToMicros(
          |        (int)$start, $zid);
          |    $stopMicros =
-         |      org.apache.spark.sql.catalyst.util.DateTimeUtils.epochDaysToMicros(
+         |      org.apache.spark.sql.catalyst.util.DateTimeUtils.daysToMicros(
          |        (int)$stop, $zid);
          |  }
          |
