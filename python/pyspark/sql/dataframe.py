@@ -2220,6 +2220,7 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         sinceversion=1.4,
         doc=":func:`drop_duplicates` is an alias for :func:`dropDuplicates`.")
 
+    @since(3.0)
     def writeTo(self, table):
         """
         Create a write configuration builder for v2 sources.
