@@ -20,7 +20,7 @@ package org.apache.spark.sql.catalyst.optimizer
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.catalyst.SchemaPruningTest
-import org.apache.spark.sql.catalyst.dsl.expressions._
+import org.apache.spark.sql.catalyst.dsl.expressions.{windowSpec, _}
 import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -463,7 +463,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
 
       val expected1 = basePlan(
         contact
-        .select($"id", 'name.getField("first").as(aliases1(0)))
+          .select($"id", 'name.getField("first").as(aliases1(0)))
       ).groupBy($"id")(first($"${aliases1(0)}").as("first")).analyze
       comparePlans(optimized1, expected1)
 
@@ -473,7 +473,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
 
       val expected2 = basePlan(
         contact
-        .select('name.getField("last").as(aliases2(0)), 'name.getField("first").as(aliases2(1)))
+          .select('name.getField("last").as(aliases2(0)), 'name.getField("first").as(aliases2(1)))
       ).groupBy($"${aliases2(0)}")(first($"${aliases2(1)}").as("first")).analyze
       comparePlans(optimized2, expected2)
     }
@@ -482,7 +482,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
       (plan: LogicalPlan) => plan,
       (plan: LogicalPlan) => plan.limit(100),
       (plan: LogicalPlan) => plan.repartition(100),
-      (plan: LogicalPlan) => Sample(0.0, 0.6, false, 11L, plan)).foreach {  base =>
+      (plan: LogicalPlan) => Sample(0.0, 0.6, false, 11L, plan)).foreach { base =>
       runTest(base)
     }
 
@@ -491,6 +491,24 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
     val expected3 = contact.select($"id", $"name")
       .groupBy($"id")(first($"name"), first($"name.first").as("first")).analyze
     comparePlans(optimized3, expected3)
+  }
+
+  test("Nested field pruning for window functions") {
+    val spec = windowSpec($"address" :: Nil, $"id".asc :: Nil, UnspecifiedFrame)
+    val winExpr = windowExpr(RowNumber().toAggregateExpression(), spec)
+    val query1 = contact.select($"name.first", winExpr.as('window))
+      .where($"window" === 1 && $"name.first" === "a")
+      .analyze
+    val optimized1 = Optimize.execute(query1)
+    val aliases1 = collectGeneratedAliases(optimized1)
+    val expected1 = contact
+      .select($"name.first", $"address", $"id", $"name.first".as(aliases1(1)))
+      .window(Seq(winExpr.as("window")), Seq($"address"), Seq($"id".asc))
+      .select($"first", $"${aliases1(1)}".as(aliases1(0)), $"window")
+      .where($"window" === 1 && $"${aliases1(0)}" === "a")
+      .select($"first", $"window")
+      .analyze
+    comparePlans(optimized1, expected1)
   }
 
   test("Nested field pruning for Expand") {

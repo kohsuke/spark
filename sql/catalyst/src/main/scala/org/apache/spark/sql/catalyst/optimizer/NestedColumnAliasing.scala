@@ -113,6 +113,11 @@ object NestedColumnAliasing {
     case _: Sample => true
     case _: RepartitionByExpression => true
     case _: Join => true
+    case x: Filter => x.child match {
+      case _: Window => true
+      case _ => false
+    }
+    case _: Window => true
     case _ => false
   }
 

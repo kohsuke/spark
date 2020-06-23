@@ -460,6 +460,22 @@ abstract class SchemaPruningSuite
     checkAnswer(query4, Row(2, null) :: Row(2, 4) :: Nil)
   }
 
+  testSchemaPruning("select nested field in window function") {
+    val windowSql =
+      """
+        |with contact_rank as (
+        |  select row_number() over (partition by address order by id desc) as __rank,
+        |  contacts.*
+        |  from contacts
+        |)
+        |select name.first , __rank from contact_rank
+        |where name.first = 'Jane' AND __rank = 1
+        |""".stripMargin
+    val query1 = sql(windowSql)
+    checkScan(query1, "struct<id:int,name:struct<first:string>,address:string>")
+    checkAnswer(query1, Row("Jane", 1) :: Nil)
+  }
+
   testSchemaPruning("select nested field in Expand") {
     import org.apache.spark.sql.catalyst.dsl.expressions._
 
