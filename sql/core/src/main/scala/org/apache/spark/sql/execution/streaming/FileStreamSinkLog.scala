@@ -104,6 +104,8 @@ class FileStreamSinkLog(
 
 object FileStreamSinkLog {
   val VERSION = 1
+  // TODO: This action hasn't been used from the introduction. We should just remove this.
+  // TODO: We can remove the field "action" as well, ignoring "action" in existing metadata log.
   val DELETE_ACTION = "delete"
   val ADD_ACTION = "add"
 }
