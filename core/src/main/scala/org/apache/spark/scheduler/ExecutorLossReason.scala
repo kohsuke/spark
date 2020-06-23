@@ -56,7 +56,7 @@ private [spark] object LossReasonPending extends ExecutorLossReason("Pending los
  * @param workerLost whether the worker is confirmed lost too (i.e. including shuffle service)
  */
 private[spark]
-case class AgentLost(_message: String = "Worker lost", workerLost: Boolean = false)
+case class ExecutorProcessLost(_message: String = "Worker lost", workerLost: Boolean = false)
   extends ExecutorLossReason(_message)
 
 /**
