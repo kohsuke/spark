@@ -30,33 +30,21 @@ set -o pipefail
 set -e
 set -x
 
->&2 echo "1"
-
 FWDIR="$(cd "`dirname "${BASH_SOURCE[0]}"`"; pwd)"
 LIB_DIR="$FWDIR/lib"
 
->&2 echo "2"
 mkdir -p "$LIB_DIR"
-
 
 pushd "$FWDIR" > /dev/null
 . "$FWDIR/find-r.sh"
 
 . "$FWDIR/create-rd.sh"
 
->&2 echo "3"
-
 # Install SparkR to $LIB_DIR
 "$R_SCRIPT_PATH/R" CMD INSTALL --library="$LIB_DIR" "$FWDIR/pkg/"
-
->&2 echo "4"
 
 # Zip the SparkR package so that it can be distributed to worker nodes on YARN
 cd "$LIB_DIR"
 jar cfM "$LIB_DIR/sparkr.zip" SparkR
-
->&2 echo "5"
-
-exit 1
 
 popd > /dev/null
