@@ -22,6 +22,8 @@ rem
 
 set SPARK_HOME=%~dp0..
 
+exit
+
 MKDIR %SPARK_HOME%\R\lib
 
 R.exe CMD INSTALL --library=%SPARK_HOME%\R\lib %SPARK_HOME%\R\pkg\
