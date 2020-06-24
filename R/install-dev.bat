@@ -24,7 +24,7 @@ set SPARK_HOME=%~dp0..
 
 MKDIR %SPARK_HOME%\R\lib
 
-R.exe CMD INSTALL --library="%SPARK_HOME%\R\lib"  %SPARK_HOME%\R\pkg\
+R.exe CMD INSTALL --library="%SPARK_HOME%\R\lib" "%SPARK_HOME%\R\pkg\"
 
 rem Zip the SparkR package so that it can be distributed to worker nodes on YARN
 pushd %SPARK_HOME%\R\lib
