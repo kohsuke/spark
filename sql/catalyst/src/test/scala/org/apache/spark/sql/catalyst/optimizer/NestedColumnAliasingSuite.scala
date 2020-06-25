@@ -20,7 +20,7 @@ package org.apache.spark.sql.catalyst.optimizer
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.catalyst.SchemaPruningTest
-import org.apache.spark.sql.catalyst.dsl.expressions.{windowSpec, _}
+import org.apache.spark.sql.catalyst.dsl.expressions._
 import org.apache.spark.sql.catalyst.dsl.plans._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.plans.logical._
@@ -145,9 +145,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
     val ops = Seq(
       (input: LogicalPlan) => input.distribute('name)(1),
       (input: LogicalPlan) => input.orderBy('name.asc),
-      (input: LogicalPlan) => input.orderBy($"name.middle".asc),
       (input: LogicalPlan) => input.sortBy('name.asc),
-      (input: LogicalPlan) => input.sortBy($"name.middle".asc),
       (input: LogicalPlan) => input.union(input)
     )
 
@@ -463,7 +461,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
 
       val expected1 = basePlan(
         contact
-          .select($"id", 'name.getField("first").as(aliases1(0)))
+        .select($"id", 'name.getField("first").as(aliases1(0)))
       ).groupBy($"id")(first($"${aliases1(0)}").as("first")).analyze
       comparePlans(optimized1, expected1)
 
@@ -473,7 +471,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
 
       val expected2 = basePlan(
         contact
-          .select('name.getField("last").as(aliases2(0)), 'name.getField("first").as(aliases2(1)))
+        .select('name.getField("last").as(aliases2(0)), 'name.getField("first").as(aliases2(1)))
       ).groupBy($"${aliases2(0)}")(first($"${aliases2(1)}").as("first")).analyze
       comparePlans(optimized2, expected2)
     }
@@ -482,7 +480,7 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
       (plan: LogicalPlan) => plan,
       (plan: LogicalPlan) => plan.limit(100),
       (plan: LogicalPlan) => plan.repartition(100),
-      (plan: LogicalPlan) => Sample(0.0, 0.6, false, 11L, plan)).foreach { base =>
+      (plan: LogicalPlan) => Sample(0.0, 0.6, false, 11L, plan)).foreach {  base =>
       runTest(base)
     }
 
@@ -507,6 +505,40 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
       .select($"first", $"${aliases1(1)}".as(aliases1(0)), $"window")
       .where($"window" === 1 && $"${aliases1(0)}" === "a")
       .select($"first", $"window")
+      .analyze
+    comparePlans(optimized1, expected1)
+  }
+
+  test("Nested field pruning for orderBy") {
+    val query1 = contact.select($"name.first", $"name.last")
+      .orderBy($"name.first".asc, $"name.last".asc)
+      .analyze
+    val optimized1 = Optimize.execute(query1)
+    val aliases1 = collectGeneratedAliases(optimized1)
+    val expected1 = contact
+      .select($"name.first",
+        $"name.last",
+        $"name.first".as(aliases1(0)),
+        $"name.last".as(aliases1(1)))
+      .orderBy($"${aliases1(0)}".asc, $"${aliases1(1)}".asc)
+      .select($"first", $"last")
+      .analyze
+    comparePlans(optimized1, expected1)
+  }
+
+  test("Nested field pruning for sirtBy") {
+    val query1 = contact.select($"name.first", $"name.last")
+      .sortBy($"name.first".asc, $"name.last".asc)
+      .analyze
+    val optimized1 = Optimize.execute(query1)
+    val aliases1 = collectGeneratedAliases(optimized1)
+    val expected1 = contact
+      .select($"name.first",
+        $"name.last",
+        $"name.first".as(aliases1(0)),
+        $"name.last".as(aliases1(1)))
+      .sortBy($"${aliases1(0)}".asc, $"${aliases1(1)}".asc)
+      .select($"first", $"last")
       .analyze
     comparePlans(optimized1, expected1)
   }
