@@ -29,7 +29,8 @@ import org.apache.spark.scheduler.cluster.StandaloneSchedulerBackend
 class WorkerDecommissionExtendedSuite extends SparkFunSuite with LocalSparkContext {
   private val conf = new org.apache.spark.SparkConf()
     .setAppName(getClass.getName)
-    .set("spark.master", "local-cluster[20,1,1024]")
+    .set("spark.master", "local-cluster[20,1,512]")
+    .set("spark.executor.memory", "512m")
     .set("spark.dynamicAllocation.enabled", "true")
     .set("spark.dynamicAllocation.shuffleTracking.enabled", "true")
     .set("spark.dynamicAllocation.initialExecutors", "20")
@@ -44,7 +45,7 @@ class WorkerDecommissionExtendedSuite extends SparkFunSuite with LocalSparkConte
       val rdd3 = rdd2.reduceByKey(_ + _)
       val rdd4 = rdd3.sortByKey()
       assert(rdd4.count() === 1)
-      eventually(timeout(10.seconds), interval(1.seconds)) {
+      eventually(timeout(20.seconds), interval(1.seconds)) {
         assert(sc.getExecutorIds().length < 5)
       }
     }
