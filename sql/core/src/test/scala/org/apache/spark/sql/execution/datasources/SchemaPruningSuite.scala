@@ -476,6 +476,24 @@ abstract class SchemaPruningSuite
     checkAnswer(query1, Row("Jane", 1) :: Nil)
   }
 
+  testSchemaPruning("select nested field in Sort") {
+    val query1 = sql("select name.first, name.last from contacts order by name.first, name.last")
+    checkScan(query1, "struct<name:struct<first:string,last:string>>")
+    checkAnswer(query1,
+      Row("Jane", "Doe") ::
+        Row("Janet", "Jones") ::
+        Row("Jim", "Jones") ::
+        Row("John", "Doe") :: Nil)
+
+    val query2 = sql("select name.first, name.last from contacts sort by name.first, name.last")
+    checkScan(query2, "struct<name:struct<first:string,last:string>>")
+    checkAnswer(query1,
+      Row("Jane", "Doe") ::
+        Row("Janet", "Jones") ::
+        Row("Jim", "Jones") ::
+        Row("John", "Doe") :: Nil)
+  }
+
   testSchemaPruning("select nested field in Expand") {
     import org.apache.spark.sql.catalyst.dsl.expressions._
 

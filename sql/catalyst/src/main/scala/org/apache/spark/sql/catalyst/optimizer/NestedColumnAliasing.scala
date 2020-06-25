@@ -39,6 +39,14 @@ object NestedColumnAliasing {
           NestedColumnAliasing.replaceToAliases(plan, nestedFieldToAlias, attrToAliases)
       }
 
+    case Project(projectList, Filter(condition, child))
+      if SQLConf.get.nestedSchemaPruningEnabled && canProjectPushThrough(child) =>
+      val exprCandidatesToPrune = projectList ++ Seq(condition) ++ child.expressions
+      getAliasSubMap(exprCandidatesToPrune, child.producedAttributes.toSeq).map {
+        case (nestedFieldToAlias, attrToAliases) =>
+          NestedColumnAliasing.replaceToAliases(plan, nestedFieldToAlias, attrToAliases)
+      }
+
     case p if SQLConf.get.nestedSchemaPruningEnabled && canPruneOn(p) =>
       val exprCandidatesToPrune = p.expressions
       getAliasSubMap(exprCandidatesToPrune, p.producedAttributes.toSeq).map {
@@ -100,6 +108,7 @@ object NestedColumnAliasing {
   private def canPruneOn(plan: LogicalPlan) = plan match {
     case _: Aggregate => true
     case _: Expand => true
+    case _: Sort => true
     case _ => false
   }
 
@@ -113,10 +122,6 @@ object NestedColumnAliasing {
     case _: Sample => true
     case _: RepartitionByExpression => true
     case _: Join => true
-    case x: Filter => x.child match {
-      case _: Window => true
-      case _ => false
-    }
     case _: Window => true
     case _ => false
   }
