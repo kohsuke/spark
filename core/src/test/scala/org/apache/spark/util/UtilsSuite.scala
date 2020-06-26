@@ -1309,6 +1309,97 @@ class UtilsSuite extends SparkFunSuite with ResetSystemProperties with Logging {
     assert(Utils.buildLocationMetadata(paths, 15) == "[path0, path1, path2]")
     assert(Utils.buildLocationMetadata(paths, 25) == "[path0, path1, path2, path3]")
   }
+
+  test("checkHosts support IPV6 and IPV4") {
+    // IPV4 ips
+    Utils.checkHost("0.0.0.0")
+    intercept[AssertionError] {
+      Utils.checkHost("0.0.0.0:0")
+    }
+    intercept[AssertionError] {
+      Utils.checkHost("0.0.0.0:")
+    }
+
+    // IPV6 ips
+    Utils.checkHost("[::1]")
+    intercept[AssertionError] {
+      Utils.checkHost("[::1]:0")
+    }
+    intercept[AssertionError] {
+      Utils.checkHost("[::1]:")
+    }
+
+    // hostname
+    Utils.checkHost("localhost")
+    intercept[AssertionError] {
+      Utils.checkHost("localhost:0")
+    }
+    intercept[AssertionError] {
+      Utils.checkHost("localhost:")
+    }
+  }
+
+  test("checkHostPort support IPV6 and IPV4") {
+    // IPV4 ips
+    Utils.checkHostPort("0.0.0.0:0")
+    intercept[AssertionError] {
+      Utils.checkHostPort("0.0.0.0")
+    }
+
+    // IPV6 ips
+    Utils.checkHostPort("[::1]:0")
+    intercept[AssertionError] {
+      Utils.checkHostPort("[::1]")
+    }
+
+    // hostname
+    Utils.checkHostPort("localhost:0")
+    intercept[AssertionError] {
+      Utils.checkHostPort("localhost")
+    }
+  }
+
+  test("parseHostPort support IPV6 and IPV4") {
+    // IPV4 ips
+    var hostnamePort = Utils.parseHostPort("0.0.0.0:80")
+    assert(hostnamePort._1.equals("0.0.0.0"))
+    assert(hostnamePort._2 === 80)
+
+    hostnamePort = Utils.parseHostPort("0.0.0.0")
+    assert(hostnamePort._1.equals("0.0.0.0"))
+    assert(hostnamePort._2 === 0)
+
+    hostnamePort = Utils.parseHostPort("0.0.0.0:")
+    assert(hostnamePort._1.equals("0.0.0.0"))
+    assert(hostnamePort._2 === 0)
+
+
+    // IPV6 ips
+    hostnamePort = Utils.parseHostPort("[::1]:80")
+    assert(hostnamePort._1.equals("[::1]"))
+    assert(hostnamePort._2 === 80)
+
+    hostnamePort = Utils.parseHostPort("[::1]")
+    assert(hostnamePort._1.equals("[::1]"))
+    assert(hostnamePort._2 === 0)
+
+    hostnamePort = Utils.parseHostPort("[::1]:")
+    assert(hostnamePort._1.equals("[::1]"))
+    assert(hostnamePort._2 === 0)
+
+    // hostname
+    hostnamePort = Utils.parseHostPort("localhost:80")
+    assert(hostnamePort._1.equals("localhost"))
+    assert(hostnamePort._2 === 80)
+
+    hostnamePort = Utils.parseHostPort("localhost")
+    assert(hostnamePort._1.equals("localhost"))
+    assert(hostnamePort._2 === 0)
+
+    hostnamePort = Utils.parseHostPort("localhost:")
+    assert(hostnamePort._1.equals("localhost"))
+    assert(hostnamePort._2 === 0)
+  }
 }
 
 private class SimpleExtension
