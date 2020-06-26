@@ -59,6 +59,13 @@ private[sql] object LogicalExpressions {
   def days(reference: NamedReference): DaysTransform = DaysTransform(reference)
 
   def hours(reference: NamedReference): HoursTransform = HoursTransform(reference)
+
+  def sort(
+      reference: NamedReference,
+      direction: SortDirection,
+      nullOrdering: NullOrdering): SortOrder = {
+    SortValue(reference, direction, nullOrdering)
+  }
 }
 
 /**
@@ -265,4 +272,12 @@ private[sql] object FieldReference {
   def apply(column: String): NamedReference = {
     LogicalExpressions.parseReference(column)
   }
+}
+
+private[sql] final case class SortValue(
+    expression: Expression,
+    direction: SortDirection,
+    nullOrdering: NullOrdering) extends SortOrder {
+
+  override def describe(): String = s"$expression $direction $nullOrdering"
 }

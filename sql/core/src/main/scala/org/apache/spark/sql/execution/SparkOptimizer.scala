@@ -25,7 +25,7 @@ import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.connector.catalog.CatalogManager
 import org.apache.spark.sql.execution.datasources.PruneFileSourcePartitions
 import org.apache.spark.sql.execution.datasources.SchemaPruning
-import org.apache.spark.sql.execution.datasources.v2.{V2ScanRelationPushDown, V2Writes}
+import org.apache.spark.sql.execution.datasources.v2.{V2ScanRelationPushDown, V2WriteRequirements, V2Writes}
 import org.apache.spark.sql.execution.dynamicpruning.{CleanupDynamicPruningFilters, PartitionPruning}
 import org.apache.spark.sql.execution.python.{ExtractGroupingPythonUDFFromAggregate, ExtractPythonUDFFromAggregate, ExtractPythonUDFs}
 
@@ -40,7 +40,7 @@ class SparkOptimizer(
     SchemaPruning :: V2ScanRelationPushDown :: PruneFileSourcePartitions :: Nil
 
   override def earlyWriteRules: Seq[Rule[LogicalPlan]] =
-    V2Writes :: Nil
+    V2Writes :: V2WriteRequirements :: Nil
 
   override def defaultBatches: Seq[Batch] = (preOptimizationBatches ++ super.defaultBatches :+
     Batch("Optimize Metadata Only Query", Once, OptimizeMetadataOnlyQuery(catalog)) :+
