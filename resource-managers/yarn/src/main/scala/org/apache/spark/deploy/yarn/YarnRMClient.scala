@@ -107,7 +107,7 @@ private[spark] class YarnRMClient extends Logging {
     // so not all stable releases have it.
     val prefix = WebAppUtils.getHttpSchemePrefix(conf)
     val proxies = WebAppUtils.getProxyHostsAndPortsForAmFilter(conf)
-    val hosts = proxies.asScala.map(_.split(":").head)
+    val hosts = proxies.asScala.map(proxy => proxy.splitAt(proxy.lastIndexOf(":"))._1)
     val uriBases = proxies.asScala.map { proxy => prefix + proxy + proxyBase }
     val params =
       Map("PROXY_HOSTS" -> hosts.mkString(","), "PROXY_URI_BASES" -> uriBases.mkString(","))
