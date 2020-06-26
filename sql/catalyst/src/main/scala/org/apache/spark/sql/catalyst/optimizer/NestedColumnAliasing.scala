@@ -39,6 +39,14 @@ object NestedColumnAliasing {
           NestedColumnAliasing.replaceToAliases(plan, nestedFieldToAlias, attrToAliases)
       }
 
+    /**
+     * This is to solve a `LogicalPlan` like `Project`->`Filter`->`Window`.
+     * In this case, `Window` can be plan that is `canProjectPushThrough`.
+     * By adding this, it allows nested columns to be passed onto next stages.
+     * Currently, not adding `Filter` into `canProjectPushThrough` due to
+     * infinitely loop in optimizers during the predicate push-down rule.
+     */
+
     case Project(projectList, Filter(condition, child))
       if SQLConf.get.nestedSchemaPruningEnabled && canProjectPushThrough(child) =>
       val exprCandidatesToPrune = projectList ++ Seq(condition) ++ child.expressions

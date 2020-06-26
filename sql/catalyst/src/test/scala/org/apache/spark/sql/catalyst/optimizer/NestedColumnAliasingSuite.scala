@@ -494,53 +494,53 @@ class NestedColumnAliasingSuite extends SchemaPruningTest {
   test("Nested field pruning for window functions") {
     val spec = windowSpec($"address" :: Nil, $"id".asc :: Nil, UnspecifiedFrame)
     val winExpr = windowExpr(RowNumber().toAggregateExpression(), spec)
-    val query1 = contact.select($"name.first", winExpr.as('window))
+    val query = contact.select($"name.first", winExpr.as('window))
       .where($"window" === 1 && $"name.first" === "a")
       .analyze
-    val optimized1 = Optimize.execute(query1)
-    val aliases1 = collectGeneratedAliases(optimized1)
-    val expected1 = contact
-      .select($"name.first", $"address", $"id", $"name.first".as(aliases1(1)))
+    val optimized = Optimize.execute(query)
+    val aliases = collectGeneratedAliases(optimized)
+    val expected = contact
+      .select($"name.first", $"address", $"id", $"name.first".as(aliases(1)))
       .window(Seq(winExpr.as("window")), Seq($"address"), Seq($"id".asc))
-      .select($"first", $"${aliases1(1)}".as(aliases1(0)), $"window")
-      .where($"window" === 1 && $"${aliases1(0)}" === "a")
+      .select($"first", $"${aliases(1)}".as(aliases(0)), $"window")
+      .where($"window" === 1 && $"${aliases(0)}" === "a")
       .select($"first", $"window")
       .analyze
-    comparePlans(optimized1, expected1)
+    comparePlans(optimized, expected)
   }
 
   test("Nested field pruning for orderBy") {
-    val query1 = contact.select($"name.first", $"name.last")
+    val query = contact.select($"name.first", $"name.last")
       .orderBy($"name.first".asc, $"name.last".asc)
       .analyze
-    val optimized1 = Optimize.execute(query1)
-    val aliases1 = collectGeneratedAliases(optimized1)
-    val expected1 = contact
+    val optimized = Optimize.execute(query)
+    val aliases = collectGeneratedAliases(optimized)
+    val expected = contact
       .select($"name.first",
         $"name.last",
-        $"name.first".as(aliases1(0)),
-        $"name.last".as(aliases1(1)))
-      .orderBy($"${aliases1(0)}".asc, $"${aliases1(1)}".asc)
+        $"name.first".as(aliases(0)),
+        $"name.last".as(aliases(1)))
+      .orderBy($"${aliases(0)}".asc, $"${aliases(1)}".asc)
       .select($"first", $"last")
       .analyze
-    comparePlans(optimized1, expected1)
+    comparePlans(optimized, expected)
   }
 
-  test("Nested field pruning for sirtBy") {
-    val query1 = contact.select($"name.first", $"name.last")
+  test("Nested field pruning for sortBy") {
+    val query = contact.select($"name.first", $"name.last")
       .sortBy($"name.first".asc, $"name.last".asc)
       .analyze
-    val optimized1 = Optimize.execute(query1)
-    val aliases1 = collectGeneratedAliases(optimized1)
-    val expected1 = contact
+    val optimized = Optimize.execute(query)
+    val aliases = collectGeneratedAliases(optimized)
+    val expected = contact
       .select($"name.first",
         $"name.last",
-        $"name.first".as(aliases1(0)),
-        $"name.last".as(aliases1(1)))
-      .sortBy($"${aliases1(0)}".asc, $"${aliases1(1)}".asc)
+        $"name.first".as(aliases(0)),
+        $"name.last".as(aliases(1)))
+      .sortBy($"${aliases(0)}".asc, $"${aliases(1)}".asc)
       .select($"first", $"last")
       .analyze
-    comparePlans(optimized1, expected1)
+    comparePlans(optimized, expected)
   }
 
   test("Nested field pruning for Expand") {
