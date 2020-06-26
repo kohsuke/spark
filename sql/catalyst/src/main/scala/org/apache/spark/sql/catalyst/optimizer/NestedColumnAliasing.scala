@@ -116,7 +116,6 @@ object NestedColumnAliasing {
   private def canPruneOn(plan: LogicalPlan) = plan match {
     case _: Aggregate => true
     case _: Expand => true
-    case _: Sort => true
     case _ => false
   }
 
@@ -131,6 +130,7 @@ object NestedColumnAliasing {
     case _: RepartitionByExpression => true
     case _: Join => true
     case _: Window => true
+    case _: Sort => true
     case _ => false
   }
 
