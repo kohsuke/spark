@@ -40,13 +40,11 @@ object NestedColumnAliasing {
       }
 
     /**
-     * This is to solve a `LogicalPlan` like `Project`->`Filter`->`Window`.
-     * In this case, `Window` can be plan that is `canProjectPushThrough`.
-     * By adding this, it allows nested columns to be passed onto next stages.
-     * Currently, not adding `Filter` into `canProjectPushThrough` due to
-     * infinitely loop in optimizers during the predicate push-down rule.
+     * This pattern is needed to support [[Filter]] plan cases like
+     * [[Project]]->[[Filter]]->listed plan in `canProjectPushThrough` (e.g., [[Window]]).
+     * The reason why we don't simply add [[Filter]] in `canProjectPushThrough` is that
+     * the optimizer can hit an infinite loop during the [[PushDownPredicates]] rule.
      */
-
     case Project(projectList, Filter(condition, child))
       if SQLConf.get.nestedSchemaPruningEnabled && canProjectPushThrough(child) =>
       val exprCandidatesToPrune = projectList ++ Seq(condition) ++ child.expressions
@@ -171,6 +169,7 @@ object NestedColumnAliasing {
     val aliasSub = nestedFieldReferences.asInstanceOf[Seq[ExtractValue]]
       .filter(!_.references.subsetOf(exclusiveAttrSet))
       .groupBy(_.references.head)
+      .toList
       .flatMap { case (attr, nestedFields: Seq[ExtractValue]) =>
         // Remove redundant `ExtractValue`s if they share the same parent nest field.
         // For example, when `a.b` and `a.b.c` are in project list, we only need to alias `a.b`.
@@ -196,10 +195,15 @@ object NestedColumnAliasing {
             nestedFieldToAlias
               .map { case (nestedField, _) => totalFieldNum(nestedField.dataType) }
               .sum < totalFieldNum(attr.dataType)) {
-          Some(attr.exprId -> nestedFieldToAlias)
+          Some((attr.exprId, nestedFieldToAlias))
         } else {
           None
         }
+      }
+      .groupBy(_._1) // To fix same ExprId mapped to different attribute instance
+      .map {
+        case (exprId: ExprId, expressions: List[(ExprId, Seq[(ExtractValue, Alias)])]) =>
+          exprId -> expressions.flatMap(_._2)
       }
 
     if (aliasSub.isEmpty) {

@@ -464,16 +464,36 @@ abstract class SchemaPruningSuite
     val windowSql =
       """
         |with contact_rank as (
-        |  select row_number() over (partition by address order by id desc) as __rank,
+        |  select row_number() over (partition by address order by id desc) as rank,
         |  contacts.*
         |  from contacts
         |)
-        |select name.first , __rank from contact_rank
-        |where name.first = 'Jane' AND __rank = 1
+        |select name.first, rank from contact_rank
+        |where name.first = 'Jane' AND rank = 1
         |""".stripMargin
     val query1 = sql(windowSql)
     checkScan(query1, "struct<id:int,name:struct<first:string>,address:string>")
     checkAnswer(query1, Row("Jane", 1) :: Nil)
+  }
+
+  testSchemaPruning("select nested field in window function and then order by") {
+    val windowSql =
+      """
+        |with contact_rank as (
+        |  select row_number() over (partition by address order by id desc) as rank,
+        |  contacts.*
+        |  from contacts
+        |  order by name.last, name.first
+        |)
+        |select name.first, rank from contact_rank
+        |""".stripMargin
+    val query1 = sql(windowSql)
+    checkScan(query1, "struct<id:int,name:struct<first:string,last:string>,address:string>")
+    checkAnswer(query1,
+      Row("Jane", 1) ::
+        Row("John", 1) ::
+        Row("Janet", 1) ::
+        Row("Jim", 1) :: Nil)
   }
 
   testSchemaPruning("select nested field in Sort") {
