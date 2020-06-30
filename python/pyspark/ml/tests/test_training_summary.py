@@ -21,8 +21,9 @@ import unittest
 if sys.version > '3':
     basestring = str
 
-from pyspark.ml.classification import BinaryLogisticRegressionSummary, LinearSVC, \
-    LinearSVCSummary, LogisticRegression, LogisticRegressionSummary
+from pyspark.ml.classification import BinaryLogisticRegressionSummary, FMClassifier, \
+    FMClassificationSummary, LinearSVC, LinearSVCSummary, LogisticRegression, \
+    LogisticRegressionSummary
 from pyspark.ml.clustering import BisectingKMeans, GaussianMixture, KMeans
 from pyspark.ml.linalg import Vectors
 from pyspark.ml.regression import GeneralizedLinearRegression, LinearRegression
@@ -222,7 +223,6 @@ class TrainingSummaryTest(SparkSessionTestCase):
         self.assertTrue(isinstance(s.fMeasureByThreshold, DataFrame))
         self.assertTrue(isinstance(s.precisionByThreshold, DataFrame))
         self.assertTrue(isinstance(s.recallByThreshold, DataFrame))
-        print(s.weightedTruePositiveRate)
         self.assertAlmostEqual(s.weightedTruePositiveRate, 0.5, 2)
         self.assertAlmostEqual(s.weightedFalsePositiveRate, 0.5, 2)
         self.assertAlmostEqual(s.weightedRecall, 0.5, 2)
@@ -233,6 +233,47 @@ class TrainingSummaryTest(SparkSessionTestCase):
         # one check is enough to verify a summary is returned, Scala version runs full test
         sameSummary = model.evaluate(df)
         self.assertTrue(isinstance(sameSummary, LinearSVCSummary))
+        self.assertAlmostEqual(sameSummary.areaUnderROC, s.areaUnderROC)
+
+    def test_fm_classification_summary(self):
+        df = self.spark.createDataFrame([(1.0, Vectors.dense(1.0, 1.0, 1.0)),
+                                         (0.0, Vectors.dense(1.0, 2.0, 3.0))],
+                                        ["label", "features"])
+        fm = FMClassifier(maxIter=5)
+        model = fm.fit(df)
+        self.assertTrue(model.hasSummary)
+        s = model.summary()
+        # test that api is callable and returns expected types
+        self.assertTrue(isinstance(s.predictions, DataFrame))
+        self.assertEqual(s.scoreCol, "probability")
+        self.assertEqual(s.labelCol, "label")
+        self.assertEqual(s.predictionCol, "prediction")
+        objHist = s.objectiveHistory
+        self.assertTrue(isinstance(objHist, list) and isinstance(objHist[0], float))
+        self.assertGreater(s.totalIterations, 0)
+        self.assertTrue(isinstance(s.labels, list))
+        self.assertTrue(isinstance(s.truePositiveRateByLabel, list))
+        self.assertTrue(isinstance(s.falsePositiveRateByLabel, list))
+        self.assertTrue(isinstance(s.precisionByLabel, list))
+        self.assertTrue(isinstance(s.recallByLabel, list))
+        self.assertTrue(isinstance(s.fMeasureByLabel(), list))
+        self.assertTrue(isinstance(s.fMeasureByLabel(1.0), list))
+        self.assertTrue(isinstance(s.roc, DataFrame))
+        self.assertAlmostEqual(s.areaUnderROC, 1.0, 2)
+        self.assertTrue(isinstance(s.pr, DataFrame))
+        self.assertTrue(isinstance(s.fMeasureByThreshold, DataFrame))
+        self.assertTrue(isinstance(s.precisionByThreshold, DataFrame))
+        self.assertTrue(isinstance(s.recallByThreshold, DataFrame))
+        self.assertAlmostEqual(s.weightedTruePositiveRate, 0.5, 2)
+        self.assertAlmostEqual(s.weightedFalsePositiveRate, 0.5, 2)
+        self.assertAlmostEqual(s.weightedRecall, 0.5, 2)
+        self.assertAlmostEqual(s.weightedPrecision, 0.25, 2)
+        self.assertAlmostEqual(s.weightedFMeasure(), 0.3333333333333333, 2)
+        self.assertAlmostEqual(s.weightedFMeasure(1.0), 0.3333333333333333, 2)
+        # test evaluation (with training dataset) produces a summary with same values
+        # one check is enough to verify a summary is returned, Scala version runs full test
+        sameSummary = model.evaluate(df)
+        self.assertTrue(isinstance(sameSummary, FMClassificationSummary))
         self.assertAlmostEqual(sameSummary.areaUnderROC, s.areaUnderROC)
 
     def test_gaussian_mixture_summary(self):
