@@ -46,7 +46,7 @@ object NestedColumnAliasing {
      * the optimizer can hit an infinite loop during the [[PushDownPredicates]] rule.
      */
     case Project(projectList, Filter(condition, child))
-      if SQLConf.get.nestedSchemaPruningEnabled && canProjectPushThrough(child) =>
+        if SQLConf.get.nestedSchemaPruningEnabled && canProjectPushThrough(child) =>
       val exprCandidatesToPrune = projectList ++ Seq(condition) ++ child.expressions
       getAliasSubMap(exprCandidatesToPrune, child.producedAttributes.toSeq).map {
         case (nestedFieldToAlias, attrToAliases) =>
@@ -166,10 +166,11 @@ object NestedColumnAliasing {
       }
 
     val exclusiveAttrSet = AttributeSet(exclusiveAttrs ++ otherRootReferences)
-    val aliasSub = nestedFieldReferences.asInstanceOf[Seq[ExtractValue]]
+    val groupByReferenceList = nestedFieldReferences.asInstanceOf[Seq[ExtractValue]]
       .filter(!_.references.subsetOf(exclusiveAttrSet))
       .groupBy(_.references.head)
       .toList
+    val exprIdToAliases = groupByReferenceList
       .flatMap { case (attr, nestedFields: Seq[ExtractValue]) =>
         // Remove redundant `ExtractValue`s if they share the same parent nest field.
         // For example, when `a.b` and `a.b.c` are in project list, we only need to alias `a.b`.
@@ -200,6 +201,7 @@ object NestedColumnAliasing {
           None
         }
       }
+    val aliasSub = exprIdToAliases
       .groupBy(_._1) // To fix same ExprId mapped to different attribute instance
       .map {
         case (exprId: ExprId, expressions: List[(ExprId, Seq[(ExtractValue, Alias)])]) =>
