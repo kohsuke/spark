@@ -21,12 +21,10 @@ A collections of builtin avro functions
 
 
 from pyspark import since, SparkContext
-from pyspark.rdd import ignore_unicode_prefix
 from pyspark.sql.column import Column, _to_java_column
 from pyspark.util import _print_missing_jar
 
 
-@ignore_unicode_prefix
 @since(3.0)
 def from_avro(data, jsonFormatSchema, options={}):
     """
@@ -55,7 +53,7 @@ def from_avro(data, jsonFormatSchema, options={}):
     ...     "fields":[{"name":"age","type":["long","null"]},
     ...     {"name":"name","type":["string","null"]}]},"null"]}]}'''
     >>> avroDf.select(from_avro(avroDf.avro, jsonFormatSchema).alias("value")).collect()
-    [Row(value=Row(avro=Row(age=2, name=u'Alice')))]
+    [Row(value=Row(avro=Row(age=2, name='Alice')))]
     """
 
     sc = SparkContext._active_spark_context
@@ -69,7 +67,6 @@ def from_avro(data, jsonFormatSchema, options={}):
     return Column(jc)
 
 
-@ignore_unicode_prefix
 @since(3.0)
 def to_avro(data, jsonFormatSchema=""):
     """

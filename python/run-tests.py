@@ -28,10 +28,7 @@ import tempfile
 from threading import Thread, Lock
 import time
 import uuid
-if sys.version < '3':
-    import Queue
-else:
-    import queue as Queue
+import queue as Queue
 from multiprocessing import Manager
 
 
@@ -161,7 +158,7 @@ def run_individual_python_test(target_dir, test_name, pyspark_python):
 
 
 def get_default_python_executables():
-    python_execs = [x for x in ["python3.6", "python2.7", "pypy"] if which(x)]
+    python_execs = [x for x in ["python3.6", "pypy"] if which(x)]
 
     if "python3.6" not in python_execs:
         p = which("python3")
