@@ -28,10 +28,6 @@ from array import array
 import ctypes
 import warnings
 
-if sys.version >= "3":
-    long = int
-    basestring = unicode = str
-
 from py4j.protocol import register_input_converter
 from py4j.java_gateway import JavaClass
 
@@ -409,9 +405,7 @@ class StructField(DataType):
         """
         assert isinstance(dataType, DataType),\
             "dataType %s should be an instance of %s" % (dataType, DataType)
-        assert isinstance(name, basestring), "field name %s should be string" % (name)
-        if not isinstance(name, str):
-            name = name.encode('utf-8')
+        assert isinstance(name, str), "field name %s should be a string" % (name)
         self.name = name
         self.dataType = dataType
         self.nullable = nullable
@@ -904,18 +898,8 @@ _type_mappings = {
     datetime.date: DateType,
     datetime.datetime: TimestampType,
     datetime.time: TimestampType,
+    bytes: BinaryType,
 }
-
-if sys.version < "3":
-    _type_mappings.update({
-        unicode: StringType,
-        long: LongType,
-    })
-
-if sys.version >= "3":
-    _type_mappings.update({
-        bytes: BinaryType,
-    })
 
 # Mapping Python array types to Spark SQL DataType
 # We should be careful here. The size of these types in python depends on C
@@ -989,20 +973,6 @@ for _typecode in _array_unsigned_int_typecode_ctype_mappings.keys():
 # removed in version 4.0. See: https://docs.python.org/3/library/array.html
 if sys.version_info[0] < 4:
     _array_type_mappings['u'] = StringType
-
-# Type code 'c' are only available at python 2
-if sys.version_info[0] < 3:
-    _array_type_mappings['c'] = StringType
-
-# SPARK-21465:
-# In python2, array of 'L' happened to be mistakenly, just partially supported. To
-# avoid breaking user's code, we should keep this partial support. Below is a
-# dirty hacking to keep this partial support and pass the unit test.
-import platform
-if sys.version_info[0] < 3 and platform.python_implementation() != 'PyPy':
-    if 'L' not in _array_type_mappings.keys():
-        _array_type_mappings['L'] = LongType
-        _array_unsigned_int_typecode_ctype_mappings['L'] = ctypes.c_uint
 
 
 def _infer_type(obj):
@@ -1187,14 +1157,14 @@ def _create_converter(dataType):
 
 _acceptable_types = {
     BooleanType: (bool,),
-    ByteType: (int, long),
-    ShortType: (int, long),
-    IntegerType: (int, long),
-    LongType: (int, long),
+    ByteType: (int,),
+    ShortType: (int,),
+    IntegerType: (int,),
+    LongType: (int,),
     FloatType: (float,),
     DoubleType: (float,),
     DecimalType: (decimal.Decimal,),
-    StringType: (str, unicode),
+    StringType: (str,),
     BinaryType: (bytearray, bytes),
     DateType: (datetime.date, datetime.datetime),
     TimestampType: (datetime.datetime,),
@@ -1487,36 +1457,14 @@ class Row(tuple):
     True
     """
 
-    # Remove after Python < 3.6 dropped, see SPARK-29748
-    _row_field_sorting_enabled = \
-        os.environ.get('PYSPARK_ROW_FIELD_SORTING_ENABLED', 'false').lower() == 'true'
-
-    if _row_field_sorting_enabled:
-        warnings.warn("The environment variable 'PYSPARK_ROW_FIELD_SORTING_ENABLED' "
-                      "is deprecated and will be removed in future versions of Spark")
-
     def __new__(cls, *args, **kwargs):
         if args and kwargs:
             raise ValueError("Can not use both args "
                              "and kwargs to create Row")
         if kwargs:
-            if not Row._row_field_sorting_enabled and sys.version_info[:2] < (3, 6):
-                warnings.warn("To use named arguments for Python version < 3.6, Row fields will be "
-                              "automatically sorted. This warning can be skipped by setting the "
-                              "environment variable 'PYSPARK_ROW_FIELD_SORTING_ENABLED' to 'true'.")
-                Row._row_field_sorting_enabled = True
-
             # create row objects
-            if Row._row_field_sorting_enabled:
-                # Remove after Python < 3.6 dropped, see SPARK-29748
-                names = sorted(kwargs.keys())
-                row = tuple.__new__(cls, [kwargs[n] for n in names])
-                row.__fields__ = names
-                row.__from_dict__ = True
-            else:
-                row = tuple.__new__(cls, list(kwargs.values()))
-                row.__fields__ = list(kwargs.keys())
-
+            row = tuple.__new__(cls, list(kwargs.values()))
+            row.__fields__ = list(kwargs.keys())
             return row
         else:
             # create row class or objects

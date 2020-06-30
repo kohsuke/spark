@@ -58,18 +58,11 @@ import types
 import collections
 import zlib
 import itertools
-
-if sys.version < '3':
-    import cPickle as pickle
-    from itertools import izip as zip, imap as map
-else:
-    import pickle
-    basestring = unicode = str
-    xrange = range
+import pickle
 pickle_protocol = pickle.HIGHEST_PROTOCOL
 
 from pyspark import cloudpickle
-from pyspark.util import _exception_message, print_exec
+from pyspark.util import print_exec
 
 
 __all__ = ["PickleSerializer", "MarshalSerializer", "UTF8Deserializer"]
@@ -132,11 +125,6 @@ class FramedSerializer(Serializer):
     where `length` is a 32-bit integer and data is `length` bytes.
     """
 
-    def __init__(self):
-        # On Python 2.6, we can't write bytearrays to streams, so we need to convert them
-        # to strings first. Check if the version number is that old.
-        self._only_write_strings = sys.version_info[0:2] <= (2, 6)
-
     def dump_stream(self, iterator, stream):
         for obj in iterator:
             self._write_with_length(obj, stream)
@@ -155,10 +143,7 @@ class FramedSerializer(Serializer):
         if len(serialized) > (1 << 31):
             raise ValueError("can not serialize object larger than 2G")
         write_int(len(serialized), stream)
-        if self._only_write_strings:
-            stream.write(str(serialized))
-        else:
-            stream.write(serialized)
+        stream.write(serialized)
 
     def _read_with_length(self, stream):
         length = read_int(stream)
@@ -204,7 +189,7 @@ class BatchedSerializer(Serializer):
             yield list(iterator)
         elif hasattr(iterator, "__len__") and hasattr(iterator, "__getslice__"):
             n = len(iterator)
-            for i in xrange(0, n, self.batchSize):
+            for i in range(0, n, self.batchSize):
                 yield iterator[i: i + self.batchSize]
         else:
             items = []
@@ -453,12 +438,8 @@ class PickleSerializer(FramedSerializer):
     def dumps(self, obj):
         return pickle.dumps(obj, pickle_protocol)
 
-    if sys.version >= '3':
-        def loads(self, obj, encoding="bytes"):
-            return pickle.loads(obj, encoding=encoding)
-    else:
-        def loads(self, obj, encoding=None):
-            return pickle.loads(obj)
+    def loads(self, obj, encoding="bytes"):
+        return pickle.loads(obj, encoding=encoding)
 
 
 class CloudPickleSerializer(PickleSerializer):
@@ -469,7 +450,7 @@ class CloudPickleSerializer(PickleSerializer):
         except pickle.PickleError:
             raise
         except Exception as e:
-            emsg = _exception_message(e)
+            emsg = str(e)
             if "'i' format requires" in emsg:
                 msg = "Object too large to serialize: %s" % emsg
             else:
