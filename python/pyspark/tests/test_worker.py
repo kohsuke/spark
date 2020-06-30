@@ -32,9 +32,6 @@ from py4j.protocol import Py4JJavaError
 from pyspark import SparkConf, SparkContext
 from pyspark.testing.utils import ReusedPySparkTestCase, PySparkTestCase, QuietTest
 
-if sys.version_info[0] >= 3:
-    xrange = range
-
 
 class WorkerTests(ReusedPySparkTestCase):
     def test_cancel_task(self):
@@ -160,17 +157,13 @@ class WorkerTests(ReusedPySparkTestCase):
 
             self.sc.parallelize([1]).map(lambda x: f()).count()
         except Py4JJavaError as e:
-            if sys.version_info.major < 3:
-                # we have to use unicode here to avoid UnicodeDecodeError
-                self.assertRegexpMatches(unicode(e).encode("utf-8"), "exception with 中")
-            else:
-                self.assertRegexpMatches(str(e), "exception with 中")
+            self.assertRegexpMatches(str(e), "exception with 中")
 
 
 class WorkerReuseTest(PySparkTestCase):
 
-    def test_reuse_worker_of_parallelize_xrange(self):
-        rdd = self.sc.parallelize(xrange(20), 8)
+    def test_reuse_worker_of_parallelize_range(self):
+        rdd = self.sc.parallelize(range(20), 8)
         previous_pids = rdd.map(lambda x: os.getpid()).collect()
         current_pids = rdd.map(lambda x: os.getpid()).collect()
         for pid in current_pids:
@@ -189,7 +182,7 @@ class WorkerMemoryTest(unittest.TestCase):
         self.sc = SparkContext('local[4]', class_name, conf=conf)
 
     def test_memory_limit(self):
-        rdd = self.sc.parallelize(xrange(1), 1)
+        rdd = self.sc.parallelize(range(1), 1)
 
         def getrlimit():
             import resource

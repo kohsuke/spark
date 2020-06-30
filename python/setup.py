@@ -16,17 +16,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
 import glob
 import os
 import sys
 from setuptools import setup
 from shutil import copyfile, copytree, rmtree
-
-if sys.version_info < (2, 7):
-    print("Python versions prior to 2.7 are not supported for pip installed PySpark.",
-          file=sys.stderr)
-    sys.exit(-1)
 
 try:
     exec(open('pyspark/version.py').read())

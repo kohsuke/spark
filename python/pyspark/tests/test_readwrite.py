@@ -38,7 +38,6 @@ class InputFormatTests(ReusedPySparkTestCase):
         ReusedPySparkTestCase.tearDownClass()
         shutil.rmtree(cls.tempdir.name)
 
-    @unittest.skipIf(sys.version >= "3", "serialize array of byte")
     def test_sequencefiles(self):
         basepath = self.tempdir.name
         ints = sorted(self.sc.sequenceFile(basepath + "/sftestdata/sfint/",
@@ -249,7 +248,6 @@ class OutputFormatTests(ReusedPySparkTestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir.name, ignore_errors=True)
 
-    @unittest.skipIf(sys.version >= "3", "serialize array of byte")
     def test_sequencefiles(self):
         basepath = self.tempdir.name
         ei = [(1, u'aa'), (1, u'aa'), (2, u'aa'), (2, u'bb'), (2, u'bb'), (3, u'cc')]
@@ -361,7 +359,6 @@ class OutputFormatTests(ReusedPySparkTestCase):
             conf=input_conf).collect())
         self.assertEqual(new_dataset, data)
 
-    @unittest.skipIf(sys.version >= "3", "serialize of array")
     def test_newhadoop_with_array(self):
         basepath = self.tempdir.name
         # use custom ArrayWritable types and converters to handle arrays

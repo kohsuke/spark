@@ -18,11 +18,11 @@
 """
 Worker that receives input from Piped RDD.
 """
-from __future__ import print_function
-from __future__ import absolute_import
 import os
 import sys
 import time
+from inspect import getfullargspec
+import importlib
 # 'resource' is a Unix specific module.
 has_resource_module = True
 try:
@@ -44,13 +44,8 @@ from pyspark.serializers import write_with_length, write_int, read_long, read_bo
 from pyspark.sql.pandas.serializers import ArrowStreamPandasUDFSerializer, CogroupUDFSerializer
 from pyspark.sql.pandas.types import to_arrow_type
 from pyspark.sql.types import StructType
-from pyspark.util import _get_argspec, fail_on_stopiteration
+from pyspark.util import fail_on_stopiteration
 from pyspark import shuffle
-
-if sys.version >= '3':
-    basestring = str
-else:
-    from itertools import imap as map  # use iterator map by default
 
 pickleSer = PickleSerializer()
 utf8_deserializer = UTF8Deserializer()
@@ -272,10 +267,10 @@ def read_single_udf(pickleSer, infile, eval_type, runner_conf, udf_index):
     elif eval_type == PythonEvalType.SQL_MAP_PANDAS_ITER_UDF:
         return arg_offsets, wrap_pandas_iter_udf(func, return_type)
     elif eval_type == PythonEvalType.SQL_GROUPED_MAP_PANDAS_UDF:
-        argspec = _get_argspec(chained_func)  # signature was lost when wrapping it
+        argspec = getfullargspec(chained_func)  # signature was lost when wrapping it
         return arg_offsets, wrap_grouped_map_pandas_udf(func, return_type, argspec)
     elif eval_type == PythonEvalType.SQL_COGROUPED_MAP_PANDAS_UDF:
-        argspec = _get_argspec(chained_func)  # signature was lost when wrapping it
+        argspec = getfullargspec(chained_func)  # signature was lost when wrapping it
         return arg_offsets, wrap_cogrouped_map_pandas_udf(func, return_type, argspec)
     elif eval_type == PythonEvalType.SQL_GROUPED_AGG_PANDAS_UDF:
         return arg_offsets, wrap_grouped_agg_pandas_udf(func, return_type)
@@ -548,9 +543,8 @@ def main(infile, outfile):
         for _ in range(num_python_includes):
             filename = utf8_deserializer.loads(infile)
             add_path(os.path.join(spark_files_dir, filename))
-        if sys.version > '3':
-            import importlib
-            importlib.invalidate_caches()
+
+        importlib.invalidate_caches()
 
         # fetch names and values of broadcast variables
         needs_broadcast_decryption_server = read_bool(infile)
