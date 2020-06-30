@@ -207,7 +207,7 @@ PYTHON_SOURCE="$(find . -name "*.py")"
 compile_python_test "$PYTHON_SOURCE"
 pycodestyle_test "$PYTHON_SOURCE"
 flake8_test
-sphinx_test
+# sphinx_test
 
 echo
 echo "all lint-python tests passed!"
