@@ -34,8 +34,8 @@ class MountConfDirExecutorFeatureStepSuite extends SparkFunSuite {
   }
 
   // TODO support these features may be in separate JIRAs.
-  ignore("Skip creating config map and mounting step if, no files selected from the conf dir.")
-  ignore("Skip all files larger than set size, as configmaps can hold only upto 1Mb")
-  ignore("Skip binary files as well, configmap(in fabric8.io api) tries to convert data to string.")
+  // ("Skip creating config map and mounting step if, no files selected from the conf dir.")
+  // ("Skip all files larger than set size, as configmaps can hold only upto 1Mb")
+  // ("Skip binary files as well, configmap(in fabric8.io api) tries to convert data to string.")
 
 }
