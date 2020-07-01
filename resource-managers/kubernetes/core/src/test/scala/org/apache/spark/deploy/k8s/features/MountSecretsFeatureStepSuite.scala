@@ -17,7 +17,7 @@
 package org.apache.spark.deploy.k8s.features
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.deploy.k8s.{KubernetesTestConf, SecretVolumeUtils, SparkPod}
+import org.apache.spark.deploy.k8s.{KubernetesTestConf, K8sVolumeTestUtils, SparkPod}
 
 class MountSecretsFeatureStepSuite extends SparkFunSuite {
 
@@ -38,10 +38,10 @@ class MountSecretsFeatureStepSuite extends SparkFunSuite {
     val driverContainerWithSecretsMounted = step.configurePod(baseDriverPod).container
 
     Seq(s"$SECRET_FOO-volume", s"$SECRET_BAR-volume").foreach { volumeName =>
-      assert(SecretVolumeUtils.podHasVolume(driverPodWithSecretsMounted, volumeName))
+      assert(K8sVolumeTestUtils.podHasVolume(driverPodWithSecretsMounted, volumeName))
     }
     Seq(s"$SECRET_FOO-volume", s"$SECRET_BAR-volume").foreach { volumeName =>
-      assert(SecretVolumeUtils.containerHasVolume(
+      assert(K8sVolumeTestUtils.containerHasVolume(
         driverContainerWithSecretsMounted, volumeName, SECRET_MOUNT_PATH))
     }
   }

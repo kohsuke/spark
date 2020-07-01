@@ -16,14 +16,14 @@
  */
 package org.apache.spark.deploy.k8s.submit
 
-import java.io.StringWriter
 import java.util.{Collections, UUID}
-import java.util.Properties
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.util.control.NonFatal
 
 import io.fabric8.kubernetes.api.model._
 import io.fabric8.kubernetes.client.KubernetesClient
-import scala.collection.mutable
-import scala.util.control.NonFatal
 
 import org.apache.spark.SparkConf
 import org.apache.spark.deploy.SparkApplication
@@ -101,8 +101,11 @@ private[spark] class Client(
 
   def run(): Unit = {
     val resolvedDriverSpec = builder.buildFromFeatures(conf, kubernetesClient)
-    val configMapName = s"${conf.resourceNamePrefix}-driver-conf-map"
-    val configMap = buildConfigMap(configMapName, resolvedDriverSpec.systemProperties)
+    val configMapName = KubernetesClientUtils.configMapNameDriver
+    val confFilesMap = KubernetesClientUtils.buildSparkConfDirFilesMap(configMapName,
+      conf.sparkConf, resolvedDriverSpec.systemProperties)
+    val configMap = KubernetesClientUtils.buildConfigMap(configMapName, confFilesMap)
+
     // The include of the ENV_VAR for "SPARK_CONF_DIR" is to allow for the
     // Spark command builder to pickup on the Java Options present in the ConfigMap
     val resolvedDriverContainer = new ContainerBuilder(resolvedDriverSpec.pod.container)
@@ -121,6 +124,7 @@ private[spark] class Client(
         .addNewVolume()
           .withName(SPARK_CONF_VOLUME)
           .withNewConfigMap()
+            .withItems(KubernetesClientUtils.buildKeyToPathObjects(confFilesMap).asJava)
             .withName(configMapName)
             .endConfigMap()
           .endVolume()
@@ -163,23 +167,6 @@ private[spark] class Client(
       val originalMetadata = resource.getMetadata
       originalMetadata.setOwnerReferences(Collections.singletonList(driverPodOwnerReference))
     }
-  }
-
-  // Build a Config Map that will house spark conf properties in a single file for spark-submit
-  private def buildConfigMap(configMapName: String, conf: Map[String, String]): ConfigMap = {
-    val properties = new Properties()
-    conf.foreach { case (k, v) =>
-      properties.setProperty(k, v)
-    }
-    val propertiesWriter = new StringWriter()
-    properties.store(propertiesWriter,
-      s"Java properties built from Kubernetes config map with name: $configMapName")
-    new ConfigMapBuilder()
-      .withNewMetadata()
-        .withName(configMapName)
-        .endMetadata()
-      .addToData(SPARK_CONF_FILE_NAME, propertiesWriter.toString)
-      .build()
   }
 }
 
