@@ -17,7 +17,7 @@
 package org.apache.spark.deploy.k8s.features
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.deploy.k8s.{KubernetesTestConf, K8sVolumeTestUtils, SparkPod}
+import org.apache.spark.deploy.k8s.{K8sVolumeTestUtils, KubernetesTestConf, SparkPod}
 
 class MountSecretsFeatureStepSuite extends SparkFunSuite {
 
