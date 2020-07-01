@@ -40,7 +40,7 @@ import org.apache.spark.util.Utils
 class KerberosConfDriverFeatureStepSuite extends SparkFunSuite {
 
   import KubernetesFeaturesTestUtils._
-  import SecretVolumeUtils._
+  import K8sVolumeTestUtils._
 
   private val tmpDir = Utils.createTempDir()
 

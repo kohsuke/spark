@@ -33,7 +33,7 @@ import org.apache.spark.util.{SparkConfWithEnv, Utils}
 class HadoopConfDriverFeatureStepSuite extends SparkFunSuite {
 
   import KubernetesFeaturesTestUtils._
-  import SecretVolumeUtils._
+  import K8sVolumeTestUtils._
 
   test("mount hadoop config map if defined") {
     val sparkConf = new SparkConf(false)
