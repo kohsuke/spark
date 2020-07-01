@@ -162,7 +162,7 @@ def _parse_memory(s):
 
 class InheritableThread(threading.Thread):
     """
-    Thread that is recommended to use in PySpark instead of :class:`threading.Thread`
+    Thread that is recommended to be used in PySpark instead of :class:`threading.Thread`
     when the pinned thread mode is enabled. The usage of this class is exactly same as
     :class:`threading.Thread` but correctly inherits the inheritable properties specific
     to JVM thread such as ``InheritableThreadLocal``.
