@@ -179,15 +179,9 @@ abstract class CompactibleFileStreamLog[T <: AnyRef : ClassTag](
 
   /**
    * Apply function on all entries in the specific batch. The method will throw
-   * FileNotFouncException if `throwOnNonExist` is true. If false, the method will just return.
+   * FileNotFoundException if the metadata log file doesn't exist.
    */
-  def foreachInBatch(batchId: Long, throwOnNonExist: Boolean)(fn: T => Unit): Unit = {
-    try {
-      applyFnInBatch(batchId)(_.foreach(fn))
-    } catch {
-      case _: FileNotFoundException if !throwOnNonExist =>
-    }
-  }
+  def foreachInBatch(batchId: Long)(fn: T => Unit): Unit = applyFnInBatch(batchId)(_.foreach(fn))
 
   /**
    * Apply filter on all entries in the specific batch.
@@ -228,7 +222,7 @@ abstract class CompactibleFileStreamLog[T <: AnyRef : ClassTag](
         output.write(("v" + metadataLogVersion).getBytes(UTF_8))
         val validBatches = getValidBatchesBeforeCompactionBatch(batchId, compactInterval)
         validBatches.foreach { id =>
-          foreachInBatch(id, throwOnNonExist = true) { entry => writeEntry(entry, output) }
+          foreachInBatch(id) { entry => writeEntry(entry, output) }
         }
         logs.foreach { entry => writeEntry(entry, output) }
       }
