@@ -20,7 +20,7 @@ import scala.collection.JavaConverters._
 
 import io.fabric8.kubernetes.api.model.{Container, Pod}
 
-private[spark] object SecretVolumeUtils {
+private[spark] object K8sVolumeTestUtils {
 
   def podHasVolume(pod: Pod, volumeName: String): Boolean = {
     pod.getSpec.getVolumes.asScala.exists { volume =>
