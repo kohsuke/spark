@@ -180,6 +180,9 @@ abstract class CompactibleFileStreamLog[T <: AnyRef : ClassTag](
   /**
    * Apply function on all entries in the specific batch. The method will throw
    * FileNotFoundException if the metadata log file doesn't exist.
+   *
+   * NOTE: This doesn't fail early on corruption. The caller should handle the exception
+   * properly and make sure the logic is not affected by failing in the middle.
    */
   def foreachInBatch(batchId: Long)(fn: T => Unit): Unit = applyFnInBatch(batchId)(_.foreach(fn))
 
