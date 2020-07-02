@@ -61,7 +61,7 @@ class KeywordOnlyTests(unittest.TestCase):
 
 
 class UtilTests(PySparkTestCase):
-    def test_py4jstr(self):
+    def test_py4j_str(self):
         with self.assertRaises(Py4JJavaError) as context:
             # This attempts java.lang.String(null) which throws an NPE.
             self.sc._jvm.java.lang.String(None)
