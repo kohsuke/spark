@@ -22,7 +22,8 @@ import sys
 import warnings
 from py4j.protocol import Py4JJavaError
 
-from pyspark import since, RDD
+from pyspark import since
+from pyspark.rdd import RDD
 from pyspark.mllib.common import callMLlibFunc, JavaModelWrapper
 from pyspark.mllib.linalg import (
     Vectors, DenseVector, SparseVector, _convert_to_vector)

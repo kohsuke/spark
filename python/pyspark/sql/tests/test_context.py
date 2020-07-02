@@ -19,7 +19,7 @@ import shutil
 import sys
 import tempfile
 import unittest
-from importlib import reload  # Python 3.4+ only.
+from importlib import reload
 
 import py4j
 
