@@ -469,18 +469,20 @@ object SparkParallelTestGrouping {
     "org.apache.spark.sql.catalyst.expressions.MathExpressionsSuite",
     "org.apache.spark.sql.hive.HiveExternalCatalogSuite",
     "org.apache.spark.sql.hive.StatisticsSuite",
-    "org.apache.spark.sql.hive.execution.HiveCompatibilitySuite",
     "org.apache.spark.sql.hive.client.VersionsSuite",
     "org.apache.spark.sql.hive.client.HiveClientVersions",
     "org.apache.spark.sql.hive.HiveExternalCatalogVersionsSuite",
     "org.apache.spark.ml.classification.LogisticRegressionSuite",
     "org.apache.spark.ml.classification.LinearSVCSuite",
     "org.apache.spark.sql.SQLQueryTestSuite",
+    "org.apache.spark.sql.hive.thriftserver.CliSuite",
     "org.apache.spark.sql.hive.thriftserver.ThriftServerQueryTestSuite",
     "org.apache.spark.sql.hive.thriftserver.SparkSQLEnvSuite",
     "org.apache.spark.sql.hive.thriftserver.ui.ThriftServerPageSuite",
     "org.apache.spark.sql.hive.thriftserver.ui.HiveThriftServer2ListenerSuite",
-    "org.apache.spark.sql.kafka010.KafkaDelegationTokenSuite"
+    "org.apache.spark.sql.kafka010.KafkaDelegationTokenSuite",
+    // For all hive.execution suites
+    "org.apache.spark.sql.hive.execution"
   )
 
   private val DEFAULT_TEST_GROUP = "default_test_group"
