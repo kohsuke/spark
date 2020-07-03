@@ -19,8 +19,8 @@ package org.apache.spark.sql.hive.thriftserver
 
 import java.security.PrivilegedExceptionAction
 import java.sql.{Date, Timestamp}
-import java.util.{Arrays, Map => JMap, UUID}
-import java.util.concurrent.RejectedExecutionException
+import java.util.{Arrays, Map => JMap}
+import java.util.concurrent.{Executors, RejectedExecutionException, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
@@ -48,7 +48,8 @@ private[hive] class SparkExecuteStatementOperation(
     parentSession: HiveSession,
     statement: String,
     confOverlay: JMap[String, String],
-    runInBackground: Boolean = true)
+    runInBackground: Boolean = true,
+    queryTimeout: Long)
   extends ExecuteStatementOperation(parentSession, statement, confOverlay, runInBackground)
   with SparkOperation
   with Logging {
@@ -204,6 +205,13 @@ private[hive] class SparkExecuteStatementOperation(
       parentSession.getUsername)
     setHasResultSet(true) // avoid no resultset for async run
 
+    if(queryTimeout > 0) {
+      Executors.newSingleThreadScheduledExecutor
+        .schedule(new Runnable {
+          override def run(): Unit = timeoutCancel()
+        }, queryTimeout, TimeUnit.SECONDS)
+    }
+
     if (!runInBackground) {
       execute()
     } else {
@@ -344,6 +352,17 @@ private[hive] class SparkExecuteStatementOperation(
         logInfo(s"Cancel query with $statementId")
         cleanup()
         setState(OperationState.CANCELED)
+        HiveThriftServer2.eventManager.onStatementCanceled(statementId)
+      }
+    }
+  }
+
+  def timeoutCancel(): Unit = {
+    synchronized {
+      if (!getStatus.getState.isTerminal) {
+        logInfo(s"Timeout and Cancel query with $statementId ")
+        cleanup()
+        setState(OperationState.TIMEDOUT)
         HiveThriftServer2.eventManager.onStatementCanceled(statementId)
       }
     }
