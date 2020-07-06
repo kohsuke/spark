@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
+import scala.collection.mutable.{HashMap, HashSet}
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.reflect.ClassTag
@@ -724,6 +724,59 @@ class MasterSuite extends SparkFunSuite
         master.rpcEnv.shutdown()
       }
     }
+  }
+
+  def testWorkerDecommissioning(
+      numWorkers: Int,
+      numWorkersExpectedToDecom: Int,
+      hostnames: Seq[String]): Unit = {
+    val conf = new SparkConf()
+    val master = makeAliveMaster(conf)
+    val workerRegs = (1 to numWorkers).map{idx =>
+      val worker = new MockWorker(master.self, conf)
+      worker.rpcEnv.setupEndpoint("worker", worker)
+      val workerReg = RegisterWorker(
+        worker.id,
+        "localhost",
+        worker.self.address.port,
+        worker.self,
+        10,
+        1024,
+        "http://localhost:8080",
+        RpcAddress("localhost", 10000))
+      master.self.send(workerReg)
+      workerReg
+    }
+
+    eventually(timeout(10.seconds)) {
+      val masterState = master.self.askSync[MasterStateResponse](RequestMasterState)
+      assert(masterState.workers.length === numWorkers)
+      assert(masterState.workers.forall(_.state == WorkerState.ALIVE))
+      assert(masterState.workers.map(_.id).toSet == workerRegs.map(_.id).toSet)
+      masterState.workers
+    }
+
+    val decomWorkersCount = master.self.askSync[Integer](DecommissionHosts(hostnames))
+    assert(decomWorkersCount === numWorkers)
+
+    eventually(timeout(10.seconds)) {
+      val masterState = master.self.askSync[MasterStateResponse](RequestMasterState)
+      assert(masterState.workers.length === numWorkers)
+      val workersActuallyDecomed = masterState.workers.count(_.state == WorkerState.DECOMMISSIONED)
+      assert(workersActuallyDecomed === numWorkersExpectedToDecom)
+    }
+  }
+
+  test("All workers on a host should be decommissioned") {
+    testWorkerDecommissioning(2, 2, Seq("LoCalHost", "localHOST"))
+  }
+
+  test("No workers should be decommissioned with invalid host") {
+    testWorkerDecommissioning(2, 0, Seq("NoSuchHost1", "NoSuchHost2"))
+  }
+
+  test("Only worker on host should be decommissioned") {
+    testWorkerDecommissioning(1, 1, Seq("lOcalHost", "NoSuchHost"))
   }
 
   test("SPARK-19900: there should be a corresponding driver for the app after relaunching driver") {

@@ -22,7 +22,9 @@ import java.util.{Date, Locale}
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
+import scala.collection.mutable
 import scala.util.Random
+import scala.util.control.NonFatal
 
 import org.apache.spark.{SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.{ApplicationDescription, DriverDescription, ExecutorState, SparkHadoopUtil}
@@ -525,6 +527,13 @@ private[deploy] class Master(
     case KillExecutors(appId, executorIds) =>
       val formattedExecutorIds = formatExecutorIds(executorIds)
       context.reply(handleKillExecutors(appId, formattedExecutorIds))
+
+    case DecommissionHosts(hostnames) =>
+      if (state != RecoveryState.STANDBY) {
+        context.reply(decommissionHosts(hostnames))
+      } else {
+        context.reply(0)
+      }
   }
 
   override def onDisconnected(address: RpcAddress): Unit = {
@@ -861,6 +870,24 @@ private[deploy] class Master(
     idToWorker(worker.id) = worker
     addressToWorker(workerAddress) = worker
     true
+  }
+
+  private def decommissionHosts(hostnames: Seq[String]): Integer = {
+    val hostnamesSet = hostnames.map(_.toLowerCase(Locale.ROOT)).toSet
+    val workersToRemove = addressToWorker.filterKeys(
+      addr => hostnamesSet.contains(addr.host.toLowerCase(Locale.ROOT))).values
+
+    val workersToRemoveHostPorts = workersToRemove.map(_.hostPort)
+    logInfo(s"Decommissioning the workers with host:ports ${workersToRemoveHostPorts}")
+
+    // The workers are removed async to avoid blocking the receive loop for the entire batch
+    workersToRemove.foreach(wi => {
+      logInfo(s"Sending the worker decommission to ${wi.id} and ${wi.endpoint}")
+      self.send(WorkerDecommission(wi.id, wi.endpoint))
+    })
+
+    // Return the count of workers actually removed
+    workersToRemove.size
   }
 
   private def decommissionWorker(worker: WorkerInfo): Unit = {
