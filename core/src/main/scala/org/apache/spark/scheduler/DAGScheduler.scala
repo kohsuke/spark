@@ -1767,8 +1767,13 @@ private[spark] class DAGScheduler(
 
           // TODO: mark the executor as failed only if there were lots of fetch failures on it
           if (bmAddress != null) {
-            val hostToUnregisterOutputs = if (env.blockManager.externalShuffleServiceEnabled &&
-              unRegisterOutputOnHostOnFetchFailure) {
+            val externalShuffleServiceEnabled = env.blockManager.externalShuffleServiceEnabled
+            val isHostDecommissioned = taskScheduler
+              .getExecutorDecommissionInfo(bmAddress.executorId)
+              .exists(_.isHostDecommissioned)
+            val hostLost = (externalShuffleServiceEnabled &&
+              unRegisterOutputOnHostOnFetchFailure) || isHostDecommissioned
+            val hostToUnregisterOutputs = if (hostLost) {
               // We had a fetch failure with the external shuffle service, so we
               // assume all shuffle data on the node is bad.
               Some(bmAddress.host)
@@ -2273,7 +2278,7 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
 
     case ExecutorLost(execId, reason) =>
       val workerLost = reason match {
-        case ExecutorProcessLost(_, true) => true
+        case ExecutorProcessLost(_, true, _) => true
         case _ => false
       }
       dagScheduler.handleExecutorLost(execId, workerLost)
