@@ -1802,6 +1802,19 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     assert(2 == taskDescriptions.head.resources(GPU).addresses.size)
   }
 
+  test("scheduler should keep the decommission info where host was decommissioned") {
+    val scheduler = setupScheduler()
+    scheduler.executorDecommission("1", ExecutorDecommissionInfo("1", false))
+    scheduler.executorDecommission("2", ExecutorDecommissionInfo("2", true))
+    scheduler.executorDecommission("1", ExecutorDecommissionInfo("1 new", false))
+    scheduler.executorDecommission("2", ExecutorDecommissionInfo("2 new", false))
+    assert(scheduler.getExecutorDecommissionInfo("1")
+      === Some(ExecutorDecommissionInfo("1 new", false)))
+    assert(scheduler.getExecutorDecommissionInfo("2")
+      === Some(ExecutorDecommissionInfo("2", true)))
+    assert(scheduler.getExecutorDecommissionInfo("3").isEmpty)
+  }
+
   /**
    * Used by tests to simulate a task failure. This calls the failure handler explicitly, to ensure
    * that all the state is updated when this method returns. Otherwise, there's no way to know when
