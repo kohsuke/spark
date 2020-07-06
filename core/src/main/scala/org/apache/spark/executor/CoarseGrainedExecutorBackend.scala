@@ -260,7 +260,7 @@ private[spark] class CoarseGrainedExecutorBackend(
   }
 
   private def decommissionSelf(): Boolean = {
-    val msg = "Decommissioning self w/sync"
+    val msg = "Decommissioning self synchronously"
     logInfo(msg)
     try {
       decommissioned = true

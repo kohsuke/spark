@@ -25,4 +25,10 @@ package org.apache.spark.scheduler
  *                             be lost if external shuffle service is enabled.
  */
 private[spark]
-case class ExecutorDecommissionInfo(message: String, isHostDecommissioned: Boolean)
+case class ExecutorDecommissionInfo(message: String, isHostDecommissioned: Boolean) {
+  // Shuffle files are lost when an extecutor is decommissioned if:
+  // - No external shuffle service is present and executor is serving the shuffle data
+  // - It's known that the node (and thus the resident external shuffle service) is also lost
+  def isShuffleLost(externalShuffleServiceEnabled: Boolean): Boolean =
+    !externalShuffleServiceEnabled || isHostDecommissioned
+}
