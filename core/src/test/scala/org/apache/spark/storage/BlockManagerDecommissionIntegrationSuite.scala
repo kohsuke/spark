@@ -34,22 +34,27 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
     with ResetSystemProperties with Eventually {
 
   val numExecs = 3
-  val numParts = 3
 
   test(s"verify that an already running task which is going to cache data succeeds " +
     s"on a decommissioned executor") {
-    runDecomTest(true, false, true)
+    // numParts is 6 here to prevent it from putting two block partitions on the same block manager,
+    // to make the test less flaky
+    runDecomTest(true, false, true, 6)
   }
 
   test(s"verify that shuffle blocks are migrated") {
-    runDecomTest(false, true, false)
+    runDecomTest(false, true, false, 3)
   }
 
   test(s"verify that both migrations can work at the same time.") {
-    runDecomTest(true, true, false)
+    runDecomTest(true, true, false, 3)
   }
 
-  private def runDecomTest(persist: Boolean, shuffle: Boolean, migrateDuring: Boolean) = {
+  private def runDecomTest(
+      persist: Boolean,
+      shuffle: Boolean,
+      migrateDuring: Boolean,
+      numParts: Int) = {
 
     val master = s"local-cluster[${numExecs}, 1, 1024]"
     val conf = new SparkConf().setAppName("test").setMaster(master)
