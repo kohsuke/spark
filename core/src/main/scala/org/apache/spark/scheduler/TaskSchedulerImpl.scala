@@ -136,6 +136,8 @@ private[spark] class TaskSchedulerImpl(
   // IDs of the tasks running on each executor
   private val executorIdToRunningTaskIds = new HashMap[String, HashSet[Long]]
 
+  private val executorsPendingDecommission = new HashMap[String, ExecutorDecommissionInfo]
+
   def runningTasksByExecutors: Map[String, Int] = synchronized {
     executorIdToRunningTaskIds.toMap.mapValues(_.size).toMap
   }
@@ -914,12 +916,37 @@ private[spark] class TaskSchedulerImpl(
 
   override def executorDecommission(
       executorId: String, decommissionInfo: ExecutorDecommissionInfo): Unit = {
+    synchronized {
+      if (!executorsPendingDecommission.contains(executorId)) {
+        executorsPendingDecommission(executorId) = decommissionInfo
+      }
+    }
     rootPool.executorDecommission(executorId)
     backend.reviveOffers()
   }
 
-  override def executorLost(executorId: String, reason: ExecutorLossReason): Unit = {
+  override def getExecutorDecommissionInfo(executorId: String)
+    : Option[ExecutorDecommissionInfo] = synchronized {
+      executorsPendingDecommission.get(executorId)
+  }
+
+  override def executorLost(executorId: String, givenReason: ExecutorLossReason): Unit = {
     var failedExecutor: Option[String] = None
+    val reason = givenReason match {
+      // Handle slave loss due to decommissioning
+      case ExecutorProcessLost(message, workerLost, _) =>
+        val executorDecommissionInfo = getExecutorDecommissionInfo(executorId)
+        // Executor loss is not caused by app if we knew that this executor is being
+        // decommissioned
+        val executorLossCausedByApp = executorDecommissionInfo.isEmpty
+        val hostDecommissioned = executorDecommissionInfo.exists(_.isHostDecommissioned)
+        ExecutorProcessLost(
+          message,
+          // Also mark the worker lost if we know that the host was decommissioned
+          workerLost || hostDecommissioned,
+          executorLossCausedByApp)
+      case e => e
+    }
 
     synchronized {
       if (executorIdToRunningTaskIds.contains(executorId)) {
@@ -1007,6 +1034,8 @@ private[spark] class TaskSchedulerImpl(
         }
       }
     }
+
+    executorsPendingDecommission -= executorId
 
     if (reason != LossReasonPending) {
       executorIdToHost -= executorId
