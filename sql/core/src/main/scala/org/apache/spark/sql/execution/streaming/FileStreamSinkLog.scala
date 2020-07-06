@@ -97,9 +97,7 @@ class FileStreamSinkLog(
     s"Please set ${SQLConf.FILE_SINK_LOG_COMPACT_INTERVAL.key} (was $defaultCompactInterval) " +
       "to a positive value.")
 
-  override def shouldRetain(log: SinkFileStatus): Boolean = {
-    log.action != FileStreamSinkLog.DELETE_ACTION
-  }
+  override def shouldRetain(log: SinkFileStatus): Boolean = true
 }
 
 object FileStreamSinkLog {

@@ -43,7 +43,7 @@ class FileStreamSinkLogSuite extends SparkFunSuite with SharedSparkSession {
       val log2 = newFakeSinkFileStatus("/a/b/z", FileStreamSinkLog.DELETE_ACTION)
 
       assert(sinkLog.shouldRetain(log))
-      assert(!sinkLog.shouldRetain(log2))
+      assert(sinkLog.shouldRetain(log2))
     }
   }
 
