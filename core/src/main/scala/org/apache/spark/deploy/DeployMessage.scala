@@ -108,6 +108,9 @@ private[deploy] object DeployMessages {
 
   case class Heartbeat(workerId: String, worker: RpcEndpointRef) extends DeployMessage
 
+  // Out of band commands to Master
+  case class DecommissionHostPorts(hostPorts: Seq[String])
+
   // Master to Worker
 
   sealed trait RegisterWorkerResponse

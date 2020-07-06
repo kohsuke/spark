@@ -22,7 +22,9 @@ import java.util.{Date, Locale}
 import java.util.concurrent.{ScheduledFuture, TimeUnit}
 
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
+import scala.collection.mutable
 import scala.util.Random
+import scala.util.control.NonFatal
 
 import org.apache.spark.{SecurityManager, SparkConf, SparkException}
 import org.apache.spark.deploy.{ApplicationDescription, DriverDescription, ExecutorState, SparkHadoopUtil}
@@ -525,6 +527,13 @@ private[deploy] class Master(
     case KillExecutors(appId, executorIds) =>
       val formattedExecutorIds = formatExecutorIds(executorIds)
       context.reply(handleKillExecutors(appId, formattedExecutorIds))
+
+    case DecommissionHostPorts(hostPorts) =>
+      if (state != RecoveryState.STANDBY) {
+        context.reply(decommissionHostPorts(hostPorts))
+      } else {
+        context.reply(0)
+      }
   }
 
   override def onDisconnected(address: RpcAddress): Unit = {
@@ -861,6 +870,35 @@ private[deploy] class Master(
     idToWorker(worker.id) = worker
     addressToWorker(workerAddress) = worker
     true
+  }
+
+  private def decommissionHostPorts(hostPorts: Seq[String]): Integer = {
+    val hostPortsParsed = hostPorts.map(Utils.parseHostPort)
+    val (hostPortsWithoutPorts, hostPortsWithPorts) = hostPortsParsed.partition(_._2 == 0)
+
+    // Set of all addresses we are asked to remove. These include the given host:ports.
+    // Or if the port is not provided, then all of the known host:ports on that host
+    val addressesToRemove = mutable.Set[RpcAddress]()
+
+    // First add the given host:port ones
+    addressesToRemove ++= hostPortsWithPorts.map(hp => new RpcAddress(hp._1, hp._2))
+
+    // Then add all matching host:ports from the hostPorts that don't have a valid port
+    val hostsWithoutPorts = hostPortsWithoutPorts.map(_._1).toSet
+    addressesToRemove ++= addressToWorker.keys.filter(addr => hostsWithoutPorts.contains(addr.host))
+
+    // These are all the workers we will finally remove
+    val workersToRemove = addressesToRemove.map(addressToWorker)
+    logInfo(s"Decommissioning the workers ${workersToRemove.map(_.hostPort)}")
+
+    // The workers are removed async to avoid blocking the receive loop for the entire batch
+    workersToRemove.foreach(wi => {
+      logInfo(s"Sending the worker decommission to ${wi.id} and ${wi.endpoint}")
+      self.send(WorkerDecommission(wi.id, wi.endpoint))
+    })
+
+    // Return the count of workers actually removed
+    workersToRemove.size
   }
 
   private def decommissionWorker(worker: WorkerInfo): Unit = {

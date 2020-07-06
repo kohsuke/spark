@@ -17,9 +17,14 @@
 
 package org.apache.spark.deploy.master.ui
 
-import org.apache.spark.deploy.DeployMessages.{MasterStateResponse, RequestMasterState}
+import java.net.{InetAddress, NetworkInterface, SocketException}
+import java.util.Locale
+import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
+
+import org.apache.spark.deploy.DeployMessages.{DecommissionHostPorts, MasterStateResponse, RequestMasterState}
 import org.apache.spark.deploy.master.Master
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.config.UI.MASTER_UI_DECOMMISSION_ALLOW_MODE
 import org.apache.spark.internal.config.UI.UI_KILL_ENABLED
 import org.apache.spark.ui.{SparkUI, WebUI}
 import org.apache.spark.ui.JettyUtils._
@@ -36,6 +41,8 @@ class MasterWebUI(
 
   val masterEndpointRef = master.self
   val killEnabled = master.conf.get(UI_KILL_ENABLED)
+  val decommissionAllowMode = master.conf.get(MASTER_UI_DECOMMISSION_ALLOW_MODE)
+    .toLowerCase(Locale.ROOT)
 
   initialize()
 
@@ -49,6 +56,27 @@ class MasterWebUI(
       "/app/kill", "/", masterPage.handleAppKillRequest, httpMethods = Set("POST")))
     attachHandler(createRedirectHandler(
       "/driver/kill", "/", masterPage.handleDriverKillRequest, httpMethods = Set("POST")))
+    attachHandler(createServletHandler("/workers/kill", new HttpServlet {
+      override def doPost(req: HttpServletRequest, resp: HttpServletResponse): Unit = {
+        val hostPorts: Seq[String] = Option(req.getParameterValues("host"))
+          .getOrElse(Array[String]()).map(_.toLowerCase(Locale.ROOT)).toSeq
+        logInfo(s"Received request to decommission workers $hostPorts from ${req.getRemoteAddr}")
+        if (!isDecommissioningRequestAllowed(req)) {
+          resp.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED)
+        } else {
+          val removedWorkers = masterEndpointRef.askSync[Integer](DecommissionHostPorts(hostPorts))
+          logInfo(s"Decommission workers $hostPorts returned ${removedWorkers}")
+          if (removedWorkers > 0) {
+            resp.setStatus(HttpServletResponse.SC_OK)
+          } else if (removedWorkers == 0) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND)
+          } else {
+            // We shouldn't even see this case.
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR)
+          }
+        }
+      }
+    }, ""))
   }
 
   def addProxy(): Unit = {
@@ -62,6 +90,25 @@ class MasterWebUI(
     val maybeAppUiAddress = state.activeApps.find(_.id == id).map(_.desc.appUiUrl)
 
     maybeWorkerUiAddress.orElse(maybeAppUiAddress)
+  }
+
+  private def isLocal(address: InetAddress): Boolean = {
+    if (address.isAnyLocalAddress || address.isLoopbackAddress) {
+      return true
+    }
+    try {
+      NetworkInterface.getByInetAddress(address) != null
+    } catch {
+      case _: SocketException => false
+    }
+  }
+
+  private def isDecommissioningRequestAllowed(req: HttpServletRequest): Boolean = {
+    decommissionAllowMode match {
+      case "allow" => true
+      case "local" => isLocal(InetAddress.getByName(req.getRemoteAddr))
+      case _ => false
+    }
   }
 
 }
