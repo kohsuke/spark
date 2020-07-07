@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkContext, SparkFunSuite, Success}
 import org.apache.spark.internal.config
-import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd, SparkListenerTaskStart}
+import org.apache.spark.scheduler.{ExecutorDecommissionInfo, SparkListener, SparkListenerTaskEnd, SparkListenerTaskStart}
 import org.apache.spark.scheduler.cluster.StandaloneSchedulerBackend
 import org.apache.spark.util.{ResetSystemProperties, ThreadUtils}
 
@@ -84,7 +84,7 @@ class BlockManagerDecommissionSuite extends SparkFunSuite with LocalSparkContext
     val execs = sched.getExecutorIds()
     assert(execs.size == 2, s"Expected 2 executors but found ${execs.size}")
     val execToDecommission = execs.head
-    sched.decommissionExecutor(execToDecommission)
+    sched.decommissionExecutor(execToDecommission, ExecutorDecommissionInfo("", true))
 
     // Wait for job to finish
     val asyncCountResult = ThreadUtils.awaitResult(asyncCount, 6.seconds)
