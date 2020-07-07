@@ -1224,6 +1224,15 @@ object SQLConf {
     .booleanConf
     .createWithDefault(true)
 
+  val REMOVE_REDUNDANT_PROJECTS_ENABLED =
+    buildConf("spark.sql.execution.removeRedundantProjects")
+    .internal()
+    .doc("Whether to remove redundant project exec node based on children's output and " +
+      "ordering requirement.")
+    .version("3.0.0")
+    .booleanConf
+    .createWithDefault(true)
+
   val STATE_STORE_PROVIDER_CLASS =
     buildConf("spark.sql.streaming.stateStore.providerClass")
       .internal()
@@ -2934,6 +2943,8 @@ class SQLConf extends Serializable with Logging {
   def exchangeReuseEnabled: Boolean = getConf(EXCHANGE_REUSE_ENABLED)
 
   def subqueryReuseEnabled: Boolean = getConf(SUBQUERY_REUSE_ENABLED)
+
+  def removeRedundantProjectsEnabled: Boolean = getConf(REMOVE_REDUNDANT_PROJECTS_ENABLED)
 
   def caseSensitiveAnalysis: Boolean = getConf(SQLConf.CASE_SENSITIVE)
 
