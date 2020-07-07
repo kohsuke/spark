@@ -22,7 +22,7 @@ import scala.collection.JavaConverters._
 import io.fabric8.kubernetes.api.model.{ContainerBuilder, PodBuilder}
 
 import org.apache.spark.deploy.k8s.{KubernetesConf, SparkPod}
-import org.apache.spark.deploy.k8s.Constants.{SPARK_CONF_DIR_INTERNAL, SPARK_CONF_VOLUME}
+import org.apache.spark.deploy.k8s.Constants.{SPARK_CONF_DIR_INTERNAL, SPARK_CONF_VOL_EXEC}
 import org.apache.spark.deploy.k8s.submit.KubernetesClientUtils
 
 /**
@@ -40,14 +40,14 @@ class MountConfDirExecutorFeatureStep(conf: KubernetesConf)
     val mutatedContainer = new ContainerBuilder(pod.container)
       // Since SPARK_CONF_DIR ENV is already set up in Basic ExecutionFeatureStep, we can skip here.
       .addNewVolumeMount()
-        .withName(SPARK_CONF_VOLUME)
+        .withName(SPARK_CONF_VOL_EXEC)
         .withMountPath(SPARK_CONF_DIR_INTERNAL)
         .endVolumeMount()
       .build()
     val mutatedPod = new PodBuilder(pod.pod)
       .editSpec()
         .addNewVolume()
-          .withName(SPARK_CONF_VOLUME)
+          .withName(SPARK_CONF_VOL_EXEC)
           .withNewConfigMap()
             .withItems(keyToPaths.asJava)
             .withName(configMapName)

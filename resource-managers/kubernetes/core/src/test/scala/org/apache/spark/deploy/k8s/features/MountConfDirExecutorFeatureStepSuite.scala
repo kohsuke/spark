@@ -19,7 +19,7 @@ package org.apache.spark.deploy.k8s.features
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.deploy.k8s.{K8sVolumeTestUtils, KubernetesTestConf, SparkPod}
-import org.apache.spark.deploy.k8s.Constants.{SPARK_CONF_DIR_INTERNAL, SPARK_CONF_VOLUME}
+import org.apache.spark.deploy.k8s.Constants.{SPARK_CONF_DIR_INTERNAL, SPARK_CONF_VOL_EXEC}
 
 class MountConfDirExecutorFeatureStepSuite extends SparkFunSuite {
 
@@ -29,13 +29,8 @@ class MountConfDirExecutorFeatureStepSuite extends SparkFunSuite {
     val step = new MountConfDirExecutorFeatureStep(kubernetesConf)
     val podConfigured = step.configurePod(baseDriverPod)
     K8sVolumeTestUtils.containerHasVolume(podConfigured.container,
-      SPARK_CONF_VOLUME, SPARK_CONF_DIR_INTERNAL)
-    K8sVolumeTestUtils.podHasVolume(podConfigured.pod, SPARK_CONF_VOLUME)
+      SPARK_CONF_VOL_EXEC, SPARK_CONF_DIR_INTERNAL)
+    K8sVolumeTestUtils.podHasVolume(podConfigured.pod, SPARK_CONF_VOL_EXEC)
   }
-
-  // TODO support these features may be in separate JIRAs.
-  // ("Skip creating config map and mounting step if, no files selected from the conf dir.")
-  // ("Skip all files larger than set size, as configmaps can hold only upto 1Mb")
-  // ("Skip binary files as well, configmap(in fabric8.io api) tries to convert data to string.")
 
 }
