@@ -256,13 +256,13 @@ class SelectedFieldSuite extends SparkFunSuite with BeforeAndAfterAll {
     StructField("col3", ArrayType(StructType(
       StructField("field1", StructType(
         StructField("subfield1", IntegerType, nullable = false) :: Nil))
-        :: Nil), containsNull = false), nullable = false)
+        :: Nil), containsNull = true), nullable = false)
   }
 
   testSelect(arrayWithStructAndMap, "col3.field2['foo'] as foo") {
     StructField("col3", ArrayType(StructType(
       StructField("field2", MapType(StringType, IntegerType, valueContainsNull = false))
-        :: Nil), containsNull = false), nullable = false)
+        :: Nil), containsNull = true), nullable = false)
   }
 
   //  |-- col1: string (nullable = false)
