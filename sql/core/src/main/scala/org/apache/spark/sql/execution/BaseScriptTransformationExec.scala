@@ -35,7 +35,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.{CircularBuffer, SerializableConfiguration, Utils}
 
-trait BaseScriptTransform extends UnaryExecNode {
+trait BaseScriptTransformationExec extends UnaryExecNode {
 
   override def producedAttributes: AttributeSet = outputSet -- inputSet
 
