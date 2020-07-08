@@ -3495,6 +3495,32 @@ class SQLQuerySuite extends QueryTest with SharedSparkSession with AdaptiveSpark
     assert(df4.schema.head.name === "randn(1)")
     checkIfSeedExistsInExplain(df2)
   }
+
+  test("SPARK-31761: test byte, short, integer overflow for (Divide) integral type") {
+    checkAnswer(sql("Select -2147483648 DIV -1"), Seq(Row(Integer.MIN_VALUE.toLong * -1)))
+    checkAnswer(sql("select CAST(-128 as Byte) DIV CAST (-1 as Byte)"),
+      Seq(Row(Byte.MinValue.toLong * -1)))
+    checkAnswer(sql("select CAST(-32768 as short) DIV CAST (-1 as short)"),
+      Seq(Row(Short.MinValue.toLong * -1)))
+  }
+
+  test("normalize special floating numbers in subquery") {
+    withTempView("v1", "v2", "v3") {
+      Seq(-0.0).toDF("d").createTempView("v1")
+      Seq(0.0).toDF("d").createTempView("v2")
+      spark.range(2).createTempView("v3")
+
+      // non-correlated subquery
+      checkAnswer(sql("SELECT (SELECT v1.d FROM v1 JOIN v2 ON v1.d = v2.d)"), Row(-0.0))
+      // correlated subquery
+      checkAnswer(
+        sql(
+          """
+            |SELECT id FROM v3 WHERE EXISTS
+            |  (SELECT v1.d FROM v1 JOIN v2 ON v1.d = v2.d WHERE id > 0)
+            |""".stripMargin), Row(1))
+    }
+  }
 }
 
 case class Foo(bar: Option[String])

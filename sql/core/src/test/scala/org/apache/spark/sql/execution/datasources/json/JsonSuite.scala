@@ -21,7 +21,7 @@ import java.io._
 import java.nio.charset.{Charset, StandardCharsets, UnsupportedCharsetException}
 import java.nio.file.Files
 import java.sql.{Date, Timestamp}
-import java.time.LocalDate
+import java.time.{LocalDate, ZoneId}
 import java.util.Locale
 
 import com.fasterxml.jackson.core.JsonFactory
@@ -35,7 +35,6 @@ import org.apache.spark.sql.{functions => F, _}
 import org.apache.spark.sql.catalyst.json._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import org.apache.spark.sql.execution.ExternalRDD
-import org.apache.spark.sql.execution.adaptive.AdaptiveTestUtils.assertExceptionMessage
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.test.SharedSparkSession
@@ -126,7 +125,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
           Map("timestampFormat" -> "yyyy-MM-dd'T'HH:mm:ssXXX")))
 
     val ISO8601Date = "1970-01-01"
-    checkTypePromotion(DateTimeUtils.microsToDays(32400000000L),
+    checkTypePromotion(DateTimeUtils.microsToDays(32400000000L, ZoneId.systemDefault),
       enforceCorrectType(ISO8601Date, DateType))
   }
 
@@ -2239,7 +2238,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
         .count()
     }
 
-    assertExceptionMessage(exception, "Malformed records are detected in record parsing")
+    assert(exception.getMessage.contains("Malformed records are detected in record parsing"))
   }
 
   def checkEncoding(expectedEncoding: String, pathToJsonFiles: String,
@@ -2611,7 +2610,9 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
   }
 
   test("inferring timestamp type") {
-    def schemaOf(jsons: String*): StructType = spark.read.json(jsons.toDS).schema
+    def schemaOf(jsons: String*): StructType = {
+      spark.read.option("inferTimestamp", true).json(jsons.toDS).schema
+    }
 
     assert(schemaOf(
       """{"a":"2018-12-17T10:11:12.123-01:00"}""",
@@ -2634,6 +2635,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
       val timestampsWithFormatPath = s"${dir.getCanonicalPath}/timestampsWithFormat.json"
       val timestampsWithFormat = spark.read
         .option("timestampFormat", "dd/MM/yyyy HH:mm")
+        .option("inferTimestamp", true)
         .json(datesRecords)
       assert(timestampsWithFormat.schema === customSchema)
 
@@ -2646,6 +2648,7 @@ abstract class JsonSuite extends QueryTest with SharedSparkSession with TestJson
       val readBack = spark.read
         .option("timestampFormat", "yyyy-MM-dd HH:mm:ss")
         .option(DateTimeUtils.TIMEZONE_OPTION, "UTC")
+        .option("inferTimestamp", true)
         .json(timestampsWithFormatPath)
 
       assert(readBack.schema === customSchema)
