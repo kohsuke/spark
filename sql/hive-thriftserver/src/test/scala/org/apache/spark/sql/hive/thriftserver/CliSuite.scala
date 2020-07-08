@@ -132,6 +132,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     }
 
     var next = 0
+    val foundMasterAndApplicationIdMessage = Promise.apply[Unit]()
     val foundAllExpectedAnswers = Promise.apply[Unit]()
     val buffer = new ArrayBuffer[String]()
     val lock = new Object
@@ -142,6 +143,10 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
       val newLine = s"${new Timestamp(new Date().getTime)} - $source> $line"
       log.info(newLine)
       buffer += newLine
+
+      if (line.startsWith("Spark master: ") && line.contains("Application Id: ")) {
+        foundMasterAndApplicationIdMessage.trySuccess(())
+      }
 
       // If we haven't found all expected answers and another expected answer comes up...
       if (next < expectedAnswers.size && line.contains(expectedAnswers(next))) {
@@ -172,6 +177,10 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     new ProcessOutputCapturer(process.getErrorStream, captureOutput("stderr")).start()
 
     try {
+      // Wait for for cli driver to boot, up to two minutes
+      ThreadUtils.awaitResult(foundMasterAndApplicationIdMessage.future, 2.minutes)
+      log.info("Cli driver is booted. Waiting for expected answers.")
+      // Given timeout is applied after the cli driver is ready
       ThreadUtils.awaitResult(foundAllExpectedAnswers.future, timeout)
       log.info("Found all expected output.")
     } catch { case cause: Throwable =>
