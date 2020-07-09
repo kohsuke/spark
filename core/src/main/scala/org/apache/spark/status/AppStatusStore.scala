@@ -564,7 +564,9 @@ private[spark] class AppStatusStore(
         taskDataOld.errorMessage, taskDataOld.taskMetrics,
         executorLogs,
         AppStatusUtils.schedulerDelay(taskDataOld),
-        AppStatusUtils.gettingResultTime(taskDataOld))
+        AppStatusUtils.gettingResultTime(taskDataOld),
+        taskDataOld.taskEndReason
+      )
     }.toSeq
   }
 }
