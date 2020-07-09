@@ -702,7 +702,7 @@ def main():
 
 def _test():
     if "TEST_ONLY_MODULES" in os.environ:
-        # Do not do anything except testing the targeted modules.
+        # TODO(SPARK-32252): Enable doctests back in Github Actions.
         return
 
     import doctest
