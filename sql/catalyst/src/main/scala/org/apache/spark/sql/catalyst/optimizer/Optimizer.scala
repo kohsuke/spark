@@ -968,6 +968,7 @@ object CombineFilters extends Rule[LogicalPlan] with PredicateHelper {
  *    and the Join conditions is deterministic
  * 5) if the Sort operator is within GroupBy separated by 0...n Project/Filter operators only,
  *    and the aggregate function is order irrelevant
+ * 6) if the Sort operator is within repartition nodes separated by 0...n Project/Filter operators
  */
 object EliminateSorts extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = plan transform {
@@ -981,6 +982,10 @@ object EliminateSorts extends Rule[LogicalPlan] {
       j.copy(left = recursiveRemoveSort(originLeft), right = recursiveRemoveSort(originRight))
     case g @ Aggregate(_, aggs, originChild) if isOrderIrrelevantAggs(aggs) =>
       g.copy(child = recursiveRemoveSort(originChild))
+    case r: RepartitionByExpression =>
+      r.copy(child = recursiveRemoveSort(r.child))
+    case r: Repartition =>
+      r.copy(child = recursiveRemoveSort(r.child))
   }
 
   private def recursiveRemoveSort(plan: LogicalPlan): LogicalPlan = plan match {

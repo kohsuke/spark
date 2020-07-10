@@ -310,4 +310,109 @@ class EliminateSortsSuite extends PlanTest {
     val correctAnswer = PushDownOptimizer.execute(noOrderByPlan.analyze)
     comparePlans(optimized, correctAnswer)
   }
+
+  testRepartitionOptimization(
+    "remove sortBy",
+    testFunc = repartitionOperation => {
+      val plan = testRelation.select('a, 'b).sortBy('a.asc, 'b.desc)
+      val planWithRepartition = repartitionOperation(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionOperation(testRelation.select('a, 'b))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "remove sortBy with projection",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.select('a, 'b)
+        .sortBy('a.asc, 'b.asc)
+        .select('a + 1 as "a", 'b + 2 as "b")
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.select('a + 1 as "a", 'b + 2 as "b"))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "remove sortBy with projection and filter",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.sortBy('a.asc, 'b.asc)
+        .select('a, 'b)
+        .where('a === 10)
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.select('a, 'b).where('a === 10))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "do not remove sortBy with limit",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.sortBy('a.asc, 'b.asc).limit(10)
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.sortBy('a.asc, 'b.asc).limit(10))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "remove orderBy",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.select('a, 'b).orderBy('a.asc, 'b.asc)
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.select('a, 'b))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "remove orderBy with projection",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.select('a, 'b)
+        .orderBy('a.asc, 'b.asc)
+        .select('a + 1 as "a", 'b + 2 as "b")
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.select('a + 1 as "a", 'b + 2 as "b"))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "remove orderBy with projection and filter",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.orderBy('a.asc, 'b.asc)
+        .select('a, 'b)
+        .where('a === 10)
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.select('a, 'b).where('a === 10))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  testRepartitionOptimization(
+    "do not remove orderBy with limit",
+    testFunc = repartitionFunc => {
+      val plan = testRelation.orderBy('a.asc, 'b.asc).limit(10)
+      val planWithRepartition = repartitionFunc(plan)
+      val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
+      val correctPlan = repartitionFunc(testRelation.orderBy('a.asc, 'b.asc).limit(10))
+      comparePlans(optimizedPlan, analyzer.execute(correctPlan))
+    })
+
+  private def testRepartitionOptimization(
+      name: String,
+      testFunc: (LogicalPlan => LogicalPlan) => Unit): Unit = {
+
+    test(name + " before coalesce") {
+      testFunc(_.coalesce(10))
+    }
+
+    test(name + " before repartition") {
+      testFunc(_.repartition(10))
+    }
+
+    test(name + " before repartitionByExpression") {
+      testFunc(_.distribute('a, 'b)(10))
+    }
+  }
 }
