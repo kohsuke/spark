@@ -76,12 +76,14 @@ for python in "${PYTHON_EXECS[@]}"; do
     VIRTUALENV_PATH="$VIRTUALENV_BASE"/$python
     rm -rf "$VIRTUALENV_PATH"
     if [ -n "$USE_CONDA" ]; then
+      CONDA_ENV_CMD="source"
       if [ -f "$CONDA_PREFIX/etc/profile.d/conda.sh" ]; then
         # See also https://github.com/conda/conda/issues/7980
         source $CONDA_PREFIX/etc/profile.d/conda.sh
+        CONDA_ENV_CMD="conda"
       fi
       conda create -y -p "$VIRTUALENV_PATH" python=$python numpy pandas pip setuptools
-      conda activate "$VIRTUALENV_PATH"
+      $CONDA_ENV_CMD activate "$VIRTUALENV_PATH"
     else
       mkdir -p "$VIRTUALENV_PATH"
       virtualenv --python=$python "$VIRTUALENV_PATH"
@@ -124,7 +126,7 @@ for python in "${PYTHON_EXECS[@]}"; do
 
     # conda / virtualenv environments need to be deactivated differently
     if [ -n "$USE_CONDA" ]; then
-      conda deactivate
+      $CONDA_ENV_CMD deactivate
     else
       deactivate
     fi

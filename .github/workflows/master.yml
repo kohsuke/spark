@@ -1,9 +1,6 @@
 name: master
 
 on:
-  push:
-    branches:
-    - master
   pull_request:
     branches:
     - master
@@ -32,9 +29,9 @@ jobs:
             network_common, network_shuffle, repl, launcher
             examples, sketch, graphx
           - |-
-            catalyst, sql
+            sql
           - |-
-            hive-thriftserver
+            catalyst, hive-thriftserver
           - |-
             streaming, sql-kafka-0-10, streaming-kafka-0-10
           - |-
@@ -48,7 +45,7 @@ jobs:
           - |-
             yarn, mesos, kubernetes, hadoop-cloud,
             spark-ganglia-lgpl
-        # Here, we split Hive tests into some of heavy ones and the rest of them.
+        # Here, we split Hive tests into some of slow ones and the rest of them.
         included-tags: [""]
         excluded-tags: [""]
         comment: ["- all tests"]
@@ -57,14 +54,14 @@ jobs:
             java: 1.8
             hadoop: hadoop3.2
             hive: hive2.3
-            included-tags: org.apache.spark.tags.HeavyHiveTest
-            comment: "- heavy tests"
+            included-tags: org.apache.spark.tags.SlowHiveTest
+            comment: "- slow tests"
           - modules: hive
             java: 1.8
             hadoop: hadoop3.2
             hive: hive2.3
-            excluded-tags: org.apache.spark.tags.HeavyHiveTest
-            comment: "- light tests"
+            excluded-tags: org.apache.spark.tags.SlowHiveTest
+            comment: "- other tests"
     env:
       TEST_ONLY_MODULES: ${{ matrix.modules }}
       HADOOP_PROFILE: ${{ matrix.hadoop }}
