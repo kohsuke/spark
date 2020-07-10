@@ -19,25 +19,20 @@ package org.apache.spark.sql.hive.thriftserver
 import scala.collection.JavaConverters._
 
 import org.apache.hadoop.hive.conf.HiveConf
-import org.apache.hive.service.cli.OperationHandle
-import org.apache.hive.service.cli.operation.{GetCatalogsOperation, OperationManager}
+import org.apache.hive.service.cli.operation.OperationManagerMock
 import org.apache.hive.service.cli.session.{HiveSessionImpl, SessionManager}
-import org.mockito.Mockito.{mock, verify, when}
-import org.mockito.invocation.InvocationOnMock
 
 import org.apache.spark.SparkFunSuite
 
 class HiveSessionImplSuite extends SparkFunSuite {
   private var session: HiveSessionImpl = _
-  private var operationManager: OperationManager = _
+  private var operationManager: OperationManagerMock = _
 
   override def beforeAll() {
     super.beforeAll()
 
-    // mock the instance first - we observed weird classloader issue on creating mock, so
-    // would like to avoid any cases classloader gets switched
-    val sessionManager = mock(classOf[SessionManager])
-    operationManager = mock(classOf[OperationManager])
+    val sessionManager = new SessionManager(null)
+    operationManager = new OperationManagerMock()
 
     session = new HiveSessionImpl(
       ThriftserverShimUtils.testedProtocolVersions.head,
@@ -48,13 +43,6 @@ class HiveSessionImplSuite extends SparkFunSuite {
     )
     session.setSessionManager(sessionManager)
     session.setOperationManager(operationManager)
-    when(operationManager.newGetCatalogsOperation(session)).thenAnswer(
-      (_: InvocationOnMock) => {
-        val operation = mock(classOf[GetCatalogsOperation])
-        when(operation.getHandle).thenReturn(mock(classOf[OperationHandle]))
-        operation
-      }
-    )
 
     session.open(Map.empty[String, String].asJava)
   }
@@ -63,14 +51,9 @@ class HiveSessionImplSuite extends SparkFunSuite {
     val operationHandle1 = session.getCatalogs
     val operationHandle2 = session.getCatalogs
 
-    when(operationManager.closeOperation(operationHandle1))
-      .thenThrow(classOf[NullPointerException])
-    when(operationManager.closeOperation(operationHandle2))
-      .thenThrow(classOf[NullPointerException])
-
     session.close()
 
-    verify(operationManager).closeOperation(operationHandle1)
-    verify(operationManager).closeOperation(operationHandle2)
+    assert(operationManager.getCalledHandles.contains(operationHandle1))
+    assert(operationManager.getCalledHandles.contains(operationHandle2))
   }
 }
