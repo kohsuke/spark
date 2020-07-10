@@ -33,18 +33,15 @@ jobs:
           - |-
             catalyst, hive-thriftserver
           - |-
-            streaming, sql-kafka-0-10, streaming-kafka-0-10
-          - |-
-            mllib-local, mllib
+            streaming, sql-kafka-0-10, streaming-kafka-0-10,
+            mllib-local, mllib,
+            yarn, mesos, kubernetes, hadoop-cloud, spark-ganglia-lgpl
           - |-
             pyspark-sql, pyspark-mllib, pyspark-resource
           - |-
             pyspark-core, pyspark-streaming, pyspark-ml
           - |-
             sparkr
-          - |-
-            yarn, mesos, kubernetes, hadoop-cloud,
-            spark-ganglia-lgpl
         # Here, we split Hive tests into some of slow ones and the rest of them.
         included-tags: [""]
         excluded-tags: [""]
@@ -158,16 +155,24 @@ jobs:
         ./dev/run-tests --parallelism 2
         rm -rf ~/.m2/repository/org/apache/spark
 
-  # Linters: run the linters and other static analysis.
+  # Static analysis, and documentation build
   lint:
-    name: Linters, licenses, dependencies
+    name: Linters, licenses, dependencies and documentation generation
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - name: Install JDK 11
+    - name: Checkout Spark repository
+      uses: actions/checkout@v2
+    - name: Cache Maven local repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: docs-maven-repo-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          docs-maven-
+    - name: Install JDK 1.8
       uses: actions/setup-java@v1
       with:
-        java-version: 11
+        java-version: 1.8
     - name: Install Python 3.6
       uses: actions/setup-python@v2
       with:
@@ -186,6 +191,16 @@ jobs:
         sudo Rscript -e "install.packages(c('devtools'), repos='https://cloud.r-project.org/')"
         sudo Rscript -e "devtools::install_github('jimhester/lintr@v2.0.0')"
         ./R/install-dev.sh
+    - name: Install Ruby 2.7 for documentation generation
+      uses: actions/setup-ruby@v1
+      with:
+        ruby-version: 2.7
+    - name: Install dependencies for documentation generation
+      run: |
+        sudo apt-get install -y libcurl4-openssl-dev pandoc
+        pip install sphinx mkdocs numpy
+        gem install jekyll jekyll-redirect-from rouge
+        sudo Rscript -e "install.packages(c('devtools', 'testthat', 'knitr', 'rmarkdown', 'roxygen2'), repos='https://cloud.r-project.org/')"
     - name: Scala linter
       run: ./dev/lint-scala
     - name: Java linter
@@ -198,43 +213,6 @@ jobs:
       run: ./dev/check-license
     - name: Dependencies test
       run: ./dev/test-dependencies.sh
-
-  # Documentation build.
-  docs:
-    name: Build documentation
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@master
-    - name: Cache Maven local repository
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2/repository
-        key: docs-maven-repo-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          docs-maven-
-    - name: Install JDK 1.8
-      uses: actions/setup-java@v1
-      with:
-        java-version: 1.8
-    - name: Install Python 3.6
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.6
-        architecture: x64
-    - name: Install Ruby 2.7
-      uses: actions/setup-ruby@v1
-      with:
-        ruby-version: 2.7
-    - name: Install R 3.6
-      uses: r-lib/actions/setup-r@v1
-      with:
-        r-version: 3.6
-    - name: Install dependencies
-      run: |
-        sudo apt-get install -y libcurl4-openssl-dev pandoc
-        pip install sphinx mkdocs numpy
-        gem install jekyll jekyll-redirect-from rouge
-        sudo Rscript -e "install.packages(c('devtools', 'testthat', 'knitr', 'rmarkdown', 'roxygen2'), repos='https://cloud.r-project.org/')"
     - name: Run documentation build
       run: |
         cd docs
