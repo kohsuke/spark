@@ -183,6 +183,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
     // plan may contain nodes that do not report stats. Anything that uses stats must run after
     // this batch.
     Batch("Early Filter and Projection Push-Down", Once, earlyScanPushDownRules: _*) :+
+    Batch("Early Writes", Once, earlyWriteRules: _*) :+
     // Since join costs in AQP can change between multiple runs, there is no reason that we have an
     // idempotence enforcement on this batch. We thus make it FixedPoint(1) instead of Once.
     Batch("Join Reorder", FixedPoint(1),
@@ -275,6 +276,8 @@ abstract class Optimizer(catalogManager: CatalogManager)
    * Override to provide additional rules for early projection and filter pushdown to scans.
    */
   def earlyScanPushDownRules: Seq[Rule[LogicalPlan]] = Nil
+
+  def earlyWriteRules: Seq[Rule[LogicalPlan]] = Nil
 
   /**
    * Returns (defaultBatches - (excludedRules - nonExcludableRules)), the rule batches that
@@ -981,6 +984,10 @@ object EliminateSorts extends Rule[LogicalPlan] {
       j.copy(left = recursiveRemoveSort(originLeft), right = recursiveRemoveSort(originRight))
     case g @ Aggregate(_, aggs, originChild) if isOrderIrrelevantAggs(aggs) =>
       g.copy(child = recursiveRemoveSort(originChild))
+    case r: RepartitionByExpression =>
+      r.copy(child = recursiveRemoveSort(r.child))
+    case r: Repartition =>
+      r.copy(child = recursiveRemoveSort(r.child))
   }
 
   private def recursiveRemoveSort(plan: LogicalPlan): LogicalPlan = plan match {

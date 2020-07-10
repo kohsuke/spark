@@ -621,18 +621,18 @@ abstract class StreamExecution(
     val writeBuilder = table.newWriteBuilder(info)
     outputMode match {
       case Append =>
-        writeBuilder.buildForStreaming()
+        writeBuilder.build().toStreaming
 
       case Complete =>
         // TODO: we should do this check earlier when we have capability API.
         require(writeBuilder.isInstanceOf[SupportsTruncate],
           table.name + " does not support Complete mode.")
-        writeBuilder.asInstanceOf[SupportsTruncate].truncate().buildForStreaming()
+        writeBuilder.asInstanceOf[SupportsTruncate].truncate().build().toStreaming
 
       case Update =>
         require(writeBuilder.isInstanceOf[SupportsStreamingUpdate],
           table.name + " does not support Update mode.")
-        writeBuilder.asInstanceOf[SupportsStreamingUpdate].update().buildForStreaming()
+        writeBuilder.asInstanceOf[SupportsStreamingUpdate].update().build().toStreaming
     }
   }
 

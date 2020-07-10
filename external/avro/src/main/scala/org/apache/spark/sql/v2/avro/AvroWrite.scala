@@ -14,20 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.spark.sql.execution.datasources.v2.parquet
+package org.apache.spark.sql.v2.avro
 
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, Write}
-import org.apache.spark.sql.execution.datasources.v2.FileWriteBuilder
-import org.apache.spark.sql.types.DataType
+import org.apache.hadoop.mapreduce.Job
 
-class ParquetWriteBuilder(
+import org.apache.spark.sql.avro.AvroUtils
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.execution.datasources.v2.FileWrite
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types._
+
+class AvroWrite(
     paths: Seq[String],
-    formatName: String,
-    supportsDataType: DataType => Boolean,
-    info: LogicalWriteInfo)
-  extends FileWriteBuilder(paths, formatName, supportsDataType, info) {
-
-  override def newFileWrite(): Write = {
-    new ParquetWrite(paths, info)
+    info: LogicalWriteInfo) extends FileWrite(paths, info) {
+  override def prepareWrite(
+      sqlConf: SQLConf,
+      job: Job,
+      options: Map[String, String],
+      dataSchema: StructType): OutputWriterFactory = {
+    AvroUtils.prepareWrite(sqlConf, job, options, dataSchema)
   }
 }

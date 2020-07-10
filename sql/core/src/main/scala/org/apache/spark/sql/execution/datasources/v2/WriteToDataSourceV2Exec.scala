@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.connector.catalog.{Identifier, StagedTable, StagingTableCatalog, SupportsWrite, TableCatalog}
 import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, LogicalWriteInfoImpl, PhysicalWriteInfoImpl, SupportsDynamicOverwrite, SupportsOverwrite, SupportsTruncate, V1WriteBuilder, WriteBuilder, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.{BatchWrite, DataWriterFactory, LogicalWriteInfoImpl, PhysicalWriteInfoImpl, SupportsDynamicOverwrite, SupportsOverwrite, SupportsTruncate, V1Write, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.execution.{SparkPlan, UnaryExecNode}
 import org.apache.spark.sql.sources.{AlwaysTrue, Filter}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -89,10 +89,11 @@ case class CreateTableAsSelectExec(
             schema,
             writeOptions)
           val writeBuilder = table.newWriteBuilder(info)
+          val write = writeBuilder.build()
 
-          writeBuilder match {
-            case v1: V1WriteBuilder => writeWithV1(v1.buildForV1Write())
-            case v2 => writeWithV2(v2.buildForBatch())
+          write match {
+            case v1: V1Write => writeWithV1(v1.toInsertableRelation)
+            case v2 => writeWithV2(v2.toBatch)
           }
 
         case _ =>
@@ -186,10 +187,11 @@ case class ReplaceTableAsSelectExec(
             schema,
             writeOptions)
           val writeBuilder = table.newWriteBuilder(info)
+          val write = writeBuilder.build()
 
-          writeBuilder match {
-            case v1: V1WriteBuilder => writeWithV1(v1.buildForV1Write())
-            case v2 => writeWithV2(v2.buildForBatch())
+          write match {
+            case v1: V1Write => writeWithV1(v1.toInsertableRelation)
+            case v2 => writeWithV2(v2.toBatch)
           }
 
         case _ =>
@@ -242,80 +244,6 @@ case class AtomicReplaceTableAsSelectExec(
       throw new CannotReplaceMissingTableException(ident)
     }
     writeToStagedTable(staged, writeOptions, ident)
-  }
-}
-
-/**
- * Physical plan node for append into a v2 table.
- *
- * Rows in the output data set are appended.
- */
-case class AppendDataExec(
-    table: SupportsWrite,
-    writeOptions: CaseInsensitiveStringMap,
-    query: SparkPlan) extends V2TableWriteExec with BatchWriteHelper {
-
-  override protected def run(): Seq[InternalRow] = {
-    writeWithV2(newWriteBuilder().buildForBatch())
-  }
-}
-
-/**
- * Physical plan node for overwrite into a v2 table.
- *
- * Overwrites data in a table matched by a set of filters. Rows matching all of the filters will be
- * deleted and rows in the output data set are appended.
- *
- * This plan is used to implement SaveMode.Overwrite. The behavior of SaveMode.Overwrite is to
- * truncate the table -- delete all rows -- and append the output data set. This uses the filter
- * AlwaysTrue to delete all rows.
- */
-case class OverwriteByExpressionExec(
-    table: SupportsWrite,
-    deleteWhere: Array[Filter],
-    writeOptions: CaseInsensitiveStringMap,
-    query: SparkPlan) extends V2TableWriteExec with BatchWriteHelper {
-
-  private def isTruncate(filters: Array[Filter]): Boolean = {
-    filters.length == 1 && filters(0).isInstanceOf[AlwaysTrue]
-  }
-
-  override protected def run(): Seq[InternalRow] = {
-    newWriteBuilder() match {
-      case builder: SupportsTruncate if isTruncate(deleteWhere) =>
-        writeWithV2(builder.truncate().buildForBatch())
-
-      case builder: SupportsOverwrite =>
-        writeWithV2(builder.overwrite(deleteWhere).buildForBatch())
-
-      case _ =>
-        throw new SparkException(s"Table does not support overwrite by expression: $table")
-    }
-  }
-}
-
-/**
- * Physical plan node for dynamic partition overwrite into a v2 table.
- *
- * Dynamic partition overwrite is the behavior of Hive INSERT OVERWRITE ... PARTITION queries, and
- * Spark INSERT OVERWRITE queries when spark.sql.sources.partitionOverwriteMode=dynamic. Each
- * partition in the output data set replaces the corresponding existing partition in the table or
- * creates a new partition. Existing partitions for which there is no data in the output data set
- * are not modified.
- */
-case class OverwritePartitionsDynamicExec(
-    table: SupportsWrite,
-    writeOptions: CaseInsensitiveStringMap,
-    query: SparkPlan) extends V2TableWriteExec with BatchWriteHelper {
-
-  override protected def run(): Seq[InternalRow] = {
-    newWriteBuilder() match {
-      case builder: SupportsDynamicOverwrite =>
-        writeWithV2(builder.overwriteDynamicPartitions().buildForBatch())
-
-      case _ =>
-        throw new SparkException(s"Table does not support dynamic partition overwrite: $table")
-    }
   }
 }
 
@@ -495,9 +423,10 @@ private[v2] trait AtomicTableWriteExec extends V2TableWriteExec with SupportsV1W
             writeOptions)
           val writeBuilder = table.newWriteBuilder(info)
 
-          val writtenRows = writeBuilder match {
-            case v1: V1WriteBuilder => writeWithV1(v1.buildForV1Write())
-            case v2 => writeWithV2(v2.buildForBatch())
+          val write = writeBuilder.build()
+          val writtenRows = write match {
+            case v1: V1Write => writeWithV1(v1.toInsertableRelation)
+            case v2 => writeWithV2(v2.toBatch)
           }
           stagedTable.commitStagedChanges()
           writtenRows
