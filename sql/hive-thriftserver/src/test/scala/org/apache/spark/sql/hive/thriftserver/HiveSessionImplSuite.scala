@@ -22,6 +22,7 @@ import org.apache.hadoop.hive.conf.HiveConf
 import org.apache.hive.service.cli.OperationHandle
 import org.apache.hive.service.cli.operation.{GetCatalogsOperation, OperationManager}
 import org.apache.hive.service.cli.session.{HiveSessionImpl, SessionManager}
+import org.mockito.Mockito
 import org.mockito.Mockito.{mock, verify, when}
 import org.mockito.invocation.InvocationOnMock
 
@@ -36,8 +37,8 @@ class HiveSessionImplSuite extends SparkFunSuite {
 
     // mock the instance first - we observed weird classloader issue on creating mock, so
     // would like to avoid any cases classloader gets switched
-    val sessionManager = mock(classOf[SessionManager])
-    operationManager = mock(classOf[OperationManager])
+    val sessionManager = mock(classOf[SessionManager], Mockito.withSettings().useConstructor(null))
+    operationManager = mock(classOf[OperationManager], Mockito.withSettings().useConstructor())
 
     session = new HiveSessionImpl(
       ThriftserverShimUtils.testedProtocolVersions.head,
