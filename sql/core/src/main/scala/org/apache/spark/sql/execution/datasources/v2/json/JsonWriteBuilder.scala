@@ -16,16 +16,9 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.json
 
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-
-import org.apache.spark.sql.catalyst.json.JSONOptions
-import org.apache.spark.sql.catalyst.util.CompressionCodecs
-import org.apache.spark.sql.connector.write.LogicalWriteInfo
-import org.apache.spark.sql.execution.datasources.{CodecStreams, OutputWriter, OutputWriterFactory}
-import org.apache.spark.sql.execution.datasources.json.JsonOutputWriter
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, Write}
 import org.apache.spark.sql.execution.datasources.v2.FileWriteBuilder
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.DataType
 
 class JsonWriteBuilder(
     paths: Seq[String],
@@ -33,31 +26,8 @@ class JsonWriteBuilder(
     supportsDataType: DataType => Boolean,
     info: LogicalWriteInfo)
   extends FileWriteBuilder(paths, formatName, supportsDataType, info) {
-  override def prepareWrite(
-      sqlConf: SQLConf,
-      job: Job,
-      options: Map[String, String],
-      dataSchema: StructType): OutputWriterFactory = {
-    val conf = job.getConfiguration
-    val parsedOptions = new JSONOptions(
-      options,
-      sqlConf.sessionLocalTimeZone,
-      sqlConf.columnNameOfCorruptRecord)
-    parsedOptions.compressionCodec.foreach { codec =>
-      CompressionCodecs.setCodecConfiguration(conf, codec)
-    }
 
-    new OutputWriterFactory {
-      override def newInstance(
-          path: String,
-          dataSchema: StructType,
-          context: TaskAttemptContext): OutputWriter = {
-        new JsonOutputWriter(path, parsedOptions, dataSchema, context)
-      }
-
-      override def getFileExtension(context: TaskAttemptContext): String = {
-        ".json" + CodecStreams.getCompressionExtension(context)
-      }
-    }
+  override def newFileWrite(): Write = {
+    new JsonWrite(paths, info)
   }
 }

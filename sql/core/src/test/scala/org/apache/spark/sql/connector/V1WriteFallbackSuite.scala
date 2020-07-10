@@ -27,7 +27,7 @@ import org.scalatest.BeforeAndAfter
 import org.apache.spark.sql.{AnalysisException, DataFrame, QueryTest, Row, SaveMode, SparkSession, SQLContext}
 import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
 import org.apache.spark.sql.connector.expressions.{FieldReference, IdentityTransform, Transform}
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, LogicalWriteInfoImpl, SupportsOverwrite, SupportsTruncate, V1WriteBuilder, WriteBuilder}
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, LogicalWriteInfoImpl, SupportsOverwrite, SupportsTruncate, V1Write, Write, WriteBuilder}
 import org.apache.spark.sql.execution.datasources.DataSourceUtils
 import org.apache.spark.sql.internal.connector.SimpleTableProvider
 import org.apache.spark.sql.sources._
@@ -240,7 +240,7 @@ class InMemoryV1Provider
     if (mode == SaveMode.Overwrite) {
       writer.asInstanceOf[SupportsTruncate].truncate()
     }
-    writer.asInstanceOf[V1WriteBuilder].buildForV1Write().insert(data, overwrite = false)
+    writer.build().asInstanceOf[V1Write].toInsertableRelation.insert(data, overwrite = false)
     getRelation
   }
 }
@@ -276,7 +276,6 @@ class InMemoryTableWithV1Fallback(
 
   private class FallbackWriteBuilder(options: CaseInsensitiveStringMap)
     extends WriteBuilder
-    with V1WriteBuilder
     with SupportsTruncate
     with SupportsOverwrite {
 
@@ -299,18 +298,20 @@ class InMemoryTableWithV1Fallback(
       partIndexes.map(row.get)
     }
 
-    override def buildForV1Write(): InsertableRelation = {
-      new InsertableRelation {
-        override def insert(data: DataFrame, overwrite: Boolean): Unit = {
-          assert(!overwrite, "V1 write fallbacks cannot be called with overwrite=true")
-          val rows = data.collect()
-          rows.groupBy(getPartitionValues).foreach { case (partition, elements) =>
-            if (dataMap.contains(partition) && mode == "append") {
-              dataMap.put(partition, dataMap(partition) ++ elements)
-            } else if (dataMap.contains(partition)) {
-              throw new IllegalStateException("Partition was not removed properly")
-            } else {
-              dataMap.put(partition, elements)
+    override def build(): Write = new V1Write {
+      override def toInsertableRelation: InsertableRelation = {
+        new InsertableRelation {
+          override def insert(data: DataFrame, overwrite: Boolean): Unit = {
+            assert(!overwrite, "V1 write fallbacks cannot be called with overwrite=true")
+            val rows = data.collect()
+            rows.groupBy(getPartitionValues).foreach { case (partition, elements) =>
+              if (dataMap.contains(partition) && mode == "append") {
+                dataMap.put(partition, dataMap(partition) ++ elements)
+              } else if (dataMap.contains(partition)) {
+                throw new IllegalStateException("Partition was not removed properly")
+              } else {
+                dataMap.put(partition, elements)
+              }
             }
           }
         }

@@ -16,14 +16,9 @@
  */
 package org.apache.spark.sql.v2.avro
 
-import org.apache.hadoop.mapreduce.Job
-
-import org.apache.spark.sql.avro.AvroUtils
-import org.apache.spark.sql.connector.write.LogicalWriteInfo
-import org.apache.spark.sql.execution.datasources.OutputWriterFactory
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, Write}
 import org.apache.spark.sql.execution.datasources.v2.FileWriteBuilder
-import org.apache.spark.sql.internal.SQLConf
-import org.apache.spark.sql.types._
+import org.apache.spark.sql.types.DataType
 
 class AvroWriteBuilder(
     paths: Seq[String],
@@ -31,11 +26,8 @@ class AvroWriteBuilder(
     supportsDataType: DataType => Boolean,
     info: LogicalWriteInfo)
   extends FileWriteBuilder(paths, formatName, supportsDataType, info) {
-  override def prepareWrite(
-      sqlConf: SQLConf,
-      job: Job,
-      options: Map[String, String],
-      dataSchema: StructType): OutputWriterFactory = {
-    AvroUtils.prepareWrite(sqlConf, job, options, dataSchema)
+
+  override def newFileWrite(): Write = {
+    new AvroWrite(paths, info)
   }
 }
