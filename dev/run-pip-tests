@@ -127,10 +127,7 @@ for python in "${PYTHON_EXECS[@]}"; do
 
     # conda / virtualenv environments need to be deactivated differently
     if [ -n "$USE_CONDA" ]; then
-      if [ -f "$CONDA_PREFIX/etc/profile.d/conda.sh" ]; then
-        conda deactivate
-      else
-        source deactivate
+      conda deactivate || (echo "Falling back to 'source deactivate'" && source deactivate)
       fi
     else
       deactivate
