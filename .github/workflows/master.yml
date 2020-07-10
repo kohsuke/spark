@@ -66,15 +66,13 @@ jobs:
       TEST_ONLY_MODULES: ${{ matrix.modules }}
       HADOOP_PROFILE: ${{ matrix.hadoop }}
       HIVE_PROFILE: ${{ matrix.hive }}
-      # Github Actions' default miniconda
-      CONDA_PREFIX: /usr/share/miniconda
       # Don't run the tests in parallel due to flakiness. See SparkParallelTestGrouping.
       TEST_ONLY_EXCLUDED_TAGS: ${{ matrix.excluded-tags }}
       TEST_ONLY_INCLUDED_TAGS: ${{ matrix.included-tags }}
     steps:
     - name: Checkout Spark repository
       uses: actions/checkout@v2
-    # Cache local repositories. Note that Github Actions cache has a 2G limit.
+    # Cache local repositories. Note that GitHub Actions cache has a 2G limit.
     - name: Cache Scala, SBT, Maven and Zinc
       uses: actions/cache@v1
       with:
@@ -151,6 +149,11 @@ jobs:
       run: |
         # Hive tests become flaky when running in parallel as it's too intensive.
         if [[ "$TEST_ONLY_MODULES" == "hive" ]]; then export SERIAL_SBT_TESTS=1; fi
+
+        # GitHub Actions' default miniconda to use in pip packaging test.
+        # Explicitly export the variable to be inherited.
+        export CONDA_PREFIX=/usr/share/miniconda
+
         mkdir -p ~/.m2
         ./dev/run-tests --parallelism 2
         rm -rf ~/.m2/repository/org/apache/spark

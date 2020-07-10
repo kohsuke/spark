@@ -75,11 +75,11 @@ for python in "${PYTHON_EXECS[@]}"; do
     echo "Using $VIRTUALENV_BASE for virtualenv"
     VIRTUALENV_PATH="$VIRTUALENV_BASE"/$python
     rm -rf "$VIRTUALENV_PATH"
+    CONDA_ENV_CMD="source"
     if [ -n "$USE_CONDA" ]; then
-      CONDA_ENV_CMD="source"
       if [ -f "$CONDA_PREFIX/etc/profile.d/conda.sh" ]; then
         # See also https://github.com/conda/conda/issues/7980
-        source $CONDA_PREFIX/etc/profile.d/conda.sh
+        source "$CONDA_PREFIX/etc/profile.d/conda.sh"
         CONDA_ENV_CMD="conda"
       fi
       conda create -y -p "$VIRTUALENV_PATH" python=$python numpy pandas pip setuptools
