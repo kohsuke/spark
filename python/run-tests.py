@@ -157,7 +157,7 @@ def run_individual_python_test(target_dir, test_name, pyspark_python):
 
 
 def get_default_python_executables():
-
+    # TODO(SPARK-32278): install PyPy3 in Jenkins to test
     python_execs = [x for x in ["python3.6", "pypy3"] if which(x)]
 
     if "python3.6" not in python_execs:
