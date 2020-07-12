@@ -20,12 +20,14 @@ import java.lang.{Long => JLong}
 import java.util.Date
 
 import scala.xml.{NodeSeq, Text}
+
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.core.{JsonGenerator, JsonParser}
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.databind.{DeserializationContext, JsonDeserializer, JsonSerializer, SerializerProvider}
 import com.fasterxml.jackson.databind.annotation.{JsonDeserialize, JsonSerialize}
-import org.apache.spark.{JobExecutionStatus, TaskEndReason}
+
+import org.apache.spark.JobExecutionStatus
 import org.apache.spark.executor.ExecutorMetrics
 import org.apache.spark.metrics.ExecutorMetricType
 import org.apache.spark.resource.{ExecutorResourceRequest, ResourceInformation, TaskResourceRequest}
@@ -277,8 +279,7 @@ class TaskData private[spark](
     val taskMetrics: Option[TaskMetrics] = None,
     val executorLogs: Map[String, String],
     val schedulerDelay: Long,
-    val gettingResultTime: Long,
-    val taskEndReason: Option[TaskEndReason] = None)
+    val gettingResultTime: Long)
 
 class TaskMetrics private[spark](
     val executorDeserializeTime: Long,
@@ -385,6 +386,15 @@ class RuntimeInfo private[spark](
     val javaVersion: String,
     val javaHome: String,
     val scalaVersion: String)
+
+class ExceptionFailure private[spark](
+    val exceptionType: String,
+    val message: String,
+    val stackTrace: String)
+
+class ExceptionSummary private[spark](
+    val exceptionFailure: ExceptionFailure,
+    val count: Int)
 
 case class StackTrace(elems: Seq[String]) {
   override def toString: String = elems.mkString
