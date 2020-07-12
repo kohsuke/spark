@@ -512,3 +512,15 @@ private[spark] class CachedQuantile(
   def stage: Array[Int] = Array(stageId, stageAttemptId)
 
 }
+
+/**
+ * A cached view of exception summary for one stage attempt.
+ */
+private[spark] class CachedExceptionSummary(
+    val stageId: Int,
+    val stageAttemptId: Int,
+    val taskCount: Int,
+    val exceptionSummary: Seq[ExceptionSummary]) {
+  @KVIndex @JsonIgnore
+  def key: Array[Any] = Array(stageId, stageAttemptId, taskCount)
+}

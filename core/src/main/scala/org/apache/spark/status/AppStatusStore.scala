@@ -22,8 +22,7 @@ import java.util.{List => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.HashMap
 
-import org.apache.spark.{JobExecutionStatus, SparkConf, SparkException}
-import org.apache.spark.resource.ResourceProfileManager
+import org.apache.spark.{JobExecutionStatus, SparkConf}
 import org.apache.spark.status.api.v1
 import org.apache.spark.ui.scope._
 import org.apache.spark.util.Utils
@@ -421,6 +420,51 @@ private[spark] class AppStatusStore(
     constructTaskDataList(taskDataWrapperIter)
   }
 
+  def exceptionSummary(stageId: Int, attemptId: Int): Seq[v1.ExceptionSummary] = {
+    val (stageData, _) = stageAttempt(stageId, attemptId)
+    val key = Array(stageId, attemptId, stageData.numFailedTasks)
+    asOption(store.read(classOf[CachedExceptionSummary], key))
+      .map(_.exceptionSummary)
+      .getOrElse {
+        val exceptionSummary = computeExceptionSummary(stageId, attemptId)
+        val cachedExceptionSummary = new CachedExceptionSummary(
+          stageId,
+          attemptId,
+          stageData.numFailedTasks,
+          exceptionSummary
+        )
+        store.write(cachedExceptionSummary)
+        exceptionSummary
+      }
+  }
+
+  def computeExceptionSummary(stageId: Int, attemptId: Int): Seq[v1.ExceptionSummary] = {
+    val tasks = taskList(stageId, attemptId, Int.MaxValue)
+    tasks.filter(t => t.status.equalsIgnoreCase("failed"))
+      .flatMap(t => t.errorMessage)
+      .flatMap(parseErrorMessage)
+      .groupBy(e => (e.exceptionType, e.message))
+      .map(t => new v1.ExceptionSummary(t._2.head, t._2.length))
+      .toSeq
+      .sortBy(s => (s.count, s.exceptionFailure.exceptionType))(Ordering[(Int, String)].reverse)
+      .take(10)
+  }
+
+  def parseErrorMessage(errorMessage: String): Option[v1.ExceptionFailure] = {
+    errorMessage.split("\\r?\\n")
+      .find(s => s.contains("Exception") || s.contains("Error"))
+      .map(s => s.split("(?<=Exception|Error): "))
+      .flatMap(s => {
+        if (s.last.endsWith("Exception") || s.last.endsWith("Error")) {
+          Some(new v1.ExceptionFailure(s.last, "", errorMessage))
+        } else if (s.length == 1) {
+          None
+        } else {
+          Some(new v1.ExceptionFailure(s(s.length - 2), s.last, errorMessage))
+        }
+      })
+  }
+
   def executorSummary(stageId: Int, attemptId: Int): Map[String, v1.ExecutorStageSummary] = {
     val stageKey = Array(stageId, attemptId)
     store.view(classOf[ExecutorStageSummaryWrapper]).index("stage").first(stageKey).last(stageKey)
@@ -564,9 +608,7 @@ private[spark] class AppStatusStore(
         taskDataOld.errorMessage, taskDataOld.taskMetrics,
         executorLogs,
         AppStatusUtils.schedulerDelay(taskDataOld),
-        AppStatusUtils.gettingResultTime(taskDataOld),
-        taskDataOld.taskEndReason
-      )
+        AppStatusUtils.gettingResultTime(taskDataOld))
     }.toSeq
   }
 }
