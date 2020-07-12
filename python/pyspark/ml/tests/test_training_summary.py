@@ -314,8 +314,11 @@ class TrainingSummaryTest(SparkSessionTestCase):
         self.assertAlmostEqual(sameSummary.accuracy, s.accuracy)
 
     def test_fm_classification_summary(self):
-        df = self.spark.createDataFrame([(1.0, Vectors.dense(1.0, 1.0, 1.0)),
-                                         (0.0, Vectors.dense(1.0, 2.0, 3.0))],
+        df = self.spark.createDataFrame([(1.0, Vectors.dense(2.0)),
+                                         (0.0, Vectors.dense(2.0)),
+                                         (0.0, Vectors.dense(6.0)),
+                                         (1.0, Vectors.dense(3.0))
+                                         ],
                                         ["label", "features"])
         fm = FMClassifier(maxIter=5)
         model = fm.fit(df)
@@ -337,17 +340,17 @@ class TrainingSummaryTest(SparkSessionTestCase):
         self.assertTrue(isinstance(s.fMeasureByLabel(), list))
         self.assertTrue(isinstance(s.fMeasureByLabel(1.0), list))
         self.assertTrue(isinstance(s.roc, DataFrame))
-        self.assertAlmostEqual(s.areaUnderROC, 1.0, 2)
+        self.assertAlmostEqual(s.areaUnderROC, 0.625, 2)
         self.assertTrue(isinstance(s.pr, DataFrame))
         self.assertTrue(isinstance(s.fMeasureByThreshold, DataFrame))
         self.assertTrue(isinstance(s.precisionByThreshold, DataFrame))
         self.assertTrue(isinstance(s.recallByThreshold, DataFrame))
-        self.assertAlmostEqual(s.weightedTruePositiveRate, 0.5, 2)
-        self.assertAlmostEqual(s.weightedFalsePositiveRate, 0.5, 2)
-        self.assertAlmostEqual(s.weightedRecall, 0.5, 2)
-        self.assertAlmostEqual(s.weightedPrecision, 0.25, 2)
-        self.assertAlmostEqual(s.weightedFMeasure(), 0.3333333333333333, 2)
-        self.assertAlmostEqual(s.weightedFMeasure(1.0), 0.3333333333333333, 2)
+        self.assertAlmostEqual(s.weightedTruePositiveRate, 0.75, 2)
+        self.assertAlmostEqual(s.weightedFalsePositiveRate, 0.25, 2)
+        self.assertAlmostEqual(s.weightedRecall, 0.75, 2)
+        self.assertAlmostEqual(s.weightedPrecision, 0.8333333333333333, 2)
+        self.assertAlmostEqual(s.weightedFMeasure(), 0.7333333333333334, 2)
+        self.assertAlmostEqual(s.weightedFMeasure(1.0), 0.7333333333333334, 2)
         # test evaluation (with training dataset) produces a summary with same values
         # one check is enough to verify a summary is returned, Scala version runs full test
         sameSummary = model.evaluate(df)
