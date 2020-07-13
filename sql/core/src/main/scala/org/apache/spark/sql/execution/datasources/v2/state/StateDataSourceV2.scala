@@ -16,8 +16,12 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.state
 
+import java.util
+import java.util.Map
+
 import org.apache.spark.sql.{AnalysisException, SparkSession}
 import org.apache.spark.sql.connector.catalog.{Table, TableProvider}
+import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.streaming.state.StateStoreId
 import org.apache.spark.sql.sources.DataSourceRegister
 import org.apache.spark.sql.types.StructType
@@ -31,27 +35,32 @@ class StateDataSourceV2 extends TableProvider with DataSourceRegister {
 
   override def shortName(): String = "state"
 
-  override def getTable(options: CaseInsensitiveStringMap): Table =
-    throw new UnsupportedOperationException("Schema should be explicitly specified.")
-
-  override def getTable(options: CaseInsensitiveStringMap, schema: StructType): Table = {
-    val checkpointLocation = Option(options.get(PARAM_CHECKPOINT_LOCATION)).orElse {
+  override def getTable(
+      schema: StructType,
+      partitioning: Array[Transform],
+      properties: util.Map[String, String]): Table = {
+    val checkpointLocation = Option(properties.get(PARAM_CHECKPOINT_LOCATION)).orElse {
       throw new AnalysisException(s"'$PARAM_CHECKPOINT_LOCATION' must be specified.")
     }.get
 
-    val version = Option(options.get(PARAM_VERSION)).map(_.toInt).orElse {
+    val version = Option(properties.get(PARAM_VERSION)).map(_.toInt).orElse {
       throw new AnalysisException(s"'$PARAM_VERSION' must be specified.")
     }.get
 
-    val operatorId = Option(options.get(PARAM_OPERATOR_ID)).map(_.toInt).orElse {
+    val operatorId = Option(properties.get(PARAM_OPERATOR_ID)).map(_.toInt).orElse {
       throw new AnalysisException(s"'$PARAM_OPERATOR_ID' must be specified.")
     }.get
 
-    val storeName = Option(options.get(PARAM_STORE_NAME))
+    val storeName = Option(properties.get(PARAM_STORE_NAME))
       .orElse(Some(StateStoreId.DEFAULT_STORE_NAME)).get
 
     new StateTable(session, schema, checkpointLocation, version, operatorId, storeName)
   }
+
+  override def inferSchema(options: CaseInsensitiveStringMap): StructType =
+    throw new UnsupportedOperationException("Schema should be explicitly specified.")
+
+  override def supportsExternalMetadata(): Boolean = true
 }
 
 object StateDataSourceV2 {
