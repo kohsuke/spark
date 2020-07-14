@@ -16,12 +16,23 @@
  */
 package org.apache.spark
 
-trait SparkConfHelper {
+trait SparkContextHelper {
+
+  def withSparkContext(pairs: (String, String)*)(testFun: SparkContext => Any): Unit = {
+    setupSparkContext(2, pairs: _*)(testFun)
+  }
+
+  def withSparkContext(numCores: Int, pairs: (String, String)*)
+       (testFun: SparkContext => Any): Unit = {
+    setupSparkContext(numCores, pairs: _*)(testFun)
+  }
 
   /** Sets all configurations specified in `pairs`, calls `init`, and then calls `testFun` */
-  protected def withSparkConf(pairs: (String, String)*)(testFun: SparkConf => Any): Unit = {
+  private def setupSparkContext(numCores: Int, pairs: (String, String)*)
+      (testFun: SparkContext => Any): Unit = {
     val conf = new SparkConf()
     pairs.foreach(kv => conf.set(kv._1, kv._2))
-    testFun(conf)
+    val sc = new SparkContext(s"local[$numCores]", "DAGSchedulerSuite", conf)
+    testFun(sc)
   }
 }
