@@ -982,9 +982,9 @@ object EliminateSorts extends Rule[LogicalPlan] {
       j.copy(left = recursiveRemoveSort(originLeft), right = recursiveRemoveSort(originRight))
     case g @ Aggregate(_, aggs, originChild) if isOrderIrrelevantAggs(aggs) =>
       g.copy(child = recursiveRemoveSort(originChild))
-    case r: RepartitionByExpression =>
+    case r: RepartitionByExpression if r.partitionExpressions.forall(_.deterministic) =>
       r.copy(child = recursiveRemoveSort(r.child))
-    case r: Repartition =>
+    case r: Repartition if r.shuffle =>
       r.copy(child = recursiveRemoveSort(r.child))
   }
 

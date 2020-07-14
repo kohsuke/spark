@@ -1299,9 +1299,8 @@ class ArrowConvertersSuite extends SharedSparkSession {
          |}
        """.stripMargin
 
-    // we order values by $"a_i".desc manually as sortBy before coalesce is ignored
-    val a_i = List[Int](2147483647, 2, 1, -1, -2, -2147483648)
-    val b_i = List[Option[Int]](None, None, Some(1), None, Some(-2), Some(-2147483648))
+    val a_i = List[Int](1, -1, 2, -2, 2147483647, -2147483648)
+    val b_i = List[Option[Int]](Some(1), None, None, Some(-2), None, Some(-2147483648))
     val df = a_i.zip(b_i).toDF("a_i", "b_i")
 
     // Different schema
@@ -1311,7 +1310,7 @@ class ArrowConvertersSuite extends SharedSparkSession {
 
     // Different values
     intercept[IllegalArgumentException] {
-      collectAndValidate(df, json, "validator_diff_values.json")
+      collectAndValidate(df.sort($"a_i".desc), json, "validator_diff_values.json")
     }
   }
 
