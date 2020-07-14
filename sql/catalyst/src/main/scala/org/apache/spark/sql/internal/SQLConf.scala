@@ -2669,6 +2669,23 @@ object SQLConf {
       .checkValue(_ >= 0, "The value must be non-negative.")
       .createWithDefault(8)
 
+  val NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ENABLED =
+    buildConf("spark.sql.notInSubquery.singleColumn.optimize.enabled")
+      .internal()
+      .doc("When true, single column not in subquery execution in BroadcastNestedLoopJoinExec " +
+        "will be optimized from M*N calculation into M*log(N) calculation using HashMap lookup " +
+        "instead of Looping lookup.")
+      .booleanConf
+      .createWithDefault(false)
+
+  val NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ROW_COUNT_THRESHOLD =
+    buildConf("spark.sql.notInSubquery.singleColumn.optimize.rowCountThreshold")
+      .internal()
+      .doc("Build side rowCount in BroadcastNestedLoopJoinExec must be less than this value " +
+        "before spark.sql.notInSubquery.singleColumn.optimize actually works.")
+      .intConf
+      .createWithDefault(10000)
+
   /**
    * Holds information about keys that have been deprecated.
    *
@@ -3268,6 +3285,13 @@ class SQLConf extends Serializable with Logging {
     getConf(SQLConf.LEGACY_ALLOW_CAST_NUMERIC_TO_TIMESTAMP)
 
   def metadataCacheTTL: Long = getConf(StaticSQLConf.METADATA_CACHE_TTL_SECONDS)
+
+  def notInSubquerySingleColumnOptimizeEnabled: Boolean =
+    getConf(SQLConf.NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ENABLED)
+
+  def notInSubquerySingleColumnOptimizeRowCountThreshold: Int = {
+    getConf(SQLConf.NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ROW_COUNT_THRESHOLD)
+  }
 
   /** ********************** SQLConf functionality methods ************ */
 
