@@ -45,7 +45,7 @@ class EliminateSortsBeforeRepartitionSuite extends PlanTest {
   def repartition(plan: LogicalPlan): LogicalPlan = plan.repartition(10)
   def isOptimized: Boolean = true
 
-  test(s"sortBy") {
+  test("sortBy") {
     val plan = testRelation.select('a, 'b).sortBy('a.asc, 'b.desc)
     val planWithRepartition = repartition(plan)
     val optimizedPlan = Optimize.execute(analyzer.execute(planWithRepartition))
@@ -57,7 +57,7 @@ class EliminateSortsBeforeRepartitionSuite extends PlanTest {
     comparePlans(optimizedPlan, analyzer.execute(correctPlan))
   }
 
-  test(s"sortBy with projection") {
+  test("sortBy with projection") {
     val plan = testRelation.select('a, 'b)
       .sortBy('a.asc, 'b.asc)
       .select('a + 1 as "a", 'b + 2 as "b")
