@@ -183,7 +183,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
     // plan may contain nodes that do not report stats. Anything that uses stats must run after
     // this batch.
     Batch("Early Filter and Projection Push-Down", Once, earlyScanPushDownRules: _*) :+
-    // This patch contains rules that should be applied to writes early. For example,
+    // This batch contains rules that should be applied to writes early. For example,
     // we have to construct a logical write early so that we can inject needed repartition/sort
     // operators to satisfy data source distribution and ordering requirements.
     // Expression optimizations must be run before this batch so that we have optimal

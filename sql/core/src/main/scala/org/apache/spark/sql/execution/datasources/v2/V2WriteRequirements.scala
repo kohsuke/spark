@@ -49,6 +49,8 @@ object V2WriteRequirements extends Rule[LogicalPlan] {
         val numShufflePartitions = sqlConf.numShufflePartitions
         // repartition by expression will correctly pick range or hash partitioning
         // based on whether we have an ordered or clustered distribution
+        // all expressions in OrderedDistribution will be mapped into SortOrder
+        // all expressions in ClusteredDistribution will be mapped into Expression
         RepartitionByExpression(distribution, query, numShufflePartitions)
       } else {
         query
