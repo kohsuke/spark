@@ -4580,7 +4580,7 @@ class ArrowTests(ReusedSQLTestCase):
                 pd.DataFrame({'a': [1, 2, 3]}, index=[2., 3., 4.])).distinct().count(), 3)
 
     def test_empty_partitions_to_pandas(self):
-        # SPARK-32300: toPandas with no partitions should work
+        # SPARK-32300: toPandas should work from a Spark DataFrame with no partitions
         pdf = self.spark.sparkContext.emptyRDD().toDF("col1 int").toPandas()
         self.assertEqual(len(pdf), 0)
         self.assertEqual(list(pdf.columns), ["col1"])
