@@ -17,10 +17,11 @@
 
 package org.apache.spark.sql.catalyst.optimizer
 
-import org.apache.spark.sql.catalyst.expressions.{And, PredicateHelper}
+import org.apache.spark.sql.catalyst.expressions.{And, Expression, PredicateHelper}
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.logical.{Filter, Join, LogicalPlan}
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.catalyst.trees.TreeNodeTag
 
 /**
  * Try converting join condition to conjunctive normal form expression so that more predicates may
@@ -30,30 +31,72 @@ import org.apache.spark.sql.catalyst.rules.Rule
  */
 object PushCNFPredicateThroughJoin extends Rule[LogicalPlan] with PredicateHelper {
 
+  private val processedJoinConditionTag = TreeNodeTag[Expression]("processedJoinCondition")
+
   private def canPushThrough(joinType: JoinType): Boolean = joinType match {
     case _: InnerLike | LeftSemi | RightOuter | LeftOuter | LeftAnti | ExistenceJoin(_) => true
     case _ => false
   }
 
+  /**
+   * Splits join condition expressions or filter predicates (on a given join's output) into three
+   * categories based on the attributes required to evaluate them. Note that we explicitly exclude
+   * non-deterministic (i.e., stateful) condition expressions in canEvaluateInLeft or
+   * canEvaluateInRight to prevent pushing these predicates on either side of the join.
+   *
+   * @return (canEvaluateInLeft, canEvaluateInRight, haveToEvaluateInBoth)
+   */
+  protected def extractConvertibleFilters(
+    condition: Seq[Expression],
+    left: LogicalPlan,
+    right: LogicalPlan): (Seq[Expression], Seq[Expression], Seq[Expression]) = {
+    val (pushDownCandidates, nonDeterministic) = condition.partition(_.deterministic)
+    val (leftEvaluateCondition, rest) =
+      pushDownCandidates.partition(_.references.subsetOf(left.outputSet))
+    val (rightEvaluateCondition, commonCondition) =
+        rest.partition(expr => expr.references.subsetOf(right.outputSet))
+
+    // For the predicates in `commonCondition`, it is still possible to find sub-predicates which
+    // are able to be pushed down.
+    val leftExtraCondition =
+      commonCondition.flatMap(convertibleFilter(_, left.outputSet))
+
+    val rightExtraCondition =
+      commonCondition.flatMap(convertibleFilter(_, right.outputSet))
+
+    // To avoid expanding the join condition into conjunctive normal form and making the size
+    // of codegen much larger, `commonCondition` will be kept as original form in the new join
+    // condition.
+    (leftEvaluateCondition ++ leftExtraCondition, rightEvaluateCondition ++ rightExtraCondition,
+      commonCondition ++ nonDeterministic)
+  }
+
   def apply(plan: LogicalPlan): LogicalPlan = plan transform {
     case j @ Join(left, right, joinType, Some(joinCondition), hint)
         if canPushThrough(joinType) =>
-      val predicates = CNFWithGroupExpressionsByQualifier(joinCondition)
-      if (predicates.isEmpty) {
+      val filtersOfBothSide = splitConjunctivePredicates(joinCondition).filter { f =>
+        f.deterministic && f.references.nonEmpty &&
+          !f.references.subsetOf(left.outputSet) && !f.references.subsetOf(right.outputSet)
+      }
+      val leftExtraCondition =
+      filtersOfBothSide.flatMap(convertibleFilter(_, left.outputSet))
+
+      val rightExtraCondition =
+        filtersOfBothSide.flatMap(convertibleFilter(_, right.outputSet))
+
+      val alreadyProcessed = j.getTagValue(processedJoinConditionTag).exists { condition =>
+        condition.semanticEquals(joinCondition)
+      }
+
+      if ((leftExtraCondition.isEmpty && rightExtraCondition.isEmpty) || alreadyProcessed) {
         j
       } else {
-        val pushDownCandidates = predicates.filter(_.deterministic)
-        lazy val leftFilterConditions =
-          pushDownCandidates.filter(_.references.subsetOf(left.outputSet))
-        lazy val rightFilterConditions =
-          pushDownCandidates.filter(_.references.subsetOf(right.outputSet))
-
         lazy val newLeft =
-          leftFilterConditions.reduceLeftOption(And).map(Filter(_, left)).getOrElse(left)
+          leftExtraCondition.reduceLeftOption(And).map(Filter(_, left)).getOrElse(left)
         lazy val newRight =
-          rightFilterConditions.reduceLeftOption(And).map(Filter(_, right)).getOrElse(right)
+          rightExtraCondition.reduceLeftOption(And).map(Filter(_, right)).getOrElse(right)
 
-        joinType match {
+        val newJoin = joinType match {
           case _: InnerLike | LeftSemi =>
             Join(newLeft, newRight, joinType, Some(joinCondition), hint)
           case RightOuter =>
@@ -63,6 +106,8 @@ object PushCNFPredicateThroughJoin extends Rule[LogicalPlan] with PredicateHelpe
           case other =>
             throw new IllegalStateException(s"Unexpected join type: $other")
         }
-      }
+        newJoin.setTagValue(processedJoinConditionTag, joinCondition)
+        newJoin
+    }
   }
 }
