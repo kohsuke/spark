@@ -188,9 +188,7 @@ class InMemoryTable(
         this
       }
 
-      override def build(): Write = new Write {
-        override def toBatch: BatchWrite = writer
-      }
+      override def buildForBatch(): BatchWrite = writer
     }
   }
 

@@ -81,19 +81,17 @@ class SimpleWritableDataSource extends SimpleTableProvider with SessionConfigSup
       this
     }
 
-    override def build(): Write = new Write {
-      override def toBatch: BatchWrite = {
-        val hadoopPath = new Path(path)
-        val hadoopConf = SparkContext.getActive.get.hadoopConfiguration
-        val fs = hadoopPath.getFileSystem(hadoopConf)
+    override def buildForBatch(): BatchWrite = {
+      val hadoopPath = new Path(path)
+      val hadoopConf = SparkContext.getActive.get.hadoopConfiguration
+      val fs = hadoopPath.getFileSystem(hadoopConf)
 
-        if (needTruncate) {
-          fs.delete(hadoopPath, true)
-        }
-
-        val pathStr = hadoopPath.toUri.toString
-        new MyBatchWrite(queryId, pathStr, hadoopConf)
+      if (needTruncate) {
+        fs.delete(hadoopPath, true)
       }
+
+      val pathStr = hadoopPath.toUri.toString
+      new MyBatchWrite(queryId, pathStr, hadoopConf)
     }
   }
 

@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
-import org.apache.spark.sql.connector.write.{BatchWrite, DataWriter, DataWriterFactory, LogicalWriteInfo, PhysicalWriteInfo, SupportsTruncate, Write, WriteBuilder, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.{BatchWrite, DataWriter, DataWriterFactory, LogicalWriteInfo, PhysicalWriteInfo, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.connector.write.streaming.{StreamingDataWriterFactory, StreamingWrite}
 import org.apache.spark.sql.internal.connector.{SimpleTableProvider, SupportsStreamingUpdate}
 import org.apache.spark.sql.sources.DataSourceRegister
@@ -56,10 +56,8 @@ private[noop] object NoopWriteBuilder extends WriteBuilder
   with SupportsTruncate with SupportsStreamingUpdate {
   override def truncate(): WriteBuilder = this
   override def update(): WriteBuilder = this
-  override def build(): Write = new Write {
-    override def toBatch: BatchWrite = NoopBatchWrite
-    override def toStreaming: StreamingWrite = NoopStreamingWrite
-  }
+  override def buildForBatch(): BatchWrite = NoopBatchWrite
+  override def buildForStreaming(): StreamingWrite = NoopStreamingWrite
 }
 
 private[noop] object NoopBatchWrite extends BatchWrite {

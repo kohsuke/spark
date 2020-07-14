@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.{LeafNode, Statistics}
 import org.apache.spark.sql.catalyst.plans.logical.statsEstimation.EstimationUtils
 import org.apache.spark.sql.connector.catalog.{SupportsWrite, Table, TableCapability}
-import org.apache.spark.sql.connector.write.{DataWriter, DataWriterFactory, LogicalWriteInfo, PhysicalWriteInfo, SupportsTruncate, Write, WriteBuilder, WriterCommitMessage}
+import org.apache.spark.sql.connector.write.{DataWriter, DataWriterFactory, LogicalWriteInfo, PhysicalWriteInfo, SupportsTruncate, WriteBuilder, WriterCommitMessage}
 import org.apache.spark.sql.connector.write.streaming.{StreamingDataWriterFactory, StreamingWrite}
 import org.apache.spark.sql.execution.streaming.Sink
 import org.apache.spark.sql.internal.connector.SupportsStreamingUpdate
@@ -66,10 +66,8 @@ class MemorySink extends Table with SupportsWrite with Logging {
       // The in-memory sink treats update as append.
       override def update(): WriteBuilder = this
 
-      override def build(): Write = new Write {
-        override def toStreaming: StreamingWrite = {
-          new MemoryStreamingWrite(MemorySink.this, inputSchema, needTruncate)
-        }
+      override def buildForStreaming(): StreamingWrite = {
+        new MemoryStreamingWrite(MemorySink.this, inputSchema, needTruncate)
       }
     }
   }

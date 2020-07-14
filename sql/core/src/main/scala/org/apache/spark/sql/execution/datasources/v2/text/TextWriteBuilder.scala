@@ -16,9 +16,16 @@
  */
 package org.apache.spark.sql.execution.datasources.v2.text
 
-import org.apache.spark.sql.connector.write.{LogicalWriteInfo, Write}
+import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
+
+import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.catalyst.util.CompressionCodecs
+import org.apache.spark.sql.connector.write.LogicalWriteInfo
+import org.apache.spark.sql.execution.datasources.{CodecStreams, OutputWriter, OutputWriterFactory}
+import org.apache.spark.sql.execution.datasources.text.{TextOptions, TextOutputWriter}
 import org.apache.spark.sql.execution.datasources.v2.FileWriteBuilder
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.types._
 
 class TextWriteBuilder(
     paths: Seq[String],
@@ -26,8 +33,38 @@ class TextWriteBuilder(
     supportsDataType: DataType => Boolean,
     info: LogicalWriteInfo)
   extends FileWriteBuilder(paths, formatName, supportsDataType, info) {
+  private def verifySchema(schema: StructType): Unit = {
+    if (schema.size != 1) {
+      throw new AnalysisException(
+        s"Text data source supports only a single column, and you have ${schema.size} columns.")
+    }
+  }
 
-  override def newFileWrite(): Write = {
-    new TextWrite(paths, info)
+  override def prepareWrite(
+      sqlConf: SQLConf,
+      job: Job,
+      options: Map[String, String],
+      dataSchema: StructType): OutputWriterFactory = {
+    verifySchema(dataSchema)
+
+    val textOptions = new TextOptions(options)
+    val conf = job.getConfiguration
+
+    textOptions.compressionCodec.foreach { codec =>
+      CompressionCodecs.setCodecConfiguration(conf, codec)
+    }
+
+    new OutputWriterFactory {
+      override def newInstance(
+          path: String,
+          dataSchema: StructType,
+          context: TaskAttemptContext): OutputWriter = {
+        new TextOutputWriter(path, dataSchema, textOptions.lineSeparatorInWrite, context)
+      }
+
+      override def getFileExtension(context: TaskAttemptContext): String = {
+        ".txt" + CodecStreams.getCompressionExtension(context)
+      }
+    }
   }
 }

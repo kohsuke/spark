@@ -183,6 +183,12 @@ abstract class Optimizer(catalogManager: CatalogManager)
     // plan may contain nodes that do not report stats. Anything that uses stats must run after
     // this batch.
     Batch("Early Filter and Projection Push-Down", Once, earlyScanPushDownRules: _*) :+
+    // This patch contains rules that should be applied to writes early. For example,
+    // we have to construct a logical write early so that we can inject needed repartition/sort
+    // operators to satisfy data source distribution and ordering requirements.
+    // Expression optimizations must be run before this batch so that we have optimal
+    // expressions when we construct writes. At the same time, rules that dedup repartition and
+    // sort operators must by run afterwards.
     Batch("Early Writes", Once, earlyWriteRules: _*) :+
     // Since join costs in AQP can change between multiple runs, there is no reason that we have an
     // idempotence enforcement on this batch. We thus make it FixedPoint(1) instead of Once.
@@ -277,6 +283,9 @@ abstract class Optimizer(catalogManager: CatalogManager)
    */
   def earlyScanPushDownRules: Seq[Rule[LogicalPlan]] = Nil
 
+  /**
+   * Override to provide additional rules for writes that should be applied early.
+   */
   def earlyWriteRules: Seq[Rule[LogicalPlan]] = Nil
 
   /**
@@ -984,9 +993,9 @@ object EliminateSorts extends Rule[LogicalPlan] {
       j.copy(left = recursiveRemoveSort(originLeft), right = recursiveRemoveSort(originRight))
     case g @ Aggregate(_, aggs, originChild) if isOrderIrrelevantAggs(aggs) =>
       g.copy(child = recursiveRemoveSort(originChild))
-    case r: RepartitionByExpression =>
+    case r: RepartitionByExpression if r.partitionExpressions.forall(_.deterministic) =>
       r.copy(child = recursiveRemoveSort(r.child))
-    case r: Repartition =>
+    case r: Repartition if r.shuffle =>
       r.copy(child = recursiveRemoveSort(r.child))
   }
 

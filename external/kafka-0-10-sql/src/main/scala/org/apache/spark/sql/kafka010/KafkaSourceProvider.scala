@@ -30,10 +30,10 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.kafka010.KafkaConfigUpdater
 import org.apache.spark.sql.{AnalysisException, DataFrame, SaveMode, SQLContext}
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability}
+import org.apache.spark.sql.connector.catalog.{SupportsRead, SupportsWrite, Table, TableCapability, TableProvider}
 import org.apache.spark.sql.connector.read.{Batch, Scan, ScanBuilder}
 import org.apache.spark.sql.connector.read.streaming.{ContinuousStream, MicroBatchStream}
-import org.apache.spark.sql.connector.write.{BatchWrite, LogicalWriteInfo, SupportsTruncate, Write, WriteBuilder}
+import org.apache.spark.sql.connector.write.{BatchWrite, LogicalWriteInfo, SupportsTruncate, WriteBuilder}
 import org.apache.spark.sql.connector.write.streaming.StreamingWrite
 import org.apache.spark.sql.execution.streaming.{Sink, Source}
 import org.apache.spark.sql.internal.connector.{SimpleTableProvider, SupportsStreamingUpdate}
@@ -401,16 +401,14 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         private val producerParams =
           kafkaParamsForProducer(CaseInsensitiveMap(options.asScala.toMap))
 
-        override def build(): Write = new Write {
-          override def toBatch: BatchWrite = {
-            assert(inputSchema != null)
-            new KafkaBatchWrite(topic, producerParams, inputSchema)
-          }
+        override def buildForBatch(): BatchWrite = {
+          assert(inputSchema != null)
+          new KafkaBatchWrite(topic, producerParams, inputSchema)
+        }
 
-          override def toStreaming: StreamingWrite = {
-            assert(inputSchema != null)
-            new KafkaStreamingWrite(topic, producerParams, inputSchema)
-          }
+        override def buildForStreaming(): StreamingWrite = {
+          assert(inputSchema != null)
+          new KafkaStreamingWrite(topic, producerParams, inputSchema)
         }
 
         override def truncate(): WriteBuilder = this
