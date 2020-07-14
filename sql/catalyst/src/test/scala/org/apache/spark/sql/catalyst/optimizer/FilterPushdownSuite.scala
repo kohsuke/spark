@@ -1361,4 +1361,21 @@ class FilterPushdownSuite extends PlanTest {
 
     comparePlans(optimized, correctAnswer)
   }
+
+  test("push down predicate through multiple joins") {
+    val x = testRelation.subquery('x)
+    val y = testRelation.subquery('y)
+    val z = testRelation.subquery('z)
+    val xJoinY = x.join(y, condition = Some("x.b".attr === "y.b".attr))
+    val originalQuery = z.join(xJoinY,
+      condition = Some("x.a".attr === "z.a".attr && simpleDisjunctivePredicate))
+
+    val optimized = Optimize.execute(originalQuery.analyze)
+    val left = x.where('a > 3 || 'a > 1)
+    val right = y.where('a > 13 || 'a > 11)
+    val correctAnswer = z.join(left.join(right,
+      condition = Some("x.b".attr === "y.b".attr && simpleDisjunctivePredicate)),
+      condition = Some("x.a".attr === "z.a".attr)).analyze
+    comparePlans(optimized, correctAnswer)
+  }
 }
