@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.trees.TreeNodeTag
  * To avoid expanding the join condition, the join condition will be kept in the original form even
  * when predicate pushdown happens.
  */
-object PushCNFPredicateThroughJoin extends Rule[LogicalPlan] with PredicateHelper {
+object PushExtraPredicateThroughJoin extends Rule[LogicalPlan] with PredicateHelper {
 
   private val processedJoinConditionTag = TreeNodeTag[Expression]("processedJoinCondition")
 
