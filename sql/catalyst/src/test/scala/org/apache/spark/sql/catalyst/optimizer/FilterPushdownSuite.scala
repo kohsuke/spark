@@ -1344,7 +1344,7 @@ class FilterPushdownSuite extends PlanTest {
     comparePlans(optimized, correctAnswer)
   }
 
-  test("push down predicates through inner join: avoid generating too many predicates") {
+  test("SPARK-32302: avoid generating too many predicates") {
     val x = testRelation.subquery('x)
     val y = testRelation.subquery('y)
 
