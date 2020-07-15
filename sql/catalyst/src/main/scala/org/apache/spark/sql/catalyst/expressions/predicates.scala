@@ -201,6 +201,11 @@ trait PredicateHelper extends Logging {
     case e => e.children.forall(canEvaluateWithinJoin)
   }
 
+  /*
+   * Returns a filter that it's output is a subset of `outputSet` and it contains all possible constraints
+   * from `condition`. This is used for predicate pushdown.
+   * When there is no such convertible filter, `None` is returned.
+   */
   protected def convertibleFilter(
     condition: Expression,
     outputSet: AttributeSet): Option[Expression] = condition match {
@@ -231,6 +236,9 @@ trait PredicateHelper extends Logging {
         rhs <- convertibleFilter(right, outputSet)
       } yield Or(lhs, rhs)
 
+    // Here we assume all the `Not` operators is already below all the `And` and `Or` operators
+    // after the optimization rule `BooleanSimplification`, so that we don't need to handle the
+    // `Not` operators here.
     case other =>
       if (other.references.subsetOf(outputSet)) {
         Some(other)
