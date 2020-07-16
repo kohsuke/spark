@@ -202,8 +202,8 @@ trait PredicateHelper extends Logging {
   }
 
   /*
-   * Returns a filter that it's output is a subset of `outputSet` and it contains all possible constraints
-   * from `condition`. This is used for predicate pushdown.
+   * Returns a filter that it's output is a subset of `outputSet` and it contains all possible
+   * constraints from `condition`. This is used for predicate pushdown.
    * When there is no such convertible filter, `None` is returned.
    */
   protected def convertibleFilter(
