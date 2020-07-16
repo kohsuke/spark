@@ -81,7 +81,7 @@ for python in "${PYTHON_EXECS[@]}"; do
         source "$CONDA_PREFIX/etc/profile.d/conda.sh"
       fi
       conda create -y -p "$VIRTUALENV_PATH" python=$python numpy pandas pip setuptools
-    if [ -z "$JAVA_HOME" ]; then
+    if [ -z "$CONDA_PREFIX" ]; then
       source activate "$VIRTUALENV_PATH"
     else
       conda activate "$VIRTUALENV_PATH"
@@ -129,7 +129,7 @@ for python in "${PYTHON_EXECS[@]}"; do
 
     # conda / virtualenv environments need to be deactivated differently
     if [ -n "$USE_CONDA" ]; then
-      if [ -z "$JAVA_HOME" ]; then
+      if [ -z "$CONDA_PREFIX" ]; then
         source deactivate
       else
         conda deactivate
