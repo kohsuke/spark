@@ -73,7 +73,7 @@ class ConvertibleFilterSuite extends SparkFunSuite with PredicateHelper with Pla
     checkCondition((a || b) || (c && d) || (e && f) || (g && h), Seq(a, c, e, g), None)
     checkCondition((a || b) || (c && d) || (e && f) || (g && h), Seq(a, b, c, e, g),
       Some(a || b || c || e || g))
-    checkCondition((a || b || c) && (d || e || f) || (g || h || i), Seq(b, e, h), Some(b || e || h))
-    checkCondition((a || b || c) && (d || e || f) || (g || h || i), Seq(b, e, d), None)
+    checkCondition((a && b && c) || (d && e && f) || (g && h && i), Seq(b, e, h), Some(b || e || h))
+    checkCondition((a && b && c) || (d && e && f) || (g && h && i), Seq(b, e, d), None)
   }
 }
