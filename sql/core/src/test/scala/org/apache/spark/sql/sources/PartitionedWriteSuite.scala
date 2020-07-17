@@ -167,7 +167,6 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
   }
 
   test("SPARK-27194 SPARK-29302: Fix commit collision in dynamic partition overwrite mode") {
-    /** Placeholder for trigger jenkins job */
     withSQLConf(SQLConf.PARTITION_OVERWRITE_MODE.key ->
       SQLConf.PartitionOverwriteMode.DYNAMIC.toString,
       SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
