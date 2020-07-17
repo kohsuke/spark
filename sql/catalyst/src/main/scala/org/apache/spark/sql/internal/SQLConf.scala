@@ -2671,22 +2671,16 @@ object SQLConf {
       .checkValue(_ > 0, "The difference must be positive.")
       .createWithDefault(4)
 
-  val NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ENABLED =
-    buildConf("spark.sql.notInSubquery.singleColumn.optimize.enabled")
+  val NOT_IN_SUBQUERY_HASH_JOIN_ENABLED =
+    buildConf("spark.sql.notInSubquery.hashJoin.enabled")
       .internal()
-      .doc("When true, single column not in subquery execution in BroadcastNestedLoopJoinExec " +
-        "will be optimized from M*N calculation into M*log(N) calculation using HashMap lookup " +
-        "instead of Looping lookup.")
+      .doc("When true, not in subquery execution will be planed into " +
+        "BroadcastNullAwareHashJoinExec, " +
+        "optimized from O(M*N) calculation into O(M) calculation " +
+        "using Hash lookup instead of Looping lookup." +
+        "Only support for singleColumn not in subquery for now.")
       .booleanConf
       .createWithDefault(false)
-
-  val NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ROW_COUNT_THRESHOLD =
-    buildConf("spark.sql.notInSubquery.singleColumn.optimize.rowCountThreshold")
-      .internal()
-      .doc("Build side rowCount in BroadcastNestedLoopJoinExec must be less than this value " +
-        "before spark.sql.notInSubquery.singleColumn.optimize actually works.")
-      .intConf
-      .createWithDefault(10000)
 
   /**
    * Holds information about keys that have been deprecated.
@@ -3287,12 +3281,8 @@ class SQLConf extends Serializable with Logging {
 
   def metadataCacheTTL: Long = getConf(StaticSQLConf.METADATA_CACHE_TTL_SECONDS)
 
-  def notInSubquerySingleColumnOptimizeEnabled: Boolean =
-    getConf(SQLConf.NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ENABLED)
-
-  def notInSubquerySingleColumnOptimizeRowCountThreshold: Int = {
-    getConf(SQLConf.NOT_IN_SUBQUERY_SINGLE_COLUMN_OPTIMIZE_ROW_COUNT_THRESHOLD)
-  }
+  def notInSubqueryHashJoinEnabled: Boolean =
+    getConf(SQLConf.NOT_IN_SUBQUERY_HASH_JOIN_ENABLED)
 
   /** ********************** SQLConf functionality methods ************ */
 
