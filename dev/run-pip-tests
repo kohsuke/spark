@@ -75,19 +75,9 @@ for python in "${PYTHON_EXECS[@]}"; do
     echo "Using $VIRTUALENV_BASE for virtualenv"
     VIRTUALENV_PATH="$VIRTUALENV_BASE"/$python
     rm -rf "$VIRTUALENV_PATH"
-    USE_CONDA_CMD=0
     if [ -n "$USE_CONDA" ]; then
-      if [ -f "$CONDA_PREFIX/etc/profile.d/conda.sh" ]; then
-        # See also https://github.com/conda/conda/issues/7980
-        USE_CONDA_CMD=1
-        source "$CONDA_PREFIX/etc/profile.d/conda.sh"
-      fi
       conda create -y -p "$VIRTUALENV_PATH" python=$python numpy pandas pip setuptools
-    if [ $USE_CONDA_CMD == 1 ]; then
-      conda activate "$VIRTUALENV_PATH"
-    else
       source activate "$VIRTUALENV_PATH"
-    fi
     else
       mkdir -p "$VIRTUALENV_PATH"
       virtualenv --python=$python "$VIRTUALENV_PATH"
@@ -102,8 +92,6 @@ for python in "${PYTHON_EXECS[@]}"; do
     cd "$FWDIR"/python
     # Delete the egg info file if it exists, this can cache the setup file.
     rm -rf pyspark.egg-info || echo "No existing egg info file, skipping deletion"
-    # Also, delete the symbolic link if exists. It can be left over from the previous editable mode installation.
-    python3 -c "from distutils.sysconfig import get_python_lib; import os; f = os.path.join(get_python_lib(), 'pyspark.egg-link'); os.unlink(f) if os.path.isfile(f) else 0"
     python3 setup.py sdist
 
 
@@ -133,11 +121,7 @@ for python in "${PYTHON_EXECS[@]}"; do
 
     # conda / virtualenv environments need to be deactivated differently
     if [ -n "$USE_CONDA" ]; then
-      if [ $USE_CONDA_CMD == 1 ]; then
-        conda deactivate
-      else
-        source deactivate
-      fi
+      source deactivate
     else
       deactivate
     fi
