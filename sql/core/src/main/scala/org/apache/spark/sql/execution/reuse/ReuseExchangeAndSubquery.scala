@@ -25,7 +25,7 @@ import org.apache.spark.sql.util.ReuseMap
 
 /**
  * Find out duplicated exchanges and subqueries in the whole spark plan including subqueries, then
- * use the same exhange or subquery for all the references.
+ * use the same exchange or subquery for all the references.
  */
 case class ReuseExchangeAndSubquery(conf: SQLConf) extends Rule[SparkPlan] {
 
