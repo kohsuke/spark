@@ -935,17 +935,16 @@ private[spark] class TaskSchedulerImpl(
     val reason = givenReason match {
       // Handle slave loss due to decommissioning
       case ExecutorProcessLost(message, workerLost, _) =>
-        val externalShuffleServiceEnabled = sc.env.blockManager.externalShuffleServiceEnabled
         val executorDecommissionInfo = getExecutorDecommissionInfo(executorId)
-        // Slave loss is not caused by app if we knew that this executor is being
+        // Executor loss is not caused by app if we knew that this executor is being
         // decommissioned
-        val slaveLossCausedByApp = executorDecommissionInfo.isEmpty
-        val decommissionCausedShuffleLoss = executorDecommissionInfo
-          .exists(_.isShuffleLost(externalShuffleServiceEnabled))
+        val executorLossCausedByApp = executorDecommissionInfo.isEmpty
+        val hostDecommissioned = executorDecommissionInfo.exists(_.isHostDecommissioned)
         ExecutorProcessLost(
           message,
-          workerLost || decommissionCausedShuffleLoss,
-          slaveLossCausedByApp)
+          // Also mark the worker lost if we know that the host was decommissioned
+          workerLost || hostDecommissioned,
+          executorLossCausedByApp)
       case e => e
     }
 

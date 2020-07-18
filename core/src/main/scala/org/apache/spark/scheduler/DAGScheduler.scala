@@ -1771,11 +1771,14 @@ private[spark] class DAGScheduler(
             val isHostDecommissioned = taskScheduler
               .getExecutorDecommissionInfo(bmAddress.executorId)
               .exists(_.isHostDecommissioned)
-            val hostLost = (externalShuffleServiceEnabled &&
-              unRegisterOutputOnHostOnFetchFailure) || isHostDecommissioned
+            // Host shuffle data is considered lost if:
+            // - If we know that the host was decommissioned
+            // - Or when `unRegisterOutputOnHostOnFetchFailure` is enabled and we had
+            //   a fetch failure with the external shuffle service, so we assume all
+            //   shuffle data on the node is bad.
+            val hostLost = isHostDecommissioned || (externalShuffleServiceEnabled &&
+              unRegisterOutputOnHostOnFetchFailure)
             val hostToUnregisterOutputs = if (hostLost) {
-              // We had a fetch failure with the external shuffle service, so we
-              // assume all shuffle data on the node is bad.
               Some(bmAddress.host)
             } else {
               // Unregister shuffle data just for one executor (we don't have any

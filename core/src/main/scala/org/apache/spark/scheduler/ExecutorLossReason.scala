@@ -54,8 +54,8 @@ private [spark] object LossReasonPending extends ExecutorLossReason("Pending los
 /**
  * @param _message human readable loss reason
  * @param workerLost whether the worker is confirmed lost too (i.e. including shuffle service)
- * @param causedByApp whether the loss of the slave is the fault of the running app. (assumed true
- *                    by default unless known explicitly otherwise)
+ * @param causedByApp whether the loss of the executor is the fault of the running app.
+ *                    (assumed true by default unless known explicitly otherwise)
  */
 private[spark]
 case class ExecutorProcessLost(
