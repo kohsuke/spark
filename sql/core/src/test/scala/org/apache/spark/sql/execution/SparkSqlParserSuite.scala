@@ -64,6 +64,8 @@ class SparkSqlParserSuite extends AnalysisTest {
   test("Report Error for invalid usage of SET command") {
     assertEqual("SET", SetCommand(None))
     assertEqual("SET   ", SetCommand(None))
+    assertEqual("SET -v", SetCommand(Some("-v", None)))
+    assertEqual("SET  -v  ", SetCommand(Some("-v", None)))
     assertEqual("SET spark.sql.key", SetCommand(Some("spark.sql.key" -> None)))
     assertEqual("SET   spark.sql.key ", SetCommand(Some("spark.sql.key" -> None)))
     assertEqual("SET spark.sql.key1=value", SetCommand(Some("spark.sql.key1" -> Some("value"))))
