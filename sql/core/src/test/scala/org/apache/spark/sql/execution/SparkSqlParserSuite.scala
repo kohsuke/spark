@@ -67,12 +67,13 @@ class SparkSqlParserSuite extends AnalysisTest {
     assertEqual("SET spark.sql.key", SetCommand(Some("spark.sql.key" -> None)))
     assertEqual("SET   spark.sql.key ", SetCommand(Some("spark.sql.key" -> None)))
     assertEqual("SET spark.sql.key1=value", SetCommand(Some("spark.sql.key1" -> Some("value"))))
-    assertEqual("SET spark.sql.key2 =  value",
-      SetCommand(Some("spark.sql.key2" -> Some("  value"))))
-    assertEqual("SET spark.sql.key3= v al u   e ",
-      SetCommand(Some("spark.sql.key3" -> Some(" v al u   e "))))
+    assertEqual("SET spark:sql:key2=value", SetCommand(Some("spark:sql:key2" -> Some("value"))))
+    assertEqual("SET spark.sql.key3 =  value",
+      SetCommand(Some("spark.sql.key3" -> Some("value"))))
+    assertEqual("SET spark.sql.key4= v al u   e ",
+      SetCommand(Some("spark.sql.key4" -> Some("v al u   e"))))
     assertEqual("SET spark.sql.key= value1= value2",
-      SetCommand(Some("spark.sql.key" -> Some(" value1= value2"))))
+      SetCommand(Some("spark.sql.key" -> Some("value1= value2"))))
     assertEqual("SET `spark.sql.    key`=value",
       SetCommand(Some("spark.sql.    key" -> Some("value"))))
 

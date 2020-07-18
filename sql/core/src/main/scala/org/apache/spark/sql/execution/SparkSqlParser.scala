@@ -65,11 +65,11 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
    */
   override def visitSetConfiguration(ctx: SetConfigurationContext): LogicalPlan = withOrigin(ctx) {
     // Construct the command.
-    val keyValueDef = """\s*([a-zA-Z\d\\.]+|`[a-zA-Z\d\s\\.]+`)\s*=(.*)""".r
-    val keyOnlyDef = """\s*([a-zA-Z\d\\.]+|`[a-zA-Z\d\s\\.]+`)\s*""".r
+    val keyValueDef = """\s*([a-zA-Z\d\\.:]+|`[a-zA-Z\d\s\\.:]+`)\s*=(.*)""".r
+    val keyOnlyDef = """\s*([a-zA-Z\d\\.:]+|`[a-zA-Z\d\s\\.:]+`)\s*""".r
     remainder(ctx.SET.getSymbol) match {
       case keyValueDef(key, value) =>
-        SetCommand(Some(key.replaceAll("`", "") -> Option(value)))
+        SetCommand(Some(key.replaceAll("`", "") -> Option(value.trim)))
       case keyOnlyDef(key) =>
         SetCommand(Some(key.replaceAll("`", "") -> None))
       case s if s.trim.isEmpty =>
