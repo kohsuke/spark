@@ -43,8 +43,11 @@ class ReuseMap[T <: QueryPlan[_]] {
    * @return the matching plan or the input plan
    */
   def lookupOrElseAdd(plan: T): T = {
+    // The first plan with a schema is not inserted to the `sameResultPlans` map immediately
     val (firstSameSchemaPlan, sameResultPlans) = map.getOrElseUpdate(plan.schema, plan -> Map())
     if (firstSameSchemaPlan ne plan) {
+      // Add the first plan to the `sameResultPlans` map only when the 2nd plan arrives with the
+      // same schema
       if (sameResultPlans.isEmpty) {
         sameResultPlans += firstSameSchemaPlan.canonicalized -> firstSameSchemaPlan
       }
