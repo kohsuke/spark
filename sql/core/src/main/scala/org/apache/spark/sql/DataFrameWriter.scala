@@ -265,6 +265,7 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
    * @since 1.4.0
    */
   def save(path: String): Unit = {
+    removeExtraOptionsByKey("path")
     this.extraOptions += ("path" -> path)
     save()
   }
@@ -950,6 +951,14 @@ final class DataFrameWriter[T] private[sql](ds: Dataset[T]) {
       case Some(_: FileDataSourceV2) => None
       case other => other
     }
+  }
+
+  /**
+   * Remove extra options which has the same key case-insensitively.
+   */
+  private def removeExtraOptionsByKey(key: String): Unit = {
+    val keys = extraOptions.keys.filter(_.equalsIgnoreCase(key)).toList
+    keys.foreach(extraOptions.remove)
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////

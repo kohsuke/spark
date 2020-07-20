@@ -211,6 +211,7 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    */
   def load(path: String): DataFrame = {
     // force invocation of `load(...varargs...)`
+    removeExtraOptionsByKey("path")
     option("path", path).load(Seq.empty: _*)
   }
 
@@ -869,6 +870,14 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
     if (userSpecifiedSchema.nonEmpty) {
       throw new AnalysisException(s"User specified schema not supported with `$operation`")
     }
+  }
+
+  /**
+   * Remove extra options which has the same key case-insensitively.
+   */
+  private def removeExtraOptionsByKey(key: String): Unit = {
+    val keys = extraOptions.keys.filter(_.equalsIgnoreCase(key)).toList
+    keys.foreach(extraOptions.remove)
   }
 
   ///////////////////////////////////////////////////////////////////////////////////////
