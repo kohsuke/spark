@@ -44,6 +44,14 @@ class ExecutorAllocationManagerSuite extends TestSuiteBase
   }
 
   test("basic functionality") {
+    basicTest(decommissioning = false)
+  }
+
+  test("basic decommissioning") {
+    basicTest(decommissioning = true)
+  }
+
+  def basicTest(decommissioning: Boolean): Unit = {
     // Test that adding batch processing time info to allocation manager
     // causes executors to be requested and killed accordingly
 
@@ -83,12 +91,20 @@ class ExecutorAllocationManagerSuite extends TestSuiteBase
             Map.empty)}
       }
 
-      /** Verify that a particular executor was killed */
+      /** Verify that particular executors was killed */
       def verifyKilledExec(expectedKilledExec: Option[String]): Unit = {
         if (expectedKilledExec.nonEmpty) {
-          verify(allocationClient, times(1)).killExecutor(meq(expectedKilledExec.get))
+          if (decommissioning) {
+            verify(allocationClient, times(1)).decommissionExecutors(meq(expectedKilledExec.toSeq))
+          } else {
+            verify(allocationClient, times(1)).killExecutor(meq(expectedKilledExec.get))
+          }
         } else {
-          verify(allocationClient, never).killExecutor(null)
+          if (decommissioning) {
+            verify(allocationClient, never).decommissionExecutors(null)
+          } else {
+            verify(allocationClient, never).killExecutor(null)
+          }
         }
       }
 
