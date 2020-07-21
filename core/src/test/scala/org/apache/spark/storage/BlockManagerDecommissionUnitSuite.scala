@@ -221,5 +221,7 @@ class BlockManagerDecommissionUnitSuite extends SparkFunSuite with Matchers {
     } finally {
         bmDecomManager.stop()
     }
+
+    bmDecomManager.stop()
   }
 }
