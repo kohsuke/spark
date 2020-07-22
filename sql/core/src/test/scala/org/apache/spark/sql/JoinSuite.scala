@@ -82,7 +82,7 @@ class JoinSuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlan
       case j: ShuffledHashJoinExec => j
       case j: CartesianProductExec => j
       case j: BroadcastNestedLoopJoinExec => j
-      case j: BroadcastNullAwareHashJoinExec => j
+      case j: BroadcastNullAwareLeftAntiHashJoinExec => j
       case j: SortMergeJoinExec => j
     }
 
@@ -1112,7 +1112,7 @@ class JoinSuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlan
       // positive not in subquery case
       assertJoin((
         "select * from testData where key not in (select a from testData2)",
-        classOf[BroadcastNullAwareHashJoinExec]))
+        classOf[BroadcastNullAwareLeftAntiHashJoinExec]))
 
       // negative not in subquery case since multi-column is not supported
       assertJoin((
@@ -1124,7 +1124,7 @@ class JoinSuite extends QueryTest with SharedSparkSession with AdaptiveSparkPlan
       // testData3.b nullable true
       assertJoin((
         "select * from testData left anti join testData3 ON key = b or isnull(key = b)",
-        classOf[BroadcastNullAwareHashJoinExec]))
+        classOf[BroadcastNullAwareLeftAntiHashJoinExec]))
 
       // negative hand-written left anti join
       // testData.key nullable false
