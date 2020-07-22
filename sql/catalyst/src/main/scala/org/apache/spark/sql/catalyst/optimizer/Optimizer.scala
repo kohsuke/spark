@@ -177,7 +177,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
       ReplaceIntersectWithSemiJoin,
       ReplaceExceptWithFilter,
       ReplaceExceptWithAntiJoin,
-      ReplaceDistinct) ::
+      ReplaceDistinctWithAggregate) ::
     Batch("Aggregate", fixedPoint,
       RemoveLiteralFromGroupExpressions,
       RemoveRepetitionFromGroupExpressions) :: Nil ++
@@ -244,7 +244,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
       ReplaceExceptWithAntiJoin.ruleName ::
       RewriteExceptAll.ruleName ::
       RewriteIntersectAll.ruleName ::
-      ReplaceDistinct.ruleName ::
+      ReplaceDistinctWithAggregate.ruleName ::
       PullupCorrelatedPredicates.ruleName ::
       RewriteCorrelatedScalarSubquery.ruleName ::
       RewritePredicateSubquery.ruleName ::
@@ -1533,20 +1533,13 @@ object ConvertToLocalRelation extends Rule[LogicalPlan] {
 }
 
 /**
- * Replaces logical [[Distinct]] operator with an appropriate operator.
- *
- * For batch queries, it will be replaced to [[Aggregate]]
+ * Replaces logical [[Distinct]] operator with an [[Aggregate]] operator.
  * {{{
  *   SELECT DISTINCT f1, f2 FROM t  ==>  SELECT f1, f2 FROM t GROUP BY f1, f2
  * }}}
- *
- * For streaming, it will be replaced to [[Deduplicate]]
  */
-object ReplaceDistinct extends Rule[LogicalPlan] {
+object ReplaceDistinctWithAggregate extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = plan transform {
-    case Distinct(child) if child.isStreaming =>
-      Deduplicate(child.output, child)
-
     case Distinct(child) => Aggregate(child.output, child.output, child)
   }
 }

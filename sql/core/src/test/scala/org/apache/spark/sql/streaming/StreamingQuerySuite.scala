@@ -1118,23 +1118,6 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
     }
   }
 
-  test("union in streaming query") {
-    val inputData1 = MemoryStream[Int]
-    val inputData2 = MemoryStream[Int]
-    withTempView("s1", "s2") {
-      inputData1.toDF().createOrReplaceTempView("s1")
-      inputData2.toDF().createOrReplaceTempView("s2")
-      val unioned = spark.sql(
-        "select s1.value from s1 union select s2.value from s2")
-
-      testStream(unioned)(
-        AddData(inputData1, 1, 2, 3),
-        AddData(inputData1, 1, 3, 5),
-        CheckAnswer(1, 2, 3, 5)
-      )
-    }
-  }
-
   /** Create a streaming DF that only execute one batch in which it returns the given static DF */
   private def createSingleTriggerStreamingDF(triggerDF: DataFrame): DataFrame = {
     require(!triggerDF.isStreaming)
