@@ -557,24 +557,27 @@ abstract class KafkaMicroBatchSourceSuiteBase extends KafkaSourceSuiteBase {
       .agg(count("*") as 'count)
       .select($"window".getField("start") as 'window, $"count")
 
-    val query = windowedAggregation
-      .writeStream
-      .format("memory")
-      .outputMode("complete")
-      .queryName("kafkaWatermark")
-      .start()
-    query.processAllAvailable()
-    val rows = spark.table("kafkaWatermark").collect()
-    assert(rows.length === 1, s"Unexpected results: ${rows.toList}")
-    val row = rows(0)
-    // We cannot check the exact window start time as it depands on the time that messages were
-    // inserted by the producer. So here we just use a low bound to make sure the internal
-    // conversion works.
-    assert(
-      row.getAs[java.sql.Timestamp]("window").getTime >= now - 5 * 1000,
-      s"Unexpected results: $row")
-    assert(row.getAs[Int]("count") === 1, s"Unexpected results: $row")
-    query.stop()
+    val tableName = "kafkaWatermark"
+    withTempView(tableName) {
+      val query = windowedAggregation
+        .writeStream
+        .format("memory")
+        .outputMode("complete")
+        .queryName(tableName)
+        .start()
+      query.processAllAvailable()
+      val rows = spark.table(tableName).collect()
+      assert(rows.length === 1, s"Unexpected results: ${rows.toList}")
+      val row = rows(0)
+      // We cannot check the exact window start time as it depands on the time that messages were
+      // inserted by the producer. So here we just use a low bound to make sure the internal
+      // conversion works.
+      assert(
+        row.getAs[java.sql.Timestamp]("window").getTime >= now - 5 * 1000,
+        s"Unexpected results: $row")
+      assert(row.getAs[Int]("count") === 1, s"Unexpected results: $row")
+      query.stop()
+    }
   }
 
   test("delete a topic when a Spark job is running") {
@@ -1648,42 +1651,46 @@ abstract class KafkaSourceSuiteBase extends KafkaSourceTest {
       .option("includeHeaders", "true")
       .load()
 
-    val query = kafka
-      .writeStream
-      .format("memory")
-      .queryName("kafkaColumnTypes")
-      .trigger(defaultTrigger)
-      .start()
-    eventually(timeout(streamingTimeout)) {
-      assert(spark.table("kafkaColumnTypes").count == 1,
-        s"Unexpected results: ${spark.table("kafkaColumnTypes").collectAsList()}")
-    }
-    val row = spark.table("kafkaColumnTypes").head()
-    assert(row.getAs[Array[Byte]]("key") === null, s"Unexpected results: $row")
-    assert(row.getAs[Array[Byte]]("value") === "1".getBytes(UTF_8), s"Unexpected results: $row")
-    assert(row.getAs[String]("topic") === topic, s"Unexpected results: $row")
-    assert(row.getAs[Int]("partition") === 0, s"Unexpected results: $row")
-    assert(row.getAs[Long]("offset") === 0L, s"Unexpected results: $row")
-    // We cannot check the exact timestamp as it's the time that messages were inserted by the
-    // producer. So here we just use a low bound to make sure the internal conversion works.
-    assert(row.getAs[java.sql.Timestamp]("timestamp").getTime >= now, s"Unexpected results: $row")
-    assert(row.getAs[Int]("timestampType") === 0, s"Unexpected results: $row")
-
-    def checkHeader(row: Row, expected: Seq[(String, Array[Byte])]): Unit = {
-      // array<struct<key:string,value:binary>>
-      val headers = row.getList[Row](row.fieldIndex("headers")).asScala
-      assert(headers.length === expected.length)
-
-      (0 until expected.length).foreach { idx =>
-        val key = headers(idx).getAs[String]("key")
-        val value = headers(idx).getAs[Array[Byte]]("value")
-        assert(key === expected(idx)._1)
-        assert(value === expected(idx)._2)
+    val tableName = "kafkaColumnTypes"
+    withTempView(tableName) {
+      val query = kafka
+        .writeStream
+        .format("memory")
+        .queryName(tableName)
+        .trigger(defaultTrigger)
+        .start()
+      eventually(timeout(streamingTimeout)) {
+        assert(spark.table(tableName).count == 1,
+          s"Unexpected results: ${spark.table(tableName).collectAsList()}")
       }
-    }
+      val row = spark.table(tableName).head()
+      assert(row.getAs[Array[Byte]]("key") === null, s"Unexpected results: $row")
+      assert(row.getAs[Array[Byte]]("value") === "1".getBytes(UTF_8), s"Unexpected results: $row")
+      assert(row.getAs[String]("topic") === topic, s"Unexpected results: $row")
+      assert(row.getAs[Int]("partition") === 0, s"Unexpected results: $row")
+      assert(row.getAs[Long]("offset") === 0L, s"Unexpected results: $row")
+      // We cannot check the exact timestamp as it's the time that messages were inserted by the
+      // producer. So here we just use a low bound to make sure the internal conversion works.
+      assert(
+        row.getAs[java.sql.Timestamp]("timestamp").getTime >= now, s"Unexpected results: $row")
+      assert(row.getAs[Int]("timestampType") === 0, s"Unexpected results: $row")
 
-    checkHeader(row, Seq(("a", "b".getBytes(UTF_8)), ("c", "d".getBytes(UTF_8))))
-    query.stop()
+      def checkHeader(row: Row, expected: Seq[(String, Array[Byte])]): Unit = {
+        // array<struct<key:string,value:binary>>
+        val headers = row.getList[Row](row.fieldIndex("headers")).asScala
+        assert(headers.length === expected.length)
+
+        (0 until expected.length).foreach { idx =>
+          val key = headers(idx).getAs[String]("key")
+          val value = headers(idx).getAs[Array[Byte]]("value")
+          assert(key === expected(idx)._1)
+          assert(value === expected(idx)._2)
+        }
+      }
+
+      checkHeader(row, Seq(("a", "b".getBytes(UTF_8)), ("c", "d".getBytes(UTF_8))))
+      query.stop()
+    }
   }
 
   private def testFromLatestOffsets(

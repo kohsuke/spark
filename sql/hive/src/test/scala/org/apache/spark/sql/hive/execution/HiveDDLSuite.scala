@@ -2439,7 +2439,7 @@ class HiveDDLSuite
 
     implicit val _sqlContext = spark.sqlContext
 
-    withTempView("t1") {
+    withTempView("t1", "t2") {
       Seq((1, "one"), (2, "two"), (4, "four")).toDF("number", "word").createOrReplaceTempView("t1")
       // Make a table and ensure it will be broadcast.
       sql("""CREATE TABLE smallTable(word string, number int)

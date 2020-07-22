@@ -144,74 +144,83 @@ class MemorySinkSuite extends StreamTest with BeforeAndAfter {
 
   test("registering as a table in Append output mode") {
     val input = MemoryStream[Int]
-    val query = input.toDF().writeStream
-      .format("memory")
-      .outputMode("append")
-      .queryName("memStream")
-      .start()
-    input.addData(1, 2, 3)
-    query.processAllAvailable()
+    val tableName = "memStream"
+    withTempView(tableName) {
+      val query = input.toDF().writeStream
+        .format("memory")
+        .outputMode("append")
+        .queryName(tableName)
+        .start()
+      input.addData(1, 2, 3)
+      query.processAllAvailable()
 
-    checkDataset(
-      spark.table("memStream").as[Int],
-      1, 2, 3)
+      checkDataset(
+        spark.table(tableName).as[Int],
+        1, 2, 3)
 
-    input.addData(4, 5, 6)
-    query.processAllAvailable()
-    checkDataset(
-      spark.table("memStream").as[Int],
-      1, 2, 3, 4, 5, 6)
+      input.addData(4, 5, 6)
+      query.processAllAvailable()
+      checkDataset(
+        spark.table(tableName).as[Int],
+        1, 2, 3, 4, 5, 6)
 
-    query.stop()
+      query.stop()
+    }
   }
 
   test("registering as a table in Complete output mode") {
     val input = MemoryStream[Int]
-    val query = input.toDF()
-      .groupBy("value")
-      .count()
-      .writeStream
-      .format("memory")
-      .outputMode("complete")
-      .queryName("memStream")
-      .start()
-    input.addData(1, 2, 3)
-    query.processAllAvailable()
+    val tableName = "memStream"
+    withTempView(tableName) {
+      val query = input.toDF()
+        .groupBy("value")
+        .count()
+        .writeStream
+        .format("memory")
+        .outputMode("complete")
+        .queryName(tableName)
+        .start()
+      input.addData(1, 2, 3)
+      query.processAllAvailable()
 
-    checkDatasetUnorderly(
-      spark.table("memStream").as[(Int, Long)],
-      (1, 1L), (2, 1L), (3, 1L))
+      checkDatasetUnorderly(
+        spark.table(tableName).as[(Int, Long)],
+        (1, 1L), (2, 1L), (3, 1L))
 
-    input.addData(4, 5, 6)
-    query.processAllAvailable()
-    checkDatasetUnorderly(
-      spark.table("memStream").as[(Int, Long)],
-      (1, 1L), (2, 1L), (3, 1L), (4, 1L), (5, 1L), (6, 1L))
+      input.addData(4, 5, 6)
+      query.processAllAvailable()
+      checkDatasetUnorderly(
+        spark.table(tableName).as[(Int, Long)],
+        (1, 1L), (2, 1L), (3, 1L), (4, 1L), (5, 1L), (6, 1L))
 
-    query.stop()
+      query.stop()
+    }
   }
 
   test("registering as a table in Update output mode") {
     val input = MemoryStream[Int]
-    val query = input.toDF().writeStream
-      .format("memory")
-      .outputMode("update")
-      .queryName("memStream")
-      .start()
-    input.addData(1, 2, 3)
-    query.processAllAvailable()
+    val tableName = "memStream"
+    withTempView(tableName) {
+      val query = input.toDF().writeStream
+        .format("memory")
+        .outputMode("update")
+        .queryName(tableName)
+        .start()
+      input.addData(1, 2, 3)
+      query.processAllAvailable()
 
-    checkDataset(
-      spark.table("memStream").as[Int],
-      1, 2, 3)
+      checkDataset(
+        spark.table(tableName).as[Int],
+        1, 2, 3)
 
-    input.addData(4, 5, 6)
-    query.processAllAvailable()
-    checkDataset(
-      spark.table("memStream").as[Int],
-      1, 2, 3, 4, 5, 6)
+      input.addData(4, 5, 6)
+      query.processAllAvailable()
+      checkDataset(
+        spark.table(tableName).as[Int],
+        1, 2, 3, 4, 5, 6)
 
-    query.stop()
+      query.stop()
+    }
   }
 
   test("MemoryPlan statistics") {
@@ -237,24 +246,27 @@ class MemorySinkSuite extends StreamTest with BeforeAndAfter {
     // Ignore the stress test as it takes several minutes to run
     (0 until 1000).foreach { _ =>
       val input = MemoryStream[Int]
-      val query = input.toDF().writeStream
-        .format("memory")
-        .queryName("memStream")
-        .start()
-      input.addData(1, 2, 3)
-      query.processAllAvailable()
+      val tableName = "memStream"
+      withTempView(tableName) {
+        val query = input.toDF().writeStream
+          .format("memory")
+          .queryName(tableName)
+          .start()
+        input.addData(1, 2, 3)
+        query.processAllAvailable()
 
-      checkDataset(
-        spark.table("memStream").as[Int],
-        1, 2, 3)
+        checkDataset(
+          spark.table(tableName).as[Int],
+          1, 2, 3)
 
-      input.addData(4, 5, 6)
-      query.processAllAvailable()
-      checkDataset(
-        spark.table("memStream").as[Int],
-        1, 2, 3, 4, 5, 6)
+        input.addData(4, 5, 6)
+        query.processAllAvailable()
+        checkDataset(
+          spark.table(tableName).as[Int],
+          1, 2, 3, 4, 5, 6)
 
-      query.stop()
+        query.stop()
+      }
     }
   }
 
@@ -273,21 +285,24 @@ class MemorySinkSuite extends StreamTest with BeforeAndAfter {
     val location = Utils.createTempDir(namePrefix = "steaming.checkpoint").getCanonicalPath
 
     val input = MemoryStream[Int]
-    val query = input.toDF().writeStream
+    val tableName = "memStream"
+    withTempView(tableName) {
+      val query = input.toDF().writeStream
         .format("memory")
-        .queryName("memStream")
+        .queryName(tableName)
         .option("checkpointLocation", location)
         .start()
-    input.addData(1, 2, 3)
-    query.processAllAvailable()
-    query.stop()
+      input.addData(1, 2, 3)
+      query.processAllAvailable()
+      query.stop()
 
-    intercept[AnalysisException] {
-      input.toDF().writeStream
-        .format("memory")
-        .queryName("memStream")
-        .option("checkpointLocation", location)
-        .start()
+      intercept[AnalysisException] {
+        input.toDF().writeStream
+          .format("memory")
+          .queryName(tableName)
+          .option("checkpointLocation", location)
+          .start()
+      }
     }
   }
 

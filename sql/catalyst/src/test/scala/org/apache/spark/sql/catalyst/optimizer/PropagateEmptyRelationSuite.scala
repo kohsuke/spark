@@ -32,7 +32,7 @@ class PropagateEmptyRelationSuite extends PlanTest {
     val batches =
       Batch("PropagateEmptyRelation", Once,
         CombineUnions,
-        ReplaceDistinctWithAggregate,
+        ReplaceDistinct,
         ReplaceExceptWithAntiJoin,
         ReplaceIntersectWithSemiJoin,
         PushPredicateThroughNonJoin,
@@ -45,7 +45,7 @@ class PropagateEmptyRelationSuite extends PlanTest {
     val batches =
       Batch("OptimizeWithoutPropagateEmptyRelation", Once,
         CombineUnions,
-        ReplaceDistinctWithAggregate,
+        ReplaceDistinct,
         ReplaceExceptWithAntiJoin,
         ReplaceIntersectWithSemiJoin,
         PushPredicateThroughNonJoin,

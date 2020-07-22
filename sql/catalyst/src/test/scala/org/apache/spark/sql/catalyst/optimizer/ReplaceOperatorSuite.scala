@@ -32,7 +32,7 @@ class ReplaceOperatorSuite extends PlanTest {
   object Optimize extends RuleExecutor[LogicalPlan] {
     val batches =
       Batch("Replace Operators", FixedPoint(100),
-        ReplaceDistinctWithAggregate,
+        ReplaceDistinct,
         ReplaceExceptWithFilter,
         ReplaceExceptWithAntiJoin,
         ReplaceIntersectWithSemiJoin,

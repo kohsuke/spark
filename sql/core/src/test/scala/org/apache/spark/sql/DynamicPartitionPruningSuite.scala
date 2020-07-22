@@ -1040,23 +1040,26 @@ abstract class DynamicPartitionPruningSuiteBase
 
       // join a partitioned table with a stream
       val joined = table.join(stream, Seq("one")).where("code > 40")
-      val query = joined.writeStream.format("memory").queryName("test").start()
-      input.addData(1, 10, 20, 40, 50)
-      try {
-        query.processAllAvailable()
-      } finally {
-        query.stop()
-      }
-      // search dynamic pruning predicates on the executed plan
-      val plan = query.asInstanceOf[StreamingQueryWrapper].streamingQuery.lastExecution.executedPlan
-      val ret = plan.find {
-        case s: FileSourceScanExec => s.partitionFilters.exists {
-          case _: DynamicPruningExpression => true
+      withTempView("test" ) {
+        val query = joined.writeStream.format("memory").queryName("test").start()
+        input.addData(1, 10, 20, 40, 50)
+        try {
+          query.processAllAvailable()
+        } finally {
+          query.stop()
+        }
+        // search dynamic pruning predicates on the executed plan
+        val plan = query.asInstanceOf[StreamingQueryWrapper]
+          .streamingQuery.lastExecution.executedPlan
+        val ret = plan.find {
+          case s: FileSourceScanExec => s.partitionFilters.exists {
+            case _: DynamicPruningExpression => true
+            case _ => false
+          }
           case _ => false
         }
-        case _ => false
+        assert(ret.isDefined == false)
       }
-      assert(ret.isDefined == false)
     }
   }
 

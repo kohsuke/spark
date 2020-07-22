@@ -184,34 +184,36 @@ class StreamingQueryStatusAndProgressSuite extends StreamTest with Eventually {
 
     val inputData = MemoryStream[Int]
 
-    val query = inputData.toDS()
-      .groupBy($"value")
-      .agg(count("*"))
-      .writeStream
-      .queryName("progress_serializable_test")
-      .format("memory")
-      .outputMode("complete")
-      .start()
-    try {
-      inputData.addData(1, 2, 3)
-      query.processAllAvailable()
+    withTempView("progress_serializable_test") {
+      val query = inputData.toDS()
+        .groupBy($"value")
+        .agg(count("*"))
+        .writeStream
+        .queryName("progress_serializable_test")
+        .format("memory")
+        .outputMode("complete")
+        .start()
+      try {
+        inputData.addData(1, 2, 3)
+        query.processAllAvailable()
 
-      val progress = query.recentProgress
+        val progress = query.recentProgress
 
-      // Make sure it generates the progress objects we want to test
-      assert(progress.exists { p =>
-        p.sources.size >= 1 && p.stateOperators.size >= 1 && p.sink != null
-      })
+        // Make sure it generates the progress objects we want to test
+        assert(progress.exists { p =>
+          p.sources.size >= 1 && p.stateOperators.size >= 1 && p.sink != null
+        })
 
-      val array = spark.sparkContext.parallelize(progress).collect()
-      assert(array.length === progress.length)
-      array.zip(progress).foreach { case (p1, p2) =>
-        // Make sure we did serialize and deserialize the object
-        assert(p1 ne p2)
-        assert(p1.json === p2.json)
+        val array = spark.sparkContext.parallelize(progress).collect()
+        assert(array.length === progress.length)
+        array.zip(progress).foreach { case (p1, p2) =>
+          // Make sure we did serialize and deserialize the object
+          assert(p1 ne p2)
+          assert(p1.json === p2.json)
+        }
+      } finally {
+        query.stop()
       }
-    } finally {
-      query.stop()
     }
   }
 
@@ -221,32 +223,34 @@ class StreamingQueryStatusAndProgressSuite extends StreamTest with Eventually {
     withSQLConf(SQLConf.STREAMING_NO_DATA_PROGRESS_EVENT_INTERVAL.key -> "10") {
       val inputData = MemoryStream[Int]
 
-      val query = inputData.toDS().toDF("value")
-        .select('value)
-        .groupBy($"value")
-        .agg(count("*"))
-        .writeStream
-        .queryName("metric_continuity")
-        .format("memory")
-        .outputMode("complete")
-        .start()
-      try {
-        inputData.addData(1, 2)
-        query.processAllAvailable()
+      withTempView("metric_continuity") {
+        val query = inputData.toDS().toDF("value")
+          .select('value)
+          .groupBy($"value")
+          .agg(count("*"))
+          .writeStream
+          .queryName("metric_continuity")
+          .format("memory")
+          .outputMode("complete")
+          .start()
+        try {
+          inputData.addData(1, 2)
+          query.processAllAvailable()
 
-        val progress = query.lastProgress
-        assert(progress.stateOperators.length > 0)
-        // Should emit new progresses every 10 ms, but we could be facing a slow Jenkins
-        eventually(timeout(1.minute)) {
-          val nextProgress = query.lastProgress
-          assert(nextProgress.timestamp !== progress.timestamp)
-          assert(nextProgress.numInputRows === 0)
-          assert(nextProgress.stateOperators.head.numRowsTotal === 2)
-          assert(nextProgress.stateOperators.head.numRowsUpdated === 0)
-          assert(nextProgress.sink.numOutputRows === 0)
+          val progress = query.lastProgress
+          assert(progress.stateOperators.length > 0)
+          // Should emit new progresses every 10 ms, but we could be facing a slow Jenkins
+          eventually(timeout(1.minute)) {
+            val nextProgress = query.lastProgress
+            assert(nextProgress.timestamp !== progress.timestamp)
+            assert(nextProgress.numInputRows === 0)
+            assert(nextProgress.stateOperators.head.numRowsTotal === 2)
+            assert(nextProgress.stateOperators.head.numRowsUpdated === 0)
+            assert(nextProgress.sink.numOutputRows === 0)
+          }
+        } finally {
+          query.stop()
         }
-      } finally {
-        query.stop()
       }
     }
   }

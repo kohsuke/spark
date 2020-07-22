@@ -1092,68 +1092,71 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
         .readStream
         .option("maxFilesPerTrigger", 2)
         .text(src.getCanonicalPath)
-      val q = df
-        .writeStream
-        .format("memory")
-        .queryName("file_data")
-        .start()
-        .asInstanceOf[StreamingQueryWrapper]
-        .streamingQuery
-      q.processAllAvailable()
-      val memorySink = q.sink.asInstanceOf[MemorySink]
-      val fileSource = getSourcesFromStreamingQuery(q).head
+      withTempView("file_data") {
+        val q = df
+          .writeStream
+          .format("memory")
+          .queryName("file_data")
+          .start()
+          .asInstanceOf[StreamingQueryWrapper]
+          .streamingQuery
+        q.processAllAvailable()
+        val memorySink = q.sink.asInstanceOf[MemorySink]
+        val fileSource = getSourcesFromStreamingQuery(q).head
 
-      /** Check the data read in the last batch */
-      def checkLastBatchData(data: Int*): Unit = {
-        val schema = StructType(Seq(StructField("value", StringType)))
-        val df = spark.createDataFrame(
-          spark.sparkContext.makeRDD(memorySink.latestBatchData), schema)
-        checkAnswer(df, data.map(_.toString).toDF("value"))
-      }
+        /** Check the data read in the last batch */
+        def checkLastBatchData(data: Int*): Unit = {
+          val schema = StructType(Seq(StructField("value", StringType)))
+          val df = spark.createDataFrame(
+            spark.sparkContext.makeRDD(memorySink.latestBatchData), schema)
+          checkAnswer(df, data.map(_.toString).toDF("value"))
+        }
 
-      def checkAllData(data: Seq[Int]): Unit = {
-        val schema = StructType(Seq(StructField("value", StringType)))
-        val df = spark.createDataFrame(
-          spark.sparkContext.makeRDD(memorySink.allData), schema)
-        checkAnswer(df, data.map(_.toString).toDF("value"))
-      }
+        def checkAllData(data: Seq[Int]): Unit = {
+          val schema = StructType(Seq(StructField("value", StringType)))
+          val df = spark.createDataFrame(
+            spark.sparkContext.makeRDD(memorySink.allData), schema)
+          checkAnswer(df, data.map(_.toString).toDF("value"))
+        }
 
-      /** Check how many batches have executed since the last time this check was made */
-      var lastBatchId = -1L
-      def checkNumBatchesSinceLastCheck(numBatches: Int): Unit = {
-        require(lastBatchId >= 0)
-        assert(memorySink.latestBatchId.get === lastBatchId + numBatches)
+        /** Check how many batches have executed since the last time this check was made */
+        var lastBatchId = -1L
+
+        def checkNumBatchesSinceLastCheck(numBatches: Int): Unit = {
+          require(lastBatchId >= 0)
+          assert(memorySink.latestBatchId.get === lastBatchId + numBatches)
+          lastBatchId = memorySink.latestBatchId.get
+        }
+
+        checkLastBatchData(3) // (1 and 2) should be in batch 1, (3) should be in batch 2 (last)
+        checkAllData(1 to 3)
         lastBatchId = memorySink.latestBatchId.get
+
+        fileSource.withBatchingLocked {
+          createFile(4)
+          createFile(5) // 4 and 5 should be in a batch
+          createFile(6)
+          createFile(7) // 6 and 7 should be in the last batch
+        }
+        q.processAllAvailable()
+        checkNumBatchesSinceLastCheck(2)
+        checkLastBatchData(6, 7)
+        checkAllData(1 to 7)
+
+        fileSource.withBatchingLocked {
+          createFile(8)
+          createFile(9) // 8 and 9 should be in a batch
+          createFile(10)
+          createFile(11) // 10 and 11 should be in a batch
+          createFile(12) // 12 should be in the last batch
+        }
+        q.processAllAvailable()
+        checkNumBatchesSinceLastCheck(3)
+        checkLastBatchData(12)
+        checkAllData(1 to 12)
+
+        q.stop()
       }
-
-      checkLastBatchData(3)  // (1 and 2) should be in batch 1, (3) should be in batch 2 (last)
-      checkAllData(1 to 3)
-      lastBatchId = memorySink.latestBatchId.get
-
-      fileSource.withBatchingLocked {
-        createFile(4)
-        createFile(5)   // 4 and 5 should be in a batch
-        createFile(6)
-        createFile(7)   // 6 and 7 should be in the last batch
-      }
-      q.processAllAvailable()
-      checkNumBatchesSinceLastCheck(2)
-      checkLastBatchData(6, 7)
-      checkAllData(1 to 7)
-
-      fileSource.withBatchingLocked {
-        createFile(8)
-        createFile(9)    // 8 and 9 should be in a batch
-        createFile(10)
-        createFile(11)   // 10 and 11 should be in a batch
-        createFile(12)   // 12 should be in the last batch
-      }
-      q.processAllAvailable()
-      checkNumBatchesSinceLastCheck(3)
-      checkLastBatchData(12)
-      checkAllData(1 to 12)
-
-      q.stop()
     }
   }
 
@@ -1250,31 +1253,33 @@ class FileStreamSourceSuite extends FileStreamSourceTest {
       // Test `explain` not throwing errors
       df.explain()
 
-      val q = df.writeStream.queryName("file_explain").format("memory").start()
-        .asInstanceOf[StreamingQueryWrapper]
-        .streamingQuery
-      try {
-        assert("No physical plan. Waiting for data." === q.explainInternal(false))
-        assert("No physical plan. Waiting for data." === q.explainInternal(true))
+      withTempView("file_explain") {
+        val q = df.writeStream.queryName("file_explain").format("memory").start()
+          .asInstanceOf[StreamingQueryWrapper]
+          .streamingQuery
+        try {
+          assert("No physical plan. Waiting for data." === q.explainInternal(false))
+          assert("No physical plan. Waiting for data." === q.explainInternal(true))
 
-        val tempFile = Utils.tempFileWith(new File(tmp, "text"))
-        val finalFile = new File(src, tempFile.getName)
-        require(stringToFile(tempFile, "foo").renameTo(finalFile))
+          val tempFile = Utils.tempFileWith(new File(tmp, "text"))
+          val finalFile = new File(src, tempFile.getName)
+          require(stringToFile(tempFile, "foo").renameTo(finalFile))
 
-        q.processAllAvailable()
+          q.processAllAvailable()
 
-        val explainWithoutExtended = q.explainInternal(false)
-        // `extended = false` only displays the physical plan.
-        assert("Relation.*text".r.findAllMatchIn(explainWithoutExtended).size === 0)
-        assert(": Text".r.findAllMatchIn(explainWithoutExtended).size === 1)
+          val explainWithoutExtended = q.explainInternal(false)
+          // `extended = false` only displays the physical plan.
+          assert("Relation.*text".r.findAllMatchIn(explainWithoutExtended).size === 0)
+          assert(": Text".r.findAllMatchIn(explainWithoutExtended).size === 1)
 
-        val explainWithExtended = q.explainInternal(true)
-        // `extended = true` displays 3 logical plans (Parsed/Optimized/Optimized) and 1 physical
-        // plan.
-        assert("Relation.*text".r.findAllMatchIn(explainWithExtended).size === 3)
-        assert(": Text".r.findAllMatchIn(explainWithExtended).size === 1)
-      } finally {
-        q.stop()
+          val explainWithExtended = q.explainInternal(true)
+          // `extended = true` displays 3 logical plans (Parsed/Optimized/Optimized) and 1 physical
+          // plan.
+          assert("Relation.*text".r.findAllMatchIn(explainWithExtended).size === 3)
+          assert(": Text".r.findAllMatchIn(explainWithExtended).size === 1)
+        } finally {
+          q.stop()
+        }
       }
     }
   }

@@ -73,18 +73,20 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
       val q2 = startQuery(name = None)
       assert(q2.name === null)
 
-      // Can be set by user
-      val q3 = startQuery(name = Some("q3"))
-      assert(q3.name === "q3")
+      withTempView("q3") {
+        // Can be set by user
+        val q3 = startQuery(name = Some("q3"))
+        assert(q3.name === "q3")
 
-      // Multiple active queries cannot have same name
-      val e = intercept[IllegalArgumentException] {
-        startQuery(name = Some("q3"))
+        // Multiple active queries cannot have same name
+        val e = intercept[IllegalArgumentException] {
+          startQuery(name = Some("q3"))
+        }
+
+        q1.stop()
+        q2.stop()
+        q3.stop()
       }
-
-      q1.stop()
-      q2.stop()
-      q3.stop()
     }
   }
 
@@ -108,25 +110,32 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
       // id and runId unique for new queries
       val q1 = startQuery(restart = false)
       val q2 = startQuery(restart = false)
-      assert(q1.id !== q2.id)
-      assert(q1.runId !== q2.runId)
-      q1.stop()
-      q2.stop()
+      withTempView(q1.name, q2.name) {
+        assert(q1.id !== q2.id)
+        assert(q1.runId !== q2.runId)
+        q1.stop()
+        q2.stop()
+      }
 
       // id persists across restarts, runId unique across restarts
       val q3 = startQuery(restart = false)
       q3.stop()
 
       val q4 = startQuery(restart = true)
-      q4.stop()
-      assert(q3.id === q3.id)
-      assert(q3.runId !== q4.runId)
+      withTempView(q3.name, q4.name) {
+        q4.stop()
+        assert(q3.id === q3.id)
+        assert(q3.runId !== q4.runId)
+      }
 
       // Only one query with same id can be active
       withSQLConf(SQLConf.STREAMING_STOP_ACTIVE_RUN_ON_RESTART.key -> "false") {
         val q5 = startQuery(restart = false)
         val e = intercept[IllegalStateException] {
           startQuery(restart = true)
+        }
+        withTempView(q5.name) {
+          q5.stop()
         }
       }
     }
@@ -698,36 +707,39 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
     }
 
     val input = MemoryStream[Int] :: MemoryStream[Int] :: MemoryStream[Int] :: Nil
-    val q1 = startQuery(input(0).toDS, "stream_serializable_test_1")
-    val q2 = startQuery(input(1).toDS.map { i =>
-      // Emulate that `StreamingQuery` get captured with normal usage unintentionally.
-      // It should not fail the query.
-      q1
-      i
-    }, "stream_serializable_test_2")
-    val q3 = startQuery(input(2).toDS.map { i =>
-      // Emulate that `StreamingQuery` is used in executors. We should fail the query with a clear
-      // error message.
-      q1.explain()
-      i
-    }, "stream_serializable_test_3")
-    try {
-      input.foreach(_.addData(1))
+    withTempView(
+      "stream_serializable_test_1", "stream_serializable_test_2", "stream_serializable_test_3") {
+      val q1 = startQuery(input(0).toDS, "stream_serializable_test_1")
+      val q2 = startQuery(input(1).toDS.map { i =>
+        // Emulate that `StreamingQuery` get captured with normal usage unintentionally.
+        // It should not fail the query.
+        q1
+        i
+      }, "stream_serializable_test_2")
+      val q3 = startQuery(input(2).toDS.map { i =>
+        // Emulate that `StreamingQuery` is used in executors. We should fail the query with a
+        // clear error message.
+        q1.explain()
+        i
+      }, "stream_serializable_test_3")
+      try {
+        input.foreach(_.addData(1))
 
-      // q2 should not fail since it doesn't use `q1` in the closure
-      q2.processAllAvailable()
+        // q2 should not fail since it doesn't use `q1` in the closure
+        q2.processAllAvailable()
 
-      // The user calls `StreamingQuery` in the closure and it should fail
-      val e = intercept[StreamingQueryException] {
-        q3.processAllAvailable()
+        // The user calls `StreamingQuery` in the closure and it should fail
+        val e = intercept[StreamingQueryException] {
+          q3.processAllAvailable()
+        }
+        assert(e.getCause.isInstanceOf[SparkException])
+        assert(e.getCause.getCause.getCause.isInstanceOf[IllegalStateException])
+        TestUtils.assertExceptionMsg(e, "StreamingQuery cannot be used in executors")
+      } finally {
+        q1.stop()
+        q2.stop()
+        q3.stop()
       }
-      assert(e.getCause.isInstanceOf[SparkException])
-      assert(e.getCause.getCause.getCause.isInstanceOf[IllegalStateException])
-      TestUtils.assertExceptionMsg(e, "StreamingQuery cannot be used in executors")
-    } finally {
-      q1.stop()
-      q2.stop()
-      q3.stop()
     }
   }
 
@@ -1103,6 +1115,23 @@ class StreamingQuerySuite extends StreamTest with BeforeAndAfter with Logging wi
         "file://foo:bar@b ar/foo/bar",
         "file://f oo:bar@bar/foo/bar").foreach { p =>
       assert(!StreamExecution.containsSpecialCharsInPath(new Path(p)), s"failed to check $p")
+    }
+  }
+
+  test("union in streaming query") {
+    val inputData1 = MemoryStream[Int]
+    val inputData2 = MemoryStream[Int]
+    withTempView("s1", "s2") {
+      inputData1.toDF().createOrReplaceTempView("s1")
+      inputData2.toDF().createOrReplaceTempView("s2")
+      val unioned = spark.sql(
+        "select s1.value from s1 union select s2.value from s2")
+
+      testStream(unioned)(
+        AddData(inputData1, 1, 2, 3),
+        AddData(inputData1, 1, 3, 5),
+        CheckAnswer(1, 2, 3, 5)
+      )
     }
   }
 

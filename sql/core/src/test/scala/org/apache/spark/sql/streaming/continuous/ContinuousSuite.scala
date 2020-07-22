@@ -256,21 +256,24 @@ class ContinuousSuite extends ContinuousSuiteBase {
       .load()
       .select('value)
 
-    val query = df.writeStream
-      .format("memory")
-      .queryName("noharness")
-      .trigger(Trigger.Continuous(100))
-      .start()
+    val name = "noharness"
+    withTempView(name) {
+      val query = df.writeStream
+        .format("memory")
+        .queryName(name)
+        .trigger(Trigger.Continuous(100))
+        .start()
 
-    val expected = Set(0, 1, 2, 3)
-    val continuousExecution =
-      query.asInstanceOf[StreamingQueryWrapper].streamingQuery.asInstanceOf[ContinuousExecution]
-    waitForRateSourceCommittedValue(continuousExecution, expected.max, 20 * 1000)
-    query.stop()
+      val expected = Set(0, 1, 2, 3)
+      val continuousExecution =
+        query.asInstanceOf[StreamingQueryWrapper].streamingQuery.asInstanceOf[ContinuousExecution]
+      waitForRateSourceCommittedValue(continuousExecution, expected.max, 20 * 1000)
+      query.stop()
 
-    val results = spark.read.table("noharness").collect()
-    assert(expected.map(Row(_)).subsetOf(results.toSet),
-      s"Result set ${results.toSet} are not a superset of $expected!")
+      val results = spark.read.table(name).collect()
+      assert(expected.map(Row(_)).subsetOf(results.toSet),
+        s"Result set ${results.toSet} are not a superset of $expected!")
+    }
   }
 
   Seq(TestScalaUDF("udf"), TestPythonUDF("udf"), TestScalarPandasUDF("udf")).foreach { udf =>

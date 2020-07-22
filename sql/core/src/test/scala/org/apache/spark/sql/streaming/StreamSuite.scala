@@ -237,25 +237,27 @@ class StreamSuite extends StreamTest {
     "StreamingExecutionRelation") {
     val df = spark.readStream.format(classOf[FakeDefaultSource].getName).load()
     var query: StreamExecution = null
-    try {
-      query =
-        df.union(df)
-          .writeStream
-          .format("memory")
-          .queryName("memory")
-          .start()
-          .asInstanceOf[StreamingQueryWrapper]
-          .streamingQuery
-      query.awaitInitialization(streamingTimeout.toMillis)
-      val executionRelations =
-        query
-          .logicalPlan
-          .collect { case ser: StreamingExecutionRelation => ser }
-      assert(executionRelations.size === 2)
-      assert(executionRelations.distinct.size === 1)
-    } finally {
-      if (query != null) {
-        query.stop()
+    withTempView("memory") {
+      try {
+        query =
+          df.union(df)
+            .writeStream
+            .format("memory")
+            .queryName("memory")
+            .start()
+            .asInstanceOf[StreamingQueryWrapper]
+            .streamingQuery
+        query.awaitInitialization(streamingTimeout.toMillis)
+        val executionRelations =
+          query
+            .logicalPlan
+            .collect { case ser: StreamingExecutionRelation => ser }
+        assert(executionRelations.size === 2)
+        assert(executionRelations.distinct.size === 1)
+      } finally {
+        if (query != null) {
+          query.stop()
+        }
       }
     }
   }
@@ -454,21 +456,23 @@ class StreamSuite extends StreamTest {
       .start()
       .asInstanceOf[StreamingQueryWrapper]
       .streamingQuery
-    try {
-      inputData.addData("abc")
-      q.processAllAvailable()
+    withTempView("memory_explain") {
+      try {
+        inputData.addData("abc")
+        q.processAllAvailable()
 
-      val explainWithoutExtended = q.explainInternal(false)
-      assert(explainWithoutExtended.contains(replacement))
-      assert(explainWithoutExtended.contains("StateStoreRestore"))
-      assert(!explainWithoutExtended.contains("file:/"))
+        val explainWithoutExtended = q.explainInternal(false)
+        assert(explainWithoutExtended.contains(replacement))
+        assert(explainWithoutExtended.contains("StateStoreRestore"))
+        assert(!explainWithoutExtended.contains("file:/"))
 
-      val explainWithExtended = q.explainInternal(true)
-      assert(explainWithExtended.contains(replacement))
-      assert(explainWithExtended.contains("StateStoreRestore"))
-      assert(!explainWithoutExtended.contains("file:/"))
-    } finally {
-      q.stop()
+        val explainWithExtended = q.explainInternal(true)
+        assert(explainWithExtended.contains(replacement))
+        assert(explainWithExtended.contains("StateStoreRestore"))
+        assert(!explainWithoutExtended.contains("file:/"))
+      } finally {
+        q.stop()
+      }
     }
   }
 
@@ -494,33 +498,35 @@ class StreamSuite extends StreamTest {
       .start()
       .asInstanceOf[StreamingQueryWrapper]
       .streamingQuery
-    try {
-      assert("No physical plan. Waiting for data." === q.explainInternal(false))
-      assert("No physical plan. Waiting for data." === q.explainInternal(true))
+    withTempView("memory_explain") {
+      try {
+        assert("No physical plan. Waiting for data." === q.explainInternal(false))
+        assert("No physical plan. Waiting for data." === q.explainInternal(true))
 
-      inputData.addData("abc")
-      q.processAllAvailable()
+        inputData.addData("abc")
+        q.processAllAvailable()
 
-      val explainWithoutExtended = q.explainInternal(false)
-      // `extended = false` only displays the physical plan.
-      assert("StreamingDataSourceV2Relation".r
-        .findAllMatchIn(explainWithoutExtended).size === 0)
-      assert("BatchScan".r
-        .findAllMatchIn(explainWithoutExtended).size === 1)
-      // Use "StateStoreRestore" to verify that it does output a streaming physical plan
-      assert(explainWithoutExtended.contains("StateStoreRestore"))
+        val explainWithoutExtended = q.explainInternal(false)
+        // `extended = false` only displays the physical plan.
+        assert("StreamingDataSourceV2Relation".r
+          .findAllMatchIn(explainWithoutExtended).size === 0)
+        assert("BatchScan".r
+          .findAllMatchIn(explainWithoutExtended).size === 1)
+        // Use "StateStoreRestore" to verify that it does output a streaming physical plan
+        assert(explainWithoutExtended.contains("StateStoreRestore"))
 
-      val explainWithExtended = q.explainInternal(true)
-      // `extended = true` displays 3 logical plans (Parsed/Optimized/Optimized) and 1 physical
-      // plan.
-      assert("StreamingDataSourceV2Relation".r
-        .findAllMatchIn(explainWithExtended).size === 3)
-      assert("BatchScan".r
-        .findAllMatchIn(explainWithExtended).size === 1)
-      // Use "StateStoreRestore" to verify that it does output a streaming physical plan
-      assert(explainWithExtended.contains("StateStoreRestore"))
-    } finally {
-      q.stop()
+        val explainWithExtended = q.explainInternal(true)
+        // `extended = true` displays 3 logical plans (Parsed/Optimized/Optimized) and 1 physical
+        // plan.
+        assert("StreamingDataSourceV2Relation".r
+          .findAllMatchIn(explainWithExtended).size === 3)
+        assert("BatchScan".r
+          .findAllMatchIn(explainWithExtended).size === 1)
+        // Use "StateStoreRestore" to verify that it does output a streaming physical plan
+        assert(explainWithExtended.contains("StateStoreRestore"))
+      } finally {
+        q.stop()
+      }
     }
   }
 
@@ -548,30 +554,32 @@ class StreamSuite extends StreamTest {
       .start()
       .asInstanceOf[StreamingQueryWrapper]
       .streamingQuery
-    try {
-      // in continuous mode, the query will be run even there's no data
-      // sleep a bit to ensure initialization
-      eventually(timeout(2.seconds), interval(100.milliseconds)) {
-        assert(q.lastExecution != null)
+    withTempView("memory_continuous_explain") {
+      try {
+        // in continuous mode, the query will be run even there's no data
+        // sleep a bit to ensure initialization
+        eventually(timeout(2.seconds), interval(100.milliseconds)) {
+          assert(q.lastExecution != null)
+        }
+
+        val explainWithoutExtended = q.explainInternal(false)
+
+        // `extended = false` only displays the physical plan.
+        assert("StreamingDataSourceV2Relation".r
+          .findAllMatchIn(explainWithoutExtended).size === 0)
+        assert("ContinuousScan".r
+          .findAllMatchIn(explainWithoutExtended).size === 1)
+
+        val explainWithExtended = q.explainInternal(true)
+        // `extended = true` displays 3 logical plans (Parsed/Optimized/Optimized) and 1 physical
+        // plan.
+        assert("StreamingDataSourceV2Relation".r
+          .findAllMatchIn(explainWithExtended).size === 3)
+        assert("ContinuousScan".r
+          .findAllMatchIn(explainWithExtended).size === 1)
+      } finally {
+        q.stop()
       }
-
-      val explainWithoutExtended = q.explainInternal(false)
-
-      // `extended = false` only displays the physical plan.
-      assert("StreamingDataSourceV2Relation".r
-        .findAllMatchIn(explainWithoutExtended).size === 0)
-      assert("ContinuousScan".r
-        .findAllMatchIn(explainWithoutExtended).size === 1)
-
-      val explainWithExtended = q.explainInternal(true)
-      // `extended = true` displays 3 logical plans (Parsed/Optimized/Optimized) and 1 physical
-      // plan.
-      assert("StreamingDataSourceV2Relation".r
-        .findAllMatchIn(explainWithExtended).size === 3)
-      assert("ContinuousScan".r
-        .findAllMatchIn(explainWithExtended).size === 1)
-    } finally {
-      q.stop()
     }
   }
 
@@ -586,17 +594,19 @@ class StreamSuite extends StreamTest {
       .trigger(Trigger.ProcessingTime("1 seconds"))
       .start()
 
-    try {
-      import org.apache.spark.sql.execution.debug._
-      assert("No physical plan. Waiting for data." === codegenString(q))
-      assert(codegenStringSeq(q).isEmpty)
+    withTempView("memory_microbatch_codegen") {
+      try {
+        import org.apache.spark.sql.execution.debug._
+        assert("No physical plan. Waiting for data." === codegenString(q))
+        assert(codegenStringSeq(q).isEmpty)
 
-      inputData.addData(1, 2, 3, 4, 5)
-      q.processAllAvailable()
+        inputData.addData(1, 2, 3, 4, 5)
+        q.processAllAvailable()
 
-      assertDebugCodegenResult(q)
-    } finally {
-      q.stop()
+        assertDebugCodegenResult(q)
+      } finally {
+        q.stop()
+      }
     }
   }
 
@@ -611,16 +621,18 @@ class StreamSuite extends StreamTest {
       .trigger(Trigger.Continuous("1 seconds"))
       .start()
 
-    try {
-      // in continuous mode, the query will be run even there's no data
-      // sleep a bit to ensure initialization
-      eventually(timeout(2.seconds), interval(100.milliseconds)) {
-        assert(q.asInstanceOf[StreamingQueryWrapper].streamingQuery.lastExecution != null)
-      }
+    withTempView("memory_continuous_codegen") {
+      try {
+        // in continuous mode, the query will be run even there's no data
+        // sleep a bit to ensure initialization
+        eventually(timeout(2.seconds), interval(100.milliseconds)) {
+          assert(q.asInstanceOf[StreamingQueryWrapper].streamingQuery.lastExecution != null)
+        }
 
-      assertDebugCodegenResult(q)
-    } finally {
-      q.stop()
+        assertDebugCodegenResult(q)
+      } finally {
+        q.stop()
+      }
     }
   }
 
@@ -653,13 +665,15 @@ class StreamSuite extends StreamTest {
         .queryName("testquery")
         .outputMode("append")
         .start()
-      try {
-        query.processAllAvailable()
-        if (query.exception.isDefined) {
-          throw query.exception.get
+      withTempView("testquery") {
+        try {
+          query.processAllAvailable()
+          if (query.exception.isDefined) {
+            throw query.exception.get
+          }
+        } finally {
+          query.stop()
         }
-      } finally {
-        query.stop()
       }
     }
   }
@@ -754,19 +768,21 @@ class StreamSuite extends StreamTest {
     // since the last batch may be rerun.
     withSQLConf(SQLConf.SHUFFLE_PARTITIONS.key -> "10") {
       var streamingQuery: StreamingQuery = null
-      try {
-        streamingQuery =
-          query.queryName("counts").option("checkpointLocation", dir1.getCanonicalPath).start()
-        streamingQuery.processAllAvailable()
-        inputData.addData(9)
-        streamingQuery.processAllAvailable()
+      withTempView("counts") {
+        try {
+          streamingQuery =
+            query.queryName("counts").option("checkpointLocation", dir1.getCanonicalPath).start()
+          streamingQuery.processAllAvailable()
+          inputData.addData(9)
+          streamingQuery.processAllAvailable()
 
-        checkAnswer(spark.table("counts").toDF(),
-          Row(1, 1L) :: Row(2, 1L) :: Row(3, 2L) :: Row(4, 2L) ::
-          Row(5, 2L) :: Row(6, 2L) :: Row(7, 1L) :: Row(8, 1L) :: Row(9, 1L) :: Nil)
-      } finally {
-        if (streamingQuery ne null) {
-          streamingQuery.stop()
+          checkAnswer(spark.table("counts").toDF(),
+            Row(1, 1L) :: Row(2, 1L) :: Row(3, 2L) :: Row(4, 2L) ::
+              Row(5, 2L) :: Row(6, 2L) :: Row(7, 1L) :: Row(8, 1L) :: Row(9, 1L) :: Nil)
+        } finally {
+          if (streamingQuery ne null) {
+            streamingQuery.stop()
+          }
         }
       }
     }
@@ -778,15 +794,17 @@ class StreamSuite extends StreamTest {
     // Since the number of partitions is greater than 10, should throw exception.
     withSQLConf(SQLConf.SHUFFLE_PARTITIONS.key -> "15") {
       var streamingQuery: StreamingQuery = null
-      try {
-        intercept[StreamingQueryException] {
-          streamingQuery =
-            query.queryName("badQuery").option("checkpointLocation", dir2.getCanonicalPath).start()
-          streamingQuery.processAllAvailable()
-        }
-      } finally {
-        if (streamingQuery ne null) {
-          streamingQuery.stop()
+      withTempView("badQuery") {
+        try {
+          intercept[StreamingQueryException] {
+            streamingQuery = query.queryName("badQuery")
+              .option("checkpointLocation", dir2.getCanonicalPath).start()
+            streamingQuery.processAllAvailable()
+          }
+        } finally {
+          if (streamingQuery ne null) {
+            streamingQuery.stop()
+          }
         }
       }
     }
@@ -836,24 +854,26 @@ class StreamSuite extends StreamTest {
     })
 
     val input = MemoryStream[Int]
-    val query = input
-      .toDS()
-      .map(_ + 1)
-      .writeStream
-      .format("memory")
-      .queryName(queryName)
-      .start()
+    withTempView(queryName) {
+      val query = input
+        .toDS()
+        .map(_ + 1)
+        .writeStream
+        .format("memory")
+        .queryName(queryName)
+        .start()
 
-    input.addData(1)
-    query.processAllAvailable()
-    assertDescContainsQueryNameAnd(batch = 0)
-    input.addData(2, 3)
-    query.processAllAvailable()
-    assertDescContainsQueryNameAnd(batch = 1)
-    input.addData(4)
-    query.processAllAvailable()
-    assertDescContainsQueryNameAnd(batch = 2)
-    query.stop()
+      input.addData(1)
+      query.processAllAvailable()
+      assertDescContainsQueryNameAnd(batch = 0)
+      input.addData(2, 3)
+      query.processAllAvailable()
+      assertDescContainsQueryNameAnd(batch = 1)
+      input.addData(4)
+      query.processAllAvailable()
+      assertDescContainsQueryNameAnd(batch = 2)
+      query.stop()
+    }
   }
 
   test("should resolve the checkpoint path") {
@@ -880,14 +900,16 @@ class StreamSuite extends StreamTest {
     withSQLConf(SQLConf.STATE_STORE_PROVIDER_CLASS.key -> providerClassName) {
       val input = MemoryStream[Int]
       val df = input.toDS().groupBy().count()
-      val query = df.writeStream.outputMode("complete").format("memory").queryName("name").start()
-      input.addData(1, 2, 3)
-      val e = intercept[Exception] {
-        query.awaitTermination()
-      }
+      withTempView("name") {
+        val query = df.writeStream.outputMode("complete").format("memory").queryName("name").start()
+        input.addData(1, 2, 3)
+        val e = intercept[Exception] {
+          query.awaitTermination()
+        }
 
-      TestUtils.assertExceptionMsg(e, providerClassName)
-      TestUtils.assertExceptionMsg(e, "instantiated")
+        TestUtils.assertExceptionMsg(e, providerClassName)
+        TestUtils.assertExceptionMsg(e, "instantiated")
+      }
     }
   }
 
@@ -900,15 +922,17 @@ class StreamSuite extends StreamTest {
       classOf[TestStateStoreProvider].getCanonicalName
 
     def runQuery(queryName: String, checkpointLoc: String): Unit = {
-      val query = df.writeStream
-        .outputMode("complete")
-        .format("memory")
-        .queryName(queryName)
-        .option("checkpointLocation", checkpointLoc)
-        .start()
-      input.addData(1, 2, 3)
-      query.processAllAvailable()
-      query.stop()
+      withTempView(queryName) {
+        val query = df.writeStream
+          .outputMode("complete")
+          .format("memory")
+          .queryName(queryName)
+          .option("checkpointLocation", checkpointLoc)
+          .start()
+        input.addData(1, 2, 3)
+        query.processAllAvailable()
+        query.stop()
+      }
     }
 
     withTempDir { dir =>
@@ -1152,20 +1176,22 @@ class StreamSuite extends StreamTest {
 
   test("is_continuous_processing property should be true for continuous processing") {
     val input = ContinuousMemoryStream[Int]
-    val stream = input.toDS()
-      .map(i => TaskContext.get().getLocalProperty(StreamExecution.IS_CONTINUOUS_PROCESSING))
-      .writeStream.format("memory")
-      .queryName("output")
-      .trigger(Trigger.Continuous("1 seconds"))
-      .start()
-    try {
-      input.addData(1)
-      stream.processAllAvailable()
-    } finally {
-      stream.stop()
-    }
+    withTempView("output") {
+      val stream = input.toDS()
+        .map(i => TaskContext.get().getLocalProperty(StreamExecution.IS_CONTINUOUS_PROCESSING))
+        .writeStream.format("memory")
+        .queryName("output")
+        .trigger(Trigger.Continuous("1 seconds"))
+        .start()
+      try {
+        input.addData(1)
+        stream.processAllAvailable()
+      } finally {
+        stream.stop()
+      }
 
-    checkAnswer(spark.sql("select * from output"), Row("true"))
+      checkAnswer(spark.sql("select * from output"), Row("true"))
+    }
   }
 
   for (e <- Seq(

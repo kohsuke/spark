@@ -464,15 +464,17 @@ class DataStreamReaderWriterSuite extends StreamTest with BeforeAndAfter {
     spark.sql(s"drop table $tableName")
     // verify table is dropped
     intercept[AnalysisException](spark.table(tableName).collect())
-    val q2 = startQuery
-    ms.addData(0)
-    q2.processAllAvailable()
-    checkAnswer(
-      spark.table(tableName),
-      Seq(Row(0, 2), Row(1, 1))
-    )
+    withTempView(tableName) {
+      val q2 = startQuery
+      ms.addData(0)
+      q2.processAllAvailable()
+      checkAnswer(
+        spark.table(tableName),
+        Seq(Row(0, 2), Row(1, 1))
+      )
 
-    q2.stop()
+      q2.stop()
+    }
   }
 
   test("MemorySink can recover from a checkpoint in Complete Mode") {
@@ -542,18 +544,21 @@ class DataStreamReaderWriterSuite extends StreamTest with BeforeAndAfter {
         StructField("part", IntegerType), // inferred partitionColumn dataType
         StructField("id", StringType))) // used user provided partitionColumn dataType
 
-      val sq = sdf.writeStream
-        .queryName("corruption_test")
-        .format("memory")
-        .start()
-      sq.processAllAvailable()
-      checkAnswer(
-        spark.table("corruption_test"),
-        // notice how `part` is ordered before `id`
-        Row(Array("1"), 0, "0") :: Row(Array("1", "2"), 1, "1") ::
-          Row(Array("1", "2", "3"), 2, "2") :: Row(Array("1", "2", "3", "4"), 3, "3") :: Nil
-      )
-      sq.stop()
+      val tableName = "corruption_test"
+      withTempView(tableName) {
+        val sq = sdf.writeStream
+          .queryName(tableName)
+          .format("memory")
+          .start()
+        sq.processAllAvailable()
+        checkAnswer(
+          spark.table(tableName),
+          // notice how `part` is ordered before `id`
+          Row(Array("1"), 0, "0") :: Row(Array("1", "2"), 1, "1") ::
+            Row(Array("1", "2", "3"), 2, "2") :: Row(Array("1", "2", "3", "4"), 3, "3") :: Nil
+        )
+        sq.stop()
+      }
     }
   }
 
@@ -564,18 +569,20 @@ class DataStreamReaderWriterSuite extends StreamTest with BeforeAndAfter {
         assert(!userCheckpointPath.exists(), s"$userCheckpointPath should not exist")
         withSQLConf(SQLConf.CHECKPOINT_LOCATION.key -> checkpointPath.getAbsolutePath) {
           val queryName = "test_query"
-          val ds = MemoryStream[Int].toDS
-          ds.writeStream
-            .format("memory")
-            .queryName(queryName)
-            .option("checkpointLocation", userCheckpointPath.getAbsolutePath)
-            .start()
-            .stop()
-          assert(checkpointPath.listFiles().isEmpty,
-            "SQLConf path is used even if user specified checkpointLoc: " +
-              s"${checkpointPath.listFiles()} is not empty")
-          assert(userCheckpointPath.exists(),
-            s"The user specified checkpointLoc (userCheckpointPath) is not created")
+          withTempView(queryName) {
+            val ds = MemoryStream[Int].toDS
+            ds.writeStream
+              .format("memory")
+              .queryName(queryName)
+              .option("checkpointLocation", userCheckpointPath.getAbsolutePath)
+              .start()
+              .stop()
+            assert(checkpointPath.listFiles().isEmpty,
+              "SQLConf path is used even if user specified checkpointLoc: " +
+                s"${checkpointPath.listFiles()} is not empty")
+            assert(userCheckpointPath.exists(),
+              s"The user specified checkpointLoc (userCheckpointPath) is not created")
+          }
         }
       }
     }
@@ -587,13 +594,15 @@ class DataStreamReaderWriterSuite extends StreamTest with BeforeAndAfter {
       withSQLConf(SQLConf.CHECKPOINT_LOCATION.key -> checkpointPath.getAbsolutePath) {
         val queryName = "test_query"
         val ds = MemoryStream[Int].toDS
-        ds.writeStream.format("memory").queryName(queryName).start().stop()
-        // Should use query name to create a folder in `checkpointPath`
-        val queryCheckpointDir = new File(checkpointPath, queryName)
-        assert(queryCheckpointDir.exists(), s"$queryCheckpointDir doesn't exist")
-        assert(
-          checkpointPath.listFiles().size === 1,
-          s"${checkpointPath.listFiles().toList} has 0 or more than 1 files ")
+        withTempView(queryName) {
+          ds.writeStream.format("memory").queryName(queryName).start().stop()
+          // Should use query name to create a folder in `checkpointPath`
+          val queryCheckpointDir = new File(checkpointPath, queryName)
+          assert(queryCheckpointDir.exists(), s"$queryCheckpointDir doesn't exist")
+          assert(
+            checkpointPath.listFiles().size === 1,
+            s"${checkpointPath.listFiles().toList} has 0 or more than 1 files ")
+        }
       }
     }
   }
