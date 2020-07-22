@@ -20,6 +20,7 @@ package org.apache.spark.storage
 import org.apache.spark.SparkFunSuite
 
 /**
+ *
  * Test various functionalities in StorageUtils and StorageStatus.
  */
 class StorageSuite extends SparkFunSuite {
