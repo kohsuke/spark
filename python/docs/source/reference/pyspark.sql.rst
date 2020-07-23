@@ -41,19 +41,20 @@ Core Classes
 Spark Session APIs
 ------------------
 
-The entry point to programming Spark with the Dataset and DataFrame API.
-
 .. currentmodule:: pyspark.sql
+
+The entry point to programming Spark with the Dataset and DataFrame API.
+To create a Spark session, you should use ``SparkSession.builder`` attribute.
+See also :class:`SparkSession`.
 
 .. autosummary::
     :toctree: api/
 
-    SparkSession.Builder
-    SparkSession.Builder.appName
-    SparkSession.Builder.config
-    SparkSession.Builder.enableHiveSupport
-    SparkSession.Builder.getOrCreate
-    SparkSession.Builder.master
+    SparkSession.builder.appName
+    SparkSession.builder.config
+    SparkSession.builder.enableHiveSupport
+    SparkSession.builder.getOrCreate
+    SparkSession.builder.master
     SparkSession.catalog
     SparkSession.conf
     SparkSession.createDataFrame
