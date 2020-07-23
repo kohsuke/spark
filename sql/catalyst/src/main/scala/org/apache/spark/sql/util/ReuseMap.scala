@@ -17,8 +17,7 @@
 
 package org.apache.spark.sql.util
 
-import scala.collection.mutable.Map
-import scala.language.existentials
+import scala.collection.mutable.{ArrayBuffer, Map}
 
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.types.StructType
@@ -29,11 +28,11 @@ import org.apache.spark.sql.types.StructType
  * To avoid costly canonicalization of a plan:
  * - we use its schema first to check if it can be replaced to a reused one at all
  * - we insert it into the map of canonicalized plans only when at least 2 have the same schema
+ *
+ * @tparam T the type of the node we want to reuse
  */
-class ReuseMap[T <: QueryPlan[_]] {
-  // scalastyle:off structural.type
-  private val map = Map[StructType, (T, Map[T2 forSome { type T2 >: T }, T])]()
-  // scalastyle:on structural.type
+class ReuseMap[T <: T2, T2 <: QueryPlan[T2]] {
+  private val map = Map[StructType, ArrayBuffer[T]]()
 
   /**
    * Find a matching plan with the same canonicalized form in the map or add the new plan to the
@@ -43,16 +42,12 @@ class ReuseMap[T <: QueryPlan[_]] {
    * @return the matching plan or the input plan
    */
   def lookupOrElseAdd(plan: T): T = {
-    // The first plan with a schema is not inserted to the `sameResultPlans` map immediately
-    val (firstSameSchemaPlan, sameResultPlans) = map.getOrElseUpdate(plan.schema, plan -> Map())
-    if (firstSameSchemaPlan ne plan) {
-      // Add the first plan to the `sameResultPlans` map only when the 2nd plan arrives with the
-      // same schema
-      if (sameResultPlans.isEmpty) {
-        sameResultPlans += firstSameSchemaPlan.canonicalized -> firstSameSchemaPlan
-      }
-      sameResultPlans.getOrElseUpdate(plan.canonicalized, plan)
+    val sameSchema = map.getOrElseUpdate(plan.schema, ArrayBuffer())
+    val samePlan = sameSchema.find(plan.sameResult)
+    if (samePlan.isDefined) {
+      samePlan.get
     } else {
+      sameSchema += plan
       plan
     }
   }
@@ -63,6 +58,7 @@ class ReuseMap[T <: QueryPlan[_]] {
    *
    * @param plan the input plan
    * @param f the function to apply
+   * @tparam T2 the type of the reuse node
    * @return the matching plan with `f` applied or the input plan
    */
   def reuseOrElseAdd[T2 >: T](plan: T, f: T => T2): T2 = {

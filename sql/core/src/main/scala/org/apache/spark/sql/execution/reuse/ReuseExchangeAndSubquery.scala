@@ -31,8 +31,8 @@ case class ReuseExchangeAndSubquery(conf: SQLConf) extends Rule[SparkPlan] {
 
   def apply(plan: SparkPlan): SparkPlan = {
     if (conf.exchangeReuseEnabled || conf.subqueryReuseEnabled) {
-      val exchanges = new ReuseMap[Exchange]()
-      val subqueries = new ReuseMap[BaseSubqueryExec]()
+      val exchanges = new ReuseMap[Exchange, SparkPlan]()
+      val subqueries = new ReuseMap[BaseSubqueryExec, SparkPlan]()
 
       def reuse(plan: SparkPlan): SparkPlan = plan.transformUp {
         case exchange: Exchange if conf.exchangeReuseEnabled =>

@@ -36,7 +36,7 @@ class ReuseMapSuite extends SparkFunSuite {
   private def reuse(testNode: TestNode) = TestReuseNode(testNode)
 
   test("no reuse if same instance") {
-    val reuseMap = new ReuseMap[TestNode]()
+    val reuseMap = new ReuseMap[TestNode, LogicalPlan]()
 
     reuseMap.reuseOrElseAdd(leafNode1, reuse)
     reuseMap.reuseOrElseAdd(parentNode1, reuse)
@@ -46,7 +46,7 @@ class ReuseMapSuite extends SparkFunSuite {
   }
 
   test("reuse if different instance with same canonicalized plan") {
-    val reuseMap = new ReuseMap[TestNode]()
+    val reuseMap = new ReuseMap[TestNode, LogicalPlan]()
     reuseMap.reuseOrElseAdd(leafNode1, reuse)
     reuseMap.reuseOrElseAdd(parentNode1, reuse)
 
@@ -57,7 +57,7 @@ class ReuseMapSuite extends SparkFunSuite {
   }
 
   test("no reuse if different canonicalized plan") {
-    val reuseMap = new ReuseMap[TestNode]()
+    val reuseMap = new ReuseMap[TestNode, LogicalPlan]()
     reuseMap.reuseOrElseAdd(leafNode1, reuse)
     reuseMap.reuseOrElseAdd(parentNode1, reuse)
 
