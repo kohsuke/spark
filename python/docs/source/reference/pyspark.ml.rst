@@ -191,7 +191,6 @@ ML Functions
 .. currentmodule:: pyspark.ml.functions
 
 .. autosummary::
-    :template: class_with_docs.rst
     :toctree: api/
 
     vector_to_array

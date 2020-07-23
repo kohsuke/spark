@@ -48,12 +48,12 @@ The entry point to programming Spark with the Dataset and DataFrame API.
 .. autosummary::
     :toctree: api/
 
-    SparkSession.builder
-    SparkSession.builder.appName
-    SparkSession.builder.config
-    SparkSession.builder.enableHiveSupport
-    SparkSession.builder.getOrCreate
-    SparkSession.builder.master
+    SparkSession.Builder
+    SparkSession.Builder.appName
+    SparkSession.Builder.config
+    SparkSession.Builder.enableHiveSupport
+    SparkSession.Builder.getOrCreate
+    SparkSession.Builder.master
     SparkSession.catalog
     SparkSession.conf
     SparkSession.createDataFrame
@@ -151,7 +151,6 @@ DataFrame APIs
     DataFrame.foreachPartition
     DataFrame.freqItems
     DataFrame.groupBy
-    DataFrame.groupby
     DataFrame.head
     DataFrame.hint
     DataFrame.inputFiles
@@ -357,7 +356,6 @@ Functions
     from_json
     from_unixtime
     from_utc_timestamp
-    functools
     get_json_object
     greatest
     grouping
@@ -443,7 +441,6 @@ Functions
     shuffle
     signum
     sin
-    since
     sinh
     size
     skewness
@@ -461,7 +458,6 @@ Functions
     substring_index
     sum
     sumDistinct
-    sys
     tan
     tanh
     timestamp_seconds
@@ -470,7 +466,6 @@ Functions
     to_csv
     to_date
     to_json
-    to_str
     to_timestamp
     to_utc_timestamp
     transform
@@ -487,7 +482,6 @@ Functions
     var_pop
     var_samp
     variance
-    warnings
     weekofyear
     when
     window
