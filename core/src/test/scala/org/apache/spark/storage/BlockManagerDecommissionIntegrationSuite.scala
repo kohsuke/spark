@@ -18,6 +18,7 @@
 package org.apache.spark.storage
 
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
@@ -57,6 +58,11 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
       .set(config.STORAGE_DECOMMISSION_ENABLED, true)
       .set(config.STORAGE_DECOMMISSION_RDD_BLOCKS_ENABLED, persist)
       .set(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED, shuffle)
+      // Force exactly one executor per worker such that all block managers
+      // get the shuffle and RDD blocks.
+      .set(config.EXECUTOR_CORES.key, "1")
+      .set(config.CPUS_PER_TASK.key, "1")
+      .set(config.EXECUTOR_MEMORY.key, "1024m")
       // Just replicate blocks as fast as we can during testing, there isn't another
       // workload we need to worry about.
       .set(config.STORAGE_DECOMMISSION_REPLICATION_REATTEMPT_INTERVAL, 1L)
@@ -90,8 +96,11 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
     val taskStartSem = new Semaphore(0)
     val broadcastSem = new Semaphore(0)
     val executorRemovedSem = new Semaphore(0)
+    val taskStartEvents = ArrayBuffer.empty[SparkListenerTaskStart]
     val taskEndEvents = ArrayBuffer.empty[SparkListenerTaskEnd]
     val blocksUpdated = ArrayBuffer.empty[SparkListenerBlockUpdated]
+    val sched = sc.schedulerBackend.asInstanceOf[StandaloneSchedulerBackend]
+    val execToDecommission = new AtomicReference[String](null)
     sc.addSparkListener(new SparkListener {
 
       override def onExecutorRemoved(execRemoved: SparkListenerExecutorRemoved): Unit = {
@@ -99,6 +108,7 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
       }
 
       override def onTaskStart(taskStart: SparkListenerTaskStart): Unit = {
+        taskStartEvents.append(taskStart)
         taskStartSem.release()
       }
 
@@ -107,6 +117,21 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
       }
 
       override def onBlockUpdated(blockUpdated: SparkListenerBlockUpdated): Unit = {
+        if (blockUpdated.blockUpdatedInfo.blockId.isRDD && persist) {
+          // Persisted RDD blocks are a bit weirder than shuffle blocks: Even though
+          // the tasks are run say on executors (0, 1, 2), the RDD blocks might end up only
+          // on executors 0 and 1. So we cannot just indiscriminately decommission any executor.
+          // Instead we must decommission an executor that actually has an RDD block.
+          // Fortunately, this isn't the case for shuffle blocks which are indeed present on all
+          // executors and thus any executor can be decommissioned when `persist` is false.
+          val candidateExecToDecom = blockUpdated.blockUpdatedInfo.blockManagerId.executorId
+          if (execToDecommission.compareAndSet(null, candidateExecToDecom)) {
+            val decomContext = s"Decommissioning executor ${candidateExecToDecom} for persist"
+            logInfo(decomContext)
+            sched.decommissionExecutor(candidateExecToDecom,
+              ExecutorDecommissionInfo(decomContext, false))
+          }
+        }
         // Once broadcast start landing on the executors we're good to proceed.
         // We don't only use task start as it can occur before the work is on the executor.
         if (blockUpdated.blockUpdatedInfo.blockId.isBroadcast) {
@@ -115,7 +140,6 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
         blocksUpdated.append(blockUpdated)
       }
     })
-
 
     // Cache the RDD lazily
     if (persist) {
@@ -139,14 +163,15 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
       ThreadUtils.awaitResult(asyncCount, 15.seconds)
     }
 
-    // Decommission one of the executors.
-    val sched = sc.schedulerBackend.asInstanceOf[StandaloneSchedulerBackend]
     val execs = sched.getExecutorIds()
     assert(execs.size == numExecs, s"Expected ${numExecs} executors but found ${execs.size}")
 
-    val execToDecommission = execs.head
-    logDebug(s"Decommissioning executor ${execToDecommission}")
-    sched.decommissionExecutor(execToDecommission, ExecutorDecommissionInfo("", false))
+    if (!persist && execToDecommission.compareAndSet(null, execs.head)) {
+      val decomContext = s"Decommissioning executor ${execToDecommission.get()}"
+      logInfo(decomContext)
+      sched.decommissionExecutor(execToDecommission.get(),
+        ExecutorDecommissionInfo(decomContext, false))
+    }
 
     // Wait for job to finish.
     val asyncCountResult = ThreadUtils.awaitResult(asyncCount, 15.seconds)
@@ -191,8 +216,10 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
           val blockId = update.blockUpdatedInfo.blockId
           blockId.isInstanceOf[ShuffleIndexBlockId]
         }.size
-        assert(numDataLocs === 1, s"Expect shuffle data block updates in ${blocksUpdated}")
-        assert(numIndexLocs === 1, s"Expect shuffle index block updates in ${blocksUpdated}")
+        assert(numDataLocs === 1,
+          s"Expect shuffle data block updates in ${blocksUpdated}")
+        assert(numIndexLocs === 1,
+          s"Expect shuffle index block updates in ${blocksUpdated}")
       }
     }
 
@@ -206,7 +233,7 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
     val execIdToBlocksMapping = storageStatus.map(
       status => (status.blockManagerId.executorId, status.blocks)).toMap
     // No cached blocks should be present on executor which was decommissioned
-    assert(execIdToBlocksMapping(execToDecommission).keys.filter(_.isRDD).toSeq === Seq(),
+    assert(execIdToBlocksMapping(execToDecommission.get()).keys.filter(_.isRDD).toSeq === Seq(),
       "Cache blocks should be migrated")
     if (persist) {
       // There should still be all the RDD blocks cached
@@ -214,7 +241,7 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
     }
 
     // Make the executor we decommissioned exit
-    sched.client.killExecutors(List(execToDecommission))
+    sched.client.killExecutors(List(execToDecommission.get()))
 
     // Wait for the executor to be removed
     executorRemovedSem.acquire(1)
