@@ -18,12 +18,11 @@
 package org.apache.spark.storage
 
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
-
 import org.scalatest.concurrent.Eventually
-
 import org.apache.spark._
 import org.apache.spark.internal.config
 import org.apache.spark.scheduler._
@@ -98,6 +97,8 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
     val taskStartEvents = ArrayBuffer.empty[SparkListenerTaskStart]
     val taskEndEvents = ArrayBuffer.empty[SparkListenerTaskEnd]
     val blocksUpdated = ArrayBuffer.empty[SparkListenerBlockUpdated]
+    val sched = sc.schedulerBackend.asInstanceOf[StandaloneSchedulerBackend]
+    val decommissionedForPersist = new AtomicBoolean(false)
     sc.addSparkListener(new SparkListener {
 
       override def onExecutorRemoved(execRemoved: SparkListenerExecutorRemoved): Unit = {
@@ -114,6 +115,14 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
       }
 
       override def onBlockUpdated(blockUpdated: SparkListenerBlockUpdated): Unit = {
+        if (blockUpdated.blockUpdatedInfo.blockId.isRDD && persist &&
+          decommissionedForPersist.compareAndSet(false, true)) {
+          val execToDecommission = blockUpdated.blockUpdatedInfo.blockManagerId.executorId
+          val decomContext = s"Decommissioning executor ${execToDecommission} for persist"
+          logInfo(decomContext)
+          sched.decommissionExecutor(execToDecommission,
+            ExecutorDecommissionInfo(decomContext, false))
+        }
         // Once broadcast start landing on the executors we're good to proceed.
         // We don't only use task start as it can occur before the work is on the executor.
         if (blockUpdated.blockUpdatedInfo.blockId.isBroadcast) {
@@ -122,7 +131,6 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
         blocksUpdated.append(blockUpdated)
       }
     })
-
 
     // Cache the RDD lazily
     if (persist) {
@@ -146,17 +154,16 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
       ThreadUtils.awaitResult(asyncCount, 15.seconds)
     }
 
-    // Decommission one of the executors.
-    val sched = sc.schedulerBackend.asInstanceOf[StandaloneSchedulerBackend]
     val execs = sched.getExecutorIds()
     assert(execs.size == numExecs, s"Expected ${numExecs} executors but found ${execs.size}")
 
+    // Decommission one of the executors.
     val execToDecommission = execs.head
-    val execsWithTasks = taskStartEvents.map(_.taskInfo.executorId).toSet
-    val decomContext = s"Decommissioning executor ${execToDecommission} of $execs " +
-      s"(with tasks: $execsWithTasks)"
-    logInfo(decomContext)
-    sched.decommissionExecutor(execToDecommission, ExecutorDecommissionInfo(decomContext, false))
+    if (!persist) {
+      val decomContext = s"Decommissioning executor ${execToDecommission} for shuffle"
+      logInfo(decomContext)
+      sched.decommissionExecutor(execToDecommission, ExecutorDecommissionInfo(decomContext, false))
+    }
 
     // Wait for job to finish.
     val asyncCountResult = ThreadUtils.awaitResult(asyncCount, 15.seconds)
@@ -188,7 +195,7 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
         val blocksToManagers = blockLocs.groupBy(_._1).mapValues(_.size)
         assert(!blocksToManagers.filter(_._2 > 1).isEmpty,
           s"We should have a block that has been on multiple BMs in rdds:\n ${rddUpdates} from:\n" +
-          s"${blocksUpdated}\n but instead we got:\n ${blocksToManagers}\n$decomContext")
+          s"${blocksUpdated}\n but instead we got:\n ${blocksToManagers}")
       }
       // If we're migrating shuffles we look for any shuffle block updates
       // as there is no block update on the initial shuffle block write.
@@ -202,9 +209,9 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
           blockId.isInstanceOf[ShuffleIndexBlockId]
         }.size
         assert(numDataLocs === 1,
-          s"Expect shuffle data block updates in ${blocksUpdated}\n$decomContext")
+          s"Expect shuffle data block updates in ${blocksUpdated}")
         assert(numIndexLocs === 1,
-          s"Expect shuffle index block updates in ${blocksUpdated}\n$decomContext")
+          s"Expect shuffle index block updates in ${blocksUpdated}")
       }
     }
 
