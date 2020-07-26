@@ -22,8 +22,8 @@ import java.util.{List => JList}
 import scala.collection.JavaConverters._
 import scala.collection.mutable.HashMap
 
-import org.apache.spark.{JobExecutionStatus, SparkConf, SparkException}
-import org.apache.spark.resource.ResourceProfileManager
+import org.apache.spark.{JobExecutionStatus, SparkConf}
+import org.apache.spark.executor.ExecutorMetricsDistributions
 import org.apache.spark.status.api.v1
 import org.apache.spark.ui.scope._
 import org.apache.spark.util.Utils
@@ -364,6 +364,18 @@ private[spark] class AppStatusStore(
       }
 
     Some(computedQuantiles)
+  }
+
+  /**
+   * Calculates a summary of the executor metrics for executors, returning the
+   * requested quantiles for the recorded metrics.
+   */
+  def executorMetricSummary(activeOnly: Boolean,
+                            unsortedQuantiles: Array[Double])
+  : Option[ExecutorMetricsDistributions] = {
+    val quantiles = unsortedQuantiles.sorted
+    val executors = executorList(activeOnly).flatMap(_.peakMemoryMetrics).toIndexedSeq
+    Some(new ExecutorMetricsDistributions(quantiles, executors))
   }
 
   /**
