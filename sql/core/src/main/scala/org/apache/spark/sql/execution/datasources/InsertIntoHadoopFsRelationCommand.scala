@@ -106,8 +106,7 @@ case class InsertIntoHadoopFsRelationCommand(
         fs, catalogTable.get, qualifiedOutputPath, matchingPartitions)
     }
 
-    // For SPARK-27194 unit test, we try to set constant jobId carried by options
-    val jobId = options.getOrElse("test.jobId", java.util.UUID.randomUUID().toString)
+    val jobId = java.util.UUID.randomUUID().toString
     val committer = FileCommitProtocol.instantiate(
       sparkSession.sessionState.conf.fileCommitProtocolClass,
       jobId = jobId,
