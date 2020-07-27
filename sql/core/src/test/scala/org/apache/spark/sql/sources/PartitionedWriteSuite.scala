@@ -21,6 +21,7 @@ import java.io.File
 import java.sql.Timestamp
 
 import org.apache.hadoop.mapreduce.{JobContext, TaskAttemptContext}
+
 import org.apache.spark.TestUtils
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.io.HadoopMapReduceCommitProtocol

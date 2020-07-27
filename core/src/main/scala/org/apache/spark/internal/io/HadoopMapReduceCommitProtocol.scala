@@ -118,8 +118,7 @@ class HadoopMapReduceCommitProtocol(
           partitionPaths += dir.get
         }
         new Path(Option(f.getWorkPath).map(_.toString).getOrElse(path))
-      case _ =>
-        new Path(path)
+      case _ => new Path(path)
     }
 
     dir.map { d =>
