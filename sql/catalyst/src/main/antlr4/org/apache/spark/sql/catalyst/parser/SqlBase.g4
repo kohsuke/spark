@@ -244,7 +244,7 @@ statement
     | SET TIME ZONE interval                                           #setTimeZone
     | SET TIME ZONE timezone=(STRING | LOCAL)                          #setTimeZone
     | SET TIME ZONE .*?                                                #setTimeZone
-    | SET configKey (EQ configValue)?                                  #setConfiguration
+    | SET configKey (EQ value=.+)?                                     #setConfiguration
     | SET .*?                                                          #setConfiguration
     | RESET configKey?                                                 #resetConfiguration
     | RESET .*?                                                        #resetConfiguration
@@ -253,12 +253,6 @@ statement
 
 configKey
     : IDENTIFIER (('.' | ':') IDENTIFIER)*
-    | BACKQUOTED_IDENTIFIER
-    | STRING
-    ;
-
-configValue
-    : IDENTIFIER
     | BACKQUOTED_IDENTIFIER
     | STRING
     ;
