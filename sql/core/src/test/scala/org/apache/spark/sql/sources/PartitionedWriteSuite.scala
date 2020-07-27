@@ -202,7 +202,6 @@ private class PartitionFileExistCommitProtocol(
   extends HadoopMapReduceCommitProtocol(jobId, path, dynamicPartitionOverwrite) {
   override def setupJob(jobContext: JobContext): Unit = {
     super.setupJob(jobContext)
-    // trigger jenkins
     val stagingDir = new File(path, s".spark-staging-$jobId")
     stagingDir.mkdirs()
     val stagingPartDir = new File(stagingDir, "p1=2")
