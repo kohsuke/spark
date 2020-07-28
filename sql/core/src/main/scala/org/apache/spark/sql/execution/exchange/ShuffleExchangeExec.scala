@@ -27,7 +27,7 @@ import org.apache.spark.internal.config
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriteProcessor}
-import org.apache.spark.shuffle.sort.SortShuffleManager
+import org.apache.spark.shuffle.sort.{RowCountInfo, SortShuffleManager}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.errors._
 import org.apache.spark.sql.catalyst.expressions.{Attribute, BoundReference, Divide, Literal, UnsafeProjection, UnsafeRow}
@@ -37,7 +37,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics, SQLShuffleReadMetricsReporter, SQLShuffleWriteMetricsReporter}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.MutablePair
+import org.apache.spark.util.{CollectionAccumulator, MutablePair}
 import org.apache.spark.util.collection.unsafe.sort.{PrefixComparators, RecordComparator}
 
 /**
@@ -52,6 +52,12 @@ case class ShuffleExchangeExec(
     SQLShuffleWriteMetricsReporter.createShuffleWriteMetrics(sparkContext)
   private[sql] lazy val readMetrics =
     SQLShuffleReadMetricsReporter.createShuffleReadMetrics(sparkContext)
+
+  lazy val rowCountMetric = {
+    val acc = new CollectionAccumulator[RowCountInfo]
+    acc.register(sparkContext, name = Some("row count per partition"), countFailedValues = false)
+    acc
+  }
   override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createSizeMetric(sparkContext, "data size")
   ) ++ readMetrics ++ writeMetrics
@@ -72,6 +78,7 @@ case class ShuffleExchangeExec(
     }
   }
 
+
   /**
    * A [[ShuffleDependency]] that will partition rows of its child based on
    * the partitioning scheme defined in `newPartitioning`. Those partitions of
@@ -84,7 +91,8 @@ case class ShuffleExchangeExec(
       child.output,
       outputPartitioning,
       serializer,
-      writeMetrics)
+      writeMetrics,
+      rowCountMetric)
   }
 
   /**
@@ -169,7 +177,8 @@ object ShuffleExchangeExec {
       outputAttributes: Seq[Attribute],
       newPartitioning: Partitioning,
       serializer: Serializer,
-      writeMetrics: Map[String, SQLMetric])
+      writeMetrics: Map[String, SQLMetric],
+      rowCountMetric: CollectionAccumulator[RowCountInfo] = new CollectionAccumulator[RowCountInfo])
     : ShuffleDependency[Int, InternalRow, InternalRow] = {
     val part: Partitioner = newPartitioning match {
       case RoundRobinPartitioning(numPartitions) => new HashPartitioner(numPartitions)
@@ -302,7 +311,7 @@ object ShuffleExchangeExec {
         rddWithPartitionIds,
         new PartitionIdPassthrough(part.numPartitions),
         serializer,
-        shuffleWriterProcessor = createShuffleWriteProcessor(writeMetrics))
+        shuffleWriterProcessor = createShuffleWriteProcessor(writeMetrics, rowCountMetric))
 
     dependency
   }
@@ -311,11 +320,14 @@ object ShuffleExchangeExec {
    * Create a customized [[ShuffleWriteProcessor]] for SQL which wrap the default metrics reporter
    * with [[SQLShuffleWriteMetricsReporter]] as new reporter for [[ShuffleWriteProcessor]].
    */
-  def createShuffleWriteProcessor(metrics: Map[String, SQLMetric]): ShuffleWriteProcessor = {
+  def createShuffleWriteProcessor(metrics: Map[String, SQLMetric],
+      rowCountMetric: CollectionAccumulator[RowCountInfo]): ShuffleWriteProcessor = {
     new ShuffleWriteProcessor {
       override protected def createMetricsReporter(
           context: TaskContext): ShuffleWriteMetricsReporter = {
-        new SQLShuffleWriteMetricsReporter(context.taskMetrics().shuffleWriteMetrics, metrics)
+        new SQLShuffleWriteMetricsReporter(context.taskMetrics().shuffleWriteMetrics,
+          metrics, rowCountMetric)
+
       }
     }
   }
