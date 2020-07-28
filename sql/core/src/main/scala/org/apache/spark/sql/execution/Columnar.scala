@@ -490,8 +490,10 @@ case class ApplyColumnarRulesAndInsertTransitions(conf: SQLConf, columnarRules: 
       // The tree feels kind of backwards
       // Columnar Processing will start here, so transition from row to columnar
       RowToColumnarExec(insertTransitions(plan))
-    } else {
+    } else if (!plan.isInstanceOf[RowToColumnarExec]) {
       plan.withNewChildren(plan.children.map(insertRowToColumnar))
+    } else {
+      plan
     }
   }
 
@@ -503,8 +505,10 @@ case class ApplyColumnarRulesAndInsertTransitions(conf: SQLConf, columnarRules: 
       // The tree feels kind of backwards
       // This is the end of the columnar processing so go back to rows
       ColumnarToRowExec(insertRowToColumnar(plan))
-    } else {
+    } else if (!plan.isInstanceOf[ColumnarToRowExec]) {
       plan.withNewChildren(plan.children.map(insertTransitions))
+    } else {
+      plan
     }
   }
 
