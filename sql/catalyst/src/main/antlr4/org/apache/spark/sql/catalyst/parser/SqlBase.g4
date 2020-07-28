@@ -244,15 +244,15 @@ statement
     | SET TIME ZONE interval                                           #setTimeZone
     | SET TIME ZONE timezone=(STRING | LOCAL)                          #setTimeZone
     | SET TIME ZONE .*?                                                #setTimeZone
-    | SET configureKey ('=' value=.+)?                                 #setConfiguration
+    | SET configKey (EQ value=.+)?                                     #setConfiguration
     | SET .*?                                                          #setConfiguration
-    | RESET configureKey?                                              #resetConfiguration
+    | RESET configKey?                                                 #resetConfiguration
     | RESET .*?                                                        #resetConfiguration
     | unsupportedHiveNativeCommands .*?                                #failNativeCommand
     ;
 
-configureKey
-    : CONFIGURE_KEY
+configKey
+    : IDENTIFIER (('.' | ':') IDENTIFIER)*
     | BACKQUOTED_IDENTIFIER
     | STRING
     ;
@@ -1816,10 +1816,6 @@ IDENTIFIER
 
 BACKQUOTED_IDENTIFIER
     : '`' ( ~'`' | '``' )* '`'
-    ;
-
-CONFIGURE_KEY
-    : (LETTER | DIGIT | '_' | '.' | ':')+
     ;
 
 fragment DECIMAL_DIGITS
