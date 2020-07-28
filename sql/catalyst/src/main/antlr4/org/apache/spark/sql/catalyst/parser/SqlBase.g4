@@ -253,7 +253,7 @@ statement
 
 configKey
     : IDENTIFIER (('.' | ':') IDENTIFIER)*
-    | BACKQUOTED_IDENTIFIER
+    | quotedIdentifier
     | STRING
     ;
 
