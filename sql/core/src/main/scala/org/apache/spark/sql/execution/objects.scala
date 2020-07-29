@@ -567,7 +567,14 @@ case class FlatMapGroupsInRWithArrowExec(
       // binary in a batch due to the limitation of R API. See also ARROW-4512.
       val columnarBatchIter = runner.compute(groupedByRKey, -1)
       val outputProject = UnsafeProjection.create(output, output)
-      columnarBatchIter.flatMap(_.rowIterator().asScala).map(outputProject)
+      val outputTypes = StructType.fromAttributes(output).map(_.dataType)
+
+      columnarBatchIter.flatMap { batch =>
+        val actualTypes = (0 until batch.numCols()).map(i => batch.column(i).dataType())
+        assert(outputTypes == actualTypes, "Invalid schema from gapply: " +
+          s"expected ${outputTypes.mkString(", ")}, got ${actualTypes.mkString(", ")}")
+        batch.rowIterator().asScala
+      }.map(outputProject)
     }
   }
 }
