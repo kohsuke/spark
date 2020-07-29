@@ -274,7 +274,7 @@ configKey
     ;
 
 configValue
-    : MINUS? vaule=.*?
+    : vaule=.*?
     ;
 
 configIdentifier
