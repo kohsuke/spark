@@ -30,6 +30,7 @@ import org.apache.spark.sql.types.StructType
  * - we insert it into the map of canonicalized plans only when at least 2 have the same schema
  *
  * @tparam T the type of the node we want to reuse
+ * @tparam T2 the type of the canonicalized node
  */
 class ReuseMap[T <: T2, T2 <: QueryPlan[T2]] {
   private val map = Map[StructType, ArrayBuffer[T]]()
