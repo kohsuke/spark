@@ -2701,6 +2701,13 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val INSERT_OVERWRITE_TRASH_INTERVAL =
+    buildConf("spark.insertOverwrite.trash.interval")
+      .doc("This Configuration will decide whether move files to trash on insert overwrite" +
+        "If -1 files will be deleted without moving to trash")
+      .intConf
+      .createWithDefault(-1)
+
   /**
    * Holds information about keys that have been deprecated.
    *
@@ -3310,6 +3317,8 @@ class SQLConf extends Serializable with Logging {
 
   def optimizeNullAwareAntiJoin: Boolean =
     getConf(SQLConf.OPTIMIZE_NULL_AWARE_ANTI_JOIN)
+
+  def insertOverwriteTrashInterval: Int = getConf(SQLConf.INSERT_OVERWRITE_TRASH_INTERVAL)
 
   /** ********************** SQLConf functionality methods ************ */
 
