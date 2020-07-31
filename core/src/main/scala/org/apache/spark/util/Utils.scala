@@ -270,7 +270,7 @@ private[spark] object Utils extends Logging {
   }
 
   /**
-   * Move data to trash if 'spark.sql.truncate.trash.enabled' is true
+   * Move data to trash if 'spark.sql.trash.enabled' is true
    */
   def moveToTrashIfEnabled(
       fs: FileSystem,
