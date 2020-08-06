@@ -96,7 +96,7 @@ class ExecutorAllocationManagerSuite extends TestSuiteBase
             Map.empty)}
       }
 
-      /** Verify that particular executors was killed */
+      /** Verify that a particular executor was scaled down. */
       def verifyKilledExec(expectedKilledExec: Option[String]): Unit = {
         if (expectedKilledExec.nonEmpty) {
           val decomInfo = ExecutorDecommissionInfo("spark scale down", false)

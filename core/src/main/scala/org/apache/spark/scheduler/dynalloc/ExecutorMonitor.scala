@@ -451,12 +451,12 @@ private[spark] class ExecutorMonitor(
   }
 
   // Visible for testing
-  def executorsPendingToRemove(): Set[String] = {
+  private[spark] def executorsPendingToRemove(): Set[String] = {
     executors.asScala.filter { case (_, exec) => exec.pendingRemoval }.keys.toSet
   }
 
   // Visible for testing
-  def executorsDecommissioning(): Set[String] = {
+  private[spark] def executorsDecommissioning(): Set[String] = {
     executors.asScala.filter { case (_, exec) => exec.pendingDecommissioning }.keys.toSet
   }
 

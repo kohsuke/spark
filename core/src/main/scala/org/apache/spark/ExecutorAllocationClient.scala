@@ -103,7 +103,7 @@ private[spark] trait ExecutorAllocationClient {
 
   /**
    * Request that the cluster manager decommission the specified executor.
-   * Default implementation delegates to kill, scheduler can override
+   * Default implementation delegates to decommissionExecutors, scheduler can override
    * if it supports graceful decommissioning.
    *
    * @param executorId identifiers of executor to decommission
