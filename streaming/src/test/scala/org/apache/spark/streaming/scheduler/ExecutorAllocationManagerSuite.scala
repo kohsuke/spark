@@ -102,16 +102,17 @@ class ExecutorAllocationManagerSuite extends TestSuiteBase
           val decomInfo = ExecutorDecommissionInfo("spark scale down", false)
           if (decommissioning) {
             verify(allocationClient, times(1)).decommissionExecutor(
-              meq(expectedKilledExec.get), meq(decomInfo))
+              meq(expectedKilledExec.get), meq(decomInfo), meq(true))
             verify(allocationClient, never).killExecutor(meq(expectedKilledExec.get))
           } else {
             verify(allocationClient, times(1)).killExecutor(meq(expectedKilledExec.get))
             verify(allocationClient, never).decommissionExecutor(
-              meq(expectedKilledExec.get), meq(decomInfo))
+              meq(expectedKilledExec.get), meq(decomInfo), meq(true))
           }
         } else {
           if (decommissioning) {
-            verify(allocationClient, never).decommissionExecutor(null, null)
+            verify(allocationClient, never).decommissionExecutor(null, null, false)
+            verify(allocationClient, never).decommissionExecutor(null, null, true)
           } else {
             verify(allocationClient, never).killExecutor(null)
           }

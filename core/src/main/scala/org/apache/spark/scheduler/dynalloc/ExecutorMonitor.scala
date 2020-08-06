@@ -115,7 +115,7 @@ private[spark] class ExecutorMonitor(
       var newNextTimeout = Long.MaxValue
       timedOutExecs = executors.asScala
         .filter { case (_, exec) =>
-          !exec.pendingRemoval && !exec.hasActiveShuffle && !exec.pendingDecommissioning}
+          !exec.pendingRemoval && !exec.hasActiveShuffle && !exec.decommissioning}
         .filter { case (_, exec) =>
           val deadline = exec.timeoutAt
           if (deadline > now) {
@@ -155,7 +155,7 @@ private[spark] class ExecutorMonitor(
     ids.foreach { id =>
       val tracker = executors.get(id)
       if (tracker != null) {
-        tracker.pendingDecommissioning = true
+        tracker.decommissioning = true
       }
     }
 
@@ -186,13 +186,13 @@ private[spark] class ExecutorMonitor(
     executors.asScala.filter { case (k, v) => v.resourceProfileId == id && v.pendingRemoval }.size
   }
 
-  def pendingDecommissioningCount: Int = executors.asScala.count { case (_, exec) =>
-    exec.pendingDecommissioning
+  def decommissioningCount: Int = executors.asScala.count { case (_, exec) =>
+    exec.decommissioning
   }
 
-  def pendingDecommissioningPerResourceProfileId(id: Int): Int = {
+  def decommissioningPerResourceProfileId(id: Int): Int = {
     executors.asScala.filter { case (k, v) =>
-      v.resourceProfileId == id && v.pendingDecommissioning
+      v.resourceProfileId == id && v.decommissioning
     }.size
   }
 
@@ -352,7 +352,7 @@ private[spark] class ExecutorMonitor(
     val removed = executors.remove(event.executorId)
     if (removed != null) {
       decrementExecResourceProfileCount(removed.resourceProfileId)
-      if (!removed.pendingRemoval || !removed.pendingDecommissioning) {
+      if (!removed.pendingRemoval || !removed.decommissioning) {
         nextTimeout.set(Long.MinValue)
       }
     }
@@ -457,7 +457,7 @@ private[spark] class ExecutorMonitor(
 
   // Visible for testing
   private[spark] def executorsDecommissioning(): Set[String] = {
-    executors.asScala.filter { case (_, exec) => exec.pendingDecommissioning }.keys.toSet
+    executors.asScala.filter { case (_, exec) => exec.decommissioning }.keys.toSet
   }
 
   /**
@@ -512,7 +512,7 @@ private[spark] class ExecutorMonitor(
     @volatile var timedOut: Boolean = false
 
     var pendingRemoval: Boolean = false
-    var pendingDecommissioning: Boolean = false
+    var decommissioning: Boolean = false
     var hasActiveShuffle: Boolean = false
 
     private var idleStart: Long = -1

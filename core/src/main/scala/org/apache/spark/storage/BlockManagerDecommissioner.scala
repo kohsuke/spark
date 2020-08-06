@@ -314,13 +314,9 @@ private[storage] class BlockManagerDecommissioner(
     logInfo("Starting block migration thread")
     if (conf.get(config.STORAGE_DECOMMISSION_RDD_BLOCKS_ENABLED)) {
       rddBlockMigrationExecutor.submit(rddBlockMigrationRunnable)
-    } else {
-      stoppedRDD = true
     }
     if (conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED)) {
       shuffleBlockMigrationRefreshExecutor.submit(shuffleBlockMigrationRefreshRunnable)
-    } else {
-      stoppedShuffle = true
     }
     if (!conf.get(config.STORAGE_DECOMMISSION_SHUFFLE_BLOCKS_ENABLED) &&
       !conf.get(config.STORAGE_DECOMMISSION_RDD_BLOCKS_ENABLED)) {

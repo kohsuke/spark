@@ -546,7 +546,7 @@ private[spark] class ExecutorAllocationManager(
         val newExecutorTotal = numExecutorsTotalPerRpId.getOrElseUpdate(rpId,
           (executorMonitor.executorCountWithResourceProfile(rpId) -
             executorMonitor.pendingRemovalCountPerResourceProfileId(rpId) -
-            executorMonitor.pendingDecommissioningPerResourceProfileId(rpId)
+            executorMonitor.decommissioningPerResourceProfileId(rpId)
           ))
         if (newExecutorTotal - 1 < minNumExecutors) {
           logDebug(s"Not removing idle executor $executorIdToBeRemoved because there " +

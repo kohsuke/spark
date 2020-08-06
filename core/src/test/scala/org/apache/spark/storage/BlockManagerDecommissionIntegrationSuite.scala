@@ -190,7 +190,8 @@ class BlockManagerDecommissionIntegrationSuite extends SparkFunSuite with LocalS
     logInfo(s"Decommissioning executor ${execToDecommission}")
     sched.decommissionExecutor(
       execToDecommission,
-      ExecutorDecommissionInfo("", isHostDecommissioned = false))
+      ExecutorDecommissionInfo("", isHostDecommissioned = false),
+      adjustTargetNumExecutors = true)
     val decomTime = new SystemClock().getTimeMillis()
 
     // Wait for job to finish.
