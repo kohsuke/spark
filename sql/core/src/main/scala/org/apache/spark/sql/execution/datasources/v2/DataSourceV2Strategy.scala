@@ -64,11 +64,14 @@ class DataSourceV2Strategy(session: SparkSession) extends Strategy with Predicat
       }
       val rdd = v1Relation.buildScan()
       val unsafeRowRDD = DataSourceStrategy.toCatalystRDD(v1Relation, output, rdd)
-      val originalOutputNames = relation.table.schema().map(_.name)
-      val requiredColumnsIndex = output.map(_.name).map(originalOutputNames.indexOf)
+      // `RowDataSourceScanExec` requires the full output instead of the scan output after column
+      // pruning. However, when we reach here following the v2 code path, we don't have the full
+      // output anymore. `RowDataSourceScanExec.fullOutput` is actually meaningless so here we just
+      // pass the pruned output.
+      // TODO: remove `RowDataSourceScanExec.fullOutput`.
       val dsScan = RowDataSourceScanExec(
         output,
-        requiredColumnsIndex,
+        output.indices,
         translated.toSet,
         pushed.toSet,
         unsafeRowRDD,
