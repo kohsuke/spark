@@ -68,7 +68,7 @@ class DataSourceV2Strategy(session: SparkSession) extends Strategy with Predicat
       // pruning. However, when we reach here following the v2 code path, we don't have the full
       // output anymore. `RowDataSourceScanExec.fullOutput` is actually meaningless so here we just
       // pass the pruned output.
-      // TODO: remove `RowDataSourceScanExec.fullOutput`.
+      // TODO (SPARK-32590): remove `RowDataSourceScanExec.fullOutput`.
       val dsScan = RowDataSourceScanExec(
         output,
         output.indices,
