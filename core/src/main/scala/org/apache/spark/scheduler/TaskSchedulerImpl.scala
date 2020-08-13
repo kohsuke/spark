@@ -18,6 +18,7 @@
 package org.apache.spark.scheduler
 
 import java.nio.ByteBuffer
+import java.util
 import java.util.{Timer, TimerTask}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
@@ -137,6 +138,8 @@ private[spark] class TaskSchedulerImpl(
   private val executorIdToRunningTaskIds = new HashMap[String, HashSet[Long]]
 
   private val executorsPendingDecommission = new HashMap[String, ExecutorDecommissionInfo]
+  // map of second to list of executors to clear form the above map
+  private val decommissioningExecutorsToGc = new util.TreeMap[Long, mutable.ArrayBuffer[String]]()
 
   def runningTasksByExecutors: Map[String, Int] = synchronized {
     executorIdToRunningTaskIds.toMap.mapValues(_.size).toMap
@@ -921,7 +924,13 @@ private[spark] class TaskSchedulerImpl(
 
   override def getExecutorDecommissionInfo(executorId: String)
     : Option[ExecutorDecommissionInfo] = synchronized {
-      executorsPendingDecommission.get(executorId)
+    import scala.collection.JavaConverters._
+    // Garbage collect old decommissioning entries
+    val secondToGcUptil = math.floor(clock.getTimeMillis() / 1000.0).toLong
+    val headMap = decommissioningExecutorsToGc.headMap(secondToGcUptil)
+    headMap.values().asScala.flatten.foreach(executorsPendingDecommission -= _)
+    headMap.clear()
+    executorsPendingDecommission.get(executorId)
   }
 
   override def executorLost(executorId: String, givenReason: ExecutorLossReason): Unit = {
@@ -1027,7 +1036,13 @@ private[spark] class TaskSchedulerImpl(
       }
     }
 
-    executorsPendingDecommission -= executorId
+
+    val decomInfo = executorsPendingDecommission.get(executorId)
+    if (decomInfo.isDefined) {
+      // TODO(dagrawal): make this timestamp configurable
+      val gcSecond = math.ceil(clock.getTimeMillis() / 1000.0).toLong + 60
+      decommissioningExecutorsToGc.getOrDefault(gcSecond, mutable.ArrayBuffer.empty) += executorId
+    }
 
     if (reason != LossReasonPending) {
       executorIdToHost -= executorId

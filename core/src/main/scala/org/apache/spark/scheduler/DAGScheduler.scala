@@ -1842,11 +1842,18 @@ private[spark] class DAGScheduler(
               // reason to believe shuffle data has been lost for the entire host).
               None
             }
+            val maybeEpoch = if (isHostDecommissioned) {
+              // If we know that the host has been decommissioned, remove its map outputs
+              // unconditionally
+              None
+            } else {
+              Some(task.epoch)
+            }
             removeExecutorAndUnregisterOutputs(
               execId = bmAddress.executorId,
               fileLost = true,
               hostToUnregisterOutputs = hostToUnregisterOutputs,
-              maybeEpoch = Some(task.epoch))
+              maybeEpoch)
           }
         }
 
