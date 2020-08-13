@@ -1667,6 +1667,11 @@ private[spark] class DAGScheduler(
       case FetchFailed(bmAddress, shuffleId, _, mapIndex, _, failureMessage) =>
         val failedStage = stageIdToStage(task.stageId)
         val mapStage = shuffleIdToMapStage(shuffleId)
+        val sourceDecommissioned = if (bmAddress != null && bmAddress.executorId != null) {
+          taskScheduler.getExecutorDecommissionInfo(bmAddress.executorId)
+        } else {
+          None
+        }
 
         if (failedStage.latestInfo.attemptNumber != task.stageAttemptId) {
           logInfo(s"Ignoring fetch failure from $task as it's from $failedStage attempt" +
@@ -1675,7 +1680,8 @@ private[spark] class DAGScheduler(
         } else {
           failedStage.failedAttemptIds.add(task.stageAttemptId)
           val shouldAbortStage =
-            failedStage.failedAttemptIds.size >= maxConsecutiveStageAttempts ||
+            sourceDecommissioned.isEmpty &&
+              failedStage.failedAttemptIds.size >= maxConsecutiveStageAttempts ||
             disallowStageRetryForTest
 
           // It is likely that we receive multiple FetchFailed for a single stage (because we have
@@ -1824,16 +1830,14 @@ private[spark] class DAGScheduler(
           // TODO: mark the executor as failed only if there were lots of fetch failures on it
           if (bmAddress != null) {
             val externalShuffleServiceEnabled = env.blockManager.externalShuffleServiceEnabled
-            val isHostDecommissioned = taskScheduler
-              .getExecutorDecommissionInfo(bmAddress.executorId)
-              .exists(_.isHostDecommissioned)
+            val sourceHostDecommissioned = sourceDecommissioned.exists(_.isHostDecommissioned)
 
             // Shuffle output of all executors on host `bmAddress.host` may be lost if:
             // - External shuffle service is enabled, so we assume that all shuffle data on node is
             //   bad.
             // - Host is decommissioned, thus all executors on that host will die.
             val shuffleOutputOfEntireHostLost = externalShuffleServiceEnabled ||
-              isHostDecommissioned
+              sourceHostDecommissioned
             val hostToUnregisterOutputs = if (shuffleOutputOfEntireHostLost
               && unRegisterOutputOnHostOnFetchFailure) {
               Some(bmAddress.host)
@@ -1842,11 +1846,18 @@ private[spark] class DAGScheduler(
               // reason to believe shuffle data has been lost for the entire host).
               None
             }
+            val maybeEpoch = if (sourceHostDecommissioned) {
+              // If we know that the host has been decommissioned, remove its map outputs
+              // unconditionally
+              None
+            } else {
+              Some(task.epoch)
+            }
             removeExecutorAndUnregisterOutputs(
               execId = bmAddress.executorId,
               fileLost = true,
               hostToUnregisterOutputs = hostToUnregisterOutputs,
-              maybeEpoch = Some(task.epoch))
+              maybeEpoch)
           }
         }
 
