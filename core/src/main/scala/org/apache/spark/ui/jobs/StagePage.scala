@@ -223,19 +223,19 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
         null
     }
 
-    val exceptionSummaryData = store.exceptionSummary(stageId, stageAttemptId)
-    val exceptionSummary: Seq[Node] =
-      {if (exceptionSummaryData.nonEmpty) {
+    val failureSummaryData = store.failureSummary(stageId, stageAttemptId)
+    val failureSummary: Seq[Node] =
+      {if (failureSummaryData.nonEmpty) {
         <span class="collapse-aggregated-exceptionSummaries collapse-table"
               onClick="collapseTable('collapse-aggregated-exceptionSummaries',
             'aggregated-exceptionSummaries')">
           <h4>
             <span class="collapse-table-arrow arrow-closed"></span>
-            <a>Exception Summary</a>
+            <a>Failure Summary</a>
           </h4>
         </span>
         <div class="aggregated-exceptionSummaries collapsible-table collapsed">
-          {exceptionSummaryTable(exceptionSummaryData)}
+          {failureSummaryTable(failureSummaryData)}
         </div>
       } else Seq.empty}
 
@@ -251,7 +251,7 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
           taskPagedTable.dataSource.sliceData(from, to)}).getOrElse(Nil), currentTime,
         eventTimelineTaskPage, eventTimelineTaskPageSize, eventTimelineTotalPages, stageId,
         stageAttemptId, totalTasks) ++
-        exceptionSummary ++
+        failureSummary ++
         <div id="parent-container">
           <script src={UIUtils.prependBaseUri(request, "/static/utils.js")}></script>
           <script src={UIUtils.prependBaseUri(request, "/static/stagepage.js")}></script>
@@ -464,17 +464,17 @@ private[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends We
     </script>
   }
 
-  def exceptionSummaryTable(exceptionSummary: Seq[ExceptionSummary]): Seq[Node] = {
+  def failureSummaryTable(failureSummary: Seq[FailureSummary]): Seq[Node] = {
     val propertyHeader = Seq("Exception", "Message", "Count", "Details")
     val headerClasses = Seq("sorttable_alpha", "sorttable_alpha")
-    UIUtils.listingTable(propertyHeader, exceptionSummaryRow,
-      exceptionSummary,
+    UIUtils.listingTable(propertyHeader, failureSummaryRow,
+      failureSummary,
       headerClasses = headerClasses)
   }
 
-  def exceptionSummaryRow(e: ExceptionSummary): Seq[Node] = {
+  def failureSummaryRow(e: FailureSummary): Seq[Node] = {
     <tr>
-      <td>{e.exceptionFailure.exceptionType}</td>
+      <td>{e.exceptionFailure.failureType}</td>
       <td>{e.exceptionFailure.message}</td>
       <td>{e.count}</td>
       {errorMessageCell(e.exceptionFailure.stackTrace)}
