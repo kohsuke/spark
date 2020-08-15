@@ -429,51 +429,35 @@ private[spark] class AppStatusStore(
     constructTaskDataList(taskDataWrapperIter)
   }
 
-  def exceptionSummary(stageId: Int, attemptId: Int): Seq[v1.ExceptionSummary] = {
+  def failureSummary(stageId: Int, attemptId: Int): Seq[v1.FailureSummary] = {
     val (stageData, _) = stageAttempt(stageId, attemptId)
     val key = Array(stageId, attemptId)
-    asOption(store.read(classOf[CachedExceptionSummary], key))
+    asOption(store.read(classOf[CachedFailureSummary], key))
       .find(p => p.failedTaskCount == stageData.numFailedTasks)
-      .map(_.exceptionSummary)
+      .map(_.failureSummary)
       .getOrElse {
-        val exceptionSummary = computeExceptionSummary(stageId, attemptId)
-        val cachedExceptionSummary = new CachedExceptionSummary(
+        val failureSummary = computeFailureSummary(stageId, attemptId)
+        val cachedFailureSummary = new CachedFailureSummary(
           stageId,
           attemptId,
           stageData.numFailedTasks,
-          exceptionSummary
+          failureSummary
         )
 
-        store.write(cachedExceptionSummary)
-        exceptionSummary
+        store.write(cachedFailureSummary)
+        failureSummary
       }
   }
 
-  def computeExceptionSummary(stageId: Int, attemptId: Int): Seq[v1.ExceptionSummary] = {
+  def computeFailureSummary(stageId: Int, attemptId: Int): Seq[v1.FailureSummary] = {
     val tasks = taskList(stageId, attemptId, Int.MaxValue)
     tasks.filter(t => t.status.equalsIgnoreCase("failed"))
-      .flatMap(t => t.errorMessage)
-      .flatMap(parseErrorMessage)
-      .groupBy(e => (e.exceptionType, e.message))
-      .map(t => new v1.ExceptionSummary(t._2.head, t._2.length))
+      .flatMap(t => t.failureReason)
+      .groupBy(e => (e.failureType, e.message))
+      .map(t => new v1.FailureSummary(t._2.head, t._2.length))
       .toSeq
-      .sortBy(s => (s.count, s.exceptionFailure.exceptionType))(Ordering[(Int, String)].reverse)
+      .sortBy(s => (s.count, s.exceptionFailure.failureType))(Ordering[(Int, String)].reverse)
       .take(EXCEPTION_SUMMARY_LIMIT)
-  }
-
-  def parseErrorMessage(errorMessage: String): Option[v1.ExceptionFailure] = {
-    errorMessage.split("\\r?\\n")
-      .find(s => s.contains("Exception") || s.contains("Error"))
-      .map(s => s.split("(?<=Exception|Error): "))
-      .flatMap(s => {
-        if (s.last.endsWith("Exception") || s.last.endsWith("Error")) {
-          Some(new v1.ExceptionFailure(s.last, "", errorMessage))
-        } else if (s.length == 1) {
-          None
-        } else {
-          Some(new v1.ExceptionFailure(s(s.length - 2), s.last, errorMessage))
-        }
-      })
   }
 
   def executorSummary(stageId: Int, attemptId: Int): Map[String, v1.ExecutorStageSummary] = {
@@ -617,7 +601,7 @@ private[spark] class AppStatusStore(
         taskDataOld.attempt, taskDataOld.launchTime, taskDataOld.resultFetchStart,
         taskDataOld.duration, taskDataOld.executorId, taskDataOld.host, taskDataOld.status,
         taskDataOld.taskLocality, taskDataOld.speculative, taskDataOld.accumulatorUpdates,
-        taskDataOld.errorMessage, taskDataOld.taskMetrics,
+        taskDataOld.errorMessage, taskDataOld.failureReason, taskDataOld.taskMetrics,
         executorLogs,
         AppStatusUtils.schedulerDelay(taskDataOld),
         AppStatusUtils.gettingResultTime(taskDataOld))

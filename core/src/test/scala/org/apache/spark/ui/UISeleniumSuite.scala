@@ -778,7 +778,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
     }
   }
 
-  test("Stage page show exception summary for failed tasks") {
+  test("Stage page show failure summary for failed tasks") {
     withSpark(newSparkContext()) { sc =>
       val data = sc.parallelize(Seq(1, 2, 3), 1).map(identity).groupBy(identity)
       val shuffleHandle =
@@ -810,7 +810,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
         rows.size should be(1)
         val columns = rows.head.findElements(By.tagName("td"))
         columns.size should be(4)
-        columns.get(0).getText() should be("org.apache.spark.shuffle.FetchFailedException")
+        columns.get(0).getText() should be("FetchFailed")
         columns.get(1).getText() should be("Simulated fetch failure")
         columns.get(2).getText() should be("1")
       }
