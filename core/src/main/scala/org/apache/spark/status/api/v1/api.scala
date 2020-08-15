@@ -296,6 +296,7 @@ class TaskData private[spark](
     val speculative: Boolean,
     val accumulatorUpdates: Seq[AccumulableInfo],
     val errorMessage: Option[String] = None,
+    val failureReason: Option[FailureReason] = None,
     val taskMetrics: Option[TaskMetrics] = None,
     val executorLogs: Map[String, String],
     val schedulerDelay: Long,
@@ -407,13 +408,13 @@ class RuntimeInfo private[spark](
     val javaHome: String,
     val scalaVersion: String)
 
-class ExceptionFailure private[spark](
-    val exceptionType: String,
+class FailureReason private[spark](
+    val failureType: String,
     val message: String,
     val stackTrace: String)
 
-class ExceptionSummary private[spark](
-    val exceptionFailure: ExceptionFailure,
+class FailureSummary private[spark](
+    val exceptionFailure: FailureReason,
     val count: Int)
 
 case class StackTrace(elems: Seq[String]) {
