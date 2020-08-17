@@ -1822,31 +1822,34 @@ class TaskSchedulerImplSuite extends SparkFunSuite with LocalSparkContext with B
     scheduler.executorDecommission("executor0", ExecutorDecommissionInfo("0 new", false))
     scheduler.executorDecommission("executor1", ExecutorDecommissionInfo("1 new", false))
 
-    assert(scheduler.getExecutorDecommissionInfo("executor0")
+    def convert(state: Option[ExecutorDecommissionState]): Option[ExecutorDecommissionInfo] =
+      state.map(s => ExecutorDecommissionInfo(s.message, s.isHostDecommissioned))
+
+    assert(convert(scheduler.getExecutorDecommissionState("executor0"))
       === Some(ExecutorDecommissionInfo("0 new", false)))
-    assert(scheduler.getExecutorDecommissionInfo("executor1")
+    assert(convert(scheduler.getExecutorDecommissionState("executor1"))
       === Some(ExecutorDecommissionInfo("1", true)))
-    assert(scheduler.getExecutorDecommissionInfo("executor2").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor2").isEmpty)
   }
 
   test("scheduler should ignore decommissioning of removed executors") {
     val scheduler = setupSchedulerForDecommissionTests()
 
     // executor 0 is decommissioned after loosing
-    assert(scheduler.getExecutorDecommissionInfo("executor0").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor0").isEmpty)
     scheduler.executorLost("executor0", ExecutorExited(0, false, "normal"))
-    assert(scheduler.getExecutorDecommissionInfo("executor0").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor0").isEmpty)
     scheduler.executorDecommission("executor0", ExecutorDecommissionInfo("", false))
-    assert(scheduler.getExecutorDecommissionInfo("executor0").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor0").isEmpty)
 
     // executor 1 is decommissioned before loosing
-    assert(scheduler.getExecutorDecommissionInfo("executor1").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor1").isEmpty)
     scheduler.executorDecommission("executor1", ExecutorDecommissionInfo("", false))
-    assert(scheduler.getExecutorDecommissionInfo("executor1").isDefined)
+    assert(scheduler.getExecutorDecommissionState("executor1").isDefined)
     scheduler.executorLost("executor1", ExecutorExited(0, false, "normal"))
-    assert(scheduler.getExecutorDecommissionInfo("executor1").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor1").isEmpty)
     scheduler.executorDecommission("executor1", ExecutorDecommissionInfo("", false))
-    assert(scheduler.getExecutorDecommissionInfo("executor1").isEmpty)
+    assert(scheduler.getExecutorDecommissionState("executor1").isEmpty)
   }
 
   /**
