@@ -22,7 +22,7 @@ import scala.collection.JavaConverters._
 
 import io.fabric8.kubernetes.api.model._
 
-import org.apache.spark.deploy.k8s.{KubernetesConf, SparkPod}
+import org.apache.spark.deploy.k8s.{KubernetesConf, KubernetesExecutorConf, SparkPod}
 import org.apache.spark.deploy.k8s.Config._
 
 private[spark] class LocalDirsFeatureStep(
@@ -49,7 +49,15 @@ private[spark] class LocalDirsFeatureStep(
         .orElse(conf.getOption("spark.local.dir"))
         .getOrElse(defaultLocalDir)
         .split(",")
-      localDirs = resolvedLocalDirs.toBuffer
+      localDirs = conf match {
+        case execConf: KubernetesExecutorConf =>
+          resolvedLocalDirs
+            .map(_.replaceAll("SPARK_APPLICATION_ID", execConf.appId))
+            .map(_.replaceAll("SPARK_EXECUTOR_ID", execConf.executorId))
+            .toBuffer
+        case _ =>
+          resolvedLocalDirs.toBuffer
+      }
       localDirVolumes = resolvedLocalDirs
         .zipWithIndex
         .map { case (_, index) =>
