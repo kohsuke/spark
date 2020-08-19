@@ -142,7 +142,19 @@ class LocalDirsFeatureStepSuite extends SparkFunSuite {
         .build())
   }
 
-  test("SPARK-32655 Support appId/execId placeholder in K8s executor SPARK_LOCAL_DIRS") {
+  test("SPARK-32655 Support appId/execId placeholder in driver spark.local.dir") {
+    val conf = KubernetesTestConf.createDriverConf()
+    val stepUnderTest = new LocalDirsFeatureStep(conf, "/SPARK_APPLICATION_ID/SPARK_EXECUTOR_ID")
+    val configuredPod = stepUnderTest.configurePod(SparkPod.initialPod())
+    assert(configuredPod.container.getEnv.size === 1)
+    assert(configuredPod.container.getEnv.get(0) ===
+      new EnvVarBuilder()
+        .withName("SPARK_LOCAL_DIRS")
+        .withValue(s"/${conf.appId}/driver")
+        .build())
+  }
+
+  test("SPARK-32655 Support appId/execId placeholder in executor spark.local.dir") {
     val conf = KubernetesTestConf.createExecutorConf()
     val stepUnderTest = new LocalDirsFeatureStep(conf, "/SPARK_APPLICATION_ID/SPARK_EXECUTOR_ID")
     val configuredPod = stepUnderTest.configurePod(SparkPod.initialPod())

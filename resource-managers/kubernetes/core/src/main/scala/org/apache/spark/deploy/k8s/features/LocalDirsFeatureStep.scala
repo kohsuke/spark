@@ -22,7 +22,7 @@ import scala.collection.JavaConverters._
 
 import io.fabric8.kubernetes.api.model._
 
-import org.apache.spark.deploy.k8s.{KubernetesConf, KubernetesExecutorConf, SparkPod}
+import org.apache.spark.deploy.k8s.{KubernetesConf, KubernetesDriverConf, KubernetesExecutorConf, SparkPod}
 import org.apache.spark.deploy.k8s.Config._
 
 private[spark] class LocalDirsFeatureStep(
@@ -54,6 +54,11 @@ private[spark] class LocalDirsFeatureStep(
           resolvedLocalDirs
             .map(_.replaceAll("SPARK_APPLICATION_ID", execConf.appId))
             .map(_.replaceAll("SPARK_EXECUTOR_ID", execConf.executorId))
+            .toBuffer
+        case driverConf: KubernetesDriverConf =>
+          resolvedLocalDirs
+            .map(_.replaceAll("SPARK_APPLICATION_ID", driverConf.appId))
+            .map(_.replaceAll("SPARK_EXECUTOR_ID", "driver"))
             .toBuffer
         case _ =>
           resolvedLocalDirs.toBuffer
