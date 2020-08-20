@@ -75,8 +75,39 @@ trait ExpressionEvalHelper extends ScalaCheckDrivenPropertyChecks with PlanTestB
     serializer.deserialize(serializer.serialize(expr))
   }
 
+  private def checkNullability(dt: DataType, nullable: Boolean, expected: Any): Unit = {
+    expected match {
+      case null => assert(nullable)
+      case s: Seq[_] =>
+        val at = dt.asInstanceOf[ArrayType]
+        s.foreach(i => checkNullability(at.elementType, at.containsNull, i))
+      case a: ArrayData =>
+        val at = dt.asInstanceOf[ArrayType]
+        a.foreach(at.elementType, (_, i) => checkNullability(at.elementType, at.containsNull, i))
+      case r: Row =>
+        val st = dt.asInstanceOf[StructType]
+        for (i <- 0 until st.length) {
+          checkNullability(st(i).dataType, st(i).nullable, r.get(i))
+        }
+      case r: InternalRow =>
+        val st = dt.asInstanceOf[StructType]
+        for (i <- 0 until st.length) {
+          checkNullability(st(i).dataType, st(i).nullable, r.get(i, st(i).dataType))
+        }
+      case m: Map[_, _] =>
+        val mt = dt.asInstanceOf[MapType]
+        m.foreach { case (_, v) => checkNullability(mt.valueType, mt.valueContainsNull, v) }
+      case m: MapData =>
+        val mt = dt.asInstanceOf[MapType]
+        val vt = mt.valueType
+        m.valueArray().foreach(vt, (_, i) => checkNullability(vt, mt.valueContainsNull, i))
+      case _ =>
+    }
+  }
+
   protected def checkEvaluation(
       expression: => Expression, expected: Any, inputRow: InternalRow = EmptyRow): Unit = {
+    checkNullability(expression.dataType, expression.nullable, expected)
     // Make it as method to obtain fresh expression everytime.
     def expr = prepareEvaluation(expression)
     val catalystValue = CatalystTypeConverters.convertToCatalyst(expected)
