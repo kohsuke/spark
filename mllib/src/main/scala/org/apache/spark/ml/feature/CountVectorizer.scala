@@ -241,7 +241,6 @@ class CountVectorizer @Since("1.5.0") (@Since("1.5.0") override val uid: String)
     }
     wordCounts.unpersist()
 
-    require(vocab.length > 0, "The vocabulary size should be > 0. Lower minDF as necessary.")
     copyValues(new CountVectorizerModel(uid, vocab).setParent(this))
   }
 
