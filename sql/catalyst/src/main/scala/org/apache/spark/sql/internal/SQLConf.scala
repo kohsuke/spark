@@ -2712,12 +2712,14 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
-  val TRUNCATE_TRASH_INTERVAL =
-    buildConf("spark.sql.truncate.trash.interval")
-      .doc("This Configuration will decide whether move files to trash on truncate table" +
-        "If -1 files will be deleted without moving to trash")
-      .intConf
-      .createWithDefault(-1)
+  val TRUNCATE_TRASH_ENABLED =
+    buildConf("spark.sql.truncate.trash.enabled")
+      .doc("This Configuration will decide whether move files to trash on truncate table given, " +
+        "'fs.trash.interval' is positive in Hadoop Configuration. " +
+        "Note that, in Hadoop conf if server side has this configured then the client side " +
+        "one will be ignored. ")
+      .booleanConf
+      .createWithDefault(false)
 
   /**
    * Holds information about keys that have been deprecated.
@@ -3329,7 +3331,7 @@ class SQLConf extends Serializable with Logging {
   def optimizeNullAwareAntiJoin: Boolean =
     getConf(SQLConf.OPTIMIZE_NULL_AWARE_ANTI_JOIN)
 
-  def truncateTrashInterval: Int = getConf(SQLConf.TRUNCATE_TRASH_INTERVAL)
+  def truncateTrashEnabled: Boolean = getConf(SQLConf.TRUNCATE_TRASH_ENABLED)
 
   /** ********************** SQLConf functionality methods ************ */
 
