@@ -2452,6 +2452,13 @@ class DataFrameSuite extends QueryTest
     assert(e.getMessage.contains("Table or view not found:"))
   }
 
+  test("SPARK-32680: Don't analyze CTAS with unresolved query") {
+    val e = intercept[AnalysisException] {
+      sql("CREATE TABLE t USING delta AS SELECT * from nonexist")
+    }
+    assert(e.getMessage.contains("Table or view not found:"))
+  }
+
   test("CalendarInterval reflection support") {
     val df = Seq((1, new CalendarInterval(1, 2, 3))).toDF("a", "b")
     checkAnswer(df.selectExpr("b"), Row(new CalendarInterval(1, 2, 3)))
