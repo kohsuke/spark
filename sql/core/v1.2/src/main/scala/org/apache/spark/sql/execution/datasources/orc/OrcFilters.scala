@@ -219,7 +219,7 @@ private[sql] object OrcFilters extends OrcFiltersBase {
       expression: Filter,
       builder: Builder): Option[Builder] = {
     def getType(attribute: String): PredicateLeaf.Type =
-      getPredicateLeafType(dataTypeMap(attribute))
+      getPredicateLeafType(dataTypeMap(attribute).fieldType)
 
     import org.apache.spark.sql.sources._
 
