@@ -145,9 +145,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
 
   protected val validFileExtensions = ".sql"
 
-  private val notIncludedMsg = "[not included in comparison]"
-  private val clsName = this.getClass.getCanonicalName
-
   protected val emptySchema = StructType(Seq.empty).catalogString
 
   protected override def sparkConf: SparkConf = super.sparkConf
@@ -516,18 +513,6 @@ class SQLQueryTestSuite extends QueryTest with SharedSparkSession with SQLHelper
 
     // If the output is not pre-sorted, sort it.
     if (isSorted(df.queryExecution.analyzed)) (schema, answer) else (schema, answer.sorted)
-  }
-
-  protected def replaceNotIncludedMsg(line: String): String = {
-    line.replaceAll("#\\d+", "#x")
-      .replaceAll(
-        s"Location.*$clsName/",
-        s"Location $notIncludedMsg/{warehouse_dir}/")
-      .replaceAll("Created By.*", s"Created By $notIncludedMsg")
-      .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
-      .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
-      .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
-      .replaceAll("\\*\\(\\d+\\) ", "*") // remove the WholeStageCodegen codegenStageIds
   }
 
   protected lazy val listTestCases: Seq[TestCase] = {

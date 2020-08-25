@@ -61,6 +61,21 @@ trait PlanTestBase extends PredicateHelper with SQLHelper { self: Suite =>
   // TODO(gatorsmile): remove this from PlanTest and all the analyzer rules
   protected def conf = SQLConf.get
 
+  private val notIncludedMsg = "[not included in comparison]"
+  private val clsName = this.getClass.getCanonicalName
+
+  protected def replaceNotIncludedMsg(line: String): String = {
+    line.replaceAll("#\\d+", "#x")
+      .replaceAll(
+        s"Location.*$clsName/",
+        s"Location $notIncludedMsg/{warehouse_dir}/")
+      .replaceAll("Created By.*", s"Created By $notIncludedMsg")
+      .replaceAll("Created Time.*", s"Created Time $notIncludedMsg")
+      .replaceAll("Last Access.*", s"Last Access $notIncludedMsg")
+      .replaceAll("Partition Statistics\t\\d+", s"Partition Statistics\t$notIncludedMsg")
+      .replaceAll("\\*\\(\\d+\\) ", "*") // remove the WholeStageCodegen codegenStageIds
+  }
+
   /**
    * Since attribute references are given globally unique ids during analysis,
    * we must normalize them to check if two different queries are identical.

@@ -92,7 +92,6 @@ trait PlanStabilitySuite extends TPCDSBase with DisableAdaptiveExecutionSuite {
   }
 
   private val referenceRegex = "#\\d+".r
-  private val normalizeRegex = "#\\d+L?".r
 
   def goldenFilePath: String
 
@@ -228,13 +227,6 @@ trait PlanStabilitySuite extends TPCDSBase with DisableAdaptiveExecutionSuite {
     getSimplifiedPlan(plan, 0)
   }
 
-  private def normalizeIds(query: String): String = {
-    val map = new mutable.HashMap[String, String]()
-    normalizeRegex.findAllMatchIn(query).map(_.toString)
-      .foreach(map.getOrElseUpdate(_, (map.size + 1).toString))
-    normalizeRegex.replaceAllIn(query, regexMatch => s"#${map(regexMatch.toString)}")
-  }
-
   /**
    * Test a TPC-DS query. Depending on the settings this test will either check if the plan matches
    * a golden file or it will create a new golden file.
@@ -244,7 +236,7 @@ trait PlanStabilitySuite extends TPCDSBase with DisableAdaptiveExecutionSuite {
       classLoader = Thread.currentThread().getContextClassLoader)
     val qe = sql(queryString).queryExecution
     val plan = qe.executedPlan
-    val explain = normalizeIds(qe.explainString(FormattedMode))
+    val explain = replaceNotIncludedMsg(qe.explainString(FormattedMode))
 
     if (regenerateGoldenFiles) {
       generateApprovedPlanFile(plan, query + suffix, explain)
