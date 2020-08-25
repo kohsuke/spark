@@ -106,7 +106,7 @@ public abstract class SpecificParquetRecordReaderBase<T> extends RecordReader<Vo
         configuration.get(ParquetReadSupport$.MODULE$.SPARK_ROW_REQUESTED_SCHEMA());
     this.sparkSchema = StructType$.MODULE$.fromString(sparkRequestedSchemaString);
 
-   // use the blocks from the reader in case some do not match filters and will not be read
+    // use the blocks from the reader in case some do not match filters and will not be read
     for (BlockMetaData block : reader.getRowGroups()) {
       this.totalRowCount += block.getRowCount();
     }
