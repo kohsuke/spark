@@ -686,6 +686,9 @@ object Catalyst {
 }
 
 object SQL {
+
+  import sbtavro.SbtAvro.autoImport._
+
   lazy val settings = Seq(
     initialCommands in console :=
       """
@@ -707,8 +710,10 @@ object SQL {
         |import sqlContext.implicits._
         |import sqlContext._
       """.stripMargin,
-    cleanupCommands in console := "sc.stop()"
+    cleanupCommands in console := "sc.stop()",
+    Test / avroGenerate := (Compile / avroGenerate).value
   )
+
 }
 
 object Hive {
