@@ -203,3 +203,23 @@ abstract class BinaryNode extends LogicalPlan {
 abstract class OrderPreservingUnaryNode extends UnaryNode {
   override final def outputOrdering: Seq[SortOrder] = child.outputOrdering
 }
+
+trait LogicalPlanIntegrity {
+
+  private def canGetOutputAttrs(p: LogicalPlan): Boolean = {
+    p.resolved && !p.expressions.exists { e =>
+      // Some plans cannot call `output` because their expressions have `Unevaluable`,
+      // e.g., `Join` having a `ExistenceJoin` type.
+      e.collectFirst { case _: Unevaluable => true }.isDefined
+    }
+  }
+
+  def hasUniqueIdsForAttributes(plan: LogicalPlan): Boolean = {
+    val allOutputAttrs = plan.collect { case p if canGetOutputAttrs(p) =>
+      p.output.filter(_.resolved).map(_.canonicalized.asInstanceOf[Attribute])
+    }
+    val groupedAttrsByExprId = allOutputAttrs
+      .flatten.groupBy(_.exprId).values.map(_.distinct)
+    groupedAttrsByExprId.forall(_.length == 1)
+  }
+}
