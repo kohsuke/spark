@@ -92,9 +92,9 @@ public abstract class SpecificParquetRecordReaderBase<T> extends RecordReader<Vo
     this.file = split.getPath();
 
     ParquetReadOptions options = HadoopReadOptions
-        .builder(configuration)
-        .withRange(split.getStart(), split.getStart() + split.getLength())
-        .build();
+      .builder(configuration)
+      .withRange(split.getStart(), split.getStart() + split.getLength())
+      .build();
     this.reader = new ParquetFileReader(HadoopInputFile.fromPath(file, configuration), options);
     this.fileSchema = reader.getFileMetaData().getSchema();
     Map<String, String> fileMetadata = reader.getFileMetaData().getKeyValueMetaData();
@@ -161,12 +161,15 @@ public abstract class SpecificParquetRecordReaderBase<T> extends RecordReader<Vo
     this.file = new Path(path);
     long length = this.file.getFileSystem(config).getFileStatus(this.file).getLen();
     ParquetReadOptions options = HadoopReadOptions
-        .builder(config)
-        .withRange(0, length)
-        .build();
-    this.reader = ParquetFileReader
-        .open(HadoopInputFile.fromPath(file, config), options);
-    ParquetMetadata footer = reader.getFooter();
+      .builder(config)
+      .withRange(0, length)
+      .build();
+
+    ParquetMetadata footer;
+    try (ParquetFileReader reader = ParquetFileReader
+        .open(HadoopInputFile.fromPath(file, config), options)) {
+      footer = reader.getFooter();
+    }
 
     List<BlockMetaData> blocks = footer.getBlocks();
     this.fileSchema = footer.getFileMetaData().getSchema();
