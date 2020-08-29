@@ -32,41 +32,20 @@ WholeStageCodegen (9)
                                                               InputAdapter
                                                                 Scan parquet default.store_sales [ss_customer_sk,ss_item_sk,ss_net_paid,ss_store_sk,ss_ticket_number]
                                                           InputAdapter
-                                                            BroadcastExchange #11
-                                                              WholeStageCodegen (1)
-                                                                Filter [sr_item_sk,sr_ticket_number]
-                                                                  ColumnarToRow
-                                                                    InputAdapter
-                                                                      Scan parquet default.store_returns [sr_item_sk,sr_ticket_number]
+                                                            ReusedExchange [sr_item_sk,sr_ticket_number] #4
                                                       InputAdapter
-                                                        BroadcastExchange #12
-                                                          WholeStageCodegen (2)
-                                                            Project [s_state,s_store_name,s_store_sk,s_zip]
-                                                              Filter [s_market_id,s_store_sk,s_zip]
-                                                                ColumnarToRow
-                                                                  InputAdapter
-                                                                    Scan parquet default.store [s_market_id,s_state,s_store_name,s_store_sk,s_zip]
+                                                        ReusedExchange [s_state,s_store_name,s_store_sk,s_zip] #5
                                                   InputAdapter
-                                                    BroadcastExchange #13
+                                                    BroadcastExchange #11
                                                       WholeStageCodegen (3)
                                                         Filter [i_item_sk]
                                                           ColumnarToRow
                                                             InputAdapter
                                                               Scan parquet default.item [i_color,i_current_price,i_item_sk,i_manager_id,i_size,i_units]
                                               InputAdapter
-                                                BroadcastExchange #14
-                                                  WholeStageCodegen (4)
-                                                    Filter [c_birth_country,c_current_addr_sk,c_customer_sk]
-                                                      ColumnarToRow
-                                                        InputAdapter
-                                                          Scan parquet default.customer [c_birth_country,c_current_addr_sk,c_customer_sk,c_first_name,c_last_name]
+                                                ReusedExchange [c_birth_country,c_current_addr_sk,c_customer_sk,c_first_name,c_last_name] #7
                                           InputAdapter
-                                            BroadcastExchange #15
-                                              WholeStageCodegen (5)
-                                                Filter [ca_address_sk,ca_country,ca_zip]
-                                                  ColumnarToRow
-                                                    InputAdapter
-                                                      Scan parquet default.customer_address [ca_address_sk,ca_country,ca_state,ca_zip]
+                                            ReusedExchange [ca_address_sk,ca_country,ca_state,ca_zip] #8
               HashAggregate [c_first_name,c_last_name,isEmpty,s_store_name,sum] [isEmpty,paid,sum,sum(netpaid),sum(netpaid)]
                 InputAdapter
                   Exchange [c_first_name,c_last_name,s_store_name] #2

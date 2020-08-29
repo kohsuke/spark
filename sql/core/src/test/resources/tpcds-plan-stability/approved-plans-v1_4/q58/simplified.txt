@@ -69,30 +69,14 @@ TakeOrderedAndProject [average,cs_dev,cs_item_rev,item_id,ss_dev,ss_item_rev,ws_
                                       InputAdapter
                                         ReusedExchange [i_item_id,i_item_sk] #2
                                   InputAdapter
-                                    BroadcastExchange #7
-                                      WholeStageCodegen (7)
-                                        Project [d_date_sk]
-                                          BroadcastHashJoin [d_date,d_date]
-                                            Filter [d_date_sk]
-                                              ColumnarToRow
-                                                InputAdapter
-                                                  Scan parquet default.date_dim [d_date,d_date_sk]
-                                            InputAdapter
-                                              BroadcastExchange #8
-                                                WholeStageCodegen (6)
-                                                  Project [d_date]
-                                                    Filter [d_week_seq]
-                                                      ReusedSubquery [d_week_seq] #1
-                                                      ColumnarToRow
-                                                        InputAdapter
-                                                          Scan parquet default.date_dim [d_date,d_week_seq]
+                                    ReusedExchange [d_date_sk] #3
         InputAdapter
-          BroadcastExchange #9
+          BroadcastExchange #7
             WholeStageCodegen (14)
               Filter [ws_item_rev]
                 HashAggregate [i_item_id,sum] [item_id,sum,sum(UnscaledValue(ws_ext_sales_price)),ws_item_rev]
                   InputAdapter
-                    Exchange [i_item_id] #10
+                    Exchange [i_item_id] #8
                       WholeStageCodegen (13)
                         HashAggregate [i_item_id,ws_ext_sales_price] [sum,sum]
                           Project [i_item_id,ws_ext_sales_price]
@@ -106,20 +90,4 @@ TakeOrderedAndProject [average,cs_dev,cs_item_rev,item_id,ss_dev,ss_item_rev,ws_
                                   InputAdapter
                                     ReusedExchange [i_item_id,i_item_sk] #2
                               InputAdapter
-                                BroadcastExchange #11
-                                  WholeStageCodegen (12)
-                                    Project [d_date_sk]
-                                      BroadcastHashJoin [d_date,d_date]
-                                        Filter [d_date_sk]
-                                          ColumnarToRow
-                                            InputAdapter
-                                              Scan parquet default.date_dim [d_date,d_date_sk]
-                                        InputAdapter
-                                          BroadcastExchange #12
-                                            WholeStageCodegen (11)
-                                              Project [d_date]
-                                                Filter [d_week_seq]
-                                                  ReusedSubquery [d_week_seq] #1
-                                                  ColumnarToRow
-                                                    InputAdapter
-                                                      Scan parquet default.date_dim [d_date,d_week_seq]
+                                ReusedExchange [d_date_sk] #3

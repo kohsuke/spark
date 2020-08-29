@@ -28,13 +28,7 @@ TakeOrderedAndProject [channel,i_brand_id,i_category_id,i_class_id,sum(number_sa
                                                       InputAdapter
                                                         Scan parquet default.store_sales [ss_list_price,ss_quantity,ss_sold_date_sk]
                                                   InputAdapter
-                                                    BroadcastExchange #14
-                                                      WholeStageCodegen (1)
-                                                        Project [d_date_sk]
-                                                          Filter [d_date_sk,d_year]
-                                                            ColumnarToRow
-                                                              InputAdapter
-                                                                Scan parquet default.date_dim [d_date_sk,d_year]
+                                                    ReusedExchange [d_date_sk] #7
                                             WholeStageCodegen (4)
                                               Project [cs_list_price,cs_quantity]
                                                 BroadcastHashJoin [cs_sold_date_sk,d_date_sk]
@@ -43,7 +37,7 @@ TakeOrderedAndProject [channel,i_brand_id,i_category_id,i_class_id,sum(number_sa
                                                       InputAdapter
                                                         Scan parquet default.catalog_sales [cs_list_price,cs_quantity,cs_sold_date_sk]
                                                   InputAdapter
-                                                    ReusedExchange [d_date_sk] #14
+                                                    ReusedExchange [d_date_sk] #7
                                             WholeStageCodegen (6)
                                               Project [ws_list_price,ws_quantity]
                                                 BroadcastHashJoin [d_date_sk,ws_sold_date_sk]
@@ -52,7 +46,7 @@ TakeOrderedAndProject [channel,i_brand_id,i_category_id,i_class_id,sum(number_sa
                                                       InputAdapter
                                                         Scan parquet default.web_sales [ws_list_price,ws_quantity,ws_sold_date_sk]
                                                   InputAdapter
-                                                    ReusedExchange [d_date_sk] #14
+                                                    ReusedExchange [d_date_sk] #7
                           HashAggregate [count,i_brand_id,i_category_id,i_class_id,isEmpty,sum] [channel,count,count(1),isEmpty,number_sales,sales,sum,sum(CheckOverflow((promote_precision(cast(cast(ss_quantity as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(ss_list_price as decimal(12,2)))), DecimalType(18,2), true)),sum(CheckOverflow((promote_precision(cast(cast(ss_quantity as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(ss_list_price as decimal(12,2)))), DecimalType(18,2), true))]
                             InputAdapter
                               Exchange [i_brand_id,i_category_id,i_class_id] #2
@@ -170,7 +164,7 @@ TakeOrderedAndProject [channel,i_brand_id,i_category_id,i_class_id,sum(number_sa
                           ReusedSubquery [average_sales] #1
                           HashAggregate [count,i_brand_id,i_category_id,i_class_id,isEmpty,sum] [channel,count,count(1),isEmpty,number_sales,sales,sum,sum(CheckOverflow((promote_precision(cast(cast(cs_quantity as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(cs_list_price as decimal(12,2)))), DecimalType(18,2), true)),sum(CheckOverflow((promote_precision(cast(cast(cs_quantity as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(cs_list_price as decimal(12,2)))), DecimalType(18,2), true))]
                             InputAdapter
-                              Exchange [i_brand_id,i_category_id,i_class_id] #15
+                              Exchange [i_brand_id,i_category_id,i_class_id] #14
                                 WholeStageCodegen (51)
                                   HashAggregate [cs_list_price,cs_quantity,i_brand_id,i_category_id,i_class_id] [count,count,isEmpty,isEmpty,sum,sum]
                                     Project [cs_list_price,cs_quantity,i_brand_id,i_category_id,i_class_id]
@@ -194,7 +188,7 @@ TakeOrderedAndProject [channel,i_brand_id,i_category_id,i_class_id,sum(number_sa
                           ReusedSubquery [average_sales] #1
                           HashAggregate [count,i_brand_id,i_category_id,i_class_id,isEmpty,sum] [channel,count,count(1),isEmpty,number_sales,sales,sum,sum(CheckOverflow((promote_precision(cast(cast(ws_quantity as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(ws_list_price as decimal(12,2)))), DecimalType(18,2), true)),sum(CheckOverflow((promote_precision(cast(cast(ws_quantity as decimal(10,0)) as decimal(12,2))) * promote_precision(cast(ws_list_price as decimal(12,2)))), DecimalType(18,2), true))]
                             InputAdapter
-                              Exchange [i_brand_id,i_category_id,i_class_id] #16
+                              Exchange [i_brand_id,i_category_id,i_class_id] #15
                                 WholeStageCodegen (77)
                                   HashAggregate [i_brand_id,i_category_id,i_class_id,ws_list_price,ws_quantity] [count,count,isEmpty,isEmpty,sum,sum]
                                     Project [i_brand_id,i_category_id,i_class_id,ws_list_price,ws_quantity]

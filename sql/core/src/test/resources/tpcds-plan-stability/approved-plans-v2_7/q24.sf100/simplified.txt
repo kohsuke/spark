@@ -36,31 +36,7 @@ WholeStageCodegen (12)
                                                                       Project [c_first_name,c_last_name,ca_state,s_state,s_store_name,ss_item_sk,ss_net_paid,ss_ticket_number]
                                                                         BroadcastHashJoin [c_customer_sk,s_store_sk,ss_customer_sk,ss_store_sk]
                                                                           InputAdapter
-                                                                            BroadcastExchange #14
-                                                                              WholeStageCodegen (3)
-                                                                                Project [c_customer_sk,c_first_name,c_last_name,ca_state,s_state,s_store_name,s_store_sk]
-                                                                                  BroadcastHashJoin [c_birth_country,c_current_addr_sk,ca_address_sk,ca_country]
-                                                                                    InputAdapter
-                                                                                      BroadcastExchange #15
-                                                                                        WholeStageCodegen (2)
-                                                                                          Project [ca_address_sk,ca_country,ca_state,s_state,s_store_name,s_store_sk]
-                                                                                            BroadcastHashJoin [ca_zip,s_zip]
-                                                                                              InputAdapter
-                                                                                                BroadcastExchange #16
-                                                                                                  WholeStageCodegen (1)
-                                                                                                    Project [s_state,s_store_name,s_store_sk,s_zip]
-                                                                                                      Filter [s_market_id,s_store_sk,s_zip]
-                                                                                                        ColumnarToRow
-                                                                                                          InputAdapter
-                                                                                                            Scan parquet default.store [s_market_id,s_state,s_store_name,s_store_sk,s_zip]
-                                                                                              Filter [ca_address_sk,ca_country,ca_zip]
-                                                                                                ColumnarToRow
-                                                                                                  InputAdapter
-                                                                                                    Scan parquet default.customer_address [ca_address_sk,ca_country,ca_state,ca_zip]
-                                                                                    Filter [c_birth_country,c_current_addr_sk,c_customer_sk]
-                                                                                      ColumnarToRow
-                                                                                        InputAdapter
-                                                                                          Scan parquet default.customer [c_birth_country,c_current_addr_sk,c_customer_sk,c_first_name,c_last_name]
+                                                                            ReusedExchange [c_customer_sk,c_first_name,c_last_name,ca_state,s_state,s_store_name,s_store_sk] #5
                                                                           Filter [ss_customer_sk,ss_item_sk,ss_store_sk,ss_ticket_number]
                                                                             ColumnarToRow
                                                                               InputAdapter
@@ -69,7 +45,7 @@ WholeStageCodegen (12)
                                                             WholeStageCodegen (7)
                                                               Sort [i_item_sk]
                                                                 InputAdapter
-                                                                  Exchange [i_item_sk] #17
+                                                                  Exchange [i_item_sk] #14
                                                                     WholeStageCodegen (6)
                                                                       Filter [i_item_sk]
                                                                         ColumnarToRow
@@ -79,12 +55,7 @@ WholeStageCodegen (12)
                                             WholeStageCodegen (11)
                                               Sort [sr_item_sk,sr_ticket_number]
                                                 InputAdapter
-                                                  Exchange [sr_item_sk,sr_ticket_number] #18
-                                                    WholeStageCodegen (10)
-                                                      Filter [sr_item_sk,sr_ticket_number]
-                                                        ColumnarToRow
-                                                          InputAdapter
-                                                            Scan parquet default.store_returns [sr_item_sk,sr_ticket_number]
+                                                  ReusedExchange [sr_item_sk,sr_ticket_number] #9
               HashAggregate [c_first_name,c_last_name,isEmpty,s_store_name,sum] [isEmpty,paid,sum,sum(netpaid),sum(netpaid)]
                 InputAdapter
                   Exchange [c_first_name,c_last_name,s_store_name] #2
