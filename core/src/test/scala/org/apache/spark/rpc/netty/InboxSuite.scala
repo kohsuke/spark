@@ -137,7 +137,7 @@ class InboxSuite extends SparkFunSuite {
     endpoint.verifySingleOnNetworkErrorMessage(cause, remoteAddress)
   }
 
-  test("should reduce active thread when fatal exception") {
+  test("SPARK-32738: should reduce active thread when fatal exception") {
     val endpoint = mock(classOf[TestRpcEndpoint])
     when(endpoint.receive).thenThrow(new OutOfMemoryError())
 
