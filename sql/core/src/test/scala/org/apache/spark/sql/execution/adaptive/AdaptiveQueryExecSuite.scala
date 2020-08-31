@@ -1205,4 +1205,13 @@ class AdaptiveQueryExecSuite
       })
     }
   }
+
+  test("SPARK-32753: Do not override when copying tags") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true"
+    ) {
+      spark.range(10).union(spark.range(10)).createOrReplaceTempView("v1")
+      runAdaptiveAndVerifyResult("SELECT id FROM v1 GROUP BY id DISTRIBUTE BY id")
+    }
+  }
 }
