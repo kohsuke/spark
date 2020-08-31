@@ -211,8 +211,8 @@ test_that("gapply() Arrow optimization - type specification", {
   })
 
   ret <- gapply(df,
-               "a",
-               function(key, grouped) { grouped }, schema(df))
+                "a",
+                function(key, grouped) { grouped }, schema(df))
   actual <- collect(ret)
   expect_equal(actual, expected)
 })
