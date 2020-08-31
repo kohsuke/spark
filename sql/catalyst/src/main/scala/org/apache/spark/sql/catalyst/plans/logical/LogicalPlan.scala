@@ -204,7 +204,7 @@ abstract class OrderPreservingUnaryNode extends UnaryNode {
   override final def outputOrdering: Seq[SortOrder] = child.outputOrdering
 }
 
-trait LogicalPlanIntegrity {
+object LogicalPlanIntegrity {
 
   private def canGetOutputAttrs(p: LogicalPlan): Boolean = {
     p.resolved && !p.expressions.exists { e =>
@@ -214,7 +214,12 @@ trait LogicalPlanIntegrity {
     }
   }
 
-  def hasUniqueIdsForAttributes(plan: LogicalPlan): Boolean = {
+  /**
+   * This method checks if the same expression ID, `ExprId`, refer to an unique attribute.
+   * Some plan transformers (e.g., `RemoveNoopOperators`) rewrite logical
+   * plans based on this assumption.
+   */
+  def hasUniqueExprIdsForAttributes(plan: LogicalPlan): Boolean = {
     val allOutputAttrs = plan.collect { case p if canGetOutputAttrs(p) =>
       p.output.filter(_.resolved).map(_.canonicalized.asInstanceOf[Attribute])
     }

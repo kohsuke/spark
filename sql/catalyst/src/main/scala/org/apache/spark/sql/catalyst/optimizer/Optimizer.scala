@@ -37,7 +37,7 @@ import org.apache.spark.util.Utils
  * Optimizers can override this.
  */
 abstract class Optimizer(catalogManager: CatalogManager)
-  extends RuleExecutor[LogicalPlan] with LogicalPlanIntegrity {
+  extends RuleExecutor[LogicalPlan] {
 
   // Check for structural integrity of the plan in test mode.
   // Currently we check after the execution of each rule if a plan:
@@ -46,7 +46,7 @@ abstract class Optimizer(catalogManager: CatalogManager)
   override protected def isPlanIntegral(plan: LogicalPlan): Boolean = {
     !Utils.isTesting || (plan.resolved &&
       plan.find(PlanHelper.specialExpressionsInUnsupportedOperator(_).nonEmpty).isEmpty) &&
-      hasUniqueIdsForAttributes(plan)
+      LogicalPlanIntegrity.hasUniqueExprIdsForAttributes(plan)
   }
 
   override protected val excludedOnceBatches: Set[String] =

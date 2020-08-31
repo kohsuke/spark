@@ -132,13 +132,12 @@ class Analyzer(
     override val catalogManager: CatalogManager,
     conf: SQLConf,
     maxIterations: Int)
-  extends RuleExecutor[LogicalPlan] with CheckAnalysis with LookupCatalog
-  with LogicalPlanIntegrity {
+  extends RuleExecutor[LogicalPlan] with CheckAnalysis with LookupCatalog {
 
   private val v1SessionCatalog: SessionCatalog = catalogManager.v1SessionCatalog
 
   override protected def isPlanIntegral(plan: LogicalPlan): Boolean = {
-    !Utils.isTesting || hasUniqueIdsForAttributes(plan)
+    !Utils.isTesting || LogicalPlanIntegrity.hasUniqueExprIdsForAttributes(plan)
   }
 
   override def isView(nameParts: Seq[String]): Boolean = v1SessionCatalog.isView(nameParts)
