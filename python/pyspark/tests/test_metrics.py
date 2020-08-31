@@ -24,7 +24,7 @@ class MetricsTests(ReusedPySparkTestCase):
     def test_metrics(self):
         count = self.sc.parallelize(range(1, 10000), 1).reduce(add)
         read_time = self.sc._jvm.org.apache.spark.api.python.PythonMetrics.getFromWorkerReadTime()
-        self.assertGreater(read_time_ns, 0)
+        self.assertGreater(read_time, 0)
 
 
 if __name__ == "__main__":
