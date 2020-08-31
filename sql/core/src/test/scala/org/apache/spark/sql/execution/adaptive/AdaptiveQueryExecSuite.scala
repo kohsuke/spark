@@ -1205,4 +1205,14 @@ class AdaptiveQueryExecSuite
       })
     }
   }
+
+  test("SPARK-32753: EnsureRequirements should update logical link " +
+    "when eliminating Exchange with same partitioning with AQE") {
+    withSQLConf(
+      SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true"
+    ) {
+      spark.range(10).union(spark.range(10)).createOrReplaceTempView("v1")
+      runAdaptiveAndVerifyResult("SELECT id FROM v1 GROUP BY id DISTRIBUTE BY id")
+    }
+  }
 }
