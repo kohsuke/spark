@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.catalyst.plans
 
+import scala.collection.mutable
+
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, TreeNode, TreeNodeTag}
@@ -166,6 +168,85 @@ abstract class QueryPlan[PlanType <: QueryPlan[PlanType]] extends TreeNode[PlanT
       case seq: Iterable[_] => seqToExpressions(seq)
       case other => Nil
     }.toSeq
+  }
+
+
+  /**
+   * Rewrites this plan tree based on the given plan mappings from old plan nodes to new nodes.
+   * This method also updates all the related references in this plan tree accordingly, in case
+   * the replaced node has different output expr ID than the old node.
+   */
+  def rewriteWithPlanMapping(
+      planMapping: Map[PlanType, PlanType],
+      canGetOutput: PlanType => Boolean = _ => true): PlanType = {
+    def internalRewrite(plan: PlanType): (PlanType, Seq[(Attribute, Attribute)]) = {
+      if (planMapping.contains(plan)) {
+        val newPlan = planMapping(plan)
+        val attrMapping = if (canGetOutput(plan) && canGetOutput(newPlan)) {
+          plan.output.zip(newPlan.output).filter {
+            case (a1, a2) => a1.exprId != a2.exprId
+          }
+        } else {
+          Nil
+        }
+        newPlan -> attrMapping
+      } else {
+        val attrMapping = new mutable.ArrayBuffer[(Attribute, Attribute)]()
+        val newPlan = plan.mapChildren { child =>
+          val (newChild, childAttrMapping) = internalRewrite(child)
+          attrMapping ++= childAttrMapping.filter { case (oldAttr, _) =>
+            // `attrMapping` is not only used to replace the attributes of the current `plan`,
+            // but also to be propagated to the parent plans of the current `plan`. Therefore,
+            // the `oldAttr` must be part of either `plan.references` (so that it can be used to
+            // replace attributes of the current `plan`) or `plan.outputSet` (so that it can be
+            // used by those parent plans).
+            (plan.outputSet ++ plan.references).contains(oldAttr)
+          }
+          newChild
+        }
+
+        if (attrMapping.isEmpty) {
+          newPlan -> Nil
+        } else {
+          assert(!attrMapping.groupBy(_._1.exprId)
+            .exists(_._2.map(_._2.exprId).distinct.length > 1),
+            "Found duplicate rewrite attributes")
+
+          val attributeRewrites = AttributeMap(attrMapping)
+          // Using attrMapping from the children plans to rewrite their parent node.
+          // Note that we shouldn't rewrite a node using attrMapping from its sibling nodes.
+          newPlan.transformExpressions {
+            case a: AttributeReference =>
+              updateAttr(a, attributeRewrites)
+            case pe: PlanExpression[PlanType] =>
+              pe.withNewPlan(updateOuterReferencesInSubquery(pe.plan, attributeRewrites))
+          } -> attrMapping
+        }
+      }
+    }
+    internalRewrite(this)._1
+  }
+
+  private def updateAttr(attr: Attribute, attrMap: AttributeMap[Attribute]): Attribute = {
+    val exprId = attrMap.getOrElse(attr, attr).exprId
+    attr.withExprId(exprId)
+  }
+
+  /**
+   * The outer plan may have old references and the function below updates the
+   * outer references to refer to the new attributes.
+   */
+  private def updateOuterReferencesInSubquery(
+      plan: PlanType,
+      attrMap: AttributeMap[Attribute]): PlanType = {
+    plan.transformDown { case currentFragment =>
+      currentFragment.transformExpressions {
+        case OuterReference(a: AttributeReference) =>
+          OuterReference(updateAttr(a, attrMap))
+        case pe: PlanExpression[PlanType] =>
+          pe.withNewPlan(updateOuterReferencesInSubquery(pe.plan, attrMap))
+      }
+    }
   }
 
   lazy val schema: StructType = StructType.fromAttributes(output)

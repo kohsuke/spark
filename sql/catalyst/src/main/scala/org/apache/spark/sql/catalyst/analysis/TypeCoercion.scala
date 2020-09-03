@@ -364,7 +364,7 @@ object TypeCoercion {
 
       if (rewritePlanMap.nonEmpty) {
         assert(!plan.fastEquals(newPlan))
-        Analyzer.rewritePlan(newPlan, rewritePlanMap.toMap)._1
+        newPlan.rewriteWithPlanMapping(rewritePlanMap.toMap, _.resolved)
       } else {
         plan
       }
