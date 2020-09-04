@@ -236,15 +236,16 @@ object LogicalPlanIntegrity {
    * with one of reference attributes, e.g., `a#1 + 1 AS a#1`.
    */
   def checkIfSameExprIdNotReused(plan: LogicalPlan): Boolean = {
-    plan.map { p =>
-      p.expressions.filter(_.resolved).forall { e =>
-        val namedExprs = e.collect {
-          case ne: NamedExpression if !ne.isInstanceOf[LeafExpression] => ne
+    plan.collect { case p if p.resolved =>
+      val inputExprIds = p.inputSet.filter(_.resolved).map(_.exprId).toSet
+      val newExprIds = p.expressions.filter(_.resolved).flatMap { e =>
+        e.collect {
+          // Only accepts the case of aliases renaming foldable expressions, e.g.,
+          // `FoldablePropagation` generates this renaming pattern.
+          case a: Alias if !a.child.foldable => a.exprId
         }
-        namedExprs.forall { ne =>
-          !ne.references.filter(_.resolved).map(_.exprId).exists(_ == ne.exprId)
-        }
-      }
+      }.toSet
+      inputExprIds.intersect(newExprIds).isEmpty
     }.forall(identity)
   }
 
