@@ -137,56 +137,59 @@ object Analyzer {
    */
   def rewritePlan(plan: LogicalPlan, rewritePlanMap: Map[LogicalPlan, LogicalPlan])
     : (LogicalPlan, Seq[(Attribute, Attribute)]) = {
-    if (plan.resolved) {
-      val attrMapping = new mutable.ArrayBuffer[(Attribute, Attribute)]()
-      val newChildren = plan.children.map { child =>
-        // If not, we'd rewrite child plan recursively until we find the
-        // conflict node or reach the leaf node.
-        val (newChild, childAttrMapping) = rewritePlan(child, rewritePlanMap)
-        attrMapping ++= childAttrMapping.filter { case (oldAttr, _) =>
-          // `attrMapping` is not only used to replace the attributes of the current `plan`,
-          // but also to be propagated to the parent plans of the current `plan`. Therefore,
-          // the `oldAttr` must be part of either `plan.references` (so that it can be used to
-          // replace attributes of the current `plan`) or `plan.outputSet` (so that it can be
-          // used by those parent plans).
+    val attrMapping = new mutable.ArrayBuffer[(Attribute, Attribute)]()
+    val newChildren = plan.children.map { child =>
+      // If not, we'd rewrite child plan recursively until we find the
+      // conflict node or reach the leaf node.
+      val (newChild, childAttrMapping) = rewritePlan(child, rewritePlanMap)
+      attrMapping ++= childAttrMapping.filter { case (oldAttr, _) =>
+        // `attrMapping` is not only used to replace the attributes of the current `plan`,
+        // but also to be propagated to the parent plans of the current `plan`. Therefore,
+        // the `oldAttr` must be part of either `plan.references` (so that it can be used to
+        // replace attributes of the current `plan`) or `plan.outputSet` (so that it can be
+        // used by those parent plans).
+        if (plan.resolved) {
           (plan.outputSet ++ plan.references).contains(oldAttr)
+        } else {
+          plan.references.filter(_.resolved).contains(oldAttr)
         }
-        newChild
       }
+      newChild
+    }
 
-      val newPlan = if (rewritePlanMap.contains(plan)) {
-        rewritePlanMap(plan).withNewChildren(newChildren)
-      } else {
-        plan.withNewChildren(newChildren)
-      }
+    val newPlan = if (rewritePlanMap.contains(plan)) {
+      rewritePlanMap(plan).withNewChildren(newChildren)
+    } else {
+      plan.withNewChildren(newChildren)
+    }
 
-      assert(!attrMapping.groupBy(_._1.exprId)
-        .exists(_._2.map(_._2.exprId).distinct.length > 1),
-        "Found duplicate rewrite attributes")
+    assert(!attrMapping.groupBy(_._1.exprId)
+      .exists(_._2.map(_._2.exprId).distinct.length > 1),
+      "Found duplicate rewrite attributes")
 
-      val attributeRewrites = AttributeMap(attrMapping)
-      // Using attrMapping from the children plans to rewrite their parent node.
-      // Note that we shouldn't rewrite a node using attrMapping from its sibling nodes.
-      val p = newPlan.transformExpressions {
-        case a: Attribute =>
-          updateAttr(a, attributeRewrites)
-        case s: SubqueryExpression =>
-          s.withNewPlan(updateOuterReferencesInSubquery(s.plan, attributeRewrites))
-      }
+    val attributeRewrites = AttributeMap(attrMapping)
+    // Using attrMapping from the children plans to rewrite their parent node.
+    // Note that we shouldn't rewrite a node using attrMapping from its sibling nodes.
+    val p = newPlan.transformExpressions {
+      case a: Attribute =>
+        updateAttr(a, attributeRewrites)
+      case s: SubqueryExpression =>
+        s.withNewPlan(updateOuterReferencesInSubquery(s.plan, attributeRewrites))
+    }
+    if (plan.resolved) {
       attrMapping ++= plan.output.zip(p.output)
         .filter { case (a1, a2) => a1.exprId != a2.exprId }
-      p -> attrMapping
-    } else {
-      // Just passes through unresolved nodes
-      plan.mapChildren {
-        rewritePlan(_, rewritePlanMap)._1
-      } -> Nil
     }
+    p -> attrMapping
   }
 
   private def updateAttr(attr: Attribute, attrMap: AttributeMap[Attribute]): Attribute = {
-    val exprId = attrMap.getOrElse(attr, attr).exprId
-    attr.withExprId(exprId)
+    if (attr.resolved) {
+      val exprId = attrMap.getOrElse(attr, attr).exprId
+      attr.withExprId(exprId)
+    } else {
+      attr
+    }
   }
 
   /**
@@ -2699,8 +2702,7 @@ class Analyzer(
           if (missingExpr.nonEmpty) {
             extractedExprBuffer += ne
           }
-          // alias will be cleaned in the rule CleanupAliases
-          ne
+          ne.toAttribute
         case e: Expression if e.foldable =>
           e // No need to create an attribute reference if it will be evaluated as a Literal.
         case e: Expression =>
@@ -2831,7 +2833,7 @@ class Analyzer(
       val windowOps =
         groupedWindowExpressions.foldLeft(child) {
           case (last, ((partitionSpec, orderSpec, _), windowExpressions)) =>
-            Window(windowExpressions.toSeq, partitionSpec, orderSpec, last)
+            Window(windowExpressions, partitionSpec, orderSpec, last)
         }
 
       // Finally, we create a Project to output windowOps's output
@@ -2853,8 +2855,8 @@ class Analyzer(
       // a resolved Aggregate will not have Window Functions.
       case f @ UnresolvedHaving(condition, a @ Aggregate(groupingExprs, aggregateExprs, child))
         if child.resolved &&
-           hasWindowFunction(aggregateExprs) &&
-           a.expressions.forall(_.resolved) =>
+          hasWindowFunction(aggregateExprs) &&
+          a.expressions.forall(_.resolved) =>
         val (windowExpressions, aggregateExpressions) = extract(aggregateExprs)
         // Create an Aggregate operator to evaluate aggregation functions.
         val withAggregate = Aggregate(groupingExprs, aggregateExpressions, child)
@@ -2871,7 +2873,7 @@ class Analyzer(
       // Aggregate without Having clause.
       case a @ Aggregate(groupingExprs, aggregateExprs, child)
         if hasWindowFunction(aggregateExprs) &&
-           a.expressions.forall(_.resolved) =>
+          a.expressions.forall(_.resolved) =>
         val (windowExpressions, aggregateExpressions) = extract(aggregateExprs)
         // Create an Aggregate operator to evaluate aggregation functions.
         val withAggregate = Aggregate(groupingExprs, aggregateExpressions, child)
