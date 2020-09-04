@@ -638,21 +638,21 @@ object WithFields {
       }
     } else {
       val newNamesRemaining = namePartsRemaining.tail
-      val resolver = SQLConf.get.resolver
-
-      val newCol = ExtractValue(col, Literal(name), resolver)
-      val newValue = withFieldHelper(
-        col = newCol,
-        namePartsRemaining = newNamesRemaining,
-        value = value)
 
       col.dataType match {
         case ArrayType(et, containsNull) =>
           val lv = NamedLambdaVariable("arg", et, containsNull)
-          val function = withFieldHelper(lv, namePartsRemaining, newValue)
+          val function = withFieldHelper(lv, namePartsRemaining, value)
           ArrayTransform(col, LambdaFunction(function, Seq(lv)))
 
         case _: StructType =>
+          val resolver = SQLConf.get.resolver
+          val newCol = ExtractValue(col, Literal(name), resolver)
+          val newValue = withFieldHelper(
+            col = newCol,
+            namePartsRemaining = newNamesRemaining,
+            value = value)
+
           WithFields(col, name :: Nil, newValue :: Nil)
 
         case dt =>
