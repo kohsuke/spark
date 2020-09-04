@@ -95,3 +95,9 @@ select width_bucket(5.35, 0.024, 10.06, null);
 select width_bucket(5.35, 0.024, 10.06, -5);
 select width_bucket(5.35, 0.024, 10.06, 9223372036854775807L); -- long max value
 select width_bucket(5.35, 0.024, 10.06, 9223372036854775807L - 1);
+
+-- special floating values
+select double('NaN') = double('NaN'), double('NaN') >= double('NaN'), double('NaN') <= double('NaN');
+select double('NaN') > double("+Infinity"), double("+Infinity") < double('NaN'), double('NaN') > double('NaN');
+select 0.0 = -0.0, 0.0 >= -0.0, 0.0 <= -0.0;
+select 0.0 > -0.0, 0.0 < -0.0;
