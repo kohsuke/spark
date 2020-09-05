@@ -421,11 +421,11 @@ public final class BytesToBytesMap extends MemoryConsumer {
    *
    * For efficiency, all calls to `next()` will return the same {@link Location} object.
    *
-   * The returned iterator is thread-safe. However if the map is modified while iterating over it,
-   * the behavior of the returned iterator is undefined.
+   * If any other lookups or operations are performed on this map while iterating over it, including
+   * `lookup()`, the behavior of the returned iterator is undefined.
    */
   public MapIterator iterator() {
-    return new MapIterator(numValues, new Location(), false);
+    return new MapIterator(numValues, loc, false);
   }
 
   /**
@@ -435,20 +435,19 @@ public final class BytesToBytesMap extends MemoryConsumer {
    *
    * For efficiency, all calls to `next()` will return the same {@link Location} object.
    *
-   * The returned iterator is thread-safe. However if the map is modified while iterating over it,
-   * the behavior of the returned iterator is undefined.
+   * If any other lookups or operations are performed on this map while iterating over it, including
+   * `lookup()`, the behavior of the returned iterator is undefined.
    */
   public MapIterator destructiveIterator() {
     updatePeakMemoryUsed();
-    return new MapIterator(numValues, new Location(), true);
+    return new MapIterator(numValues, loc, true);
   }
 
   /**
    * Looks up a key, and return a {@link Location} handle that can be used to test existence
    * and read/write values.
    *
-   * This function always returns the same {@link Location} instance to avoid object allocation.
-   * This function is not thread-safe.
+   * This function always return the same {@link Location} instance to avoid object allocation.
    */
   public Location lookup(Object keyBase, long keyOffset, int keyLength) {
     safeLookup(keyBase, keyOffset, keyLength, loc,
@@ -460,8 +459,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
    * Looks up a key, and return a {@link Location} handle that can be used to test existence
    * and read/write values.
    *
-   * This function always returns the same {@link Location} instance to avoid object allocation.
-   * This function is not thread-safe.
+   * This function always return the same {@link Location} instance to avoid object allocation.
    */
   public Location lookup(Object keyBase, long keyOffset, int keyLength, int hash) {
     safeLookup(keyBase, keyOffset, keyLength, loc, hash);
