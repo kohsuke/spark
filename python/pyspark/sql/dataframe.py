@@ -1558,9 +1558,10 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         The difference between this function and :func:`union` is that this function
         resolves columns by name (not by position):
 
-        When the parameter `allowMissingColumns` is true, this function allows different set
-        of column names between two Datasets. Missing columns at each side, will be filled with
-        null values. The missing columns at left Dataset will be added at the end in the schema
+        When the parameter `allowMissingColumns` is true,
+        this function allows different set of column names between two :class:`DataFrame`\\s.
+        Missing columns at each side, will be filled with null values.
+        The missing columns at left :class:`DataFrame` will be added at the end in the schema
         of the union result:
 
         >>> df1 = spark.createDataFrame([[1, 2, 3]], ["col0", "col1", "col2"])
@@ -1586,7 +1587,8 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         +----+----+----+----+
 
         .. versionchanged:: 3.1.0
-           Added optional argument `allowMissingColumns` to specify whether to allow missing columns.
+           Added optional argument `allowMissingColumns` to specify whether to allow
+           missing columns.
         """
         return DataFrame(self._jdf.unionByName(other._jdf, allowMissingColumns), self.sql_ctx)
 
