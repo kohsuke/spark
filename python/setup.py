@@ -220,7 +220,8 @@ try:
             'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: 3.8',
             'Programming Language :: Python :: Implementation :: CPython',
-            'Programming Language :: Python :: Implementation :: PyPy']
+            'Programming Language :: Python :: Implementation :: PyPy',
+            'Typing :: Typed']
     )
 finally:
     # We only cleanup the symlink farm if we were in Spark, otherwise we are installing rather than
