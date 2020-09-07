@@ -1568,7 +1568,7 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         |   6|   4|   5|
         +----+----+----+
 
-       If you want to allow missing columns, set `allowMissingColumns` to True.
+        If you want to allow missing columns, set `allowMissingColumns` to True.
 
         >>> df1 = spark.createDataFrame([[1, 2, 3]], ["col0", "col1", "col2"])
         >>> df2 = spark.createDataFrame([[4, 5, 6]], ["col1", "col2", "col3"])
@@ -1580,8 +1580,8 @@ class DataFrame(PandasMapOpsMixin, PandasConversionMixin):
         |null|   4|   5|   6|
         +----+----+----+----+
 
-       .. versionchanged:: 3.1.0
-          Added optional argument `allowMissingColumns` to specify whether to allow missing columns.
+        .. versionchanged:: 3.1.0
+           Added optional argument `allowMissingColumns` to specify whether to allow missing columns.
 
         """
         return DataFrame(self._jdf.unionByName(other._jdf, allowMissingColumns), self.sql_ctx)
