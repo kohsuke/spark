@@ -341,9 +341,6 @@ class HashedRelationSuite extends SparkFunSuite with SharedSQLContext {
     assert(java.util.Arrays.equals(os.toByteArray, os2.toByteArray))
   }
 
-  test("SPARK-31511: Make BytesToBytesMap iterators thread-safe") {
-  }
-
   // This test require 4G heap to run, should run it manually
   ignore("build HashedRelation that is larger than 1G") {
     val unsafeProj = UnsafeProjection.create(
