@@ -36,10 +36,14 @@ class ArrowCollectSerializer(Serializer):
     Deserialize a stream of batches followed by batch order information. Used in
     PandasConversionMixin._collect_as_arrow() after invoking Dataset.collectAsArrowToPython()
     in the JVM.
+
+    :param split_batches: split batches such that each column is in its own allocation, so
+        that the selfDestruct optimization is effective; default False.
     """
 
-    def __init__(self):
+    def __init__(self, split_batches=False):
         self.serializer = ArrowStreamSerializer()
+        self.split_batches = split_batches
 
     def dump_stream(self, iterator, stream):
         return self.serializer.dump_stream(iterator, stream)
@@ -51,7 +55,20 @@ class ArrowCollectSerializer(Serializer):
         """
         # load the batches
         for batch in self.serializer.load_stream(stream):
-            yield batch
+            if self.split_batches:
+                import pyarrow as pa
+                # When spark.sql.execution.arrow.pyspark.selfDestruct.enabled, ensure
+                # each column in each record batch is contained in its own allocation.
+                # Otherwise, selfDestruct does nothing; it frees each column as its
+                # converted, but each column will actually be a list of slices of record
+                # batches, and so no memory is actually freed until all columns are
+                # converted.
+                split_batch = pa.RecordBatch.from_arrays([
+                    pa.concat_arrays([array]) for array in batch
+                ], schema=batch.schema)
+                yield split_batch
+            else:
+                yield batch
 
         # load the batch order indices or propagate any error that occurred in the JVM
         num = read_int(stream)
