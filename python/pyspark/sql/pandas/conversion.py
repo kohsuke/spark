@@ -99,43 +99,8 @@ class PandasConversionMixin(object):
             # Try to use Arrow optimization when the schema is supported and the required version
             # of PyArrow is found, if 'spark.sql.execution.arrow.pyspark.enabled' is enabled.
             if use_arrow:
-                try:
-                    from pyspark.sql.pandas.types import _check_series_localize_timestamps, \
-                        _convert_map_items_to_dict
-                    import pyarrow
-                    # Rename columns to avoid duplicated column names.
-                    tmp_column_names = ['col_{}'.format(i) for i in range(len(self.columns))]
-                    batches = self.toDF(*tmp_column_names)._collect_as_arrow()
-                    if len(batches) > 0:
-                        table = pyarrow.Table.from_batches(batches)
-                        # Pandas DataFrame created from PyArrow uses datetime64[ns] for date type
-                        # values, but we should use datetime.date to match the behavior with when
-                        # Arrow optimization is disabled.
-                        pdf = table.to_pandas(date_as_object=True)
-                        # Rename back to the original column names.
-                        pdf.columns = self.columns
-                        for field in self.schema:
-                            if isinstance(field.dataType, TimestampType):
-                                pdf[field.name] = \
-                                    _check_series_localize_timestamps(pdf[field.name], timezone)
-                            elif isinstance(field.dataType, MapType):
-                                pdf[field.name] = \
-                                    _convert_map_items_to_dict(pdf[field.name])
-                        return pdf
-                    else:
-                        return pd.DataFrame.from_records([], columns=self.columns)
-                except Exception as e:
-                    # We might have to allow fallback here as well but multiple Spark jobs can
-                    # be executed. So, simply fail in this case for now.
-                    msg = (
-                        "toPandas attempted Arrow optimization because "
-                        "'spark.sql.execution.arrow.pyspark.enabled' is set to true, but has "
-                        "reached the error below and can not continue. Note that "
-                        "'spark.sql.execution.arrow.pyspark.fallback.enabled' does not have an "
-                        "effect on failures in the middle of "
-                        "computation.\n  %s" % str(e))
-                    warnings.warn(msg)
-                    raise
+                pdf, _ = self._collect_as_arrow_table()
+                return pdf
 
         # Below is toPandas without Arrow optimization.
         pdf = pd.DataFrame.from_records(self.collect(), columns=self.columns)
@@ -225,11 +190,16 @@ class PandasConversionMixin(object):
         else:
             return None
 
-    def _collect_as_arrow(self):
+    def _collect_as_arrow(self, split_batches=False):
         """
         Returns all records as a list of ArrowRecordBatches, pyarrow must be installed
         and available on driver and worker Python environments.
         This is an experimental feature.
+
+        :param split_batches: split batches such that each column is in its own allocation, so
+            that the selfDestruct optimization is effective; default False.
+
+        .. note:: Experimental.
         """
         from pyspark.sql.dataframe import DataFrame
 
@@ -240,7 +210,27 @@ class PandasConversionMixin(object):
 
         # Collect list of un-ordered batches where last element is a list of correct order indices
         try:
-            results = list(_load_from_socket((port, auth_secret), ArrowCollectSerializer()))
+            batch_stream = _load_from_socket((port, auth_secret), ArrowCollectSerializer())
+            if split_batches:
+                # When spark.sql.execution.arrow.pyspark.selfDestruct.enabled, ensure
+                # each column in each record batch is contained in its own allocation.
+                # Otherwise, selfDestruct does nothing; it frees each column as its
+                # converted, but each column will actually be a list of slices of record
+                # batches, and so no memory is actually freed until all columns are
+                # converted.
+                import pyarrow as pa
+                results = []
+                for batch_or_indices in batch_stream:
+                    if not isinstance(batch_or_indices, pa.RecordBatch):
+                        results.append(batch_or_indices)
+                    else:
+                        split_batch = pa.RecordBatch.from_arrays([
+                            pa.concat_arrays([array])
+                            for array in batch_or_indices
+                        ], schema=batch_or_indices.schema)
+                        results.append(split_batch)
+            else:
+                results = list(batch_stream)
         finally:
             # Join serving thread and raise any exceptions from collectAsArrowToPython
             jsocket_auth_server.getResult()
@@ -251,6 +241,72 @@ class PandasConversionMixin(object):
 
         # Re-order the batch list using the correct order
         return [batches[i] for i in batch_order]
+
+    def _collect_as_arrow_table(self, _force_split_batches=False):
+        """Build up the data as a Pandas DataFrame and Arrow Table.
+
+        Separated out for unit testing.
+
+        :param _force_split_batches: reallocate batches so that
+        PyArrow tracks their memory usage (needed for unit testing)
+
+        """
+        try:
+            from pyspark.sql.pandas.types import _check_series_localize_timestamps, \
+                _convert_map_items_to_dict
+            import pyarrow
+            # Rename columns to avoid duplicated column names.
+            tmp_column_names = ['col_{}'.format(i) for i in range(len(self.columns))]
+            self_destruct = self.sql_ctx._conf.arrowPySparkSelfDestructEnabled()
+            batches = self.toDF(*tmp_column_names)._collect_as_arrow(
+                split_batches=self_destruct or _force_split_batches
+            )
+            if len(batches) > 0:
+                table = pyarrow.Table.from_batches(batches)
+                # Ensure only the table has a reference to the batches, so that
+                # self_destruct (if enabled) is effective
+                del batches
+                # Pandas DataFrame created from PyArrow uses datetime64[ns] for date type
+                # values, but we should use datetime.date to match the behavior with when
+                # Arrow optimization is disabled.
+                pandas_options = {'date_as_object': True}
+                if self_destruct:
+                    # Configure PyArrow to use as little memory as possible:
+                    # self_destruct - free columns as they are converted
+                    # split_blocks - create a separate Pandas block for each column
+                    # use_threads - convert one column at a time
+                    pandas_options.update({
+                        'self_destruct': True,
+                        'split_blocks': True,
+                        'use_threads': False,
+                    })
+                pdf = table.to_pandas(**pandas_options)
+                # Rename back to the original column names.
+                pdf.columns = self.columns
+                for field in self.schema:
+                    if isinstance(field.dataType, TimestampType):
+                        pdf[field.name] = \
+                            _check_series_localize_timestamps(pdf[field.name], timezone)
+                    elif isinstance(field.dataType, MapType):
+                        pdf[field.name] = \
+                            _convert_map_items_to_dict(pdf[field.name])
+                # Return both the DataFrame and table for unit testing
+                # Note that table reference is invalid if self_destruct enabled
+                return pdf, table
+            else:
+                return pd.DataFrame.from_records([], columns=self.columns), None
+        except Exception as e:
+            # We might have to allow fallback here as well but multiple Spark jobs can
+            # be executed. So, simply fail in this case for now.
+            msg = (
+                "toPandas attempted Arrow optimization because "
+                "'spark.sql.execution.arrow.pyspark.enabled' is set to true, but has "
+                "reached the error below and can not continue. Note that "
+                "'spark.sql.execution.arrow.pyspark.fallback.enabled' does not have an "
+                "effect on failures in the middle of "
+                "computation.\n  %s" % str(e))
+            warnings.warn(msg)
+            raise
 
 
 class SparkConversionMixin(object):

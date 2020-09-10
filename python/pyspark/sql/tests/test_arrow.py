@@ -25,7 +25,7 @@ from distutils.version import LooseVersion
 
 from pyspark import SparkContext, SparkConf
 from pyspark.sql import Row, SparkSession
-from pyspark.sql.functions import udf
+from pyspark.sql.functions import rand, udf
 from pyspark.sql.types import StructType, StringType, IntegerType, LongType, \
     FloatType, DoubleType, DecimalType, DateType, TimestampType, BinaryType, StructField, ArrayType
 from pyspark.testing.sqlutils import ReusedSQLTestCase, have_pandas, have_pyarrow, \
@@ -190,6 +190,32 @@ class ArrowTests(ReusedSQLTestCase):
         df = self.spark.createDataFrame(self.data, schema=self.schema)
         pdf_arrow = df.toPandas()
         assert_frame_equal(pdf_arrow, pdf)
+
+    def test_pandas_self_destruct(self):
+        import pyarrow as pa
+        rows = 2 ** 16
+        cols = 8
+        df = self.spark.range(0, rows).select(*[rand() for _ in range(cols)])
+        expected_bytes = rows * cols * 8
+        with self.sql_conf({"spark.sql.execution.arrow.pyspark.selfDestruct.enabled": True}):
+            # We hold on to the table reference here, so if self destruct didn't work, then
+            # there would be 2 copies of the data (one in Arrow, one in Pandas), both
+            # tracked by the Arrow allocator
+            pdf, table = df._collect_as_arrow_table()
+            self.assertEqual((rows, cols), pdf.shape)
+            # If self destruct did work, then memory usage should be only a little above
+            # the minimum memory necessary for the dataframe
+            self.assertLessEqual(pa.total_allocated_bytes(), 1.2 * expected_bytes)
+            del pdf, table
+            self.assertEqual(pa.total_allocated_bytes(), 0)
+        with self.sql_conf({"spark.sql.execution.arrow.pyspark.selfDestruct.enabled": False}):
+            # Force the internals to reallocate data via PyArrow's allocator so that it
+            # gets measured by total_allocated_bytes
+            pdf, table = df._collect_as_arrow_table(_force_split_batches=True)
+            total_allocated_bytes = pa.total_allocated_bytes()
+            self.assertEqual((rows, cols), pdf.shape)
+            # We didn't enable self_destruct so we should see 2 copies of the data
+            self.assertGreaterEqual(pa.total_allocated_bytes(), 2 * expected_bytes)
 
     def test_filtered_frame(self):
         df = self.spark.range(3).toDF("i")
