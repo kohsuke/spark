@@ -40,7 +40,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.plans.logical.{AppendData, LogicalPlan, OverwriteByExpression}
 import org.apache.spark.sql.execution.QueryExecution
-import org.apache.spark.sql.execution.datasources.DataSourceUtils
+import org.apache.spark.sql.execution.datasources.{DataSourceUtils, HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.execution.datasources.noop.NoopDataSource
 import org.apache.spark.sql.execution.datasources.parquet.SpecificParquetRecordReaderBase
 import org.apache.spark.sql.internal.SQLConf
@@ -1189,5 +1189,25 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSparkSession with 
     verifyLoadFails(df.write.option("path", path).parquet(""))
     verifyLoadFails(df.write.option("path", path).format("parquet").save(path))
     verifyLoadFails(df.write.option("path", path).format("parquet").save(""))
+  }
+
+  test("DataFrameReader.table take the specified options for V1 relation") {
+    withSQLConf(SQLConf.USE_V1_SOURCE_LIST.key -> "parquet") {
+      withTable("t") {
+        sql("CREATE TABLE t(i int, d double) USING parquet OPTIONS ('p1'='v1', 'p2'='v2')")
+
+        val msg = intercept[AnalysisException] {
+          spark.read.option("p1", "v3").table("t").count()
+        }.getMessage
+        assert(msg.contains("duplicated keys with input options"))
+
+        val df = spark.read.option("p2", "v2").option("p3", "v3").table("t")
+        val options = df.queryExecution.analyzed.collectFirst {
+          case r: LogicalRelation => r.relation.asInstanceOf[HadoopFsRelation].options
+        }.get
+        assert(options("p2") == "v2")
+        assert(options("p3") == "v3")
+      }
+    }
   }
 }
