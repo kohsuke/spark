@@ -90,7 +90,10 @@ class ArrowStreamSerializer(Serializer):
         import pyarrow as pa
         reader = pa.ipc.open_stream(stream)
         for batch in reader:
-            yield batch
+            split_batch = pa.RecordBatch.from_arrays([
+                pa.concat_arrays([array]) for array in batch
+            ], schema=batch.schema)
+            yield split_batch
 
     def __repr__(self):
         return "ArrowStreamSerializer"
