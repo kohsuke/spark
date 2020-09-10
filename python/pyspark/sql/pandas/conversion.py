@@ -34,7 +34,7 @@ class PandasConversionMixin(object):
     """
 
     @since(1.3)
-    def toPandas(self):
+    def toPandas(self, selfDestruct=False):
         """
         Returns the contents of this :class:`DataFrame` as Pandas ``pandas.DataFrame``.
 
@@ -103,10 +103,22 @@ class PandasConversionMixin(object):
                     batches = self.toDF(*tmp_column_names)._collect_as_arrow()
                     if len(batches) > 0:
                         table = pyarrow.Table.from_batches(batches)
+                        del batches
                         # Pandas DataFrame created from PyArrow uses datetime64[ns] for date type
                         # values, but we should use datetime.date to match the behavior with when
                         # Arrow optimization is disabled.
-                        pdf = table.to_pandas(date_as_object=True)
+                        pandas_options = {'date_as_object': True}
+                        if selfDestruct:
+                            # Configure PyArrow to use as little memory as possible:
+                            # self_destruct - free columns as they are converted
+                            # split_blocks - create a separate Pandas block for each column
+                            # use_threads - convert one column at a time
+                            pandas_options.update({
+                                'self_destruct': True,
+                                'split_blocks': True,
+                                'use_threads': False,
+                            })
+                        pdf = table.to_pandas(**pandas_options)
                         # Rename back to the original column names.
                         pdf.columns = self.columns
                         for field in self.schema:

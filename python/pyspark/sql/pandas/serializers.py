@@ -90,7 +90,17 @@ class ArrowStreamSerializer(Serializer):
         import pyarrow as pa
         reader = pa.ipc.open_stream(stream)
         for batch in reader:
-            yield batch
+            # In the case toPandas is called with selfDestruct=True,
+            # ensure each column in each record batch is contained in
+            # its own allocation. Otherwise, selfDestruct does
+            # nothing; it frees each column as its converted, but each
+            # column will actually be a list of slices of record
+            # batches, and so no memory is actually freed until all
+            # columns are converted.
+            split_batch = pa.RecordBatch.from_arrays([
+                pa.concat_arrays([array]) for array in batch
+            ], schema=batch.schema)
+            yield split_batch
 
     def __repr__(self):
         return "ArrowStreamSerializer"
