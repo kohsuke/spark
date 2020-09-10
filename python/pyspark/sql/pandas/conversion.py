@@ -100,13 +100,30 @@ class PandasConversionMixin(object):
                     import pyarrow
                     # Rename columns to avoid duplicated column names.
                     tmp_column_names = ['col_{}'.format(i) for i in range(len(self.columns))]
-                    batches = self.toDF(*tmp_column_names)._collect_as_arrow()
+                    self_destruct = self.sql_ctx._conf.arrowPySparkSelfDestructEnabled()
+                    batches = self.toDF(*tmp_column_names)._collect_as_arrow(
+                        split_batches=self_destruct
+                    )
                     if len(batches) > 0:
                         table = pyarrow.Table.from_batches(batches)
+                        # Ensure only the table has a reference to the batches, so that
+                        # self_destruct (if enabled) is effective
+                        del batches
                         # Pandas DataFrame created from PyArrow uses datetime64[ns] for date type
                         # values, but we should use datetime.date to match the behavior with when
                         # Arrow optimization is disabled.
-                        pdf = table.to_pandas(date_as_object=True)
+                        pandas_options = {'date_as_object': True}
+                        if self_destruct:
+                            # Configure PyArrow to use as little memory as possible:
+                            # self_destruct - free columns as they are converted
+                            # split_blocks - create a separate Pandas block for each column
+                            # use_threads - convert one column at a time
+                            pandas_options.update({
+                                'self_destruct': True,
+                                'split_blocks': True,
+                                'use_threads': False,
+                            })
+                        pdf = table.to_pandas(**pandas_options)
                         # Rename back to the original column names.
                         pdf.columns = self.columns
                         for field in self.schema:
@@ -217,10 +234,13 @@ class PandasConversionMixin(object):
         else:
             return None
 
-    def _collect_as_arrow(self):
+    def _collect_as_arrow(self, split_batches=False):
         """
         Returns all records as a list of ArrowRecordBatches, pyarrow must be installed
         and available on driver and worker Python environments.
+
+        :param split_batches: split batches such that each column is in its own allocation, so
+            that the selfDestruct optimization is effective; default False.
 
         .. note:: Experimental.
         """
@@ -232,8 +252,9 @@ class PandasConversionMixin(object):
             port, auth_secret, jsocket_auth_server = self._jdf.collectAsArrowToPython()
 
         # Collect list of un-ordered batches where last element is a list of correct order indices
+        serializer = ArrowCollectSerializer(split_batches=split_batches)
         try:
-            results = list(_load_from_socket((port, auth_secret), ArrowCollectSerializer()))
+            results = list(_load_from_socket((port, auth_secret), serializer))
         finally:
             # Join serving thread and raise any exceptions from collectAsArrowToPython
             jsocket_auth_server.getResult()
