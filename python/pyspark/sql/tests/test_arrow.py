@@ -190,6 +190,13 @@ class ArrowTests(ReusedSQLTestCase):
         pdf_arrow = df.toPandas()
         assert_frame_equal(pdf_arrow, pdf)
 
+    def test_pandas_self_destruct(self):
+        with self.sql_conf({"spark.sql.execution.arrow.pyspark.selfDestruct.enabled": True}):
+            pdf = self.create_pandas_data_frame()
+            df = self.spark.createDataFrame(self.data, schema=self.schema)
+            pdf_arrow = df.toPandas()
+            assert_frame_equal(pdf_arrow, pdf)
+
     def test_filtered_frame(self):
         df = self.spark.range(3).toDF("i")
         pdf = df.filter("i < 0").toPandas()
