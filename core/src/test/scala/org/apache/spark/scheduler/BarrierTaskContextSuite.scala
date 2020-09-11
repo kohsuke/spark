@@ -189,22 +189,15 @@ class BarrierTaskContextSuite extends SparkFunSuite with LocalSparkContext with 
 
   test("throw exception if the number of barrier() calls are not the same on every task") {
     initLocalClusterSparkContext()
-    sc.conf.set("spark.barrier.sync.timeout", "1")
+    sc.conf.set("spark.barrier.sync.timeout", "3")
     val rdd = sc.makeRDD(1 to 10, 4)
     val rdd2 = rdd.barrier().mapPartitions { it =>
       val context = BarrierTaskContext.get()
-      try {
-        if (context.taskAttemptId == 0) {
-          // Due to some non-obvious reason, the code can trigger an Exception and skip the
-          // following statements within the try ... catch block, including the first barrier()
-          // call.
-          throw new SparkException("test")
-        }
+      if (context.taskAttemptId != 0) {
         context.barrier()
-      } catch {
-        case e: Exception => // Do nothing
+      } else {
+        Thread.sleep(5000)
       }
-      context.barrier()
       it
     }
 
@@ -212,7 +205,7 @@ class BarrierTaskContextSuite extends SparkFunSuite with LocalSparkContext with 
       rdd2.collect()
     }.getMessage
     assert(error.contains("The coordinator didn't get all barrier sync requests"))
-    assert(error.contains("within 1 second(s)"))
+    assert(error.contains("within 3 second(s)"))
   }
 
   def testBarrierTaskKilled(interruptOnKill: Boolean): Unit = {
