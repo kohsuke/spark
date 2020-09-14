@@ -314,8 +314,7 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         l.output.toStructType,
         Set.empty,
         Set.empty,
-        Set.empty,
-        Set.empty,
+        Aggregation(Seq.empty[AggregateFunction], Seq.empty[String]),
         toCatalystRDD(l, baseRelation.buildScan()),
         baseRelation,
         None) :: Nil
@@ -389,8 +388,7 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         requestedColumns.toStructType,
         pushedFilters.toSet,
         handledFilters,
-        Set.empty,
-        Set.empty,
+        Aggregation(Seq.empty[AggregateFunction], Seq.empty[String]),
         scanBuilder(requestedColumns, candidatePredicates, pushedFilters),
         relation.relation,
         relation.catalogTable.map(_.identifier))
@@ -413,8 +411,7 @@ case class DataSourceStrategy(conf: SQLConf) extends Strategy with Logging with 
         requestedColumns.toStructType,
         pushedFilters.toSet,
         handledFilters,
-        Set.empty,
-        Set.empty,
+        Aggregation(Seq.empty[AggregateFunction], Seq.empty[String]),
         scanBuilder(requestedColumns, candidatePredicates, pushedFilters),
         relation.relation,
         relation.catalogTable.map(_.identifier))
@@ -654,13 +651,22 @@ object DataSourceStrategy {
 
     def columnAsString(e: Expression): String = e match {
       case AttributeReference(name, _, _, _) => name
+      case _ => ""
     }
 
     aggregates.aggregateFunction match {
-      case aggregate.Min(child) => Some(Min(columnAsString(child)))
-      case aggregate.Max(child) => Some(Max(columnAsString(child)))
-      case aggregate.Average(child) => Some(Avg(columnAsString(child)))
-      case aggregate.Sum(child) => Some(Sum(columnAsString(child)))
+      case aggregate.Min(child) =>
+        val columnName = columnAsString(child)
+        if (!columnName.isEmpty) Some(Min(columnName)) else None
+      case aggregate.Max(child) =>
+        val columnName = columnAsString(child)
+        if (!columnName.isEmpty) Some(Max(columnName)) else None
+      case aggregate.Average(child) =>
+        val columnName = columnAsString(child)
+        if (!columnName.isEmpty) Some(Avg(columnName)) else None
+      case aggregate.Sum(child) =>
+        val columnName = columnAsString(child)
+        if (!columnName.isEmpty) Some(Sum(columnName)) else None
       case _ => None
     }
   }
