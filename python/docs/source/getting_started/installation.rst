@@ -38,8 +38,31 @@ PySpark installation using `PyPI <https://pypi.org/project/pyspark/>`_
 .. code-block:: bash
 
     pip install pyspark
-	
-Using Conda  
+
+For PySpark with different Hadoop and/or Hive, you can install it by using ``HIVE_VERSION`` and ``HADOOP_VERSION`` environment variables as below:
+
+.. code-block:: bash
+
+    HIVE_VERSION=2.3 pip install pyspark
+    HADOOP_VERSION=2.7 pip install pyspark
+    HIVE_VERSION=1.2 HADOOP_VERSION=2.7 pip install pyspark
+
+The default distribution has built-in Hadoop 3.2 and Hive 2.3. If users specify different versions, the pip installation automatically
+downloads a different version and use it in PySpark.
+
+Supported versions are as below:
+
+====================================== ====================================== ======================================
+``HADOOP_VERSION`` \\ ``HIVE_VERSION`` 1.2                                    2.3 (default)
+====================================== ====================================== ======================================
+**2.7**                                O                                      O
+**3.2 (default)**                      X                                      O
+**without**                            X                                      O
+====================================== ====================================== ======================================
+
+Note that this installation of PySpark with different versions of Hadoop and Hive is experimental. It can change or be removed betweem minor releases.
+
+Using Conda
 -----------
 
 Conda is an open-source package management and environment management system which is a part of the `Anaconda <https://docs.continuum.io/anaconda/>`_ distribution. It is both cross-platform and language agnostic.
