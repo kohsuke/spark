@@ -30,8 +30,11 @@ import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.sql._
+import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
+import org.apache.spark.sql.connector.{FakeV2Provider, InMemoryTableCatalog, InMemoryTableSessionCatalog}
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.internal.SQLConf
+import org.apache.spark.sql.internal.SQLConf.V2_SESSION_CATALOG_IMPLEMENTATION
 import org.apache.spark.sql.sources.{StreamSinkProvider, StreamSourceProvider}
 import org.apache.spark.sql.streaming.{OutputMode, StreamingQuery, StreamingQueryException, StreamTest}
 import org.apache.spark.sql.streaming.Trigger._
@@ -813,5 +816,133 @@ class DataStreamReaderWriterSuite extends StreamTest with BeforeAndAfter {
       query = dfw.start("2")
       query.stop()
     }
+  }
+}
+
+class DataStreamWriterWithTableSuite extends StreamTest with BeforeAndAfter {
+  import testImplicits._
+
+  before {
+    spark.conf.set("spark.sql.catalog.testcat", classOf[InMemoryTableCatalog].getName)
+  }
+
+  after {
+    spark.sessionState.catalogManager.reset()
+    spark.sessionState.conf.clear()
+    sqlContext.streams.active.foreach(_.stop())
+  }
+
+  test("write to table with custom catalog & no namespace") {
+    val tableIdentifier = "testcat.table_name"
+
+    spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING foo")
+    checkAnswer(spark.table(tableIdentifier), Seq.empty)
+
+    runTestWithStreamAppend(tableIdentifier)
+  }
+
+  test("write to table with custom catalog & namespace") {
+    spark.sql("CREATE NAMESPACE testcat.ns")
+
+    val tableIdentifier = "testcat.ns.table_name"
+
+    spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING foo")
+    checkAnswer(spark.table(tableIdentifier), Seq.empty)
+
+    runTestWithStreamAppend(tableIdentifier)
+  }
+
+  test("write to table with default session catalog") {
+    try {
+      val v2Source = classOf[FakeV2Provider].getName
+      spark.conf.set(V2_SESSION_CATALOG_IMPLEMENTATION.key,
+        classOf[InMemoryTableSessionCatalog].getName)
+
+      spark.sql("CREATE NAMESPACE ns")
+
+      val tableIdentifier = "ns.table_name"
+      spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING $v2Source")
+      checkAnswer(spark.table(tableIdentifier), Seq.empty)
+
+      runTestWithStreamAppend(tableIdentifier)
+    } finally {
+      spark.conf.unset(V2_SESSION_CATALOG_IMPLEMENTATION.key)
+    }
+  }
+
+  test("write to non-exist table with custom catalog") {
+    val tableIdentifier = "testcat.nonexisttable"
+    val existTableIdentifier = "testcat.ns.nonexisttable"
+
+    spark.sql("CREATE NAMESPACE testcat.ns")
+    spark.sql(s"CREATE TABLE $existTableIdentifier (id bigint, data string) USING foo")
+
+    withTempDir { checkpointDir =>
+      val exc = intercept[NoSuchTableException] {
+        runStreamQueryAppendMode(tableIdentifier, checkpointDir, Seq.empty, Seq.empty)
+      }
+      assert(exc.getMessage.contains("nonexisttable"))
+    }
+  }
+
+  test("write to file provider based table shouldn't be allowed yet") {
+    val tableIdentifier = "table_name"
+
+    spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING parquet")
+    checkAnswer(spark.table(tableIdentifier), Seq.empty)
+
+    withTempDir { checkpointDir =>
+      val exc = intercept[AnalysisException] {
+        runStreamQueryAppendMode(tableIdentifier, checkpointDir, Seq.empty, Seq.empty)
+      }
+      assert(exc.getMessage.contains("doesn't support streaming write"))
+    }
+  }
+
+  private def runTestWithStreamAppend(tableIdentifier: String) = {
+    withTempDir { checkpointDir =>
+      val input1 = Seq((1L, "a"), (2L, "b"), (3L, "c"))
+      verifyStreamAppend(tableIdentifier, checkpointDir, Seq.empty, input1, input1)
+
+      val input2 = Seq((4L, "d"), (5L, "e"), (6L, "f"))
+      verifyStreamAppend(tableIdentifier, checkpointDir, Seq(input1), input2, input1 ++ input2)
+    }
+  }
+
+  private def runStreamQueryAppendMode(
+      tableIdentifier: String,
+      checkpointDir: File,
+      prevInputs: Seq[Seq[(Long, String)]],
+      newInputs: Seq[(Long, String)]): Unit = {
+    val inputData = MemoryStream[(Long, String)]
+    val inputDF = inputData.toDF().toDF("id", "data")
+
+    prevInputs.foreach { inputsPerBatch =>
+      inputData.addData(inputsPerBatch: _*)
+    }
+
+    val query = inputDF
+      .writeStream
+      .table(tableIdentifier)
+      .option("checkpointLocation", checkpointDir.getAbsolutePath)
+      .start()
+
+    inputData.addData(newInputs: _*)
+
+    query.processAllAvailable()
+    query.stop()
+  }
+
+  private def verifyStreamAppend(
+      tableIdentifier: String,
+      checkpointDir: File,
+      prevInputs: Seq[Seq[(Long, String)]],
+      newInputs: Seq[(Long, String)],
+      expectedOutputs: Seq[(Long, String)]): Unit = {
+    runStreamQueryAppendMode(tableIdentifier, checkpointDir, prevInputs, newInputs)
+    checkAnswer(
+      spark.table(tableIdentifier),
+      expectedOutputs.map { case (id, data) => Row(id, data) }
+    )
   }
 }
