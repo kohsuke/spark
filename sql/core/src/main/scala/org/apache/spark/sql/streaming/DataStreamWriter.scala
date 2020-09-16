@@ -342,7 +342,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
         val sink = new MemorySink()
         val resultDf = Dataset.ofRows(df.sparkSession, new MemoryPlan(sink, df.schema.toAttributes))
 
-        (sink, Some(resultDf), outputMode == OutputMode.Complete())
+        (sink, Some(resultDf), outputMode == OutputMode.Complete(), extraOptions)
       } else if (source == SOURCE_NAME_FOREACH) {
         assertNotPartitioned("foreach")
         val sink = ForeachWriterTable[T](foreachWriter, ds.exprEnc)
