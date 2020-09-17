@@ -124,7 +124,7 @@ class Binarizer(JavaTransformer, HasThreshold, HasThresholds, HasInputCol, HasOu
                        typeConverter=TypeConverters.toListFloat)
 
     @keyword_only
-    def __init__(self, threshold=0.0, inputCol=None, outputCol=None, thresholds=None,
+    def __init__(self, *, threshold=0.0, inputCol=None, outputCol=None, thresholds=None,
                  inputCols=None, outputCols=None):
         """
         __init__(self, threshold=0.0, inputCol=None, outputCol=None, thresholds=None, \
@@ -138,7 +138,7 @@ class Binarizer(JavaTransformer, HasThreshold, HasThresholds, HasInputCol, HasOu
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, threshold=0.0, inputCol=None, outputCol=None, thresholds=None,
+    def setParams(self, *, threshold=0.0, inputCol=None, outputCol=None, thresholds=None,
                   inputCols=None, outputCols=None):
         """
         setParams(self, threshold=0.0, inputCol=None, outputCol=None, thresholds=None, \
@@ -389,7 +389,7 @@ class BucketedRandomProjectionLSH(_LSH, _BucketedRandomProjectionLSHParams,
     """
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None, seed=None, numHashTables=1,
+    def __init__(self, *, inputCol=None, outputCol=None, seed=None, numHashTables=1,
                  bucketLength=None):
         """
         __init__(self, inputCol=None, outputCol=None, seed=None, numHashTables=1, \
@@ -403,7 +403,7 @@ class BucketedRandomProjectionLSH(_LSH, _BucketedRandomProjectionLSHParams,
 
     @keyword_only
     @since("2.2.0")
-    def setParams(self, inputCol=None, outputCol=None, seed=None, numHashTables=1,
+    def setParams(self, *, inputCol=None, outputCol=None, seed=None, numHashTables=1,
                   bucketLength=None):
         """
         setParams(self, inputCol=None, outputCol=None, seed=None, numHashTables=1, \
@@ -541,7 +541,7 @@ class Bucketizer(JavaTransformer, HasInputCol, HasOutputCol, HasInputCols, HasOu
                         typeConverter=TypeConverters.toListListFloat)
 
     @keyword_only
-    def __init__(self, splits=None, inputCol=None, outputCol=None, handleInvalid="error",
+    def __init__(self, *, splits=None, inputCol=None, outputCol=None, handleInvalid="error",
                  splitsArray=None, inputCols=None, outputCols=None):
         """
         __init__(self, splits=None, inputCol=None, outputCol=None, handleInvalid="error", \
@@ -555,7 +555,7 @@ class Bucketizer(JavaTransformer, HasInputCol, HasOutputCol, HasInputCols, HasOu
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, splits=None, inputCol=None, outputCol=None, handleInvalid="error",
+    def setParams(self, *, splits=None, inputCol=None, outputCol=None, handleInvalid="error",
                   splitsArray=None, inputCols=None, outputCols=None):
         """
         setParams(self, splits=None, inputCol=None, outputCol=None, handleInvalid="error", \
@@ -759,7 +759,7 @@ class CountVectorizer(JavaEstimator, _CountVectorizerParams, JavaMLReadable, Jav
     """
 
     @keyword_only
-    def __init__(self, minTF=1.0, minDF=1.0, maxDF=2 ** 63 - 1, vocabSize=1 << 18, binary=False,
+    def __init__(self, *, minTF=1.0, minDF=1.0, maxDF=2 ** 63 - 1, vocabSize=1 << 18, binary=False,
                  inputCol=None, outputCol=None):
         """
         __init__(self, minTF=1.0, minDF=1.0, maxDF=2 ** 63 - 1, vocabSize=1 << 18, binary=False,\
@@ -773,7 +773,7 @@ class CountVectorizer(JavaEstimator, _CountVectorizerParams, JavaMLReadable, Jav
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, minTF=1.0, minDF=1.0, maxDF=2 ** 63 - 1, vocabSize=1 << 18, binary=False,
+    def setParams(self, *, minTF=1.0, minDF=1.0, maxDF=2 ** 63 - 1, vocabSize=1 << 18, binary=False,
                   inputCol=None, outputCol=None):
         """
         setParams(self, minTF=1.0, minDF=1.0, maxDF=2 ** 63 - 1, vocabSize=1 << 18, binary=False,\
@@ -943,7 +943,7 @@ class DCT(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, JavaMLWrit
                     "default False.", typeConverter=TypeConverters.toBoolean)
 
     @keyword_only
-    def __init__(self, inverse=False, inputCol=None, outputCol=None):
+    def __init__(self, *, inverse=False, inputCol=None, outputCol=None):
         """
         __init__(self, inverse=False, inputCol=None, outputCol=None)
         """
@@ -955,7 +955,7 @@ class DCT(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, JavaMLWrit
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, inverse=False, inputCol=None, outputCol=None):
+    def setParams(self, *, inverse=False, inputCol=None, outputCol=None):
         """
         setParams(self, inverse=False, inputCol=None, outputCol=None)
         Sets params for this DCT.
@@ -1026,7 +1026,7 @@ class ElementwiseProduct(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReada
                        typeConverter=TypeConverters.toVector)
 
     @keyword_only
-    def __init__(self, scalingVec=None, inputCol=None, outputCol=None):
+    def __init__(self, *, scalingVec=None, inputCol=None, outputCol=None):
         """
         __init__(self, scalingVec=None, inputCol=None, outputCol=None)
         """
@@ -1038,7 +1038,7 @@ class ElementwiseProduct(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReada
 
     @keyword_only
     @since("1.5.0")
-    def setParams(self, scalingVec=None, inputCol=None, outputCol=None):
+    def setParams(self, *, scalingVec=None, inputCol=None, outputCol=None):
         """
         setParams(self, scalingVec=None, inputCol=None, outputCol=None)
         Sets params for this ElementwiseProduct.
@@ -1136,9 +1136,11 @@ class FeatureHasher(JavaTransformer, HasInputCols, HasOutputCol, HasNumFeatures,
                             typeConverter=TypeConverters.toListString)
 
     @keyword_only
-    def __init__(self, numFeatures=1 << 18, inputCols=None, outputCol=None, categoricalCols=None):
+    def __init__(self, *, numFeatures=1 << 18, inputCols=None, outputCol=None,
+                 categoricalCols=None):
         """
-        __init__(self, numFeatures=1 << 18, inputCols=None, outputCol=None, categoricalCols=None)
+        __init__(self, numFeatures=1 << 18, inputCols=None, outputCol=None,
+                 categoricalCols=None)
         """
         super(FeatureHasher, self).__init__()
         self._java_obj = self._new_java_obj("org.apache.spark.ml.feature.FeatureHasher", self.uid)
@@ -1148,9 +1150,11 @@ class FeatureHasher(JavaTransformer, HasInputCols, HasOutputCol, HasNumFeatures,
 
     @keyword_only
     @since("2.3.0")
-    def setParams(self, numFeatures=1 << 18, inputCols=None, outputCol=None, categoricalCols=None):
+    def setParams(self, *, numFeatures=1 << 18, inputCols=None, outputCol=None,
+                  categoricalCols=None):
         """
-        setParams(self, numFeatures=1 << 18, inputCols=None, outputCol=None, categoricalCols=None)
+        setParams(self, numFeatures=1 << 18, inputCols=None, outputCol=None,
+                  categoricalCols=None)
         Sets params for this FeatureHasher.
         """
         kwargs = self._input_kwargs
@@ -1230,7 +1234,7 @@ class HashingTF(JavaTransformer, HasInputCol, HasOutputCol, HasNumFeatures, Java
                    typeConverter=TypeConverters.toBoolean)
 
     @keyword_only
-    def __init__(self, numFeatures=1 << 18, binary=False, inputCol=None, outputCol=None):
+    def __init__(self, *, numFeatures=1 << 18, binary=False, inputCol=None, outputCol=None):
         """
         __init__(self, numFeatures=1 << 18, binary=False, inputCol=None, outputCol=None)
         """
@@ -1242,7 +1246,7 @@ class HashingTF(JavaTransformer, HasInputCol, HasOutputCol, HasNumFeatures, Java
 
     @keyword_only
     @since("1.3.0")
-    def setParams(self, numFeatures=1 << 18, binary=False, inputCol=None, outputCol=None):
+    def setParams(self, *, numFeatures=1 << 18, binary=False, inputCol=None, outputCol=None):
         """
         setParams(self, numFeatures=1 << 18, binary=False, inputCol=None, outputCol=None)
         Sets params for this HashingTF.
@@ -1360,7 +1364,7 @@ class IDF(JavaEstimator, _IDFParams, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, minDocFreq=0, inputCol=None, outputCol=None):
+    def __init__(self, *, minDocFreq=0, inputCol=None, outputCol=None):
         """
         __init__(self, minDocFreq=0, inputCol=None, outputCol=None)
         """
@@ -1371,7 +1375,7 @@ class IDF(JavaEstimator, _IDFParams, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, minDocFreq=0, inputCol=None, outputCol=None):
+    def setParams(self, *, minDocFreq=0, inputCol=None, outputCol=None):
         """
         setParams(self, minDocFreq=0, inputCol=None, outputCol=None)
         Sets params for this IDF.
@@ -1598,7 +1602,7 @@ class Imputer(JavaEstimator, _ImputerParams, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, strategy="mean", missingValue=float("nan"), inputCols=None,
+    def __init__(self, *, strategy="mean", missingValue=float("nan"), inputCols=None,
                  outputCols=None, inputCol=None, outputCol=None, relativeError=0.001):
         """
         __init__(self, strategy="mean", missingValue=float("nan"), inputCols=None, \
@@ -1611,7 +1615,7 @@ class Imputer(JavaEstimator, _ImputerParams, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("2.2.0")
-    def setParams(self, strategy="mean", missingValue=float("nan"), inputCols=None,
+    def setParams(self, *, strategy="mean", missingValue=float("nan"), inputCols=None,
                   outputCols=None, inputCol=None, outputCol=None, relativeError=0.001):
         """
         setParams(self, strategy="mean", missingValue=float("nan"), inputCols=None, \
@@ -1755,7 +1759,7 @@ class Interaction(JavaTransformer, HasInputCols, HasOutputCol, JavaMLReadable, J
     """
 
     @keyword_only
-    def __init__(self, inputCols=None, outputCol=None):
+    def __init__(self, *, inputCols=None, outputCol=None):
         """
         __init__(self, inputCols=None, outputCol=None):
         """
@@ -1767,7 +1771,7 @@ class Interaction(JavaTransformer, HasInputCols, HasOutputCol, JavaMLReadable, J
 
     @keyword_only
     @since("3.0.0")
-    def setParams(self, inputCols=None, outputCol=None):
+    def setParams(self, *, inputCols=None, outputCol=None):
         """
         setParams(self, inputCols=None, outputCol=None)
         Sets params for this Interaction.
@@ -1841,7 +1845,7 @@ class MaxAbsScaler(JavaEstimator, _MaxAbsScalerParams, JavaMLReadable, JavaMLWri
     """
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None):
+    def __init__(self, *, inputCol=None, outputCol=None):
         """
         __init__(self, inputCol=None, outputCol=None)
         """
@@ -1853,7 +1857,7 @@ class MaxAbsScaler(JavaEstimator, _MaxAbsScalerParams, JavaMLReadable, JavaMLWri
 
     @keyword_only
     @since("2.0.0")
-    def setParams(self, inputCol=None, outputCol=None):
+    def setParams(self, *, inputCol=None, outputCol=None):
         """
         setParams(self, inputCol=None, outputCol=None)
         Sets params for this MaxAbsScaler.
@@ -1970,7 +1974,7 @@ class MinHashLSH(_LSH, HasInputCol, HasOutputCol, HasSeed, JavaMLReadable, JavaM
     """
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None, seed=None, numHashTables=1):
+    def __init__(self, *, inputCol=None, outputCol=None, seed=None, numHashTables=1):
         """
         __init__(self, inputCol=None, outputCol=None, seed=None, numHashTables=1)
         """
@@ -1981,7 +1985,7 @@ class MinHashLSH(_LSH, HasInputCol, HasOutputCol, HasSeed, JavaMLReadable, JavaM
 
     @keyword_only
     @since("2.2.0")
-    def setParams(self, inputCol=None, outputCol=None, seed=None, numHashTables=1):
+    def setParams(self, *, inputCol=None, outputCol=None, seed=None, numHashTables=1):
         """
         setParams(self, inputCol=None, outputCol=None, seed=None, numHashTables=1)
         Sets params for this MinHashLSH.
@@ -2100,7 +2104,7 @@ class MinMaxScaler(JavaEstimator, _MinMaxScalerParams, JavaMLReadable, JavaMLWri
     """
 
     @keyword_only
-    def __init__(self, min=0.0, max=1.0, inputCol=None, outputCol=None):
+    def __init__(self, *, min=0.0, max=1.0, inputCol=None, outputCol=None):
         """
         __init__(self, min=0.0, max=1.0, inputCol=None, outputCol=None)
         """
@@ -2111,7 +2115,7 @@ class MinMaxScaler(JavaEstimator, _MinMaxScalerParams, JavaMLReadable, JavaMLWri
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, min=0.0, max=1.0, inputCol=None, outputCol=None):
+    def setParams(self, *, min=0.0, max=1.0, inputCol=None, outputCol=None):
         """
         setParams(self, min=0.0, max=1.0, inputCol=None, outputCol=None)
         Sets params for this MinMaxScaler.
@@ -2248,7 +2252,7 @@ class NGram(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, JavaMLWr
               typeConverter=TypeConverters.toInt)
 
     @keyword_only
-    def __init__(self, n=2, inputCol=None, outputCol=None):
+    def __init__(self, *, n=2, inputCol=None, outputCol=None):
         """
         __init__(self, n=2, inputCol=None, outputCol=None)
         """
@@ -2260,7 +2264,7 @@ class NGram(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, JavaMLWr
 
     @keyword_only
     @since("1.5.0")
-    def setParams(self, n=2, inputCol=None, outputCol=None):
+    def setParams(self, *, n=2, inputCol=None, outputCol=None):
         """
         setParams(self, n=2, inputCol=None, outputCol=None)
         Sets params for this NGram.
@@ -2330,7 +2334,7 @@ class Normalizer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, Jav
               typeConverter=TypeConverters.toFloat)
 
     @keyword_only
-    def __init__(self, p=2.0, inputCol=None, outputCol=None):
+    def __init__(self, *, p=2.0, inputCol=None, outputCol=None):
         """
         __init__(self, p=2.0, inputCol=None, outputCol=None)
         """
@@ -2342,7 +2346,7 @@ class Normalizer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, Jav
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, p=2.0, inputCol=None, outputCol=None):
+    def setParams(self, *, p=2.0, inputCol=None, outputCol=None):
         """
         setParams(self, p=2.0, inputCol=None, outputCol=None)
         Sets params for this Normalizer.
@@ -2466,7 +2470,7 @@ class OneHotEncoder(JavaEstimator, _OneHotEncoderParams, JavaMLReadable, JavaMLW
     """
 
     @keyword_only
-    def __init__(self, inputCols=None, outputCols=None, handleInvalid="error", dropLast=True,
+    def __init__(self, *, inputCols=None, outputCols=None, handleInvalid="error", dropLast=True,
                  inputCol=None, outputCol=None):
         """
         __init__(self, inputCols=None, outputCols=None, handleInvalid="error", dropLast=True, \
@@ -2480,7 +2484,7 @@ class OneHotEncoder(JavaEstimator, _OneHotEncoderParams, JavaMLReadable, JavaMLW
 
     @keyword_only
     @since("2.3.0")
-    def setParams(self, inputCols=None, outputCols=None, handleInvalid="error", dropLast=True,
+    def setParams(self, *, inputCols=None, outputCols=None, handleInvalid="error", dropLast=True,
                   inputCol=None, outputCol=None):
         """
         setParams(self, inputCols=None, outputCols=None, handleInvalid="error", dropLast=True, \
@@ -2631,7 +2635,7 @@ class PolynomialExpansion(JavaTransformer, HasInputCol, HasOutputCol, JavaMLRead
                    typeConverter=TypeConverters.toInt)
 
     @keyword_only
-    def __init__(self, degree=2, inputCol=None, outputCol=None):
+    def __init__(self, *, degree=2, inputCol=None, outputCol=None):
         """
         __init__(self, degree=2, inputCol=None, outputCol=None)
         """
@@ -2644,7 +2648,7 @@ class PolynomialExpansion(JavaTransformer, HasInputCol, HasOutputCol, JavaMLRead
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, degree=2, inputCol=None, outputCol=None):
+    def setParams(self, *, degree=2, inputCol=None, outputCol=None):
         """
         setParams(self, degree=2, inputCol=None, outputCol=None)
         Sets params for this PolynomialExpansion.
@@ -2794,7 +2798,7 @@ class QuantileDiscretizer(JavaEstimator, HasInputCol, HasOutputCol, HasInputCols
                             typeConverter=TypeConverters.toListInt)
 
     @keyword_only
-    def __init__(self, numBuckets=2, inputCol=None, outputCol=None, relativeError=0.001,
+    def __init__(self, *, numBuckets=2, inputCol=None, outputCol=None, relativeError=0.001,
                  handleInvalid="error", numBucketsArray=None, inputCols=None, outputCols=None):
         """
         __init__(self, numBuckets=2, inputCol=None, outputCol=None, relativeError=0.001, \
@@ -2809,7 +2813,7 @@ class QuantileDiscretizer(JavaEstimator, HasInputCol, HasOutputCol, HasInputCols
 
     @keyword_only
     @since("2.0.0")
-    def setParams(self, numBuckets=2, inputCol=None, outputCol=None, relativeError=0.001,
+    def setParams(self, *, numBuckets=2, inputCol=None, outputCol=None, relativeError=0.001,
                   handleInvalid="error", numBucketsArray=None, inputCols=None, outputCols=None):
         """
         setParams(self, numBuckets=2, inputCol=None, outputCol=None, relativeError=0.001, \
@@ -3006,7 +3010,7 @@ class RobustScaler(JavaEstimator, _RobustScalerParams, JavaMLReadable, JavaMLWri
     """
 
     @keyword_only
-    def __init__(self, lower=0.25, upper=0.75, withCentering=False, withScaling=True,
+    def __init__(self, *, lower=0.25, upper=0.75, withCentering=False, withScaling=True,
                  inputCol=None, outputCol=None, relativeError=0.001):
         """
         __init__(self, lower=0.25, upper=0.75, withCentering=False, withScaling=True, \
@@ -3019,7 +3023,7 @@ class RobustScaler(JavaEstimator, _RobustScalerParams, JavaMLReadable, JavaMLWri
 
     @keyword_only
     @since("3.0.0")
-    def setParams(self, lower=0.25, upper=0.75, withCentering=False, withScaling=True,
+    def setParams(self, *, lower=0.25, upper=0.75, withCentering=False, withScaling=True,
                   inputCol=None, outputCol=None, relativeError=0.001):
         """
         setParams(self, lower=0.25, upper=0.75, withCentering=False, withScaling=True, \
@@ -3174,7 +3178,7 @@ class RegexTokenizer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable,
                         "lowercase before tokenizing", typeConverter=TypeConverters.toBoolean)
 
     @keyword_only
-    def __init__(self, minTokenLength=1, gaps=True, pattern="\\s+", inputCol=None,
+    def __init__(self, *, minTokenLength=1, gaps=True, pattern="\\s+", inputCol=None,
                  outputCol=None, toLowercase=True):
         """
         __init__(self, minTokenLength=1, gaps=True, pattern="\\s+", inputCol=None, \
@@ -3188,7 +3192,7 @@ class RegexTokenizer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable,
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, minTokenLength=1, gaps=True, pattern="\\s+", inputCol=None,
+    def setParams(self, *, minTokenLength=1, gaps=True, pattern="\\s+", inputCol=None,
                   outputCol=None, toLowercase=True):
         """
         setParams(self, minTokenLength=1, gaps=True, pattern="\\s+", inputCol=None, \
@@ -3294,7 +3298,7 @@ class SQLTransformer(JavaTransformer, JavaMLReadable, JavaMLWritable):
                       typeConverter=TypeConverters.toString)
 
     @keyword_only
-    def __init__(self, statement=None):
+    def __init__(self, *, statement=None):
         """
         __init__(self, statement=None)
         """
@@ -3305,7 +3309,7 @@ class SQLTransformer(JavaTransformer, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, statement=None):
+    def setParams(self, *, statement=None):
         """
         setParams(self, statement=None)
         Sets params for this SQLTransformer.
@@ -3408,7 +3412,7 @@ class StandardScaler(JavaEstimator, _StandardScalerParams, JavaMLReadable, JavaM
     """
 
     @keyword_only
-    def __init__(self, withMean=False, withStd=True, inputCol=None, outputCol=None):
+    def __init__(self, *, withMean=False, withStd=True, inputCol=None, outputCol=None):
         """
         __init__(self, withMean=False, withStd=True, inputCol=None, outputCol=None)
         """
@@ -3419,7 +3423,7 @@ class StandardScaler(JavaEstimator, _StandardScalerParams, JavaMLReadable, JavaM
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, withMean=False, withStd=True, inputCol=None, outputCol=None):
+    def setParams(self, *, withMean=False, withStd=True, inputCol=None, outputCol=None):
         """
         setParams(self, withMean=False, withStd=True, inputCol=None, outputCol=None)
         Sets params for this StandardScaler.
@@ -3610,7 +3614,7 @@ class StringIndexer(JavaEstimator, _StringIndexerParams, JavaMLReadable, JavaMLW
     """
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None, inputCols=None, outputCols=None,
+    def __init__(self, *, inputCol=None, outputCol=None, inputCols=None, outputCols=None,
                  handleInvalid="error", stringOrderType="frequencyDesc"):
         """
         __init__(self, inputCol=None, outputCol=None, inputCols=None, outputCols=None, \
@@ -3623,7 +3627,7 @@ class StringIndexer(JavaEstimator, _StringIndexerParams, JavaMLReadable, JavaMLW
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, inputCol=None, outputCol=None, inputCols=None, outputCols=None,
+    def setParams(self, *, inputCol=None, outputCol=None, inputCols=None, outputCols=None,
                   handleInvalid="error", stringOrderType="frequencyDesc"):
         """
         setParams(self, inputCol=None, outputCol=None, inputCols=None, outputCols=None, \
@@ -3782,7 +3786,7 @@ class IndexToString(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, 
                    typeConverter=TypeConverters.toListString)
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None, labels=None):
+    def __init__(self, *, inputCol=None, outputCol=None, labels=None):
         """
         __init__(self, inputCol=None, outputCol=None, labels=None)
         """
@@ -3794,7 +3798,7 @@ class IndexToString(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, 
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, inputCol=None, outputCol=None, labels=None):
+    def setParams(self, *, inputCol=None, outputCol=None, labels=None):
         """
         setParams(self, inputCol=None, outputCol=None, labels=None)
         Sets params for this IndexToString.
@@ -3879,7 +3883,7 @@ class StopWordsRemover(JavaTransformer, HasInputCol, HasOutputCol, HasInputCols,
                    "is true", typeConverter=TypeConverters.toString)
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None, stopWords=None, caseSensitive=False,
+    def __init__(self, *, inputCol=None, outputCol=None, stopWords=None, caseSensitive=False,
                  locale=None, inputCols=None, outputCols=None):
         """
         __init__(self, inputCol=None, outputCol=None, stopWords=None, caseSensitive=false, \
@@ -3895,7 +3899,7 @@ class StopWordsRemover(JavaTransformer, HasInputCol, HasOutputCol, HasInputCols,
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, inputCol=None, outputCol=None, stopWords=None, caseSensitive=False,
+    def setParams(self, *, inputCol=None, outputCol=None, stopWords=None, caseSensitive=False,
                   locale=None, inputCols=None, outputCols=None):
         """
         setParams(self, inputCol=None, outputCol=None, stopWords=None, caseSensitive=false, \
@@ -4020,7 +4024,7 @@ class Tokenizer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, Java
     """
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None):
+    def __init__(self, *, inputCol=None, outputCol=None):
         """
         __init__(self, inputCol=None, outputCol=None)
         """
@@ -4031,7 +4035,7 @@ class Tokenizer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, Java
 
     @keyword_only
     @since("1.3.0")
-    def setParams(self, inputCol=None, outputCol=None):
+    def setParams(self, *, inputCol=None, outputCol=None):
         """
         setParams(self, inputCol=None, outputCol=None)
         Sets params for this Tokenizer.
@@ -4109,7 +4113,7 @@ class VectorAssembler(JavaTransformer, HasInputCols, HasOutputCol, HasHandleInva
                           typeConverter=TypeConverters.toString)
 
     @keyword_only
-    def __init__(self, inputCols=None, outputCol=None, handleInvalid="error"):
+    def __init__(self, *, inputCols=None, outputCol=None, handleInvalid="error"):
         """
         __init__(self, inputCols=None, outputCol=None, handleInvalid="error")
         """
@@ -4121,7 +4125,7 @@ class VectorAssembler(JavaTransformer, HasInputCols, HasOutputCol, HasHandleInva
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, inputCols=None, outputCol=None, handleInvalid="error"):
+    def setParams(self, *, inputCols=None, outputCol=None, handleInvalid="error"):
         """
         setParams(self, inputCols=None, outputCol=None, handleInvalid="error")
         Sets params for this VectorAssembler.
@@ -4267,7 +4271,7 @@ class VectorIndexer(JavaEstimator, _VectorIndexerParams, JavaMLReadable, JavaMLW
     """
 
     @keyword_only
-    def __init__(self, maxCategories=20, inputCol=None, outputCol=None, handleInvalid="error"):
+    def __init__(self, *, maxCategories=20, inputCol=None, outputCol=None, handleInvalid="error"):
         """
         __init__(self, maxCategories=20, inputCol=None, outputCol=None, handleInvalid="error")
         """
@@ -4278,7 +4282,7 @@ class VectorIndexer(JavaEstimator, _VectorIndexerParams, JavaMLReadable, JavaMLW
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, maxCategories=20, inputCol=None, outputCol=None, handleInvalid="error"):
+    def setParams(self, *, maxCategories=20, inputCol=None, outputCol=None, handleInvalid="error"):
         """
         setParams(self, maxCategories=20, inputCol=None, outputCol=None, handleInvalid="error")
         Sets params for this VectorIndexer.
@@ -4410,7 +4414,7 @@ class VectorSlicer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, J
                   "indices.", typeConverter=TypeConverters.toListString)
 
     @keyword_only
-    def __init__(self, inputCol=None, outputCol=None, indices=None, names=None):
+    def __init__(self, *, inputCol=None, outputCol=None, indices=None, names=None):
         """
         __init__(self, inputCol=None, outputCol=None, indices=None, names=None)
         """
@@ -4422,7 +4426,7 @@ class VectorSlicer(JavaTransformer, HasInputCol, HasOutputCol, JavaMLReadable, J
 
     @keyword_only
     @since("1.6.0")
-    def setParams(self, inputCol=None, outputCol=None, indices=None, names=None):
+    def setParams(self, *, inputCol=None, outputCol=None, indices=None, names=None):
         """
         setParams(self, inputCol=None, outputCol=None, indices=None, names=None):
         Sets params for this VectorSlicer.
@@ -4601,7 +4605,7 @@ class Word2Vec(JavaEstimator, _Word2VecParams, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, vectorSize=100, minCount=5, numPartitions=1, stepSize=0.025, maxIter=1,
+    def __init__(self, *, vectorSize=100, minCount=5, numPartitions=1, stepSize=0.025, maxIter=1,
                  seed=None, inputCol=None, outputCol=None, windowSize=5, maxSentenceLength=1000):
         """
         __init__(self, vectorSize=100, minCount=5, numPartitions=1, stepSize=0.025, maxIter=1, \
@@ -4614,7 +4618,7 @@ class Word2Vec(JavaEstimator, _Word2VecParams, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("1.4.0")
-    def setParams(self, vectorSize=100, minCount=5, numPartitions=1, stepSize=0.025, maxIter=1,
+    def setParams(self, *, vectorSize=100, minCount=5, numPartitions=1, stepSize=0.025, maxIter=1,
                   seed=None, inputCol=None, outputCol=None, windowSize=5, maxSentenceLength=1000):
         """
         setParams(self, minCount=5, numPartitions=1, stepSize=0.025, maxIter=1, seed=None, \
@@ -4807,7 +4811,7 @@ class PCA(JavaEstimator, _PCAParams, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, k=None, inputCol=None, outputCol=None):
+    def __init__(self, *, k=None, inputCol=None, outputCol=None):
         """
         __init__(self, k=None, inputCol=None, outputCol=None)
         """
@@ -4818,7 +4822,7 @@ class PCA(JavaEstimator, _PCAParams, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("1.5.0")
-    def setParams(self, k=None, inputCol=None, outputCol=None):
+    def setParams(self, *, k=None, inputCol=None, outputCol=None):
         """
         setParams(self, k=None, inputCol=None, outputCol=None)
         Set params for this PCA.
@@ -5015,7 +5019,7 @@ class RFormula(JavaEstimator, _RFormulaParams, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, formula=None, featuresCol="features", labelCol="label",
+    def __init__(self, *, formula=None, featuresCol="features", labelCol="label",
                  forceIndexLabel=False, stringIndexerOrderType="frequencyDesc",
                  handleInvalid="error"):
         """
@@ -5030,7 +5034,7 @@ class RFormula(JavaEstimator, _RFormulaParams, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("1.5.0")
-    def setParams(self, formula=None, featuresCol="features", labelCol="label",
+    def setParams(self, *, formula=None, featuresCol="features", labelCol="label",
                   forceIndexLabel=False, stringIndexerOrderType="frequencyDesc",
                   handleInvalid="error"):
         """
@@ -5344,7 +5348,7 @@ class ANOVASelector(_Selector, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, numTopFeatures=50, featuresCol="features", outputCol=None,
+    def __init__(self, *, numTopFeatures=50, featuresCol="features", outputCol=None,
                  labelCol="label", selectorType="numTopFeatures", percentile=0.1, fpr=0.05,
                  fdr=0.05, fwe=0.05):
         """
@@ -5359,7 +5363,7 @@ class ANOVASelector(_Selector, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("3.1.0")
-    def setParams(self, numTopFeatures=50, featuresCol="features", outputCol=None,
+    def setParams(self, *, numTopFeatures=50, featuresCol="features", outputCol=None,
                   labelCol="labels", selectorType="numTopFeatures", percentile=0.1, fpr=0.05,
                   fdr=0.05, fwe=0.05):
         """
@@ -5443,7 +5447,7 @@ class ChiSqSelector(_Selector, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, numTopFeatures=50, featuresCol="features", outputCol=None,
+    def __init__(self, *, numTopFeatures=50, featuresCol="features", outputCol=None,
                  labelCol="label", selectorType="numTopFeatures", percentile=0.1, fpr=0.05,
                  fdr=0.05, fwe=0.05):
         """
@@ -5458,7 +5462,7 @@ class ChiSqSelector(_Selector, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("2.0.0")
-    def setParams(self, numTopFeatures=50, featuresCol="features", outputCol=None,
+    def setParams(self, *, numTopFeatures=50, featuresCol="features", outputCol=None,
                   labelCol="labels", selectorType="numTopFeatures", percentile=0.1, fpr=0.05,
                   fdr=0.05, fwe=0.05):
         """
@@ -5546,7 +5550,7 @@ class FValueSelector(_Selector, JavaMLReadable, JavaMLWritable):
     """
 
     @keyword_only
-    def __init__(self, numTopFeatures=50, featuresCol="features", outputCol=None,
+    def __init__(self, *, numTopFeatures=50, featuresCol="features", outputCol=None,
                  labelCol="label", selectorType="numTopFeatures", percentile=0.1, fpr=0.05,
                  fdr=0.05, fwe=0.05):
         """
@@ -5561,7 +5565,7 @@ class FValueSelector(_Selector, JavaMLReadable, JavaMLWritable):
 
     @keyword_only
     @since("3.1.0")
-    def setParams(self, numTopFeatures=50, featuresCol="features", outputCol=None,
+    def setParams(self, *, numTopFeatures=50, featuresCol="features", outputCol=None,
                   labelCol="labels", selectorType="numTopFeatures", percentile=0.1, fpr=0.05,
                   fdr=0.05, fwe=0.05):
         """
@@ -5631,7 +5635,7 @@ class VectorSizeHint(JavaTransformer, HasInputCol, HasHandleInvalid, JavaMLReada
                           TypeConverters.toString)
 
     @keyword_only
-    def __init__(self, inputCol=None, size=None, handleInvalid="error"):
+    def __init__(self, *, inputCol=None, size=None, handleInvalid="error"):
         """
         __init__(self, inputCol=None, size=None, handleInvalid="error")
         """
@@ -5642,7 +5646,7 @@ class VectorSizeHint(JavaTransformer, HasInputCol, HasHandleInvalid, JavaMLReada
 
     @keyword_only
     @since("2.3.0")
-    def setParams(self, inputCol=None, size=None, handleInvalid="error"):
+    def setParams(self, *, inputCol=None, size=None, handleInvalid="error"):
         """
         setParams(self, inputCol=None, size=None, handleInvalid="error")
         Sets params for this VectorSizeHint.
@@ -5739,7 +5743,7 @@ class VarianceThresholdSelector(JavaEstimator, _VarianceThresholdSelectorParams,
     """
 
     @keyword_only
-    def __init__(self, featuresCol="features", outputCol=None, varianceThreshold=0.0):
+    def __init__(self, *, featuresCol="features", outputCol=None, varianceThreshold=0.0):
         """
         __init__(self, featuresCol="features", outputCol=None, varianceThreshold=0.0)
         """
@@ -5752,7 +5756,7 @@ class VarianceThresholdSelector(JavaEstimator, _VarianceThresholdSelectorParams,
 
     @keyword_only
     @since("3.1.0")
-    def setParams(self, featuresCol="features", outputCol=None, varianceThreshold=0.0):
+    def setParams(self, *, featuresCol="features", outputCol=None, varianceThreshold=0.0):
         """
         setParams(self, featuresCol="features", outputCol=None, varianceThreshold=0.0)
         Sets params for this VarianceThresholdSelector.
