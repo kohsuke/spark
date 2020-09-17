@@ -48,7 +48,12 @@ For PySpark with different Hadoop and/or Hive, you can install it by using ``HIV
     HIVE_VERSION=1.2 HADOOP_VERSION=2.7 pip install pyspark
 
 The default distribution has built-in Hadoop 3.2 and Hive 2.3. If users specify different versions, the pip installation automatically
-downloads a different version and use it in PySpark.
+downloads a different version and use it in PySpark. Downloading it can take a while depending on the network and the mirror chosen.
+It is recommended to use `-v` option in `pip` to track the installation and download status.
+
+.. code-block:: bash
+
+    HADOOP_VERSION=2.7 pip install pyspark -v
 
 Supported versions are as below:
 
