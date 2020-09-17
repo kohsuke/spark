@@ -304,22 +304,12 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
     if (source == SOURCE_NAME_TABLE) {
       assertNotPartitioned("table")
 
-      import df.sparkSession.sessionState.analyzer.{NonSessionCatalogAndIdentifier, CatalogAndIdentifier}
+      import df.sparkSession.sessionState.analyzer.CatalogAndIdentifier
 
       import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
-      val tableInstance = df.sparkSession.sessionState.sqlParser
-        .parseMultipartIdentifier(tableName) match {
-
-        case NonSessionCatalogAndIdentifier(catalog, ident) =>
-          catalog.asTableCatalog.loadTable(ident)
-
-        case CatalogAndIdentifier(catalog, ident) =>
-          catalog.asTableCatalog.loadTable(ident)
-
-        case other =>
-          throw new AnalysisException(
-            s"Couldn't find a catalog to handle the identifier ${other.quoted}.")
-      }
+      val CatalogAndIdentifier(catalog, identifier) = df.sparkSession.sessionState.sqlParser
+          .parseMultipartIdentifier(tableName)
+      val tableInstance = catalog.asTableCatalog.loadTable(identifier)
 
       import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
       val sink = tableInstance match {
