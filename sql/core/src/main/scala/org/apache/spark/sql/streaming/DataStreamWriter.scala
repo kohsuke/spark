@@ -304,7 +304,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
     if (source == SOURCE_NAME_TABLE) {
       assertNotPartitioned("table")
 
-      import df.sparkSession.sessionState.analyzer.{NonSessionCatalogAndIdentifier, SessionCatalogAndIdentifier}
+      import df.sparkSession.sessionState.analyzer.{NonSessionCatalogAndIdentifier, CatalogAndIdentifier}
 
       import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
       val tableInstance = df.sparkSession.sessionState.sqlParser
@@ -313,7 +313,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
         case NonSessionCatalogAndIdentifier(catalog, ident) =>
           catalog.asTableCatalog.loadTable(ident)
 
-        case SessionCatalogAndIdentifier(catalog, ident) =>
+        case CatalogAndIdentifier(catalog, ident) =>
           catalog.asTableCatalog.loadTable(ident)
 
         case other =>
