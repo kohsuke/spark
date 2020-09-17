@@ -423,17 +423,19 @@ abstract class IntegralToTimestampBase extends UnaryExpression
 case class SecondsToTimestamp(child: Expression) extends UnaryExpression
   with ExpectsInputTypes with NullIntolerant {
 
+  private lazy val childDataType = child.dataType
+
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
 
   override def dataType: DataType = TimestampType
 
-  override def nullable: Boolean = child.dataType match {
+  override def nullable: Boolean = childDataType match {
     case _: FloatType | _: DoubleType => true
     case _ => child.nullable
   }
 
   @transient
-  private lazy val evalFunc: Any => Any = child.dataType match {
+  private lazy val evalFunc: Any => Any = childDataType match {
     case _: IntegralType => input =>
       Math.multiplyExact(input.asInstanceOf[Number].longValue(), MICROS_PER_SECOND)
     case _: DecimalType => input =>
@@ -449,7 +451,7 @@ case class SecondsToTimestamp(child: Expression) extends UnaryExpression
 
   override def nullSafeEval(input: Any): Any = evalFunc(input)
 
-  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = child.dataType match {
+  override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = childDataType match {
     case _: IntegralType =>
       defineCodeGen(ctx, ev, c => s"java.lang.Math.multiplyExact($c, ${MICROS_PER_SECOND}L)")
     case _: DecimalType =>

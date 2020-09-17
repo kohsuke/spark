@@ -258,29 +258,31 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
 
   def dataType: DataType
 
+  private lazy val childDataType = child.dataType
+
   override def toString: String = {
     val ansi = if (ansiEnabled) "ansi_" else ""
     s"${ansi}cast($child as ${dataType.simpleString})"
   }
 
   override def checkInputDataTypes(): TypeCheckResult = {
-    if (Cast.canCast(child.dataType, dataType)) {
+    if (Cast.canCast(childDataType, dataType)) {
       TypeCheckResult.TypeCheckSuccess
     } else {
       TypeCheckResult.TypeCheckFailure(
-        if (child.dataType.isInstanceOf[NumericType] && dataType.isInstanceOf[TimestampType]) {
-          s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}," +
+        if (childDataType.isInstanceOf[NumericType] && dataType.isInstanceOf[TimestampType]) {
+          s"cannot cast ${childDataType.catalogString} to ${dataType.catalogString}," +
             "you can enable the casting by setting " +
             s"${SQLConf.LEGACY_ALLOW_CAST_NUMERIC_TO_TIMESTAMP.key} to true," +
             "but we strongly recommend using function " +
             "TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instead."
         } else {
-          s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}"
+          s"cannot cast ${childDataType.catalogString} to ${dataType.catalogString}"
         })
     }
   }
 
-  override def nullable: Boolean = child.nullable || Cast.forceNullable(child.dataType, dataType)
+  override def nullable: Boolean = child.nullable || Cast.forceNullable(childDataType, dataType)
 
   protected def ansiEnabled: Boolean
 
@@ -289,7 +291,7 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
   override lazy val resolved: Boolean =
     childrenResolved && checkInputDataTypes().isSuccess && (!needsTimeZone || timeZoneId.isDefined)
 
-  def needsTimeZone: Boolean = Cast.needsTimeZone(child.dataType, dataType)
+  def needsTimeZone: Boolean = Cast.needsTimeZone(childDataType, dataType)
 
   // [[func]] assumes the input is no longer null because eval already does the null check.
   @inline private[this] def buildCast[T](a: Any, func: T => Any): Any = func(a.asInstanceOf[T])
@@ -827,14 +829,14 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
     }
   }
 
-  private[this] lazy val cast: Any => Any = cast(child.dataType, dataType)
+  private[this] lazy val cast: Any => Any = cast(childDataType, dataType)
 
   protected override def nullSafeEval(input: Any): Any = cast(input)
 
   override def genCode(ctx: CodegenContext): ExprCode = {
     // If the cast does not change the structure, then we don't really need to cast anything.
     // We can return what the children return. Same thing should happen in the interpreted path.
-    if (DataType.equalsStructurally(child.dataType, dataType)) {
+    if (DataType.equalsStructurally(childDataType, dataType)) {
       child.genCode(ctx)
     } else {
       super.genCode(ctx)
@@ -843,7 +845,7 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val eval = child.genCode(ctx)
-    val nullSafeCast = nullSafeCastFunction(child.dataType, dataType, ctx)
+    val nullSafeCast = nullSafeCastFunction(childDataType, dataType, ctx)
 
     ev.copy(code = eval.code +
       castCode(ctx, eval.value, eval.isNull, ev.value, ev.isNull, dataType, nullSafeCast))

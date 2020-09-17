@@ -235,6 +235,9 @@ case class Cbrt(child: Expression) extends UnaryMathExpression(math.cbrt, "CBRT"
   """,
   since = "1.4.0")
 case class Ceil(child: Expression) extends UnaryMathExpression(math.ceil, "CEIL") {
+
+  private lazy val childDataType = child.dataType
+
   override def dataType: DataType = child.dataType match {
     case dt @ DecimalType.Fixed(_, 0) => dt
     case DecimalType.Fixed(precision, scale) =>
@@ -245,14 +248,14 @@ case class Ceil(child: Expression) extends UnaryMathExpression(math.ceil, "CEIL"
   override def inputTypes: Seq[AbstractDataType] =
     Seq(TypeCollection(DoubleType, DecimalType, LongType))
 
-  protected override def nullSafeEval(input: Any): Any = child.dataType match {
+  protected override def nullSafeEval(input: Any): Any = childDataType match {
     case LongType => input.asInstanceOf[Long]
     case DoubleType => f(input.asInstanceOf[Double]).toLong
     case DecimalType.Fixed(_, _) => input.asInstanceOf[Decimal].ceil
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    child.dataType match {
+    childDataType match {
       case DecimalType.Fixed(_, 0) => defineCodeGen(ctx, ev, c => s"$c")
       case DecimalType.Fixed(_, _) =>
         defineCodeGen(ctx, ev, c => s"$c.ceil()")
@@ -400,7 +403,10 @@ case class Expm1(child: Expression) extends UnaryMathExpression(StrictMath.expm1
   """,
   since = "1.4.0")
 case class Floor(child: Expression) extends UnaryMathExpression(math.floor, "FLOOR") {
-  override def dataType: DataType = child.dataType match {
+
+  private lazy val childDataType = child.dataType
+
+  override def dataType: DataType = childDataType match {
     case dt @ DecimalType.Fixed(_, 0) => dt
     case DecimalType.Fixed(precision, scale) =>
       DecimalType.bounded(precision - scale + 1, 0)
@@ -410,14 +416,14 @@ case class Floor(child: Expression) extends UnaryMathExpression(math.floor, "FLO
   override def inputTypes: Seq[AbstractDataType] =
     Seq(TypeCollection(DoubleType, DecimalType, LongType))
 
-  protected override def nullSafeEval(input: Any): Any = child.dataType match {
+  protected override def nullSafeEval(input: Any): Any = childDataType match {
     case LongType => input.asInstanceOf[Long]
     case DoubleType => f(input.asInstanceOf[Double]).toLong
     case DecimalType.Fixed(_, _) => input.asInstanceOf[Decimal].floor
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    child.dataType match {
+    childDataType match {
       case DecimalType.Fixed(_, 0) => defineCodeGen(ctx, ev, c => s"$c")
       case DecimalType.Fixed(_, _) =>
         defineCodeGen(ctx, ev, c => s"$c.floor()")
@@ -868,12 +874,14 @@ object Hex {
 case class Hex(child: Expression)
   extends UnaryExpression with ImplicitCastInputTypes with NullIntolerant {
 
+  private lazy val childDataType = child.dataType
+
   override def inputTypes: Seq[AbstractDataType] =
     Seq(TypeCollection(LongType, BinaryType, StringType))
 
   override def dataType: DataType = StringType
 
-  protected override def nullSafeEval(num: Any): Any = child.dataType match {
+  protected override def nullSafeEval(num: Any): Any = childDataType match {
     case LongType => Hex.hex(num.asInstanceOf[Long])
     case BinaryType => Hex.hex(num.asInstanceOf[Array[Byte]])
     case StringType => Hex.hex(num.asInstanceOf[UTF8String].getBytes)
@@ -882,7 +890,7 @@ case class Hex(child: Expression)
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     nullSafeCodeGen(ctx, ev, (c) => {
       val hex = Hex.getClass.getName.stripSuffix("$")
-      s"${ev.value} = " + (child.dataType match {
+      s"${ev.value} = " + (childDataType match {
         case StringType => s"""$hex.hex($c.getBytes());"""
         case _ => s"""$hex.hex($c);"""
       })

@@ -34,22 +34,24 @@ import org.apache.spark.sql.types._
   since = "1.0.0")
 case class Min(child: Expression) extends DeclarativeAggregate {
 
+  private lazy val childDataType = child.dataType
+
   override def children: Seq[Expression] = child :: Nil
 
   override def nullable: Boolean = true
 
   // Return data type.
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
 
   override def checkInputDataTypes(): TypeCheckResult =
-    TypeUtils.checkForOrderingExpr(child.dataType, "function min")
+    TypeUtils.checkForOrderingExpr(childDataType, "function min")
 
-  private lazy val min = AttributeReference("min", child.dataType)()
+  private lazy val min = AttributeReference("min", childDataType)()
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = min :: Nil
 
   override lazy val initialValues: Seq[Expression] = Seq(
-    /* min = */ Literal.create(null, child.dataType)
+    /* min = */ Literal.create(null, childDataType)
   )
 
   override lazy val updateExpressions: Seq[Expression] = Seq(

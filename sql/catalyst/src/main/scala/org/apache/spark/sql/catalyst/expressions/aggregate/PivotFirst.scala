@@ -79,15 +79,16 @@ case class PivotFirst(
 
   override val nullable: Boolean = false
 
-  val valueDataType = valueColumn.dataType
+  private val pivotDataType = pivotColumn.dataType
+  private val valueDataType = valueColumn.dataType
 
   override val dataType: DataType = ArrayType(valueDataType)
 
-  val pivotIndex: Map[Any, Int] = if (pivotColumn.dataType.isInstanceOf[AtomicType]) {
+  val pivotIndex: Map[Any, Int] = if (pivotDataType.isInstanceOf[AtomicType]) {
     HashMap(pivotColumnValues.zipWithIndex: _*)
   } else {
     TreeMap(pivotColumnValues.zipWithIndex: _*)(
-      TypeUtils.getInterpretedOrdering(pivotColumn.dataType))
+      TypeUtils.getInterpretedOrdering(pivotDataType))
   }
 
   val indexSize = pivotIndex.size

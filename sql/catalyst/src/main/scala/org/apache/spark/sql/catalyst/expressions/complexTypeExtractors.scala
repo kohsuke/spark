@@ -224,6 +224,8 @@ case class GetArrayItem(child: Expression, ordinal: Expression)
   extends BinaryExpression with GetArrayItemUtil with ExpectsInputTypes with ExtractValue
   with NullIntolerant {
 
+  private lazy val childDataType = child.dataType
+
   // We have done type checking for child in `ExtractValue`, so only need to check the `ordinal`.
   override def inputTypes: Seq[AbstractDataType] = Seq(AnyDataType, IntegralType)
 
@@ -233,7 +235,7 @@ case class GetArrayItem(child: Expression, ordinal: Expression)
   override def left: Expression = child
   override def right: Expression = ordinal
   override def nullable: Boolean = computeNullabilityFromArray(left, right)
-  override def dataType: DataType = child.dataType.asInstanceOf[ArrayType].elementType
+  override def dataType: DataType = childDataType.asInstanceOf[ArrayType].elementType
 
   protected override def nullSafeEval(value: Any, ordinal: Any): Any = {
     val baseValue = value.asInstanceOf[ArrayData]
@@ -248,7 +250,7 @@ case class GetArrayItem(child: Expression, ordinal: Expression)
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     nullSafeCodeGen(ctx, ev, (eval1, eval2) => {
       val index = ctx.freshName("index")
-      val nullCheck = if (child.dataType.asInstanceOf[ArrayType].containsNull) {
+      val nullCheck = if (childDataType.asInstanceOf[ArrayType].containsNull) {
         s" || $eval1.isNullAt($index)"
       } else {
         ""
@@ -367,10 +369,12 @@ trait GetMapValueUtil extends BinaryExpression with ImplicitCastInputTypes {
 case class GetMapValue(child: Expression, key: Expression)
   extends GetMapValueUtil with ExtractValue with NullIntolerant {
 
+  private lazy val childDataType = child.dataType
+
   @transient private lazy val ordering: Ordering[Any] =
     TypeUtils.getInterpretedOrdering(keyType)
 
-  private def keyType = child.dataType.asInstanceOf[MapType].keyType
+  private def keyType = childDataType.asInstanceOf[MapType].keyType
 
   override def checkInputDataTypes(): TypeCheckResult = {
     super.checkInputDataTypes() match {
@@ -397,7 +401,7 @@ case class GetMapValue(child: Expression, key: Expression)
    * If we find efficient key searches, revisit this.
    */
   override def nullable: Boolean = true
-  override def dataType: DataType = child.dataType.asInstanceOf[MapType].valueType
+  override def dataType: DataType = childDataType.asInstanceOf[MapType].valueType
 
   // todo: current search is O(n), improve it.
   override def nullSafeEval(value: Any, ordinal: Any): Any = {
@@ -405,6 +409,6 @@ case class GetMapValue(child: Expression, key: Expression)
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    doGetValueGenCode(ctx, ev, child.dataType.asInstanceOf[MapType])
+    doGetValueGenCode(ctx, ev, childDataType.asInstanceOf[MapType])
   }
 }

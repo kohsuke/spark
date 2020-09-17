@@ -151,7 +151,7 @@ case class NormalizeNaNAndZero(child: Expression) extends UnaryExpression with E
 
   override def inputTypes: Seq[AbstractDataType] = Seq(TypeCollection(FloatType, DoubleType))
 
-  private lazy val normalizer: Any => Any = child.dataType match {
+  private lazy val normalizer: Any => Any = dataType match {
     case FloatType => (input: Any) => {
       val f = input.asInstanceOf[Float]
       if (f.isNaN) {
@@ -180,7 +180,7 @@ case class NormalizeNaNAndZero(child: Expression) extends UnaryExpression with E
   }
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    val codeToNormalize = child.dataType match {
+    val codeToNormalize = dataType match {
       case FloatType => (f: String) => {
         s"""
            |if (Float.isNaN($f)) {

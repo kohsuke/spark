@@ -178,7 +178,7 @@ case class Alias(child: Expression, name: String)(
 
   override def toAttribute: Attribute = {
     if (resolved) {
-      AttributeReference(name, child.dataType, child.nullable, metadata)(exprId, qualifier)
+      AttributeReference(name, dataType, child.nullable, metadata)(exprId, qualifier)
     } else {
       UnresolvedAttribute(name)
     }

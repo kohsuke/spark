@@ -1049,6 +1049,7 @@ trait ComplexTypeMergingExpression extends Expression {
   lazy val inputTypesForMerging: Seq[DataType] = children.map(_.dataType)
 
   def dataTypeCheck: Unit = {
+    println("dataTypeCheck")
     require(
       inputTypesForMerging.nonEmpty,
       "The collection of input data types must not be empty.")

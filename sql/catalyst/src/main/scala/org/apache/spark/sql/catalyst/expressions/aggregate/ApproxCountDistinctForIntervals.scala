@@ -50,6 +50,8 @@ case class ApproxCountDistinctForIntervals(
     inputAggBufferOffset: Int = 0)
   extends TypedImperativeAggregate[Array[Long]] with ExpectsInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression, endpointsExpression: Expression, relativeSD: Expression) = {
     this(
       child = child,
@@ -116,7 +118,7 @@ case class ApproxCountDistinctForIntervals(
     // Ignore empty rows
     if (value != null) {
       // convert the value into a double value for searching in the double array
-      val doubleValue = child.dataType match {
+      val doubleValue = childDataType match {
         case n: NumericType =>
           n.numeric.toDouble(value.asInstanceOf[n.InternalType])
         case _: DateType =>
@@ -133,7 +135,7 @@ case class ApproxCountDistinctForIntervals(
 
       val hllppIndex = findHllppIndex(doubleValue)
       val offset = hllppIndex * numWordsPerHllpp
-      hllppArray(hllppIndex).update(LongArrayInternalRow(buffer), offset, value, child.dataType)
+      hllppArray(hllppIndex).update(LongArrayInternalRow(buffer), offset, value, childDataType)
     }
     buffer
   }

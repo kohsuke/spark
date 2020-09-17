@@ -217,6 +217,8 @@ case class Nvl2(expr1: Expression, expr2: Expression, expr3: Expression, child: 
 case class IsNaN(child: Expression) extends UnaryExpression
   with Predicate with ImplicitCastInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   override def inputTypes: Seq[AbstractDataType] = Seq(TypeCollection(DoubleType, FloatType))
 
   override def nullable: Boolean = false
@@ -226,7 +228,7 @@ case class IsNaN(child: Expression) extends UnaryExpression
     if (value == null) {
       false
     } else {
-      child.dataType match {
+      childDataType match {
         case DoubleType => value.asInstanceOf[Double].isNaN
         case FloatType => value.asInstanceOf[Float].isNaN
       }
@@ -235,7 +237,7 @@ case class IsNaN(child: Expression) extends UnaryExpression
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val eval = child.genCode(ctx)
-    child.dataType match {
+    childDataType match {
       case DoubleType | FloatType =>
         ev.copy(code = code"""
           ${eval.code}

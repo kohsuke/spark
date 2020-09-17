@@ -75,6 +75,8 @@ case class ApproximatePercentile(
     override val inputAggBufferOffset: Int)
   extends TypedImperativeAggregate[PercentileDigest] with ImplicitCastInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression, percentageExpression: Expression, accuracyExpression: Expression) = {
     this(child, percentageExpression, accuracyExpression, 0, 0)
   }
@@ -132,7 +134,7 @@ case class ApproximatePercentile(
     // Ignore empty rows, for example: percentile_approx(null)
     if (value != null) {
       // Convert the value to a double value
-      val doubleValue = child.dataType match {
+      val doubleValue = childDataType match {
         case DateType => value.asInstanceOf[Int].toDouble
         case TimestampType => value.asInstanceOf[Long].toDouble
         case n: NumericType => n.numeric.toDouble(value.asInstanceOf[n.InternalType])
@@ -151,7 +153,7 @@ case class ApproximatePercentile(
 
   override def eval(buffer: PercentileDigest): Any = {
     val doubleResult = buffer.getPercentiles(percentages)
-    val result = child.dataType match {
+    val result = childDataType match {
       case DateType => doubleResult.map(_.toInt)
       case TimestampType => doubleResult.map(_.toLong)
       case ByteType => doubleResult.map(_.toByte)
@@ -186,7 +188,7 @@ case class ApproximatePercentile(
 
   // The result type is the same as the input type.
   override def dataType: DataType = {
-    if (returnPercentileArray) ArrayType(child.dataType, false) else child.dataType
+    if (returnPercentileArray) ArrayType(childDataType, false) else childDataType
   }
 
   override def prettyName: String =

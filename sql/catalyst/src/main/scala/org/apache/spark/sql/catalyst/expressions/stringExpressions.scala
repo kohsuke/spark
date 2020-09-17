@@ -1837,16 +1837,19 @@ case class BitLength(child: Expression)
   since = "2.3.0")
 case class OctetLength(child: Expression)
   extends UnaryExpression with ImplicitCastInputTypes with NullIntolerant {
+
+  private lazy val childDataType = child.dataType
+
   override def dataType: DataType = IntegerType
   override def inputTypes: Seq[AbstractDataType] = Seq(TypeCollection(StringType, BinaryType))
 
-  protected override def nullSafeEval(value: Any): Any = child.dataType match {
+  protected override def nullSafeEval(value: Any): Any = childDataType match {
     case StringType => value.asInstanceOf[UTF8String].numBytes
     case BinaryType => value.asInstanceOf[Array[Byte]].length
   }
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
-    child.dataType match {
+    childDataType match {
       case StringType => defineCodeGen(ctx, ev, c => s"($c).numBytes()")
       case BinaryType => defineCodeGen(ctx, ev, c => s"($c).length")
     }

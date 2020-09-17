@@ -129,7 +129,9 @@ object SortOrder {
  */
 case class SortPrefix(child: SortOrder) extends UnaryExpression {
 
-  val nullValue = child.child.dataType match {
+  private val childDataType = child.child.dataType
+
+  val nullValue = childDataType match {
     case BooleanType | DateType | TimestampType | _: IntegralType =>
       if (nullAsSmallest) Long.MinValue else Long.MaxValue
     case dt: DecimalType if dt.precision - dt.scale <= Decimal.MAX_LONG_DIGITS =>
@@ -149,7 +151,7 @@ case class SortPrefix(child: SortOrder) extends UnaryExpression {
       (!child.isAscending && child.nullOrdering == NullsLast)
   }
 
-  private lazy val calcPrefix: Any => Long = child.child.dataType match {
+  private lazy val calcPrefix: Any => Long = childDataType match {
     case BooleanType => (raw) =>
       if (raw.asInstanceOf[Boolean]) 1 else 0
     case DateType | TimestampType | _: IntegralType => (raw) =>
@@ -191,7 +193,7 @@ case class SortPrefix(child: SortOrder) extends UnaryExpression {
     val BinaryPrefixCmp = classOf[BinaryPrefixComparator].getName
     val DoublePrefixCmp = classOf[DoublePrefixComparator].getName
     val StringPrefixCmp = classOf[StringPrefixComparator].getName
-    val prefixCode = child.child.dataType match {
+    val prefixCode = childDataType match {
       case BooleanType =>
         s"$input ? 1L : 0L"
       case _: IntegralType =>

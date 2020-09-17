@@ -24,17 +24,19 @@ abstract class BitAggregate extends DeclarativeAggregate with ExpectsInputTypes 
 
   val child: Expression
 
+  private lazy val childDataType = child.dataType
+
   def bitOperator(left: Expression, right: Expression): BinaryArithmetic
 
   override def children: Seq[Expression] = child :: Nil
 
   override def nullable: Boolean = true
 
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
 
   override def inputTypes: Seq[AbstractDataType] = Seq(IntegralType)
 
-  private lazy val bitAgg = AttributeReference(nodeName, child.dataType)()
+  private lazy val bitAgg = AttributeReference(nodeName, childDataType)()
 
   override lazy val initialValues: Seq[Literal] = Literal.create(null, dataType) :: Nil
 

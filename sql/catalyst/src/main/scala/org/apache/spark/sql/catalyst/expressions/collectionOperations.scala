@@ -93,6 +93,8 @@ trait BinaryArrayExpressionWithImplicitCast extends BinaryExpression
 case class Size(child: Expression, legacySizeOfNull: Boolean)
   extends UnaryExpression with ExpectsInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression) = this(child, SQLConf.get.legacySizeOfNull)
 
   override def dataType: DataType = IntegerType
@@ -103,7 +105,7 @@ case class Size(child: Expression, legacySizeOfNull: Boolean)
     val value = child.eval(input)
     if (value == null) {
       if (legacySizeOfNull) -1 else null
-    } else child.dataType match {
+    } else childDataType match {
       case _: ArrayType => value.asInstanceOf[ArrayData].numElements()
       case _: MapType => value.asInstanceOf[MapData].numElements()
       case other => throw new UnsupportedOperationException(
@@ -652,8 +654,10 @@ case class MapConcat(children: Seq[Expression]) extends ComplexTypeMergingExpres
   since = "2.4.0")
 case class MapFromEntries(child: Expression) extends UnaryExpression with NullIntolerant {
 
+  private lazy val childDataType = child.dataType
+
   @transient
-  private lazy val dataTypeDetails: Option[(MapType, Boolean, Boolean)] = child.dataType match {
+  private lazy val dataTypeDetails: Option[(MapType, Boolean, Boolean)] = childDataType match {
     case ArrayType(
       StructType(Array(
         StructField(_, keyType, keyNullable, _),
@@ -672,7 +676,7 @@ case class MapFromEntries(child: Expression) extends UnaryExpression with NullIn
     case Some((mapType, _, _)) =>
       TypeUtils.checkForMapKeyType(mapType.keyType)
     case None => TypeCheckResult.TypeCheckFailure(s"'${child.sql}' is of " +
-      s"${child.dataType.catalogString} type. $prettyName accepts only arrays of pair structs.")
+      s"${childDataType.catalogString} type. $prettyName accepts only arrays of pair structs.")
   }
 
   private lazy val mapBuilder = new ArrayBasedMapBuilder(dataType.keyType, dataType.valueType)
@@ -2251,21 +2255,23 @@ case class Concat(children: Seq[Expression]) extends ComplexTypeMergingExpressio
   since = "2.4.0")
 case class Flatten(child: Expression) extends UnaryExpression with NullIntolerant {
 
-  private def childDataType: ArrayType = child.dataType.asInstanceOf[ArrayType]
+  private lazy val childDataType = child.dataType
 
-  override def nullable: Boolean = child.nullable || childDataType.containsNull
+  private def arrayDataType: ArrayType = childDataType.asInstanceOf[ArrayType]
 
-  @transient override lazy val dataType: DataType = childDataType.elementType
+  override def nullable: Boolean = child.nullable || arrayDataType.containsNull
+
+  @transient override lazy val dataType: DataType = arrayDataType.elementType
 
   @transient private lazy val elementType: DataType = dataType.asInstanceOf[ArrayType].elementType
 
-  override def checkInputDataTypes(): TypeCheckResult = child.dataType match {
+  override def checkInputDataTypes(): TypeCheckResult = childDataType match {
     case ArrayType(_: ArrayType, _) =>
       TypeCheckResult.TypeCheckSuccess
     case _ =>
       TypeCheckResult.TypeCheckFailure(
         s"The argument should be an array of arrays, " +
-        s"but '${child.sql}' is of ${child.dataType.catalogString} type."
+        s"but '${child.sql}' is of ${childDataType.catalogString} type."
       )
   }
 
@@ -2296,7 +2302,7 @@ case class Flatten(child: Expression) extends UnaryExpression with NullIntoleran
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     nullSafeCodeGen(ctx, ev, c => {
       val code = genCodeForFlatten(ctx, c, ev.value)
-      ctx.nullArrayElementsSaveExec(childDataType.containsNull, ev.isNull, c)(code)
+      ctx.nullArrayElementsSaveExec(arrayDataType.containsNull, ev.isNull, c)(code)
     })
   }
 

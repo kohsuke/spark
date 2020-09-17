@@ -39,6 +39,8 @@ import org.apache.spark.sql.types._
   since = "1.0.0")
 case class Sum(child: Expression) extends DeclarativeAggregate with ImplicitCastInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   override def children: Seq[Expression] = child :: Nil
 
   override def nullable: Boolean = true
@@ -49,9 +51,9 @@ case class Sum(child: Expression) extends DeclarativeAggregate with ImplicitCast
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
 
   override def checkInputDataTypes(): TypeCheckResult =
-    TypeUtils.checkForNumericExpr(child.dataType, "function sum")
+    TypeUtils.checkForNumericExpr(childDataType, "function sum")
 
-  private lazy val resultType = child.dataType match {
+  private lazy val resultType = childDataType match {
     case DecimalType.Fixed(precision, scale) =>
       DecimalType.bounded(precision + 10, scale)
     case _: IntegralType => LongType

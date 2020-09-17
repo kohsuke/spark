@@ -34,22 +34,24 @@ import org.apache.spark.sql.types._
   since = "1.0.0")
 case class Max(child: Expression) extends DeclarativeAggregate {
 
+  private lazy val childDataType = child.dataType
+
   override def children: Seq[Expression] = child :: Nil
 
   override def nullable: Boolean = true
 
   // Return data type.
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
 
   override def checkInputDataTypes(): TypeCheckResult =
-    TypeUtils.checkForOrderingExpr(child.dataType, "function max")
+    TypeUtils.checkForOrderingExpr(childDataType, "function max")
 
-  private lazy val max = AttributeReference("max", child.dataType)()
+  private lazy val max = AttributeReference("max", childDataType)()
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = max :: Nil
 
   override lazy val initialValues: Seq[Literal] = Seq(
-    /* max = */ Literal.create(null, child.dataType)
+    /* max = */ Literal.create(null, childDataType)
   )
 
   override lazy val updateExpressions: Seq[Expression] = Seq(

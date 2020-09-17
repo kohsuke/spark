@@ -52,6 +52,8 @@ import org.apache.spark.sql.types._
 case class Last(child: Expression, ignoreNulls: Boolean)
   extends DeclarativeAggregate with ExpectsInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression) = this(child, false)
 
   def this(child: Expression, ignoreNullsExpr: Expression) = {
@@ -66,7 +68,7 @@ case class Last(child: Expression, ignoreNulls: Boolean)
   override lazy val deterministic: Boolean = false
 
   // Return data type.
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
 
   // Expected input data type.
   override def inputTypes: Seq[AbstractDataType] = Seq(AnyDataType, BooleanType)
@@ -80,14 +82,14 @@ case class Last(child: Expression, ignoreNulls: Boolean)
     }
   }
 
-  private lazy val last = AttributeReference("last", child.dataType)()
+  private lazy val last = AttributeReference("last", childDataType)()
 
   private lazy val valueSet = AttributeReference("valueSet", BooleanType)()
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = last :: valueSet :: Nil
 
   override lazy val initialValues: Seq[Literal] = Seq(
-    /* last = */ Literal.create(null, child.dataType),
+    /* last = */ Literal.create(null, childDataType),
     /* valueSet = */ Literal.create(false, BooleanType)
   )
 

@@ -146,14 +146,16 @@ case class CollectSet(
     mutableAggBufferOffset: Int = 0,
     inputAggBufferOffset: Int = 0) extends Collect[mutable.HashSet[Any]] {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression) = this(child, 0, 0)
 
-  override lazy val bufferElementType = child.dataType match {
+  override lazy val bufferElementType = childDataType match {
     case BinaryType => ArrayType(ByteType)
     case other => other
   }
 
-  override def convertToBufferElement(value: Any): Any = child.dataType match {
+  override def convertToBufferElement(value: Any): Any = childDataType match {
     /*
      * collect_set() of BinaryType should not return duplicate elements,
      * Java byte arrays use referential equality and identity hash codes
@@ -164,7 +166,7 @@ case class CollectSet(
   }
 
   override def eval(buffer: mutable.HashSet[Any]): Any = {
-    val array = child.dataType match {
+    val array = childDataType match {
       case BinaryType =>
         buffer.iterator.map(_.asInstanceOf[ArrayData].toByteArray).toArray
       case _ => buffer.toArray
@@ -173,7 +175,7 @@ case class CollectSet(
   }
 
   override def checkInputDataTypes(): TypeCheckResult = {
-    if (!child.dataType.existsRecursively(_.isInstanceOf[MapType])) {
+    if (!childDataType.existsRecursively(_.isInstanceOf[MapType])) {
       TypeCheckResult.TypeCheckSuccess
     } else {
       TypeCheckResult.TypeCheckFailure("collect_set() cannot have map type data")

@@ -62,6 +62,8 @@ case class HyperLogLogPlusPlus(
     inputAggBufferOffset: Int = 0)
   extends ImperativeAggregate {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression) = {
     this(child = child, relativeSD = 0.05, mutableAggBufferOffset = 0, inputAggBufferOffset = 0)
   }
@@ -119,7 +121,7 @@ case class HyperLogLogPlusPlus(
   override def update(buffer: InternalRow, input: InternalRow): Unit = {
     val v = child.eval(input)
     if (v != null) {
-      hllppHelper.update(buffer, mutableAggBufferOffset, v, child.dataType)
+      hllppHelper.update(buffer, mutableAggBufferOffset, v, childDataType)
     }
   }
 

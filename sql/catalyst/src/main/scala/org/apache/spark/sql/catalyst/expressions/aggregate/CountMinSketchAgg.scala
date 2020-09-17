@@ -55,6 +55,8 @@ case class CountMinSketchAgg(
     override val inputAggBufferOffset: Int)
   extends TypedImperativeAggregate[CountMinSketch] with ExpectsInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   def this(
       child: Expression,
       epsExpression: Expression,
@@ -96,7 +98,7 @@ case class CountMinSketchAgg(
     val value = child.eval(input)
     // Ignore empty rows
     if (value != null) {
-      child.dataType match {
+      childDataType match {
         // For string type, we can get bytes of our `UTF8String` directly, and call the `addBinary`
         // instead of `addString` to avoid unnecessary conversion.
         case StringType => buffer.addBinary(value.asInstanceOf[UTF8String].getBytes)

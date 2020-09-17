@@ -272,19 +272,22 @@ case class GeneratorOuter(child: Generator) extends UnaryExpression with Generat
  * A base class for [[Explode]] and [[PosExplode]].
  */
 abstract class ExplodeBase extends UnaryExpression with CollectionGenerator with Serializable {
+
+  private lazy val childDataType = child.dataType
+
   override val inline: Boolean = false
 
-  override def checkInputDataTypes(): TypeCheckResult = child.dataType match {
+  override def checkInputDataTypes(): TypeCheckResult = childDataType match {
     case _: ArrayType | _: MapType =>
       TypeCheckResult.TypeCheckSuccess
     case _ =>
       TypeCheckResult.TypeCheckFailure(
         "input to function explode should be array or map type, " +
-          s"not ${child.dataType.catalogString}")
+          s"not ${childDataType.catalogString}")
   }
 
   // hive-compatible default alias for explode function ("col" for array, "key", "value" for map)
-  override def elementSchema: StructType = child.dataType match {
+  override def elementSchema: StructType = childDataType match {
     case ArrayType(et, containsNull) =>
       if (position) {
         new StructType()
@@ -308,7 +311,7 @@ abstract class ExplodeBase extends UnaryExpression with CollectionGenerator with
   }
 
   override def eval(input: InternalRow): TraversableOnce[InternalRow] = {
-    child.dataType match {
+    childDataType match {
       case ArrayType(et, _) =>
         val inputArray = child.eval(input).asInstanceOf[ArrayData]
         if (inputArray == null) {
@@ -336,7 +339,7 @@ abstract class ExplodeBase extends UnaryExpression with CollectionGenerator with
     }
   }
 
-  override def collectionType: DataType = child.dataType
+  override def collectionType: DataType = childDataType
 
   override protected def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     child.genCode(ctx)
@@ -403,23 +406,26 @@ case class PosExplode(child: Expression) extends ExplodeBase {
   """)
 // scalastyle:on line.size.limit line.contains.tab
 case class Inline(child: Expression) extends UnaryExpression with CollectionGenerator {
+
+  private lazy val childDataType = child.dataType
+
   override val inline: Boolean = true
   override val position: Boolean = false
 
-  override def checkInputDataTypes(): TypeCheckResult = child.dataType match {
+  override def checkInputDataTypes(): TypeCheckResult = childDataType match {
     case ArrayType(st: StructType, _) =>
       TypeCheckResult.TypeCheckSuccess
     case _ =>
       TypeCheckResult.TypeCheckFailure(
         s"input to function $prettyName should be array of struct type, " +
-          s"not ${child.dataType.catalogString}")
+          s"not ${childDataType.catalogString}")
   }
 
-  override def elementSchema: StructType = child.dataType match {
+  override def elementSchema: StructType = childDataType match {
     case ArrayType(st: StructType, _) => st
   }
 
-  override def collectionType: DataType = child.dataType
+  override def collectionType: DataType = childDataType
 
   private lazy val numFields = elementSchema.fields.length
 

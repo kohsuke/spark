@@ -36,6 +36,8 @@ import org.apache.spark.sql.types._
   since = "1.0.0")
 case class Average(child: Expression) extends DeclarativeAggregate with ImplicitCastInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   override def prettyName: String = getTagValue(FunctionRegistry.FUNC_ALIAS).getOrElse("avg")
 
   override def children: Seq[Expression] = child :: Nil
@@ -43,7 +45,7 @@ case class Average(child: Expression) extends DeclarativeAggregate with Implicit
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
 
   override def checkInputDataTypes(): TypeCheckResult =
-    TypeUtils.checkForNumericExpr(child.dataType, "function average")
+    TypeUtils.checkForNumericExpr(childDataType, "function average")
 
   override def nullable: Boolean = true
 
@@ -77,7 +79,7 @@ case class Average(child: Expression) extends DeclarativeAggregate with Implicit
   )
 
   // If all input are nulls, count will be 0 and we will get null after the division.
-  override lazy val evaluateExpression = child.dataType match {
+  override lazy val evaluateExpression = childDataType match {
     case _: DecimalType =>
       DecimalPrecision.decimalAndDecimal(sum / count.cast(DecimalType.LongDecimal)).cast(resultType)
     case _ =>

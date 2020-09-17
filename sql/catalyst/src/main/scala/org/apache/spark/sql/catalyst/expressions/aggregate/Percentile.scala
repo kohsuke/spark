@@ -72,6 +72,8 @@ case class Percentile(
     inputAggBufferOffset: Int = 0)
   extends TypedImperativeAggregate[OpenHashMap[AnyRef, Long]] with ImplicitCastInputTypes {
 
+  private lazy val childDataType = child.dataType
+
   def this(child: Expression, percentageExpression: Expression) = {
     this(child, percentageExpression, Literal(1L), 0, 0)
   }
@@ -190,7 +192,7 @@ case class Percentile(
     }
 
     val sortedCounts = buffer.toSeq.sortBy(_._1)(
-      child.dataType.asInstanceOf[NumericType].ordering.asInstanceOf[Ordering[AnyRef]])
+      childDataType.asInstanceOf[NumericType].ordering.asInstanceOf[Ordering[AnyRef]])
     val accumlatedCounts = sortedCounts.scanLeft((sortedCounts.head._1, 0L)) {
       case ((key1, count1), (key2, count2)) => (key2, count1 + count2)
     }.tail
@@ -259,7 +261,7 @@ case class Percentile(
     val bos = new ByteArrayOutputStream()
     val out = new DataOutputStream(bos)
     try {
-      val projection = UnsafeProjection.create(Array[DataType](child.dataType, LongType))
+      val projection = UnsafeProjection.create(Array[DataType](childDataType, LongType))
       // Write pairs in counts map to byte buffer.
       obj.foreach { case (key, count) =>
         val row = InternalRow.apply(key, count)
@@ -290,7 +292,7 @@ case class Percentile(
         val row = new UnsafeRow(2)
         row.pointTo(bs, sizeOfNextRow)
         // Insert the pairs into counts map.
-        val key = row.get(0, child.dataType)
+        val key = row.get(0, childDataType)
         val count = row.get(1, LongType).asInstanceOf[Long]
         counts.update(key, count)
         sizeOfNextRow = ins.readInt()
