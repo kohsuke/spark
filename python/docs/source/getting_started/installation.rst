@@ -65,7 +65,7 @@ Supported versions are as below:
 **without**                            X                                      O
 ====================================== ====================================== ======================================
 
-Note that this installation of PySpark with different versions of Hadoop and Hive is experimental. It can change or be removed betweem minor releases.
+Note that this installation of PySpark with different versions of Hadoop and Hive is experimental. It can change or be removed between minor releases.
 
 Using Conda
 -----------
