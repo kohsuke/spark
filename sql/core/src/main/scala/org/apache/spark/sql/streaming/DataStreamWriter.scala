@@ -309,6 +309,14 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
       val CatalogAndIdentifier(catalog, identifier) = df.sparkSession.sessionState.sqlParser
           .parseMultipartIdentifier(tableName)
+
+      // Currently we don't create a logical streaming writer node in logical plan, so cannot rely
+      // on analyzer to resolve it. Directly lookup only for temp view to provide clearer message.
+      // TODO (SPARK-27484): we should add the writing node before the plan is analyzed.
+      if (isTempView(df.sparkSession, identifier.asMultipartIdentifier)) {
+        throw new AnalysisException(s"Temporary view $tableName doesn't support streaming write")
+      }
+
       val tableInstance = catalog.asTableCatalog.loadTable(identifier)
 
       import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
@@ -398,6 +406,18 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
 
     resultDf.foreach { resDf => resDf.createOrReplaceTempView(query.name) }
     query
+  }
+
+  private def isTempView(sparkSession: SparkSession, multiPartIdentifier: Seq[String]): Boolean = {
+    val globalTempDBName = df.sparkSession.conf.get(
+      org.apache.spark.sql.internal.StaticSQLConf.GLOBAL_TEMP_DATABASE)
+    val identifierForTempView = multiPartIdentifier match {
+      case Seq(dbName, tempViewName) if dbName.equals(globalTempDBName) =>
+        Seq(dbName, tempViewName)
+      case Seq(_, tempViewName) => Seq(tempViewName)
+      case ident => ident
+    }
+    df.sparkSession.sessionState.catalog.isTempView(identifierForTempView)
   }
 
   private def createV1Sink(optionsWithPath: CaseInsensitiveMap[String]): Sink = {

@@ -90,7 +90,7 @@ class DataStreamWriterWithTableSuite extends StreamTest with BeforeAndAfter {
     }
   }
 
-  test("write to file provider based table shouldn't be allowed yet") {
+  test("write to file provider based table isn't allowed yet") {
     val tableIdentifier = "table_name"
 
     spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING parquet")
@@ -99,6 +99,40 @@ class DataStreamWriterWithTableSuite extends StreamTest with BeforeAndAfter {
     withTempDir { checkpointDir =>
       val exc = intercept[AnalysisException] {
         runStreamQueryAppendMode(tableIdentifier, checkpointDir, Seq.empty, Seq.empty)
+      }
+      assert(exc.getMessage.contains("doesn't support streaming write"))
+    }
+  }
+
+  test("write to temporary view isn't allowed yet") {
+    val tableIdentifier = "testcat.table_name"
+    val tempViewIdentifier = "temp_view"
+
+    spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING foo")
+    checkAnswer(spark.table(tableIdentifier), Seq.empty)
+
+    spark.table(tableIdentifier).createOrReplaceTempView(tempViewIdentifier)
+
+    withTempDir { checkpointDir =>
+      val exc = intercept[AnalysisException] {
+        runStreamQueryAppendMode(tempViewIdentifier, checkpointDir, Seq.empty, Seq.empty)
+      }
+      assert(exc.getMessage.contains("doesn't support streaming write"))
+    }
+  }
+
+  test("write to view shouldn't be allowed") {
+    val tableIdentifier = "testcat.table_name"
+    val viewIdentifier = "table_view"
+
+    spark.sql(s"CREATE TABLE $tableIdentifier (id bigint, data string) USING foo")
+    checkAnswer(spark.table(tableIdentifier), Seq.empty)
+
+    spark.sql(s"CREATE VIEW $viewIdentifier AS SELECT id, data FROM $tableIdentifier")
+
+    withTempDir { checkpointDir =>
+      val exc = intercept[AnalysisException] {
+        runStreamQueryAppendMode(viewIdentifier, checkpointDir, Seq.empty, Seq.empty)
       }
       assert(exc.getMessage.contains("doesn't support streaming write"))
     }
