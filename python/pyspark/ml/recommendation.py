@@ -321,7 +321,7 @@ class ALS(JavaEstimator, _ALSParams, JavaMLWritable, JavaMLReadable):
                   intermediateStorageLevel="MEMORY_AND_DISK",
                   finalStorageLevel="MEMORY_AND_DISK", coldStartStrategy="nan", blockSize=4096):
         """
-        setParams(self, \\*, rank=10, maxIter=10, regParam=0.1, numUserBlocks=10,
+        setParams(self, \\*, rank=10, maxIter=10, regParam=0.1, numUserBlocks=10, \
                  numItemBlocks=10, implicitPrefs=False, alpha=1.0, userCol="user", itemCol="item", \
                  seed=None, ratingCol="rating", nonnegative=False, checkpointInterval=10, \
                  intermediateStorageLevel="MEMORY_AND_DISK", \
