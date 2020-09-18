@@ -183,20 +183,23 @@ class InMemoryTable(
       override def overwrite(filters: Array[Filter]): WriteBuilder = {
         assert(writer == Append)
         writer = new Overwrite(filters)
-        // streaming writer doesn't have equivalent semantic
+        streamingWriter = new StreamingNotSupportedOperation(s"overwrite ($filters)")
         this
       }
 
       override def overwriteDynamicPartitions(): WriteBuilder = {
         assert(writer == Append)
         writer = DynamicOverwrite
-        // streaming writer doesn't have equivalent semantic
+        streamingWriter = new StreamingNotSupportedOperation("overwriteDynamicPartitions")
         this
       }
 
       override def buildForBatch(): BatchWrite = writer
 
-      override def buildForStreaming(): StreamingWrite = streamingWriter
+      override def buildForStreaming(): StreamingWrite = streamingWriter match {
+        case exc: StreamingNotSupportedOperation => exc.throwsException()
+        case s => s
+      }
     }
   }
 
@@ -245,6 +248,20 @@ class InMemoryTable(
     }
 
     def abort(epochId: Long, messages: Array[WriterCommitMessage]): Unit = {}
+  }
+
+  private class StreamingNotSupportedOperation(operation: String) extends TestStreamingWrite {
+    override def createStreamingWriterFactory(info: PhysicalWriteInfo): StreamingDataWriterFactory =
+      throwsException()
+
+    override def commit(epochId: Long, messages: Array[WriterCommitMessage]): Unit =
+      throwsException()
+
+    override def abort(epochId: Long, messages: Array[WriterCommitMessage]): Unit =
+      throwsException()
+
+    def throwsException[T](): T = throw new IllegalStateException("The operation " +
+      s"${operation} isn't supported for streaming query.")
   }
 
   private object StreamingAppend extends TestStreamingWrite {
