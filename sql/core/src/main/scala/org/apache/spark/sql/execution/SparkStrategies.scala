@@ -705,7 +705,8 @@ abstract class SparkStrategies extends QueryPlanner[SparkPlan] {
         exchange.ShuffleExchangeExec(
           r.partitioning,
           planLater(r.child),
-          noUserSpecifiedNumPartition = r.optNumPartitions.isEmpty) :: Nil
+          noUserSpecifiedNumPartition = conf.coalesceShufflePartitionsEnabled &&
+            r.optNumPartitions.isEmpty) :: Nil
       case ExternalRDD(outputObjAttr, rdd) => ExternalRDDScanExec(outputObjAttr, rdd) :: Nil
       case r: LogicalRDD =>
         RDDScanExec(r.output, r.rdd, "ExistingRDD", r.outputPartitioning, r.outputOrdering) :: Nil
