@@ -302,7 +302,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
     }
 
     if (source == SOURCE_NAME_TABLE) {
-      assertNotPartitioned("table")
+      assertNotPartitioned(SOURCE_NAME_TABLE)
 
       import df.sparkSession.sessionState.analyzer.CatalogAndIdentifier
 
@@ -314,13 +314,13 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Implicits._
       val sink = tableInstance match {
         case t: SupportsWrite if t.supports(STREAMING_WRITE) => t
-        case t => throw new AnalysisException("Table doesn't support streaming " +
+        case t => throw new AnalysisException(s"Table $tableName doesn't support streaming " +
           s"write - $t")
       }
 
       startQuery(sink, extraOptions)
-    } else if (source == "memory") {
-      assertNotPartitioned("memory")
+    } else if (source == SOURCE_NAME_MEMORY) {
+      assertNotPartitioned(SOURCE_NAME_MEMORY)
       if (extraOptions.get("queryName").isEmpty) {
         throw new AnalysisException("queryName must be specified for memory sink")
       }
@@ -328,14 +328,15 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       val resultDf = Dataset.ofRows(df.sparkSession, new MemoryPlan(sink, df.schema.toAttributes))
       val recoverFromChkpoint = outputMode == OutputMode.Complete()
       startQuery(sink, extraOptions, Some(resultDf), recoverFromCheckpoint = recoverFromChkpoint)
-    } else if (source == "foreach") {
-      assertNotPartitioned("foreach")
+    } else if (source == SOURCE_NAME_FOREACH) {
+      assertNotPartitioned(SOURCE_NAME_FOREACH)
       val sink = ForeachWriterTable[T](foreachWriter, ds.exprEnc)
       startQuery(sink, extraOptions)
-    } else if (source == "foreachBatch") {
-      assertNotPartitioned("foreachBatch")
+    } else if (source == SOURCE_NAME_FOREACH_BATCH) {
+      assertNotPartitioned(SOURCE_NAME_FOREACH_BATCH)
       if (trigger.isInstanceOf[ContinuousTrigger]) {
-        throw new AnalysisException("'foreachBatch' is not supported with continuous trigger")
+        throw new AnalysisException(s"'$SOURCE_NAME_FOREACH_BATCH' is not supported with " +
+          "continuous trigger")
       }
       val sink = new ForeachBatchSink[T](foreachBatchWriter, ds.exprEnc)
       startQuery(sink, extraOptions)
