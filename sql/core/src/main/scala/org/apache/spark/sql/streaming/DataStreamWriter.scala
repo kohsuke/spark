@@ -307,13 +307,14 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       import df.sparkSession.sessionState.analyzer.CatalogAndIdentifier
 
       import org.apache.spark.sql.connector.catalog.CatalogV2Implicits._
-      val CatalogAndIdentifier(catalog, identifier) = df.sparkSession.sessionState.sqlParser
-          .parseMultipartIdentifier(tableName)
+      val originalMultipartIdentifier = df.sparkSession.sessionState.sqlParser
+        .parseMultipartIdentifier(tableName)
+      val CatalogAndIdentifier(catalog, identifier) = originalMultipartIdentifier
 
       // Currently we don't create a logical streaming writer node in logical plan, so cannot rely
       // on analyzer to resolve it. Directly lookup only for temp view to provide clearer message.
       // TODO (SPARK-27484): we should add the writing node before the plan is analyzed.
-      if (isTempView(df.sparkSession, identifier.asMultipartIdentifier)) {
+      if (isTempView(df.sparkSession, originalMultipartIdentifier)) {
         throw new AnalysisException(s"Temporary view $tableName doesn't support streaming write")
       }
 
