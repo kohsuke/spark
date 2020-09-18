@@ -217,8 +217,6 @@ case class Nvl2(expr1: Expression, expr2: Expression, expr3: Expression, child: 
 case class IsNaN(child: Expression) extends UnaryExpression
   with Predicate with ImplicitCastInputTypes {
 
-  private lazy val childDataType = child.dataType
-
   override def inputTypes: Seq[AbstractDataType] = Seq(TypeCollection(DoubleType, FloatType))
 
   override def nullable: Boolean = false

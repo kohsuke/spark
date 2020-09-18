@@ -236,8 +236,6 @@ case class Cbrt(child: Expression) extends UnaryMathExpression(math.cbrt, "CBRT"
   since = "1.4.0")
 case class Ceil(child: Expression) extends UnaryMathExpression(math.ceil, "CEIL") {
 
-  private lazy val childDataType = child.dataType
-
   override def dataType: DataType = child.dataType match {
     case dt @ DecimalType.Fixed(_, 0) => dt
     case DecimalType.Fixed(precision, scale) =>
@@ -403,8 +401,6 @@ case class Expm1(child: Expression) extends UnaryMathExpression(StrictMath.expm1
   """,
   since = "1.4.0")
 case class Floor(child: Expression) extends UnaryMathExpression(math.floor, "FLOOR") {
-
-  private lazy val childDataType = child.dataType
 
   override def dataType: DataType = childDataType match {
     case dt @ DecimalType.Fixed(_, 0) => dt
@@ -873,8 +869,6 @@ object Hex {
   since = "1.5.0")
 case class Hex(child: Expression)
   extends UnaryExpression with ImplicitCastInputTypes with NullIntolerant {
-
-  private lazy val childDataType = child.dataType
 
   override def inputTypes: Seq[AbstractDataType] =
     Seq(TypeCollection(LongType, BinaryType, StringType))

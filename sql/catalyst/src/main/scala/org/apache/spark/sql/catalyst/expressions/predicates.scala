@@ -485,8 +485,6 @@ case class InSet(child: Expression, hset: Set[Any]) extends UnaryExpression with
 
   override def nullable: Boolean = child.nullable || hasNull
 
-  private lazy val childDataType = child.dataType
-
   protected override def nullSafeEval(value: Any): Any = {
     if (set.contains(value)) {
       true

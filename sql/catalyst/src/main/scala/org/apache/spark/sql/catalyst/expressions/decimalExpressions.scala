@@ -101,7 +101,7 @@ object MakeDecimal {
  * promote multiple times.
  */
 case class PromotePrecision(child: Expression) extends UnaryExpression {
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
   override def eval(input: InternalRow): Any = child.eval(input)
   /** Just a simple pass-through for code generation. */
   override def genCode(ctx: CodegenContext): ExprCode = child.genCode(ctx)

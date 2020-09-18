@@ -129,7 +129,7 @@ object SortOrder {
  */
 case class SortPrefix(child: SortOrder) extends UnaryExpression {
 
-  private val childDataType = child.child.dataType
+  protected override lazy val childDataType = child.child.dataType
 
   val nullValue = childDataType match {
     case BooleanType | DateType | TimestampType | _: IntegralType =>

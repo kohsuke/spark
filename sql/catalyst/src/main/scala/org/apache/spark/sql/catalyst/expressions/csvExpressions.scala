@@ -230,7 +230,7 @@ case class StructsToCsv(
   lazy val writer = new CharArrayWriter()
 
   @transient
-  lazy val inputSchema: StructType = child.dataType match {
+  lazy val inputSchema: StructType = childDataType match {
     case st: StructType => st
     case other =>
       throw new IllegalArgumentException(s"Unsupported input type ${other.catalogString}")

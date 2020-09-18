@@ -36,10 +36,10 @@ private[avro] case class CatalystDataToAvro(
   @transient private lazy val avroType =
     jsonFormatSchema
       .map(new Schema.Parser().parse)
-      .getOrElse(SchemaConverters.toAvroType(child.dataType, child.nullable))
+      .getOrElse(SchemaConverters.toAvroType(childDataType, child.nullable))
 
   @transient private lazy val serializer =
-    new AvroSerializer(child.dataType, avroType, child.nullable)
+    new AvroSerializer(childDataType, avroType, child.nullable)
 
   @transient private lazy val writer =
     new GenericDatumWriter[Any](avroType)

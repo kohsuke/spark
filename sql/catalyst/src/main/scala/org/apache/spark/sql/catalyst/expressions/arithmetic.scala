@@ -127,7 +127,7 @@ case class Abs(child: Expression)
 
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
 
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
 
   private lazy val numeric = TypeUtils.getNumeric(dataType)
 

@@ -456,6 +456,8 @@ abstract class LeafExpression extends Expression {
  */
 abstract class UnaryExpression extends Expression {
 
+  protected lazy val childDataType: DataType = child.dataType
+
   def child: Expression
 
   override final def children: Seq[Expression] = child :: Nil

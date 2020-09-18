@@ -1838,8 +1838,6 @@ case class BitLength(child: Expression)
 case class OctetLength(child: Expression)
   extends UnaryExpression with ImplicitCastInputTypes with NullIntolerant {
 
-  private lazy val childDataType = child.dataType
-
   override def dataType: DataType = IntegerType
   override def inputTypes: Seq[AbstractDataType] = Seq(TypeCollection(StringType, BinaryType))
 

@@ -162,7 +162,7 @@ case class Alias(child: Expression, name: String)(
     throw new IllegalStateException("Alias.doGenCode should not be called.")
   }
 
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
   override def nullable: Boolean = child.nullable
   override def metadata: Metadata = {
     explicitMetadata.getOrElse {

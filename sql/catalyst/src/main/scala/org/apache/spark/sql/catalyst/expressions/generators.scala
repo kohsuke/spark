@@ -273,8 +273,6 @@ case class GeneratorOuter(child: Generator) extends UnaryExpression with Generat
  */
 abstract class ExplodeBase extends UnaryExpression with CollectionGenerator with Serializable {
 
-  private lazy val childDataType = child.dataType
-
   override val inline: Boolean = false
 
   override def checkInputDataTypes(): TypeCheckResult = childDataType match {
@@ -406,8 +404,6 @@ case class PosExplode(child: Expression) extends ExplodeBase {
   """)
 // scalastyle:on line.size.limit line.contains.tab
 case class Inline(child: Expression) extends UnaryExpression with CollectionGenerator {
-
-  private lazy val childDataType = child.dataType
 
   override val inline: Boolean = true
   override val position: Boolean = false

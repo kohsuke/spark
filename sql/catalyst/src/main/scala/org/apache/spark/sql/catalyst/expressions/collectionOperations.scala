@@ -93,8 +93,6 @@ trait BinaryArrayExpressionWithImplicitCast extends BinaryExpression
 case class Size(child: Expression, legacySizeOfNull: Boolean)
   extends UnaryExpression with ExpectsInputTypes {
 
-  private lazy val childDataType = child.dataType
-
   def this(child: Expression) = this(child, SQLConf.get.legacySizeOfNull)
 
   override def dataType: DataType = IntegerType
@@ -368,13 +366,13 @@ case class MapEntries(child: Expression)
 
   override def inputTypes: Seq[AbstractDataType] = Seq(MapType)
 
-  @transient private lazy val childDataType: MapType = child.dataType.asInstanceOf[MapType]
+  @transient private lazy val mapType: MapType = childDataType.asInstanceOf[MapType]
 
   override def dataType: DataType = {
     ArrayType(
       StructType(
-        StructField("key", childDataType.keyType, false) ::
-        StructField("value", childDataType.valueType, childDataType.valueContainsNull) ::
+        StructField("key", mapType.keyType, false) ::
+        StructField("value", mapType.valueType, mapType.valueContainsNull) ::
         Nil),
       false)
   }
@@ -387,8 +385,8 @@ case class MapEntries(child: Expression)
     val resultData = new Array[AnyRef](length)
     var i = 0
     while (i < length) {
-      val key = keys.get(i, childDataType.keyType)
-      val value = values.get(i, childDataType.valueType)
+      val key = keys.get(i, mapType.keyType)
+      val value = values.get(i, mapType.valueType)
       val row = new GenericInternalRow(Array[Any](key, value))
       resultData.update(i, row)
       i += 1
@@ -402,8 +400,8 @@ case class MapEntries(child: Expression)
       val numElements = ctx.freshName("numElements")
       val keys = ctx.freshName("keys")
       val values = ctx.freshName("values")
-      val isKeyPrimitive = CodeGenerator.isPrimitiveType(childDataType.keyType)
-      val isValuePrimitive = CodeGenerator.isPrimitiveType(childDataType.valueType)
+      val isKeyPrimitive = CodeGenerator.isPrimitiveType(mapType.keyType)
+      val isValuePrimitive = CodeGenerator.isPrimitiveType(mapType.valueType)
 
       val wordSize = UnsafeRow.WORD_SIZE
       val structSize = UnsafeRow.calculateBitSetWidthInBytes(2) + wordSize * 2
@@ -444,10 +442,10 @@ case class MapEntries(child: Expression)
   }
 
   private def getKey(varName: String, index: String) =
-    CodeGenerator.getValue(varName, childDataType.keyType, index)
+    CodeGenerator.getValue(varName, mapType.keyType, index)
 
   private def getValue(varName: String, index: String) =
-    CodeGenerator.getValue(varName, childDataType.valueType, index)
+    CodeGenerator.getValue(varName, mapType.valueType, index)
 
   private def genCodeForPrimitiveElements(
       ctx: CodegenContext,
@@ -469,10 +467,10 @@ case class MapEntries(child: Expression)
     val wordSize = UnsafeRow.WORD_SIZE
     val structSizeAsLong = s"${structSize}L"
 
-    val setKey = CodeGenerator.setColumn(unsafeRow, childDataType.keyType, 0, getKey(keys, z))
+    val setKey = CodeGenerator.setColumn(unsafeRow, mapType.keyType, 0, getKey(keys, z))
 
     val valueAssignmentChecked = CodeGenerator.createArrayAssignment(
-      unsafeRow, childDataType.valueType, values, "1", z, childDataType.valueContainsNull)
+      unsafeRow, mapType.valueType, values, "1", z, mapType.valueContainsNull)
 
     s"""
        |UnsafeArrayData $unsafeArrayData = (UnsafeArrayData)$arrayData;
@@ -498,8 +496,8 @@ case class MapEntries(child: Expression)
       resultArrayData: String,
       numElements: String): String = {
     val z = ctx.freshName("z")
-    val isValuePrimitive = CodeGenerator.isPrimitiveType(childDataType.valueType)
-    val getValueWithCheck = if (childDataType.valueContainsNull && isValuePrimitive) {
+    val isValuePrimitive = CodeGenerator.isPrimitiveType(mapType.valueType)
+    val getValueWithCheck = if (mapType.valueContainsNull && isValuePrimitive) {
       s"$values.isNullAt($z) ? null : (Object)${getValue(values, z)}"
     } else {
       getValue(values, z)
@@ -653,8 +651,6 @@ case class MapConcat(children: Seq[Expression]) extends ComplexTypeMergingExpres
   group = "map_funcs",
   since = "2.4.0")
 case class MapFromEntries(child: Expression) extends UnaryExpression with NullIntolerant {
-
-  private lazy val childDataType = child.dataType
 
   @transient
   private lazy val dataTypeDetails: Option[(MapType, Boolean, Boolean)] = childDataType match {
@@ -2254,8 +2250,6 @@ case class Concat(children: Seq[Expression]) extends ComplexTypeMergingExpressio
   group = "array_funcs",
   since = "2.4.0")
 case class Flatten(child: Expression) extends UnaryExpression with NullIntolerant {
-
-  private lazy val childDataType = child.dataType
 
   private def arrayDataType: ArrayType = childDataType.asInstanceOf[ArrayType]
 

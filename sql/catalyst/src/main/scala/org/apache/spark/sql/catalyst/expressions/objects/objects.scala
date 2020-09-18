@@ -1615,7 +1615,7 @@ case class InitializeJavaBean(beanInstance: Expression, setters: Map[String, Exp
 case class AssertNotNull(child: Expression, walkedTypePath: Seq[String] = Nil)
   extends UnaryExpression with NonSQLExpression {
 
-  override def dataType: DataType = child.dataType
+  override def dataType: DataType = childDataType
   override def foldable: Boolean = false
   override def nullable: Boolean = false
 

@@ -423,8 +423,6 @@ abstract class IntegralToTimestampBase extends UnaryExpression
 case class SecondsToTimestamp(child: Expression) extends UnaryExpression
   with ExpectsInputTypes with NullIntolerant {
 
-  private lazy val childDataType = child.dataType
-
   override def inputTypes: Seq[AbstractDataType] = Seq(NumericType)
 
   override def dataType: DataType = TimestampType

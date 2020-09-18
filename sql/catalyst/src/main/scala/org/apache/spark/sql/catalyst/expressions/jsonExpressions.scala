@@ -661,7 +661,7 @@ case class StructsToJson(
     inputSchema, writer, new JSONOptions(options, timeZoneId.get))
 
   @transient
-  lazy val inputSchema = child.dataType
+  lazy val inputSchema = childDataType
 
   // This converts rows to the JSON output according to the given schema.
   @transient
