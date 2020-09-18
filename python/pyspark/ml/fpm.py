@@ -211,7 +211,7 @@ class FPGrowth(JavaEstimator, _FPGrowthParams, JavaMLWritable, JavaMLReadable):
     def __init__(self, *, minSupport=0.3, minConfidence=0.8, itemsCol="items",
                  predictionCol="prediction", numPartitions=None):
         """
-        __init__(self, *, minSupport=0.3, minConfidence=0.8, itemsCol="items", \
+        __init__(self, \\*, minSupport=0.3, minConfidence=0.8, itemsCol="items", \
                  predictionCol="prediction", numPartitions=None)
         """
         super(FPGrowth, self).__init__()
@@ -224,7 +224,7 @@ class FPGrowth(JavaEstimator, _FPGrowthParams, JavaMLWritable, JavaMLReadable):
     def setParams(self, *, minSupport=0.3, minConfidence=0.8, itemsCol="items",
                   predictionCol="prediction", numPartitions=None):
         """
-        setParams(self, *, minSupport=0.3, minConfidence=0.8, itemsCol="items", \
+        setParams(self, \\*, minSupport=0.3, minConfidence=0.8, itemsCol="items", \
                   predictionCol="prediction", numPartitions=None)
         """
         kwargs = self._input_kwargs
@@ -331,7 +331,7 @@ class PrefixSpan(JavaParams):
     def __init__(self, *, minSupport=0.1, maxPatternLength=10, maxLocalProjDBSize=32000000,
                  sequenceCol="sequence"):
         """
-        __init__(self, *, minSupport=0.1, maxPatternLength=10, maxLocalProjDBSize=32000000, \
+        __init__(self, \\*, minSupport=0.1, maxPatternLength=10, maxLocalProjDBSize=32000000, \
                  sequenceCol="sequence")
         """
         super(PrefixSpan, self).__init__()
@@ -346,7 +346,7 @@ class PrefixSpan(JavaParams):
     def setParams(self, *, minSupport=0.1, maxPatternLength=10, maxLocalProjDBSize=32000000,
                   sequenceCol="sequence"):
         """
-        setParams(self, *, minSupport=0.1, maxPatternLength=10, maxLocalProjDBSize=32000000, \
+        setParams(self, \\*, minSupport=0.1, maxPatternLength=10, maxLocalProjDBSize=32000000, \
                   sequenceCol="sequence")
         """
         kwargs = self._input_kwargs

@@ -598,7 +598,7 @@ class LinearSVC(_JavaClassifier, _LinearSVCParams, JavaMLWritable, JavaMLReadabl
                  fitIntercept=True, standardization=True, threshold=0.0, weightCol=None,
                  aggregationDepth=2, blockSize=1):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  maxIter=100, regParam=0.0, tol=1e-6, rawPredictionCol="rawPrediction", \
                  fitIntercept=True, standardization=True, threshold=0.0, weightCol=None, \
                  aggregationDepth=2, blockSize=1):
@@ -616,7 +616,7 @@ class LinearSVC(_JavaClassifier, _LinearSVCParams, JavaMLWritable, JavaMLReadabl
                   fitIntercept=True, standardization=True, threshold=0.0, weightCol=None,
                   aggregationDepth=2, blockSize=1):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   maxIter=100, regParam=0.0, tol=1e-6, rawPredictionCol="rawPrediction", \
                   fitIntercept=True, standardization=True, threshold=0.0, weightCol=None, \
                   aggregationDepth=2, blockSize=1):
@@ -1036,7 +1036,7 @@ class LogisticRegression(_JavaProbabilisticClassifier, _LogisticRegressionParams
                  blockSize=1):
 
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  maxIter=100, regParam=0.0, elasticNetParam=0.0, tol=1e-6, fitIntercept=True, \
                  threshold=0.5, thresholds=None, probabilityCol="probability", \
                  rawPredictionCol="rawPrediction", standardization=True, weightCol=None, \
@@ -1064,7 +1064,7 @@ class LogisticRegression(_JavaProbabilisticClassifier, _LogisticRegressionParams
                   lowerBoundsOnIntercepts=None, upperBoundsOnIntercepts=None,
                   blockSize=1):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   maxIter=100, regParam=0.0, elasticNetParam=0.0, tol=1e-6, fitIntercept=True, \
                   threshold=0.5, thresholds=None, probabilityCol="probability", \
                   rawPredictionCol="rawPrediction", standardization=True, weightCol=None, \
@@ -1411,7 +1411,7 @@ class DecisionTreeClassifier(_JavaProbabilisticClassifier, _DecisionTreeClassifi
                  maxMemoryInMB=256, cacheNodeIds=False, checkpointInterval=10, impurity="gini",
                  seed=None, weightCol=None, leafCol="", minWeightFractionPerNode=0.0):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  probabilityCol="probability", rawPredictionCol="rawPrediction", \
                  maxDepth=5, maxBins=32, minInstancesPerNode=1, minInfoGain=0.0, \
                  maxMemoryInMB=256, cacheNodeIds=False, checkpointInterval=10, impurity="gini", \
@@ -1432,7 +1432,7 @@ class DecisionTreeClassifier(_JavaProbabilisticClassifier, _DecisionTreeClassifi
                   impurity="gini", seed=None, weightCol=None, leafCol="",
                   minWeightFractionPerNode=0.0):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   probabilityCol="probability", rawPredictionCol="rawPrediction", \
                   maxDepth=5, maxBins=32, minInstancesPerNode=1, minInfoGain=0.0, \
                   maxMemoryInMB=256, cacheNodeIds=False, checkpointInterval=10, impurity="gini", \
@@ -1646,7 +1646,7 @@ class RandomForestClassifier(_JavaProbabilisticClassifier, _RandomForestClassifi
                  numTrees=20, featureSubsetStrategy="auto", seed=None, subsamplingRate=1.0,
                  leafCol="", minWeightFractionPerNode=0.0, weightCol=None, bootstrap=True):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  probabilityCol="probability", rawPredictionCol="rawPrediction", \
                  maxDepth=5, maxBins=32, minInstancesPerNode=1, minInfoGain=0.0, \
                  maxMemoryInMB=256, cacheNodeIds=False, checkpointInterval=10, impurity="gini", \
@@ -2025,7 +2025,7 @@ class GBTClassifier(_JavaProbabilisticClassifier, _GBTClassifierParams,
                  featureSubsetStrategy="all", validationTol=0.01, validationIndicatorCol=None,
                  leafCol="", minWeightFractionPerNode=0.0, weightCol=None):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  maxDepth=5, maxBins=32, minInstancesPerNode=1, minInfoGain=0.0, \
                  maxMemoryInMB=256, cacheNodeIds=False, checkpointInterval=10, \
                  lossType="logistic", maxIter=20, stepSize=0.1, seed=None, subsamplingRate=1.0, \
@@ -2049,7 +2049,7 @@ class GBTClassifier(_JavaProbabilisticClassifier, _GBTClassifierParams,
                   validationIndicatorCol=None, leafCol="", minWeightFractionPerNode=0.0,
                   weightCol=None):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   maxDepth=5, maxBins=32, minInstancesPerNode=1, minInfoGain=0.0, \
                   maxMemoryInMB=256, cacheNodeIds=False, checkpointInterval=10, \
                   lossType="logistic", maxIter=20, stepSize=0.1, seed=None, subsamplingRate=1.0, \
@@ -2350,7 +2350,7 @@ class NaiveBayes(_JavaProbabilisticClassifier, _NaiveBayesParams, HasThresholds,
                  probabilityCol="probability", rawPredictionCol="rawPrediction", smoothing=1.0,
                  modelType="multinomial", thresholds=None, weightCol=None):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  probabilityCol="probability", rawPredictionCol="rawPrediction", smoothing=1.0, \
                  modelType="multinomial", thresholds=None, weightCol=None)
         """
@@ -2366,7 +2366,7 @@ class NaiveBayes(_JavaProbabilisticClassifier, _NaiveBayesParams, HasThresholds,
                   probabilityCol="probability", rawPredictionCol="rawPrediction", smoothing=1.0,
                   modelType="multinomial", thresholds=None, weightCol=None):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   probabilityCol="probability", rawPredictionCol="rawPrediction", smoothing=1.0, \
                   modelType="multinomial", thresholds=None, weightCol=None)
         Sets params for Naive Bayes.
@@ -2549,7 +2549,7 @@ class MultilayerPerceptronClassifier(_JavaProbabilisticClassifier, _MultilayerPe
                  solver="l-bfgs", initialWeights=None, probabilityCol="probability",
                  rawPredictionCol="rawPrediction"):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  maxIter=100, tol=1e-6, seed=None, layers=None, blockSize=128, stepSize=0.03, \
                  solver="l-bfgs", initialWeights=None, probabilityCol="probability", \
                  rawPredictionCol="rawPrediction")
@@ -2567,7 +2567,7 @@ class MultilayerPerceptronClassifier(_JavaProbabilisticClassifier, _MultilayerPe
                   solver="l-bfgs", initialWeights=None, probabilityCol="probability",
                   rawPredictionCol="rawPrediction"):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   maxIter=100, tol=1e-6, seed=None, layers=None, blockSize=128, stepSize=0.03, \
                   solver="l-bfgs", initialWeights=None, probabilityCol="probability", \
                   rawPredictionCol="rawPrediction"):
@@ -2764,7 +2764,7 @@ class OneVsRest(Estimator, _OneVsRestParams, HasParallelism, JavaMLReadable, Jav
     def __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction",
                  rawPredictionCol="rawPrediction", classifier=None, weightCol=None, parallelism=1):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  rawPredictionCol="rawPrediction", classifier=None, weightCol=None, parallelism=1):
         """
         super(OneVsRest, self).__init__()
@@ -2777,7 +2777,7 @@ class OneVsRest(Estimator, _OneVsRestParams, HasParallelism, JavaMLReadable, Jav
     def setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction",
                   rawPredictionCol="rawPrediction", classifier=None, weightCol=None, parallelism=1):
         """
-        setParams(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                   rawPredictionCol="rawPrediction", classifier=None, weightCol=None, parallelism=1):
         Sets params for OneVsRest.
         """
@@ -3201,7 +3201,7 @@ class FMClassifier(_JavaProbabilisticClassifier, _FactorizationMachinesParams, J
                  miniBatchFraction=1.0, initStd=0.01, maxIter=100, stepSize=1.0,
                  tol=1e-6, solver="adamW", thresholds=None, seed=None):
         """
-        __init__(self, *, featuresCol="features", labelCol="label", predictionCol="prediction", \
+        __init__(self, \\*, featuresCol="features", labelCol="label", predictionCol="prediction", \
                  probabilityCol="probability", rawPredictionCol="rawPrediction", \
                  factorSize=8, fitIntercept=True, fitLinear=True, regParam=0.0, \
                  miniBatchFraction=1.0, initStd=0.01, maxIter=100, stepSize=1.0, \
@@ -3221,7 +3221,7 @@ class FMClassifier(_JavaProbabilisticClassifier, _FactorizationMachinesParams, J
                   miniBatchFraction=1.0, initStd=0.01, maxIter=100, stepSize=1.0,
                   tol=1e-6, solver="adamW", thresholds=None, seed=None):
         """
-        setParams(self, *, eaturesCol="features", labelCol="label", predictionCol="prediction", \
+        setParams(self, \\*, eaturesCol="features", labelCol="label", predictionCol="prediction", \
                   probabilityCol="probability", rawPredictionCol="rawPrediction", \
                   factorSize=8, fitIntercept=True, fitLinear=True, regParam=0.0, \
                   miniBatchFraction=1.0, initStd=0.01, maxIter=100, stepSize=1.0, \

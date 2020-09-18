@@ -278,7 +278,7 @@ class CrossValidator(Estimator, _CrossValidatorParams, HasParallelism, HasCollec
     def __init__(self, *, estimator=None, estimatorParamMaps=None, evaluator=None, numFolds=3,
                  seed=None, parallelism=1, collectSubModels=False, foldCol=""):
         """
-        __init__(self, *, estimator=None, estimatorParamMaps=None, evaluator=None, numFolds=3,\
+        __init__(self, \\*, estimator=None, estimatorParamMaps=None, evaluator=None, numFolds=3,\
                  seed=None, parallelism=1, collectSubModels=False, foldCol="")
         """
         super(CrossValidator, self).__init__()
@@ -291,7 +291,7 @@ class CrossValidator(Estimator, _CrossValidatorParams, HasParallelism, HasCollec
     def setParams(self, *, estimator=None, estimatorParamMaps=None, evaluator=None, numFolds=3,
                   seed=None, parallelism=1, collectSubModels=False, foldCol=""):
         """
-        setParams(self, *, estimator=None, estimatorParamMaps=None, evaluator=None, numFolds=3,\
+        setParams(self, \\*, estimator=None, estimatorParamMaps=None, evaluator=None, numFolds=3,\
                   seed=None, parallelism=1, collectSubModels=False, foldCol=""):
         Sets params for cross validator.
         """
@@ -686,11 +686,11 @@ class TrainValidationSplit(Estimator, _TrainValidationSplitParams, HasParallelis
     """
 
     @keyword_only
-    def __init__(self, *, estimator=None, estimatorParamMaps=None, evaluator=None, trainRatio=0.75,
-                 parallelism=1, collectSubModels=False, seed=None):
+    def __init__(self, *, estimator=None, estimatorParamMaps=None, evaluator=None,
+                 trainRatio=0.75, parallelism=1, collectSubModels=False, seed=None):
         """
-        __init__(self, *, estimator=None, estimatorParamMaps=None, evaluator=None, trainRatio=0.75,\
-                 parallelism=1, collectSubModels=False, seed=None)
+        __init__(self, \\*, estimator=None, estimatorParamMaps=None, evaluator=None, \
+                 trainRatio=0.75, parallelism=1, collectSubModels=False, seed=None)
         """
         super(TrainValidationSplit, self).__init__()
         self._setDefault(parallelism=1)
@@ -702,7 +702,7 @@ class TrainValidationSplit(Estimator, _TrainValidationSplitParams, HasParallelis
     def setParams(self, *, estimator=None, estimatorParamMaps=None, evaluator=None,
                   trainRatio=0.75, parallelism=1, collectSubModels=False, seed=None):
         """
-        setParams(self, *, estimator=None, estimatorParamMaps=None, evaluator=None,\
+        setParams(self, \\*, estimator=None, estimatorParamMaps=None, evaluator=None, \
                   trainRatio=0.75, parallelism=1, collectSubModels=False, seed=None):
         Sets params for the train validation split.
         """
