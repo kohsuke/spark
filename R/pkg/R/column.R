@@ -356,3 +356,24 @@ setMethod("%<=>%",
 #' }
 #' @note ! since 2.3.0
 setMethod("!", signature(x = "Column"), function(x) not(x))
+
+#' withField
+#'
+#' Adds/replaces field in a struct `Column` by name.
+#'
+#' @param x a Column
+#' @param fieldName a character
+#' @param col a Column expression
+#' @rdname withField
+#' @name withField
+#' @aliases withField,Column-method
+#' @examples
+#' \dontrun{
+#' }
+#' @note withField since 3.1.0
+setMethod("withField",
+          signature(x = "Column", fieldName = "character", col = "Column"),
+          function(x, fieldName, col) {
+            jc <- callJMethod(x@jc, "withField", fieldName, col@jc)
+            column(jc)
+          })
