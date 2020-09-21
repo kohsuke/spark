@@ -314,7 +314,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       // Currently we don't create a logical streaming writer node in logical plan, so cannot rely
       // on analyzer to resolve it. Directly lookup only for temp view to provide clearer message.
       // TODO (SPARK-27484): we should add the writing node before the plan is analyzed.
-      if (isTempView(df.sparkSession, originalMultipartIdentifier)) {
+      if (df.sparkSession.sessionState.catalog.isTempView(originalMultipartIdentifier)) {
         throw new AnalysisException(s"Temporary view $tableName doesn't support streaming write")
       }
 
@@ -336,7 +336,9 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       val sink = new MemorySink()
       val resultDf = Dataset.ofRows(df.sparkSession, new MemoryPlan(sink, df.schema.toAttributes))
       val recoverFromChkpoint = outputMode == OutputMode.Complete()
-      startQuery(sink, extraOptions, Some(resultDf), recoverFromCheckpoint = recoverFromChkpoint)
+      val query = startQuery(sink, extraOptions, recoverFromCheckpoint = recoverFromChkpoint)
+      resultDf.createOrReplaceTempView(query.name)
+      query
     } else if (source == SOURCE_NAME_FOREACH) {
       assertNotPartitioned(SOURCE_NAME_FOREACH)
       val sink = ForeachWriterTable[T](foreachWriter, ds.exprEnc)
@@ -344,8 +346,7 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
     } else if (source == SOURCE_NAME_FOREACH_BATCH) {
       assertNotPartitioned(SOURCE_NAME_FOREACH_BATCH)
       if (trigger.isInstanceOf[ContinuousTrigger]) {
-        throw new AnalysisException(s"'$SOURCE_NAME_FOREACH_BATCH' is not supported with " +
-          "continuous trigger")
+        throw new AnalysisException(s"'$source' is not supported with continuous trigger")
       }
       val sink = new ForeachBatchSink[T](foreachBatchWriter, ds.exprEnc)
       startQuery(sink, extraOptions)
@@ -388,13 +389,12 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
   private def startQuery(
       sink: Table,
       newOptions: Map[String, String],
-      resultDf: Option[DataFrame] = None,
       recoverFromCheckpoint: Boolean = true): StreamingQuery = {
     val queryName = extraOptions.get("queryName")
     val checkpointLocation = extraOptions.get("checkpointLocation")
     val useTempCheckpointLocation = SOURCES_ALLOW_ONE_TIME_QUERY.contains(source)
 
-    val query = df.sparkSession.sessionState.streamingQueryManager.startQuery(
+    df.sparkSession.sessionState.streamingQueryManager.startQuery(
       queryName,
       checkpointLocation,
       df,
@@ -404,21 +404,6 @@ final class DataStreamWriter[T] private[sql](ds: Dataset[T]) {
       useTempCheckpointLocation = useTempCheckpointLocation,
       recoverFromCheckpointLocation = recoverFromCheckpoint,
       trigger = trigger)
-
-    resultDf.foreach { resDf => resDf.createOrReplaceTempView(query.name) }
-    query
-  }
-
-  private def isTempView(sparkSession: SparkSession, multiPartIdentifier: Seq[String]): Boolean = {
-    val globalTempDBName = df.sparkSession.conf.get(
-      org.apache.spark.sql.internal.StaticSQLConf.GLOBAL_TEMP_DATABASE)
-    val identifierForTempView = multiPartIdentifier match {
-      case Seq(dbName, tempViewName) if dbName.equals(globalTempDBName) =>
-        Seq(dbName, tempViewName)
-      case Seq(_, tempViewName) => Seq(tempViewName)
-      case ident => ident
-    }
-    df.sparkSession.sessionState.catalog.isTempView(identifierForTempView)
   }
 
   private def createV1Sink(optionsWithPath: CaseInsensitiveMap[String]): Sink = {
