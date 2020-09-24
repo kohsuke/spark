@@ -31,7 +31,7 @@ import org.apache.spark.sql.util.SchemaUtils
  */
 object ResolveUnion extends Rule[LogicalPlan] {
 
-  private[catalyst] def makeUnionOutput(children: Seq[LogicalPlan]): Seq[Attribute] = {
+  def makeUnionOutput(children: Seq[LogicalPlan]): Seq[Attribute] = {
     children.map(_.output).transpose.map { attrs =>
       val firstAttr = attrs.head
       val nullable = attrs.exists(_.nullable)
@@ -85,8 +85,13 @@ object ResolveUnion extends Rule[LogicalPlan] {
     } else {
       left
     }
-    val unionOutput = makeUnionOutput(Seq(leftChild, rightChild))
-    Union(leftChild, rightChild, unionOutput)
+    val newUnion = Union(leftChild, rightChild)
+    if (newUnion.allChildrenCompatible) {
+      val unionOutput = makeUnionOutput(Seq(leftChild, rightChild))
+      newUnion.copy(unionOutput = Some(unionOutput))
+    } else {
+      newUnion
+    }
   }
 
   // Check column name duplication
@@ -117,6 +122,6 @@ object ResolveUnion extends Rule[LogicalPlan] {
 
     case u @ Union(children, _, _, unionOutput)
         if u.allChildrenCompatible && unionOutput.isEmpty =>
-      u.copy(unionOutput = makeUnionOutput(children))
+      u.copy(unionOutput = Some(makeUnionOutput(children)))
   }
 }

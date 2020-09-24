@@ -360,7 +360,7 @@ object TypeCoercion {
           } else {
             val attrMapping = s.children.head.output.zip(newChildren.head.output)
             val newOutput = ResolveUnion.makeUnionOutput(newChildren)
-            s.copy(children = newChildren, unionOutput = newOutput) -> attrMapping
+            s.copy(children = newChildren, unionOutput = Some(newOutput)) -> attrMapping
           }
       }
     }
