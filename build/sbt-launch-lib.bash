@@ -39,7 +39,21 @@ dlog () {
 
 acquire_sbt_jar () {
   SBT_VERSION=`awk -F "=" '/sbt\.version/ {print $2}' ./project/build.properties`
-  URL1=https://dl.bintray.com/typesafe/ivy-releases/org.scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch.jar
+
+  # If internal TYPESAFE_SBT_MIRROR is set in the env variable then use that url instead of bintray.
+  # Ex:
+  #  TYPESAFE_SBT_MIRROR=https://artifacts.internal.com/typesafe-ivy-releases-cache
+  #
+  # Similarly, TYPESAVE_MIRROR and DEFAULT_ARTIFACT_REPOSITORY env variables can be used to only fetch
+  # artifacts from internal repos only.
+  # Ex:
+  #   TYPESAFE_MIRROR=https://artifacts.internal.com/lightbend-dist
+  #   DEFAULT_ARTIFACT_REPOSITORY=https://artifacts.internal.com/libs-release/
+
+  if [[ ! -z "${TYPESAFE_SBT_MIRROR+1}" ]]; then
+    TYPESAFE_IVY_MIRROR=${TYPESAFE_SBT_MIRROR}/org.scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch.jar
+  fi
+  URL1=${TYPESAFE_IVY_MIRROR:-https://dl.bintray.com/typesafe/ivy-releases/org.scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch.jar}
   JAR=build/sbt-launch-${SBT_VERSION}.jar
 
   sbt_jar=$JAR

@@ -1160,13 +1160,15 @@ private[spark] object SparkSubmitUtils {
     val br: IBiblioResolver = new IBiblioResolver
     br.setM2compatible(true)
     br.setUsepoms(true)
+    br.setRoot(sys.env.getOrElse("DEFAULT_ARTIFACT_REPOSITORY", "central"))
     br.setName("central")
     cr.add(br)
 
     val sp: IBiblioResolver = new IBiblioResolver
     sp.setM2compatible(true)
     sp.setUsepoms(true)
-    sp.setRoot("https://dl.bintray.com/spark-packages/maven")
+    sp.setRoot(sys.env.getOrElse(
+      "DEFAULT_ARTIFACT_REPOSITORY", "https://dl.bintray.com/spark-packages/maven"))
     sp.setName("spark-packages")
     cr.add(sp)
     cr
