@@ -61,7 +61,8 @@ private[hive] object IsolatedClientLoader extends Logging {
     val files = if (resolvedVersions.contains((resolvedVersion, hadoopVersion))) {
       resolvedVersions((resolvedVersion, hadoopVersion))
     } else {
-      val remoteRepos = sparkConf.get(SQLConf.ADDITIONAL_REMOTE_REPOSITORIES)
+      val remoteRepos = sys.env.getOrElse(
+        "DEFAULT_ARTIFACT_REPOSITORY", sparkConf.get(SQLConf.ADDITIONAL_REMOTE_REPOSITORIES))
       val (downloadedFiles, actualHadoopVersion) =
         try {
           (downloadVersion(resolvedVersion, hadoopVersion, ivyPath, remoteRepos), hadoopVersion)
