@@ -39,7 +39,17 @@ dlog () {
 
 acquire_sbt_jar () {
   SBT_VERSION=`awk -F "=" '/sbt\.version/ {print $2}' ./project/build.properties`
-  URL1=https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch-${SBT_VERSION}.jar
+  #
+  # TYPESAFE_MIRROR and DEFAULT_ARTIFACT_REPOSITORY env variables can be used to only fetch
+  # artifacts from internal repos only.
+  # Ex:
+  #   TYPESAFE_MIRROR=https://artifacts.internal.com/lightbend-dist
+  #   DEFAULT_ARTIFACT_REPOSITORY=https://artifacts.internal.com/libs-release/
+
+  if [[ ! -z "${DEFAULT_ARTIFACT_REPOSITORY+1}" ]]; then
+    TYPESAFE_IVY_MIRROR=${DEFAULT_ARTIFACT_REPOSITORY}/org/scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch.jar
+  fi
+  URL1=${TYPESAFE_IVY_MIRROR:-https://repo1.maven.org/maven2/org/scala-sbt/sbt-launch/${SBT_VERSION}/sbt-launch-${SBT_VERSION}.jar}
   JAR=build/sbt-launch-${SBT_VERSION}.jar
 
   sbt_jar=$JAR
