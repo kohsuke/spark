@@ -390,7 +390,6 @@ class FunctionsTests(ReusedSQLTestCase):
         with self.assertRaises(ValueError):
             transform(col("foo"), lambda x: 1)
 
-
     def test_window_functions(self):
         df = self.spark.createDataFrame([(1, "1"), (2, "2"), (1, "2"), (1, "2")], ["key", "value"])
         w = Window.partitionBy("value").orderBy("key")
