@@ -27,9 +27,9 @@ import unittest
 from pyspark.sql import Row
 from pyspark.sql.functions import col
 from pyspark.sql.udf import UserDefinedFunction
-from pyspark.sql.types import ByteType, ShortType, IntegerType, FloatType, DateType, \
-    TimestampType, MapType, StringType, StructType, StructField, ArrayType, DoubleType, LongType, \
-    DecimalType, BinaryType, BooleanType, NullType
+from pyspark.sql.types import ByteType, CalendarIntervalType, ShortType, IntegerType, FloatType, \
+    DateType, TimestampType, MapType, StringType, StructType, StructField, ArrayType, DoubleType, \
+    LongType, DecimalType, BinaryType, BooleanType, NullType
 from pyspark.sql.types import (  # type: ignore
     _array_signed_int_typecode_ctype_mappings, _array_type_mappings,
     _array_unsigned_int_typecode_ctype_mappings, _infer_type, _make_type_verifier, _merge_type
@@ -971,6 +971,12 @@ class DataTypeVerificationTests(unittest.TestCase):
 
         self.assertEqual(r, expected)
         self.assertEqual(repr(r), "Row(b=1, a=2)")
+
+    def test_data_frame_with_interval_type(self):
+        self.assertIsInstance(
+            self.spark.sql("SELECT INTERVAL 1 day AS ti").schema["ti"].dataType,
+            CalendarIntervalType
+        )
 
 
 if __name__ == "__main__":
