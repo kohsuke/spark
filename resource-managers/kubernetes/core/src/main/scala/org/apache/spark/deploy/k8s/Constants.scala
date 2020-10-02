@@ -86,6 +86,7 @@ private[spark] object Constants {
   val DEFAULT_EXECUTOR_CONTAINER_NAME = "spark-kubernetes-executor"
   val MEMORY_OVERHEAD_MIN_MIB = 384L
   val NON_JVM_MEMORY_OVERHEAD_FACTOR = 0.4d
+  val KUBERNETES_MAX_NAME_LENGTH = 63
 
   // Hadoop Configuration
   val HADOOP_CONF_VOLUME = "hadoop-properties"
