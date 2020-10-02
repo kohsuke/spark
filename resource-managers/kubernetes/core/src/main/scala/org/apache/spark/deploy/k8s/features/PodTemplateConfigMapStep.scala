@@ -22,14 +22,32 @@ import java.nio.charset.StandardCharsets
 import com.google.common.io.Files
 import io.fabric8.kubernetes.api.model.{ConfigMapBuilder, ContainerBuilder, HasMetadata, PodBuilder}
 
-import org.apache.spark.deploy.k8s.{KubernetesConf, SparkPod}
+import org.apache.spark.deploy.k8s.{KubernetesConf, KubernetesUtils, SparkPod}
 import org.apache.spark.deploy.k8s.Config._
 import org.apache.spark.deploy.k8s.Constants._
+import org.apache.spark.deploy.k8s.features.DriverServiceFeatureStep.MAX_SERVICE_NAME_LENGTH
+import org.apache.spark.deploy.k8s.features.PodTemplateConfigMapStep.PODSPEC_CONFIGMAP_POSTFIX
+import org.apache.spark.internal.Logging
+import org.apache.spark.util.{Clock, SystemClock}
 
-private[spark] class PodTemplateConfigMapStep(conf: KubernetesConf)
-  extends KubernetesFeatureConfigStep {
+private[spark] class PodTemplateConfigMapStep
+(conf: KubernetesConf, clock: Clock = new SystemClock())
+  extends KubernetesFeatureConfigStep with Logging {
 
   private val hasTemplate = conf.contains(KUBERNETES_EXECUTOR_PODTEMPLATE_FILE)
+
+  private val preferredConfigmapName = s"${conf.resourceNamePrefix}$PODSPEC_CONFIGMAP_POSTFIX"
+  private val resolvedConfigmapName = if (preferredConfigmapName.length <= MAX_SERVICE_NAME_LENGTH)
+  {
+    preferredConfigmapName
+  } else {
+    val randomServiceId = KubernetesUtils.uniqueID(clock = clock)
+    val shorterTemplateConfigmapName = s"spark-$randomServiceId$PODSPEC_CONFIGMAP_POSTFIX"
+    logWarning(s"The pod template configmap name preferably be $preferredConfigmapName," +
+      s"but this is too long (must be <= $MAX_SERVICE_NAME_LENGTH characters). Falling back to" +
+      s"use $shorterTemplateConfigmapName as the pod template configmap name.")
+    shorterTemplateConfigmapName
+  }
 
   def configurePod(pod: SparkPod): SparkPod = {
     if (hasTemplate) {
@@ -38,7 +56,7 @@ private[spark] class PodTemplateConfigMapStep(conf: KubernetesConf)
             .addNewVolume()
               .withName(POD_TEMPLATE_VOLUME)
               .withNewConfigMap()
-                .withName(POD_TEMPLATE_CONFIGMAP)
+                .withName(resolvedConfigmapName)
                 .addNewItem()
                   .withKey(POD_TEMPLATE_KEY)
                   .withPath(EXECUTOR_POD_SPEC_TEMPLATE_FILE_NAME)
@@ -76,7 +94,7 @@ private[spark] class PodTemplateConfigMapStep(conf: KubernetesConf)
       val podTemplateString = Files.toString(new File(podTemplateFile), StandardCharsets.UTF_8)
       Seq(new ConfigMapBuilder()
           .withNewMetadata()
-            .withName(POD_TEMPLATE_CONFIGMAP)
+            .withName(resolvedConfigmapName)
           .endMetadata()
           .addToData(POD_TEMPLATE_KEY, podTemplateString)
         .build())
@@ -84,4 +102,8 @@ private[spark] class PodTemplateConfigMapStep(conf: KubernetesConf)
       Nil
     }
   }
+}
+
+private[spark] object PodTemplateConfigMapStep {
+  val PODSPEC_CONFIGMAP_POSTFIX = "-podspec-configmap"
 }

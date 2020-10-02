@@ -27,6 +27,10 @@ import org.apache.spark.util.Utils
 
 class PodTemplateConfigMapStepSuite extends SparkFunSuite {
 
+  private val LONG_RESOURCE_NAME_PREFIX =
+    "a" * (DriverServiceFeatureStep.MAX_SERVICE_NAME_LENGTH -
+      DriverServiceFeatureStep.DRIVER_SVC_POSTFIX.length + 1)
+
   test("Do nothing when executor template is not specified") {
     val conf = KubernetesTestConf.createDriverConf()
     val step = new PodTemplateConfigMapStep(conf)
@@ -56,8 +60,10 @@ class PodTemplateConfigMapStepSuite extends SparkFunSuite {
 
     assert(configuredPod.pod.getSpec.getVolumes.size() === 1)
     val volume = configuredPod.pod.getSpec.getVolumes.get(0)
+    val generatedResourceName = kubernetesConf.resourceNamePrefix +
+      PodTemplateConfigMapStep.PODSPEC_CONFIGMAP_POSTFIX
     assert(volume.getName === Constants.POD_TEMPLATE_VOLUME)
-    assert(volume.getConfigMap.getName === Constants.POD_TEMPLATE_CONFIGMAP)
+    assert(volume.getConfigMap.getName === generatedResourceName)
     assert(volume.getConfigMap.getItems.size() === 1)
     assert(volume.getConfigMap.getItems.get(0).getKey === Constants.POD_TEMPLATE_KEY)
     assert(volume.getConfigMap.getItems.get(0).getPath ===
@@ -70,7 +76,7 @@ class PodTemplateConfigMapStepSuite extends SparkFunSuite {
 
     val resources = step.getAdditionalKubernetesResources()
     assert(resources.size === 1)
-    assert(resources.head.getMetadata.getName === Constants.POD_TEMPLATE_CONFIGMAP)
+    assert(resources.head.getMetadata.getName === generatedResourceName)
     assert(resources.head.isInstanceOf[ConfigMap])
     val configMap = resources.head.asInstanceOf[ConfigMap]
     assert(configMap.getData.size() === 1)
@@ -83,5 +89,31 @@ class PodTemplateConfigMapStepSuite extends SparkFunSuite {
     assert(systemProperties.get(Config.KUBERNETES_EXECUTOR_PODTEMPLATE_FILE.key).get ===
       (Constants.EXECUTOR_POD_SPEC_TEMPLATE_MOUNTPATH + "/" +
         Constants.EXECUTOR_POD_SPEC_TEMPLATE_FILE_NAME))
+  }
+
+  test("Long prefixes should switch to using a generated unique name.") {
+    val templateFile = Files.createTempFile("pod-template", "yml").toFile
+    templateFile.deleteOnExit()
+
+    val sparkConf = new SparkConf(false)
+      .set(Config.KUBERNETES_EXECUTOR_PODTEMPLATE_FILE, templateFile.getAbsolutePath)
+    val kubernetesConf = KubernetesTestConf.createDriverConf(
+      sparkConf = sparkConf,
+      resourceNamePrefix = Some(LONG_RESOURCE_NAME_PREFIX))
+
+    Utils.tryWithResource(new PrintWriter(templateFile)) { writer =>
+      writer.write("pod-template-contents")
+    }
+
+    val step = new PodTemplateConfigMapStep(kubernetesConf)
+    val configuredPod = step.configurePod(SparkPod.initialPod())
+
+    assert(configuredPod.pod.getSpec.getVolumes.size() === 1)
+    val volume = configuredPod.pod.getSpec.getVolumes.get(0)
+    assert(!volume.getConfigMap.getName.startsWith(kubernetesConf.resourceNamePrefix))
+    val resources = step.getAdditionalKubernetesResources()
+    assert(resources.size === 1)
+    assert(!resources.head.getMetadata.getName.startsWith(kubernetesConf.resourceNamePrefix))
+    assert(volume.getConfigMap.getName === resources.head.getMetadata.getName)
   }
 }
