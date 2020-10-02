@@ -87,7 +87,7 @@ public class OperationManager extends AbstractService {
   }
 
   public ExecuteStatementOperation newExecuteStatementOperation(HiveSession parentSession,
-      String statement, Map<String, String> confOverlay, boolean runAsync, long queryTimeout)
+      String statement, Map<String, String> confOverlay, boolean runAsync)
           throws HiveSQLException {
     ExecuteStatementOperation executeStatementOperation = ExecuteStatementOperation
         .newExecuteStatementOperation(parentSession, statement, confOverlay, runAsync);

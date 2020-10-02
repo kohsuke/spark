@@ -33,7 +33,7 @@ public enum OperationState {
   ERROR(TOperationState.ERROR_STATE, true),
   UNKNOWN(TOperationState.UKNOWN_STATE, false),
   PENDING(TOperationState.PENDING_STATE, false),
-  TIMEDOUT(TOperationState.CANCELED_STATE, true); //do not want to change TOperationState in hive 1.2
+  TIMEDOUT(TOperationState.CANCELED_STATE, true); // do not want to change TOperationState in hive 1.2
 
   private final TOperationState tOperationState;
   private final boolean terminal;
