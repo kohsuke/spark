@@ -203,6 +203,7 @@ private[hive] class SparkExecuteStatementOperation(
     setHasResultSet(true) // avoid no resultset for async run
 
     if (queryTimeout > 0) {
+      logInfo(s"Starting a thread to cancel a query with $statementId after $queryTimeout second.")
       Executors.newSingleThreadScheduledExecutor.schedule(new Runnable {
           override def run(): Unit = cancel(OperationState.TIMEDOUT)
         }, queryTimeout, TimeUnit.SECONDS)
