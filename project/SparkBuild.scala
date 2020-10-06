@@ -28,6 +28,7 @@ import scala.collection.mutable.Stack
 import sbt._
 import sbt.Classpaths.publishTask
 import sbt.Keys._
+import sbt.librarymanagement.{ VersionNumber, SemanticSelector }
 import com.etsy.sbt.checkstyle.CheckstylePlugin.autoImport._
 import com.simplytyped.Antlr4Plugin._
 import com.typesafe.sbt.pom.{PomBuild, SbtPomKeys}
@@ -211,7 +212,62 @@ object SparkBuild extends PomBuild {
     }
   )
 
+  // Silencer: Scala compiler plugin for warning suppression
+  // enable fatal warnings, but supress ones related to using of deprecated APIs
+  // depends on scala version:
+  // <2.13 - silencer 1.6.0 and compiler settings to enable fatal warnings
+  // 2.13.0,2.13.1 - silencer 1.7.1 and compiler settings to enable fatal warnings
+  // 2.13.2+ - no silencer and configured warnings to achieve the same
+  lazy val compilerWarningSettings: Seq[sbt.Def.Setting[_]] = Seq(
+    libraryDependencies ++= {
+      if (VersionNumber(scalaVersion.value).matchesSemVer(SemanticSelector("<2.13"))) {
+        val silencerVersion = "1.6.0"
+        Seq(
+          "org.scala-lang.modules" %% "scala-collection-compat" % "2.2.0",
+          compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
+          "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
+        )
+      } else {
+        if (VersionNumber(scalaVersion.value).matchesSemVer(SemanticSelector("2.13.0 - 2.13.1"))) {
+          val silencerVersion = "1.7.1"
+          Seq(
+            "org.scala-lang.modules" %% "scala-collection-compat" % "2.2.0",
+            compilerPlugin("com.github.ghik" % "silencer-plugin" % silencerVersion cross CrossVersion.full),
+            "com.github.ghik" % "silencer-lib" % silencerVersion % Provided cross CrossVersion.full
+          )
+        } else {
+          Seq.empty
+        }
+      }
+    },
+    scalacOptions in Compile ++= {
+      if (VersionNumber(scalaVersion.value).matchesSemVer(SemanticSelector("<2.13"))) {
+        Seq(
+          "-Xfatal-warnings",
+          "-deprecation",
+          "-P:silencer:globalFilters=.*deprecated.*" //regex to catch deprecation warnings and supress them
+        )
+      } else {
+        if (VersionNumber(scalaVersion.value).matchesSemVer(SemanticSelector("2.13.0 - 2.13.1"))) {
+          Seq(
+            "-Xfatal-warnings",
+            "-deprecation",
+            "-P:silencer:globalFilters=.*deprecated.*" //regex to catch deprecation warnings and supress them
+          )
+        } else {
+          Seq(
+            // replace -Xfatal-warnings with fine-grained configuration, since 2.13.2
+            // warning on deprecation, verbose warning on all others
+            // see `scalac -Wconf:help` for details
+            "-Wconf:cat=deprecation:w,any:wv"
+          )
+        }
+      }
+    }
+  )
+
   lazy val sharedSettings = sparkGenjavadocSettings ++
+                            compilerWarningSettings ++
       (if (sys.env.contains("NOLINT_ON_COMPILE")) Nil else enableScalaStyle) ++ Seq(
     exportJars in Compile := true,
     exportJars in Test := false,
@@ -283,44 +339,6 @@ object SparkBuild extends PomBuild {
       if (scalaBinaryVersion.value == "2.12") Seq("-no-java-comments") else Seq.empty
     },
 
-    // Implements -Xfatal-warnings, ignoring deprecation warnings.
-    // Code snippet taken from https://issues.scala-lang.org/browse/SI-8410.
-    compile in Compile := {
-      val analysis = (compile in Compile).value
-      val out = streams.value
-
-      def logProblem(l: (=> String) => Unit, f: File, p: xsbti.Problem) = {
-        val jmap = new java.util.function.Function[Integer, String]() {override def apply(i: Integer): String = {i.toString}}
-        l(f.toString + ":" + p.position.line.map[String](jmap.apply).map(_ + ":").orElse("") + " " + p.message)
-        l(p.position.lineContent)
-        l("")
-      }
-
-      var failed = 0
-      analysis.asInstanceOf[sbt.internal.inc.Analysis].infos.allInfos.foreach { case (k, i) =>
-        i.getReportedProblems foreach { p =>
-          val deprecation = p.message.contains("deprecated")
-
-          if (!deprecation) {
-            failed = failed + 1
-          }
-
-          val printer: (=> String) => Unit = s => if (deprecation) {
-            out.log.warn(s)
-          } else {
-            out.log.error("[warn] " + s)
-          }
-
-          logProblem(printer, k, p)
-
-        }
-      }
-
-      if (failed > 0) {
-        sys.error(s"$failed fatal warnings")
-      }
-      analysis
-    },
     // disable Mima check for all modules,
     // to be enabled in specific ones that have previous artifacts
     MimaKeys.mimaFailOnNoPrevious := false
