@@ -50,6 +50,8 @@ trait V2WriteCommand extends Command {
         }
     }
   }
+
+  def withNewTable(t: NamedRelation): V2WriteCommand
 }
 
 /**
@@ -59,7 +61,9 @@ case class AppendData(
     table: NamedRelation,
     query: LogicalPlan,
     writeOptions: Map[String, String],
-    isByName: Boolean) extends V2WriteCommand
+    isByName: Boolean) extends V2WriteCommand {
+  override def withNewTable(t: NamedRelation): AppendData = copy(table = t)
+}
 
 object AppendData {
   def byName(
@@ -87,6 +91,8 @@ case class OverwriteByExpression(
     writeOptions: Map[String, String],
     isByName: Boolean) extends V2WriteCommand {
   override lazy val resolved: Boolean = outputResolved && deleteExpr.resolved
+
+  override def withNewTable(t: NamedRelation): OverwriteByExpression = copy(table = t)
 }
 
 object OverwriteByExpression {
@@ -114,7 +120,9 @@ case class OverwritePartitionsDynamic(
     table: NamedRelation,
     query: LogicalPlan,
     writeOptions: Map[String, String],
-    isByName: Boolean) extends V2WriteCommand
+    isByName: Boolean) extends V2WriteCommand {
+  override def withNewTable(t: NamedRelation): OverwritePartitionsDynamic = copy(table = t)
+}
 
 object OverwritePartitionsDynamic {
   def byName(
