@@ -55,7 +55,7 @@ case class SortExec(
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
 
-  private val enableRadixSort = sqlContext.conf.enableRadixSort
+  private lazy val enableRadixSort = sqlContext.conf.enableRadixSort
 
   override lazy val metrics = Map(
     "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "sort time"),
