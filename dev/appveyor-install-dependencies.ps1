@@ -46,6 +46,8 @@ Function InstallR {
 
   # Testing R installation
   Rscript -e "sessionInfo()"
+
+ if ( -not (Test-Path -Path 'C:\MinGW\msys\1.0\bin') ) { echo "MinGW\msys doesn't exist" }
 }
 
 Function InstallRtools {
@@ -69,6 +71,8 @@ Function InstallRtools {
   }
   $env:PATH = $RtoolsDrive + '\Rtools40\bin;' + $RtoolsDrive + '\Rtools40\mingw64\bin;' + $RtoolsDrive + '\Rtools40\' + $gccPath + '\bin;' + $env:PATH
   $env:BINPREF=$RtoolsDrive + '/Rtools40/mingw$(WIN)/bin/'
+
+  if ( -not (Test-Path -Path $($RtoolsDrive + '\Rtools40\' + $gccPath + '\bin')) ) { echo "gccPath doesn't exist" }
 }
 
 # create tools directory outside of Spark directory
