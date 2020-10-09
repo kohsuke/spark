@@ -212,7 +212,7 @@ class ExecutorPodsAllocatorSuite extends SparkFunSuite with BeforeAndAfter {
     assert(!podsAllocatorUnderTest.isDeleted("4"))
   }
 
-  test("SPARK-xxx: Respect executor idle timeout configuration") {
+  test("SPARK-33099: Respect executor idle timeout configuration") {
     when(podOperations
       .withField("status.phase", "Pending"))
       .thenReturn(podOperations)
