@@ -285,7 +285,7 @@ private[spark] class ExecutorPodsAllocator(
       val startTime = Instant.parse(state.pod.getStatus.getStartTime).toEpochMilli()
       currentTime - startTime > executorIdleTimeout
     } catch {
-      case _: DateTimeParseException =>
+      case _: Exception =>
         logDebug(s"Cannot get startTime of pod ${state.pod}")
         true
     }
