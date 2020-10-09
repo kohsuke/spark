@@ -18,12 +18,7 @@ under the License.
 $CRAN = "https://cloud.r-project.org"
 
 Function InstallR {
-  if ( -not(Test-Path Env:\R_ARCH) ) {
-    $arch = "i386"
-  }
-  Else {
-    $arch = $env:R_ARCH
-  }
+  $arch = "x64"
 
   $urlPath = ""
   $latestVer = $(ConvertFrom-JSON $(Invoke-WebRequest https://rversions.r-pkg.org/r-release-win).Content).version
