@@ -2775,6 +2775,16 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val LEGACY_CENTRAL_MOMENT_AGG_BEHAVIOR =
+    buildConf("spark.sql.legacy.centralMomentAgg.enabled")
+      .internal()
+      .doc("When set to true, stddev_samp and var_samp will return Double.NaN, " +
+        "if applied to a set with a single element. Otherwise, will return 0.0, " +
+        "which is aligned with TPCDS standard.")
+      .version("3.1.0")
+      .booleanConf
+      .createWithDefault(false)
+
   /**
    * Holds information about keys that have been deprecated.
    *
@@ -3398,6 +3408,8 @@ class SQLConf extends Serializable with Logging {
   def legacyPathOptionBehavior: Boolean = getConf(SQLConf.LEGACY_PATH_OPTION_BEHAVIOR)
 
   def truncateTrashEnabled: Boolean = getConf(SQLConf.TRUNCATE_TRASH_ENABLED)
+
+  def legacyCentralMomentAggBehavior: Boolean = getConf(SQLConf.LEGACY_CENTRAL_MOMENT_AGG_BEHAVIOR)
 
   /** ********************** SQLConf functionality methods ************ */
 
