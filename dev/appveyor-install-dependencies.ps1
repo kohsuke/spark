@@ -64,6 +64,10 @@ Function InstallRtools {
   }
   $env:PATH = $RtoolsDrive + '\Rtools40\bin;' + $RtoolsDrive + '\Rtools40\mingw64\bin;' + $RtoolsDrive + '\Rtools40\' + $gccPath + '\bin;' + $env:PATH
   $env:BINPREF=$RtoolsDrive + '/Rtools40/mingw64/bin/'
+
+ if ( -not(Test-Path $RtoolsDrive + '\Rtools40\' + $gccPath + '\bin') ) {
+  echo "Path doesn't exist"
+ }
 }
 
 # create tools directory outside of Spark directory
