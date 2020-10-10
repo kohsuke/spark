@@ -106,18 +106,7 @@ class InMemoryTable(
           case (micros: Long, TimestampType) =>
             val localDate = DateTimeUtils.microsToInstant(micros).atZone(UTC).toLocalDate
             ChronoUnit.YEARS.between(EPOCH_LOCAL_DATE, localDate)
-          case _ => throw new Exception("""match may not be exhaustive.
-            t would fail on the following inputs:
-            ((_ : Int), TimestampType),
-            ((_ : Int), _),
-            ((_ : Long), DateType),
-            ((_ : Long), _),
-            (??, _),
-            (_, DataType()),
-            (_, DateType),
-            (_, TimestampType),
-            (_, _)
-            """)
+          case _ => throw new IllegalArgumentException("Match: unsupported argument(s) type")
         }
       case MonthsTransform(ref) =>
         extractor(ref.fieldNames, schema, row) match {
@@ -126,18 +115,7 @@ class InMemoryTable(
           case (micros: Long, TimestampType) =>
             val localDate = DateTimeUtils.microsToInstant(micros).atZone(UTC).toLocalDate
             ChronoUnit.MONTHS.between(EPOCH_LOCAL_DATE, localDate)
-          case _ => throw new Exception("""match may not be exhaustive.
-            It would fail on the following inputs:
-            ((_ : Int), TimestampType),
-            ((_ : Int), _),
-            ((_ : Long), DateType),
-            ((_ : Long), _),
-            (??, _),
-            (_, DataType()),
-            (_, DateType),
-            (_, TimestampType),
-            (_, _)"""
-          )
+          case _ => throw new IllegalArgumentException("Match: unsupported argument(s) type")
         }
       case DaysTransform(ref) =>
         extractor(ref.fieldNames, schema, row) match {
@@ -145,15 +123,13 @@ class InMemoryTable(
             days
           case (micros: Long, TimestampType) =>
             ChronoUnit.DAYS.between(Instant.EPOCH, DateTimeUtils.microsToInstant(micros))
-          case _ => throw new Exception("""match may not be exhaustive.
-            It would fail on the following inputs: ((_ : Long), _), (_, TimestampType), (_, _)""")
+          case _ => throw new IllegalArgumentException("Match: unsupported argument(s) type")
         }
       case HoursTransform(ref) =>
         extractor(ref.fieldNames, schema, row) match {
           case (micros: Long, TimestampType) =>
             ChronoUnit.HOURS.between(Instant.EPOCH, DateTimeUtils.microsToInstant(micros))
-          case _ => throw new Exception("""match may not be exhaustive.
-            It would fail on the following inputs: ((_ : Long), _), (_, TimestampType), (_, _)""")
+          case _ => throw new IllegalArgumentException("Match: unsupported argument(s) type")
         }
       case BucketTransform(numBuckets, ref) =>
         (extractor(ref.fieldNames, schema, row).hashCode() & Integer.MAX_VALUE) % numBuckets
