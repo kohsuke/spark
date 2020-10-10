@@ -102,8 +102,9 @@ case class ScalarSubquery(
     Literal.create(result, dataType).doGenCode(ctx, ev)
   }
 
-  override lazy val canonicalized: ScalarSubquery = {
-    copy(plan = plan.canonicalized.asInstanceOf[BaseSubqueryExec], exprId = ExprId(0))
+  override lazy val canonicalized: ScalarSubquery = plan match {
+    case ReusedSubqueryExec(child) => this.copy(plan = child)
+    case _ => this
   }
 }
 

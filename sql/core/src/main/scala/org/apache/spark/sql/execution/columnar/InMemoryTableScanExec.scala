@@ -138,10 +138,12 @@ case class InMemoryTableScanExec(
   lazy val readPartitions = sparkContext.longAccumulator
   lazy val readBatches = sparkContext.longAccumulator
 
+  private val inMemoryPartitionPruningEnabled = sqlContext.conf.inMemoryPartitionPruning
+
   private def filteredCachedBatches(): RDD[CachedBatch] = {
     val buffers = relation.cacheBuilder.cachedColumnBuffers
 
-    if (conf.inMemoryPartitionPruning) {
+    if (inMemoryPartitionPruningEnabled) {
       val filterFunc = relation.cacheBuilder.serializer.buildFilter(predicates, relation.output)
       buffers.mapPartitionsWithIndexInternal(filterFunc)
     } else {

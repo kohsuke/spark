@@ -1372,7 +1372,7 @@ abstract class DynamicPartitionPruningSuiteBase
       SQLConf.DYNAMIC_PARTITION_PRUNING_REUSE_BROADCAST_ONLY.key -> "false",
       SQLConf.EXCHANGE_REUSE_ENABLED.key -> "false") {
       withTable("df1", "df2") {
-        spark.range(1000)
+        spark.range(100)
           .select(col("id"), col("id").as("k"))
           .write
           .partitionBy("k")
@@ -1380,7 +1380,7 @@ abstract class DynamicPartitionPruningSuiteBase
           .mode("overwrite")
           .saveAsTable("df1")
 
-        spark.range(100)
+        spark.range(10)
           .select(col("id"), col("id").as("k"))
           .write
           .partitionBy("k")

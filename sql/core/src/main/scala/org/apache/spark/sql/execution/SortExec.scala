@@ -55,6 +55,8 @@ case class SortExec(
   override def requiredChildDistribution: Seq[Distribution] =
     if (global) OrderedDistribution(sortOrder) :: Nil else UnspecifiedDistribution :: Nil
 
+  private val enableRadixSort = sqlContext.conf.enableRadixSort
+
   override lazy val metrics = Map(
     "sortTime" -> SQLMetrics.createTimingMetric(sparkContext, "sort time"),
     "peakMemory" -> SQLMetrics.createSizeMetric(sparkContext, "peak memory"),
@@ -75,7 +77,7 @@ case class SortExec(
     val boundSortExpression = BindReferences.bindReference(sortOrder.head, output)
     val prefixComparator = SortPrefixUtils.getPrefixComparator(boundSortExpression)
 
-    val canUseRadixSort = conf.enableRadixSort && sortOrder.length == 1 &&
+    val canUseRadixSort = enableRadixSort && sortOrder.length == 1 &&
       SortPrefixUtils.canSortFullyWithPrefix(boundSortExpression)
 
     // The generator for prefix
