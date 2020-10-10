@@ -2342,6 +2342,16 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val LEGACY_CENTRAL_MOMENT_AGG =
+    buildConf("spark.sql.legacy.centralMomentAgg")
+      .internal()
+      .doc("When set to true, central moment aggregation will return Double.NaN " +
+        "if divide by zero occurred during calculation. " +
+        "Otherwise, it will return null")
+      .version("3.1.0")
+      .booleanConf
+      .createWithDefault(false)
+
   val TRUNCATE_TABLE_IGNORE_PERMISSION_ACL =
     buildConf("spark.sql.truncateTable.ignorePermissionAcl.enabled")
       .internal()
@@ -2771,16 +2781,6 @@ object SQLConf {
         "precedence over the client-side one. Note that if 'fs.trash.interval' is non-positive, " +
         "this will be a no-op and log a warning message. If the data fails to be moved to "  +
         "trash, Spark will turn to delete it permanently.")
-      .version("3.1.0")
-      .booleanConf
-      .createWithDefault(false)
-
-  val LEGACY_CENTRAL_MOMENT_AGG_BEHAVIOR =
-    buildConf("spark.sql.legacy.centralMomentAgg.enabled")
-      .internal()
-      .doc("When set to true, stddev_samp and var_samp will return Double.NaN, " +
-        "if applied to a set with a single element. Otherwise, will return 0.0, " +
-        "which is aligned with TPCDS standard.")
       .version("3.1.0")
       .booleanConf
       .createWithDefault(false)
@@ -3365,6 +3365,8 @@ class SQLConf extends Serializable with Logging {
   def allowNegativeScaleOfDecimalEnabled: Boolean =
     getConf(SQLConf.LEGACY_ALLOW_NEGATIVE_SCALE_OF_DECIMAL_ENABLED)
 
+  def legacyCentralMomentAgg: Boolean = getConf(SQLConf.LEGACY_CENTRAL_MOMENT_AGG)
+
   def truncateTableIgnorePermissionAcl: Boolean =
     getConf(SQLConf.TRUNCATE_TABLE_IGNORE_PERMISSION_ACL)
 
@@ -3408,8 +3410,6 @@ class SQLConf extends Serializable with Logging {
   def legacyPathOptionBehavior: Boolean = getConf(SQLConf.LEGACY_PATH_OPTION_BEHAVIOR)
 
   def truncateTrashEnabled: Boolean = getConf(SQLConf.TRUNCATE_TRASH_ENABLED)
-
-  def legacyCentralMomentAggBehavior: Boolean = getConf(SQLConf.LEGACY_CENTRAL_MOMENT_AGG_BEHAVIOR)
 
   /** ********************** SQLConf functionality methods ************ */
 
