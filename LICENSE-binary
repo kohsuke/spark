@@ -326,7 +326,6 @@ com.google.guava:guava
 com.google.inject:guice
 com.google.inject.extensions:guice-servlet
 com.nimbusds:nimbus-jose-jwt
-com.twitter:parquet-hadoop-bundle
 commons-cli:commons-cli
 commons-daemon:commons-daemon
 commons-dbcp:commons-dbcp

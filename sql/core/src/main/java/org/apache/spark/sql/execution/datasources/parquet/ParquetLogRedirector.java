@@ -46,17 +46,6 @@ final class ParquetLogRedirector implements Serializable {
     } catch (ClassNotFoundException ex) {
       throw new RuntimeException(ex);
     }
-
-    // For parquet-mr 1.6.0 and lower versions bundled with Hive, which are under `parquet`
-    // namespace.
-    try {
-      Class.forName("parquet.Log");
-      redirect(Logger.getLogger("parquet"));
-    } catch (Throwable t) {
-      // SPARK-9974: com.twitter:parquet-hadoop-bundle:1.6.0 is not packaged into the assembly
-      // when Spark is built with SBT. So `parquet.Log` may not be found.  This try/catch block
-      // should be removed after this issue is fixed.
-    }
   }
 
   private ParquetLogRedirector() {

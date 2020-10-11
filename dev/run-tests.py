@@ -318,24 +318,6 @@ def get_hadoop_profiles(hadoop_version):
         sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
 
 
-def get_hive_profiles(hive_version):
-    """
-    For the given Hive version tag, return a list of Maven/SBT profile flags for
-    building and testing against that Hive version.
-    """
-
-    sbt_maven_hive_profiles = {
-        "hive2.3": ["-Phive-2.3"],
-    }
-
-    if hive_version in sbt_maven_hive_profiles:
-        return sbt_maven_hive_profiles[hive_version]
-    else:
-        print("[error] Could not find", hive_version, "in the list. Valid options",
-              " are", sbt_maven_hive_profiles.keys())
-        sys.exit(int(os.environ.get("CURRENT_BLOCK", 255)))
-
-
 def build_spark_maven(extra_profiles):
     # Enable all of the profiles for the build:
     build_profiles = extra_profiles + modules.root.build_profile_flags
@@ -636,15 +618,14 @@ def main():
         # else we're running locally or Github Actions.
         build_tool = "sbt"
         hadoop_version = os.environ.get("HADOOP_PROFILE", "hadoop2.7")
-        hive_version = os.environ.get("HIVE_PROFILE", "hive2.3")
         if "GITHUB_ACTIONS" in os.environ:
             test_env = "github_actions"
         else:
             test_env = "local"
 
     print("[info] Using build tool", build_tool, "with Hadoop profile", hadoop_version,
-          "and Hive profile", hive_version, "under environment", test_env)
-    extra_profiles = get_hadoop_profiles(hadoop_version) + get_hive_profiles(hive_version)
+          under environment", test_env)
+    extra_profiles = get_hadoop_profiles(hadoop_version)
 
     changed_modules = []
     changed_files = []
