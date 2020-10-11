@@ -624,7 +624,7 @@ def main():
             test_env = "local"
 
     print("[info] Using build tool", build_tool, "with Hadoop profile", hadoop_version,
-          under environment", test_env)
+          "under environment", test_env)
     extra_profiles = get_hadoop_profiles(hadoop_version)
 
     changed_modules = []
