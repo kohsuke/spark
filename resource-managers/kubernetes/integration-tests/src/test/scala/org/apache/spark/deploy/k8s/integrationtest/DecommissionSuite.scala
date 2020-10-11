@@ -41,8 +41,7 @@ private[spark] trait DecommissionSuite { k8sSuite: KubernetesSuite =>
       mainClass = "",
       expectedLogOnCompletion = Seq(
         "Finished waiting, stopping Spark",
-        "Asking BlockManagers", "to decommissioning",
-        "Asking executor", "to decommissioning.",
+        "Decommission executors",
         "Final accumulator value is: 100"),
       appArgs = Array.empty[String],
       driverPodChecker = doBasicDriverPyPodCheck,
