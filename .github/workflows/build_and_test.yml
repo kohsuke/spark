@@ -42,9 +42,11 @@ jobs:
             mllib-local, mllib,
             yarn, mesos, kubernetes, hadoop-cloud, spark-ganglia-lgpl
           - >-
-            pyspark-sql, pyspark-mllib, pyspark-resource
+            pyspark-sql, pyspark-resource
           - >-
-            pyspark-core, pyspark-streaming, pyspark-ml
+            pyspark-core, pyspark-streaming
+          - >-
+            pyspark-ml, pyspark-mllib
           - >-
             sparkr
         # Here, we split Hive and SQL tests into some of slow ones and the rest of them.
