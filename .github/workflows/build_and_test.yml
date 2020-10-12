@@ -44,9 +44,9 @@ jobs:
           - >-
             pyspark-sql, pyspark-resource
           - >-
-            pyspark-core, pyspark-streaming
+            pyspark-core, pyspark-streaming, pyspark-ml
           - >-
-            pyspark-ml, pyspark-mllib
+            pyspark-mllib
           - >-
             sparkr
         # Here, we split Hive and SQL tests into some of slow ones and the rest of them.
