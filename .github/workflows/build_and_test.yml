@@ -42,9 +42,11 @@ jobs:
             mllib-local, mllib,
             yarn, mesos, kubernetes, hadoop-cloud, spark-ganglia-lgpl
           - >-
-            pyspark-sql, pyspark-mllib, pyspark-resource
+            pyspark-sql
           - >-
-            pyspark-core, pyspark-streaming, pyspark-ml
+            pyspark-core, pyspark-ml
+          - >-
+            pyspark-mllib, pyspark-streaming, pyspark-resource
           - >-
             sparkr
         # Here, we split Hive and SQL tests into some of slow ones and the rest of them.
@@ -79,6 +81,7 @@ jobs:
             excluded-tags: org.apache.spark.tags.ExtendedSQLTest
             comment: "- other tests"
     env:
+      NOLINT_ON_COMPILE: 1
       MODULES_TO_TEST: ${{ matrix.modules }}
       EXCLUDED_TAGS: ${{ matrix.excluded-tags }}
       INCLUDED_TAGS: ${{ matrix.included-tags }}
