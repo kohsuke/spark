@@ -210,7 +210,7 @@ private[hive] class SparkExecuteStatementOperation(
     if (queryTimeoutValue > 0) {
       Executors.newSingleThreadScheduledExecutor.schedule(new Runnable {
           override def run(): Unit = timeoutCancel()
-        }, queryTimeout, TimeUnit.SECONDS)
+        }, queryTimeoutValue, TimeUnit.SECONDS)
     }
 
     if (!runInBackground) {
@@ -344,7 +344,7 @@ private[hive] class SparkExecuteStatementOperation(
   def timeoutCancel(): Unit = {
     synchronized {
       if (!getStatus.getState.isTerminal) {
-        logInfo(s"Query with $statementId timed out after $queryTimeout seconds")
+        logInfo(s"Query with $statementId timed out after $queryTimeoutValue seconds")
         setState(OperationState.TIMEDOUT)
         cleanup()
         HiveThriftServer2.eventManager.onStatementTimeout(statementId)
