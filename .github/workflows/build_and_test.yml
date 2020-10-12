@@ -42,9 +42,9 @@ jobs:
             mllib-local, mllib,
             yarn, mesos, kubernetes, hadoop-cloud, spark-ganglia-lgpl
           - >-
-            pyspark-sql, pyspark-resource
+            pyspark-sql
           - >-
-            pyspark-core, pyspark-streaming, pyspark-ml
+            pyspark-core, pyspark-streaming, pyspark-ml, pyspark-resource
           - >-
             pyspark-mllib
           - >-
