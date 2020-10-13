@@ -646,9 +646,9 @@ class Analyzer(
         // Since the exprId of extraAggExprs will be changed in the constructed aggregate, and the
         // aggregateExpressions keeps the input order. So here we build an exprMap to resolve the
         // condition again.
-        val exprMap = extraAggExprs.zip(
-          newChild.asInstanceOf[Aggregate].aggregateExpressions.takeRight(
-            extraAggExprs.length)).toMap
+        // We also add the original aggregateExpressions in Map to avoid extraAggExprs is empty.
+        val exprMap = (aggForResolving.aggregateExpressions ++ extraAggExprs).zip(
+          newChild.asInstanceOf[Aggregate].aggregateExpressions).toMap
         val newCond = resolvedHavingCond.transform {
           case ne: NamedExpression if exprMap.contains(ne) => exprMap(ne)
         }
@@ -2313,9 +2313,10 @@ class Analyzer(
               }
           }
           if (aggregateExpressions.nonEmpty) {
-            Some(aggregateExpressions.toSeq, transformedAggregateFilter)
+            Some(aggregateExpressions, transformedAggregateFilter)
           } else {
-            None
+            // We need to return the resolved having condition
+            Some(Seq.empty, transformedAggregateFilter.asInstanceOf[Alias].child)
           }
         } else {
           None
@@ -2334,9 +2335,13 @@ class Analyzer(
       // Push the aggregate expressions into the aggregate (if any).
       if (resolvedInfo.nonEmpty) {
         val (aggregateExpressions, resolvedHavingCond) = resolvedInfo.get
-        Project(agg.output,
-          Filter(resolvedHavingCond,
-            agg.copy(aggregateExpressions = agg.aggregateExpressions ++ aggregateExpressions)))
+        if (aggregateExpressions.nonEmpty) {
+          Project(agg.output,
+            Filter(resolvedHavingCond,
+              agg.copy(aggregateExpressions = agg.aggregateExpressions ++ aggregateExpressions)))
+        } else {
+          filter
+        }
       } else {
         filter
       }
