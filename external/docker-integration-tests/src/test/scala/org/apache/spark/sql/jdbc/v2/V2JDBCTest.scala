@@ -89,6 +89,16 @@ trait V2JDBCTest extends SharedSparkSession {
     assert(msg.contains("Table not found"))
   }
 
+  test("ALTER TABLE - rename column") {
+    withTable("mssql.alt_table") {
+      sql("CREATE TABLE mssql.alt_table (ID STRING NOT NULL) USING _")
+      sql("ALTER TABLE mssql.alt_table RENAME COLUMN ID TO ID2")
+      val t = spark.table("mssql.alt_table")
+      val expectedSchema = new StructType().add("ID2", StringType, nullable = true)
+      assert(t.schema === expectedSchema)
+    }
+  }
+
   test("SPARK-33034: ALTER TABLE ... update column nullability") {
     withTable(s"$catalogName.alt_table") {
       testUpdateColumnNullability(s"$catalogName.alt_table")
