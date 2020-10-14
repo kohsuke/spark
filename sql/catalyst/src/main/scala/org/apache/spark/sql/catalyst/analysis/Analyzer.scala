@@ -2340,7 +2340,7 @@ class Analyzer(
             Filter(resolvedHavingCond,
               agg.copy(aggregateExpressions = agg.aggregateExpressions ++ aggregateExpressions)))
         } else {
-          filter
+          Filter(resolvedHavingCond, agg)
         }
       } else {
         filter
