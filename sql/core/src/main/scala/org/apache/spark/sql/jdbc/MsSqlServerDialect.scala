@@ -66,6 +66,16 @@ private object MsSqlServerDialect extends JdbcDialect {
   }
 
   // scalastyle:off line.size.limit
+  // see https://docs.microsoft.com/en-us/sql/relational-databases/tables/add-columns-to-a-table-database-engine?view=sql-server-ver15
+  // scalastyle:on line.size.limit
+  override def getAddColumnQuery(
+      tableName: String,
+      columnName: String,
+      dataType: String): String = {
+    s"ALTER TABLE $tableName ADD $columnName $dataType"
+  }
+
+  // scalastyle:off line.size.limit
   // See https://docs.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-rename-transact-sql?view=sql-server-ver15
   // scalastyle:on line.size.limit
   override def getRenameColumnQuery(

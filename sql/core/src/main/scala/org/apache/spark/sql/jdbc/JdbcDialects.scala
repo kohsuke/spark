@@ -227,7 +227,6 @@ abstract class JdbcDialect extends Serializable {
           updateClause += getUpdateColumnTypeQuery(tableName, name(0), dataType)
         case updateNull: UpdateColumnNullability if updateNull.fieldNames.length == 1 =>
           val name = updateNull.fieldNames
-          val nullable = if (updateNull.nullable()) "NULL" else "NOT NULL"
           updateClause += getUpdateColumnNullabilityQuery(tableName, name(0), updateNull.nullable())
         case _ =>
           throw new SQLFeatureNotSupportedException(s"Unsupported TableChange $change")

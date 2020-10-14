@@ -38,7 +38,9 @@ import org.apache.spark.tags.DockerTest
  * }}}
  */
 @DockerTest
-class MsSqlServerIntegrationSuite extends DockerJDBCIntegrationSuite with SharedSparkSession {
+class MsSqlServerIntegrationSuite extends DockerJDBCIntegrationSuite with V2JDBCTest {
+
+  override val catalogName: String = "mssql"
 
   override val db = new DatabaseOnDocker {
     override val imageName = sys.env.getOrElse("MSSQLSERVER_DOCKER_IMAGE_NAME",
@@ -54,50 +56,37 @@ class MsSqlServerIntegrationSuite extends DockerJDBCIntegrationSuite with Shared
       s"jdbc:sqlserver://$ip:$port;user=sa;password=Sapass123;"
   }
 
+  override def testUpdateColumnType(tbl: String): Unit = {
+    sql(s"CREATE TABLE $tbl (ID INTEGER) USING _")
+    var t = spark.table(tbl)
+    var expectedSchema = new StructType().add("ID", IntegerType)
+    assert(t.schema === expectedSchema)
+    sql(s"ALTER TABLE $tbl ALTER COLUMN id TYPE STRING")
+    t = spark.table(tbl)
+    expectedSchema = new StructType().add("ID", StringType)
+    assert(t.schema === expectedSchema)
+    // Update column type from STRING to INTEGER
+    val msg1 = intercept[AnalysisException] {
+      sql(s"ALTER TABLE $tbl ALTER COLUMN id TYPE INTEGER")
+    }.getMessage
+    assert(msg1.contains("Cannot update alt_table field ID: string cannot be cast to int"))
+  }
+
   override def sparkConf: SparkConf = super.sparkConf
     .set("spark.sql.catalog.mssql", classOf[JDBCTableCatalog].getName)
     .set("spark.sql.catalog.mssql.url", db.getJdbcUrl(dockerIp, externalPort))
 
   override val connectionTimeout = timeout(7.minutes)
-  override def dataPreparation(conn: Connection): Unit = {}
 
-  test("ALTER TABLE - update column nullability") {
-    withTable("mssql.alt_table") {
-      sql("CREATE TABLE mssql.alt_table (ID STRING NOT NULL) USING _")
-      sql("ALTER TABLE mssql.alt_table ALTER COLUMN ID DROP NOT NULL")
-      val t = spark.table("mssql.alt_table")
-      val expectedSchema = new StructType().add("ID", StringType, nullable = true)
-      assert(t.schema === expectedSchema)
-      // Update nullability of not existing column
-      val msg = intercept[AnalysisException] {
-        sql("ALTER TABLE mssql.alt_table ALTER COLUMN bad_column DROP NOT NULL")
-      }.getMessage
-      assert(msg.contains("Cannot update missing field bad_column"))
-    }
-    // Update column nullability in not existing table
-    val msg = intercept[AnalysisException] {
-      sql(s"ALTER TABLE mssql.not_existing_table ALTER COLUMN ID DROP NOT NULL")
-    }.getMessage
-    assert(msg.contains("Table not found"))
-  }
+  override def dataPreparation(conn: Connection): Unit = {}
 
   test("ALTER TABLE - rename column") {
     withTable("mssql.alt_table") {
       sql("CREATE TABLE mssql.alt_table (ID STRING NOT NULL) USING _")
-      sql("ALTER TABLE mssql.alt_table ALTER COLUMN ID DROP NOT NULL")
+      sql("ALTER TABLE mssql.alt_table RENAME COLUMN ID TO ID2")
       val t = spark.table("mssql.alt_table")
-      val expectedSchema = new StructType().add("ID", StringType, nullable = true)
+      val expectedSchema = new StructType().add("ID2", StringType, nullable = true)
       assert(t.schema === expectedSchema)
-      // Update nullability of not existing column
-      val msg = intercept[AnalysisException] {
-        sql("ALTER TABLE mssql.alt_table ALTER COLUMN bad_column DROP NOT NULL")
-      }.getMessage
-      assert(msg.contains("Cannot update missing field bad_column"))
     }
-    // Update column nullability in not existing table
-    val msg = intercept[AnalysisException] {
-      sql(s"ALTER TABLE mssql.not_existing_table ALTER COLUMN ID DROP NOT NULL")
-    }.getMessage
-    assert(msg.contains("Table not found"))
   }
 }
