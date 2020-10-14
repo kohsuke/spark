@@ -2313,7 +2313,7 @@ class Analyzer(
               }
           }
           if (aggregateExpressions.nonEmpty) {
-            Some(aggregateExpressions, transformedAggregateFilter)
+            Some(aggregateExpressions.toSeq, transformedAggregateFilter)
           } else {
             // We need to return the resolved having condition
             Some(Seq.empty, transformedAggregateFilter.asInstanceOf[Alias].child)
