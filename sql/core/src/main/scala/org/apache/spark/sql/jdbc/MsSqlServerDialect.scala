@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.jdbc
 
+import java.sql.SQLFeatureNotSupportedException
 import java.util.Locale
 
 import org.apache.spark.sql.internal.SQLConf
@@ -88,11 +89,15 @@ private object MsSqlServerDialect extends JdbcDialect {
   // scalastyle:off line.size.limit
   // see https://docs.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql?view=sql-server-ver15
   // scalastyle:on line.size.limit
+  // require to have column data type to change the column nullability
+  // ALTER TABLE tbl_name ALTER COLUMN col_name datatype [NULL | NOT NULL]
+  // column_definition:
+  //    data_type [NOT NULL | NULL]
+  // We don't have column data type here, so we throw Exception for now
   override def getUpdateColumnNullabilityQuery(
       tableName: String,
       columnName: String,
       isNullable: Boolean): String = {
-    val nullable = if (isNullable) "NULL" else "NOT NULL"
-    s"ALTER TABLE $tableName ALTER COLUMN $columnName $nullable"
+    throw new SQLFeatureNotSupportedException(s"UpdateColumnNullability is not supported")
   }
 }

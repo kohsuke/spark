@@ -18,6 +18,7 @@
 package org.apache.spark.sql.jdbc.v2
 
 import java.sql.Connection
+import java.sql.SQLFeatureNotSupportedException
 
 import org.scalatest.time.SpanSugar._
 
@@ -88,5 +89,15 @@ class MsSqlServerIntegrationSuite extends DockerJDBCIntegrationSuite with V2JDBC
       val expectedSchema = new StructType().add("ID2", StringType, nullable = true)
       assert(t.schema === expectedSchema)
     }
+  }
+
+  override def testUpdateColumnNullability(tbl: String): Unit = {
+    sql("CREATE TABLE mssql.alt_table (ID STRING NOT NULL) USING _")
+    // Update nullability is unsupported for mssql db.
+    val msg = intercept[AnalysisException] {
+      sql("ALTER TABLE mssql.alt_table ALTER COLUMN ID DROP NOT NULL")
+    }.getCause.asInstanceOf[SQLFeatureNotSupportedException].getMessage
+
+    assert(msg.contains("UpdateColumnNullability is not supported"))
   }
 }
