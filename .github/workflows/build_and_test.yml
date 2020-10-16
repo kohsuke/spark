@@ -292,7 +292,8 @@ jobs:
     - name: Run tests
       run: |
         mkdir -p ~/.m2
-        NOT_CRAN=true ./dev/run-tests --parallelism 2 --modules sparkr
+        export NOT_CRAN=true
+        ./dev/run-tests --parallelism 2 --modules sparkr
         rm -rf ~/.m2/repository/org/apache/spark
     - name: Upload test results to report
       if: always()
