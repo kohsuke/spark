@@ -254,7 +254,6 @@ jobs:
       HIVE_PROFILE: hive2.3
       GITHUB_PREV_SHA: ${{ github.event.before }}
       GITHUB_INPUT_BRANCH: ${{ github.event.inputs.target }}
-      NOT_CRAN: true
     steps:
     - name: Checkout Spark repository
       uses: actions/checkout@v2
@@ -293,7 +292,7 @@ jobs:
     - name: Run tests
       run: |
         mkdir -p ~/.m2
-        ./dev/run-tests --parallelism 2 --modules sparkr
+        NOT_CRAN=true ./dev/run-tests --parallelism 2 --modules sparkr
         rm -rf ~/.m2/repository/org/apache/spark
     - name: Upload test results to report
       if: always()
