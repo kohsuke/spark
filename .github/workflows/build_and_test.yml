@@ -254,6 +254,7 @@ jobs:
       HIVE_PROFILE: hive2.3
       GITHUB_PREV_SHA: ${{ github.event.before }}
       GITHUB_INPUT_BRANCH: ${{ github.event.inputs.target }}
+      NOT_CRAN: true
     steps:
     - name: Checkout Spark repository
       uses: actions/checkout@v2
