@@ -86,7 +86,7 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
     val provider = properties.getOrDefault(TableCatalog.PROP_PROVIDER, conf.defaultDataSourceName)
     val tableProperties = properties.asScala
     val location = Option(properties.get(TableCatalog.PROP_LOCATION))
-    val storage = DataSource.buildStorageFormatFromOptions(tableProperties.toMap)
+    val storage = DataSource.buildStorageFormatFromOptions(toOptions(tableProperties.toMap))
         .copy(locationUri = location.map(CatalogUtils.stringToURI))
     val tableType = if (location.isDefined) CatalogTableType.EXTERNAL else CatalogTableType.MANAGED
 
@@ -110,6 +110,12 @@ class V2SessionCatalog(catalog: SessionCatalog, conf: SQLConf)
     }
 
     loadTable(ident)
+  }
+
+  private def toOptions(properties: Map[String, String]): Map[String, String] = {
+    properties
+        .filterKeys(_.startsWith(TableCatalog.OPTION_PREFIX))
+        .map { case (key, value) => key.replaceFirst(TableCatalog.OPTION_PREFIX, "") -> value }
   }
 
   override def alterTable(
