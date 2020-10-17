@@ -132,6 +132,7 @@ private[hive] object IsolatedClientLoader extends Logging {
           ivyPath),
         exclusions = version.exclusions)
     }
+
     val allFiles = classpath.split(",").map(new File(_)).toSet
 
     // TODO: Remove copy logic.

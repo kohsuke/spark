@@ -562,7 +562,8 @@
       </properties>
     </profile>
     <profile>
-      <id>sparkr</id>
+
+    <id>sparkr</id>
       <build>
         <plugins>
           <plugin>

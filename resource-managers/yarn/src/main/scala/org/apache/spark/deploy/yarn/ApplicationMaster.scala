@@ -68,7 +68,7 @@ private[spark] class ApplicationMaster(
 
   private val appAttemptId =
     if (System.getenv(ApplicationConstants.Environment.CONTAINER_ID.name()) != null) {
-      YarnSparkHadoopUtil.getContainerId.getApplicationAttemptId()
+      YarnSparkHadoopUtil.getContainerId.getApplicationAttemptId
     } else {
       null
     }

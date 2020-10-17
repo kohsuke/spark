@@ -33,6 +33,7 @@
     <spark.yarn.isHadoopProvided>false</spark.yarn.isHadoopProvided>
   </properties>
 
+
   <profiles>
     <profile>
       <id>hadoop-provided</id>

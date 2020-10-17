@@ -66,6 +66,7 @@ private[deploy] object SparkSubmitAction extends Enumeration {
   val SUBMIT, KILL, REQUEST_STATUS, PRINT_VERSION = Value
 }
 
+
 /**
  * Main gateway of launching a Spark application.
  *
