@@ -17,6 +17,9 @@
 # limitations under the License.
 #
 
+# Ignore the types for the run-tests.py
+# type: ignore
+
 import logging
 from argparse import ArgumentParser
 import os
