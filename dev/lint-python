@@ -145,7 +145,7 @@ function mypy_test {
         echo "mypy checks passed."
         echo
     fi
-  }
+}
 
 function flake8_test {
     local FLAKE8_VERSION=
