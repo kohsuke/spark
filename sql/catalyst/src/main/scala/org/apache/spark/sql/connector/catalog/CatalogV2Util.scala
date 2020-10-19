@@ -342,7 +342,9 @@ private[sql] object CatalogV2Util {
         }) ++
         s.storedAs.map("hive.stored-as" -> _).toMap ++
         s.serde.map("hive.serde" -> _).toMap ++
-        s.serdeProperties.map { case (key, value) => TableCatalog.OPTION_PREFIX + key -> value }
+        (s.serdeProperties.map {
+          case (key, value) => TableCatalog.OPTION_PREFIX + key -> value
+        }).toMap
       case None =>
         Map.empty
     }
