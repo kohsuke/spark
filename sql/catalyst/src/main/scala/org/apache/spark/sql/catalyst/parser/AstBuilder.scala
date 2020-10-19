@@ -2494,7 +2494,7 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
         (None, Some(visitColType(field.colType)))
     }.unzip
 
-    (transforms.flatten, columns.flatten)
+    (transforms.flatten.toSeq, columns.flatten.toSeq)
   }
 
   override def visitPartitionTransform(
@@ -2924,7 +2924,8 @@ class AstBuilder(conf: SQLConf) extends SqlBaseBaseVisitor[AnyRef] with Logging 
     val (cleanedOptions, newLocation) = cleanTableOptions(ctx, options, location)
     val comment = visitCommentSpecList(ctx.commentSpec())
 
-    validateRowFormatFileFormat(ctx.rowFormat.asScala, ctx.createFileFormat.asScala, ctx)
+    validateRowFormatFileFormat(
+      ctx.rowFormat.asScala.toSeq, ctx.createFileFormat.asScala.toSeq, ctx)
     val fileFormatSerdeInfo = ctx.createFileFormat.asScala.map(visitCreateFileFormat)
     val rowFormatSerdeInfo = ctx.rowFormat.asScala.map(visitRowFormat)
     val serdeInfo =
