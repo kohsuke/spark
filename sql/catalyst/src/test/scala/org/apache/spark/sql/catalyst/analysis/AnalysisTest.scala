@@ -31,13 +31,13 @@ import org.apache.spark.sql.internal.SQLConf
 
 trait AnalysisTest extends PlanTest {
 
-  protected lazy val caseSensitiveAnalyzer = makeAnalyzer(caseSensitive = true)
-  protected lazy val caseInsensitiveAnalyzer = makeAnalyzer(caseSensitive = false)
+  protected def caseSensitiveAnalyzer = makeAnalyzer(caseSensitive = true)
+  protected def caseInsensitiveAnalyzer = makeAnalyzer(caseSensitive = false)
 
   protected def extendedAnalysisRules: Seq[Rule[LogicalPlan]] = Nil
 
   private def makeAnalyzer(caseSensitive: Boolean): Analyzer = {
-    val conf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> caseSensitive)
+    SQLConf.get.setConf(SQLConf.CASE_SENSITIVE, caseSensitive)
     val catalog = new SessionCatalog(new InMemoryCatalog, FunctionRegistry.builtin, conf)
     catalog.createDatabase(
       CatalogDatabase("default", "", new URI("loc"), Map.empty),
@@ -53,7 +53,7 @@ trait AnalysisTest extends PlanTest {
   }
 
   protected def getAnalyzer(caseSensitive: Boolean) = {
-    if (caseSensitive) caseSensitiveAnalyzer else caseInsensitiveAnalyzer
+    makeAnalyzer(caseSensitive)
   }
 
   protected def checkAnalysis(

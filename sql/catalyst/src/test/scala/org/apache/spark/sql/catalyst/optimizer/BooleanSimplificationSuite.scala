@@ -188,10 +188,10 @@ class BooleanSimplificationSuite extends PlanTest with ExpressionEvalHelper with
     checkCondition(!(('e || 'f) && ('g || 'h)), (!'e && !'f) || (!'g && !'h))
   }
 
-  private val caseInsensitiveConf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> false)
+  SQLConf.get.setConf(SQLConf.CASE_SENSITIVE, false)
   private val caseInsensitiveAnalyzer = new Analyzer(
-    new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, caseInsensitiveConf),
-    caseInsensitiveConf)
+    new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, conf),
+    conf)
 
   test("(a && b) || (a && c) => a && (b || c) when case insensitive") {
     val plan = caseInsensitiveAnalyzer.execute(

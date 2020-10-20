@@ -108,7 +108,7 @@ class PlanResolutionSuite extends AnalysisTest {
   private val v1SessionCatalog: SessionCatalog = new SessionCatalog(
     new InMemoryCatalog,
     EmptyFunctionRegistry,
-    new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
+    SQLConf.get.withConf(SQLConf.CASE_SENSITIVE, true))
   v1SessionCatalog.createTempView("v", LocalRelation(Nil), false)
 
   private val catalogManagerWithDefault = {

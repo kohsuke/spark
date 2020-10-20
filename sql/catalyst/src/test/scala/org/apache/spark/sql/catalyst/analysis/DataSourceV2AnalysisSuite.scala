@@ -201,7 +201,7 @@ abstract class DataSourceV2StrictAnalysisSuite extends DataSourceV2AnalysisBaseS
 abstract class DataSourceV2AnalysisBaseSuite extends AnalysisTest {
 
   protected def getSQLConf(caseSensitive: Boolean): SQLConf =
-    new SQLConf().copy(SQLConf.CASE_SENSITIVE -> caseSensitive)
+    SQLConf.get.withConf(SQLConf.CASE_SENSITIVE, caseSensitive)
 
   override def getAnalyzer(caseSensitive: Boolean): Analyzer = {
     val conf = getSQLConf(caseSensitive)

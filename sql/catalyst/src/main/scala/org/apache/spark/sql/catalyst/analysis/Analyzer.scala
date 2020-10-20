@@ -57,15 +57,15 @@ import org.apache.spark.util.Utils
  */
 object SimpleAnalyzer extends Analyzer(
   new CatalogManager(
-    new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true),
+    SQLConf.get.withConf(SQLConf.CASE_SENSITIVE, true),
     FakeV2SessionCatalog,
     new SessionCatalog(
       new InMemoryCatalog,
       EmptyFunctionRegistry,
-      new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true)) {
+      SQLConf.get.withConf(SQLConf.CASE_SENSITIVE, true)) {
       override def createDatabase(dbDefinition: CatalogDatabase, ignoreIfExists: Boolean): Unit = {}
     }),
-  new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
+  SQLConf.get.withConf(SQLConf.CASE_SENSITIVE, true))
 
 object FakeV2SessionCatalog extends TableCatalog {
   private def fail() = throw new UnsupportedOperationException
@@ -134,6 +134,8 @@ class Analyzer(
     conf: SQLConf,
     maxIterations: Int)
   extends RuleExecutor[LogicalPlan] with CheckAnalysis with LookupCatalog {
+
+  require(conf.equals(SQLConf.get), "conf must be SQLConf.get")
 
   private val v1SessionCatalog: SessionCatalog = catalogManager.v1SessionCatalog
 

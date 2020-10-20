@@ -88,7 +88,7 @@ class SessionCatalog(
     this(
       externalCatalog,
       new SimpleFunctionRegistry,
-      new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
+      SQLConf.get.withConf(SQLConf.CASE_SENSITIVE, true))
   }
 
   lazy val externalCatalog = externalCatalogBuilder()

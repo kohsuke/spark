@@ -1618,7 +1618,7 @@ abstract class SessionCatalogSuite extends AnalysisTest with Eventually {
     import org.apache.spark.sql.catalyst.dsl.plans._
 
     Seq(true, false) foreach { caseSensitive =>
-      val conf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> caseSensitive)
+      SQLConf.get.setConf(SQLConf.CASE_SENSITIVE, caseSensitive)
       val catalog = new SessionCatalog(newBasicCatalog(), new SimpleFunctionRegistry, conf)
       catalog.setCurrentDatabase("db1")
       try {
