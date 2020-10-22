@@ -343,6 +343,7 @@ object QueryExecution {
       PlanDynamicPruningFilters(sparkSession),
       PlanSubqueries(sparkSession),
       RemoveRedundantProjects(sparkSession.sessionState.conf),
+      RemoveRedundantSorts(sparkSession.sessionState.conf),
       EnsureRequirements(sparkSession.sessionState.conf),
       DisableUnnecessaryBucketedScan(sparkSession.sessionState.conf),
       ApplyColumnarRulesAndInsertTransitions(sparkSession.sessionState.conf,
