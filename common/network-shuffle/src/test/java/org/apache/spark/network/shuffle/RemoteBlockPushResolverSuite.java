@@ -69,15 +69,17 @@ public class RemoteBlockPushResolverSuite {
       ImmutableMap.of("spark.shuffle.server.minChunkSizeInMergedShuffleFile", "4"));
     conf = new TransportConf("shuffle", provider);
     pushResolver = new RemoteBlockPushResolver(conf, MERGE_DIR_RELATIVE_PATH);
+    registerApplication(TEST_APP, TEST_USER);
   }
 
   @After
   public void after() {
     try {
       cleanupLocalDirs();
-    } catch (IOException e) {
+      removeApplication(TEST_APP);
+    } catch (Exception e) {
       // don't fail if clean up doesn't succeed.
-      log.warn("Error deleting test local dirs", e);
+      log.debug("Error while tearing down", e);
     }
   }
 
@@ -90,19 +92,16 @@ public class RemoteBlockPushResolverSuite {
   @Test(expected = RuntimeException.class)
   public void testNoIndexFile() {
     try {
-      registerApplication(TEST_APP, TEST_USER);
       registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
       pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
-      removeApplication(TEST_APP);
     } catch (Throwable t) {
-      assertTrue(t.getMessage().startsWith("Application merged shuffle index file is not found"));
+      assertTrue(t.getMessage().startsWith("Merged shuffle index file"));
       Throwables.propagate(t);
     }
   }
 
   @Test
   public void testBasicBlockMerge() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream[] pushBlocks = new PushBlockStream[] {
       new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0),
@@ -115,12 +114,10 @@ public class RemoteBlockPushResolverSuite {
     pushBlockHelper(TEST_APP, pushBlocks, blocks);
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{4, 5}, new int[][]{{0}, {1}});
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testDividingMergedBlocksIntoChunks() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream[] pushBlocks = new PushBlockStream[] {
       new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0),
@@ -137,12 +134,10 @@ public class RemoteBlockPushResolverSuite {
     pushBlockHelper(TEST_APP, pushBlocks, buffers);
     MergedBlockMeta meta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, meta, new int[]{5, 5, 3}, new int[][]{{0, 1}, {2}, {3}});
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testDeferredBufsAreWrittenDuringOnData() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
 
     PushBlockStream pbStream1 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
@@ -167,12 +162,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{4, 6}, new int[][]{{0}, {1}});
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testDeferredBufsAreWrittenDuringOnComplete() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
 
     PushBlockStream pbStream1 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
@@ -197,12 +190,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{4, 6}, new int[][]{{0}, {1}});
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testDuplicateBlocksAreIgnoredWhenPrevStreamHasCompleted() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
 
     PushBlockStream pbStream1 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
@@ -223,12 +214,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{4}, new int[][]{{0}});
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testDuplicateBlocksAreIgnoredWhenPrevStreamIsInProgress() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
 
     PushBlockStream pbStream1 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
@@ -239,7 +228,7 @@ public class RemoteBlockPushResolverSuite {
     PushBlockStream pbStream2 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
     StreamCallbackWithID stream2 =
       pushResolver.receiveBlockDataAsStream(new PushBlockStream(TEST_APP, pbStream2.blockId, 0));
-    // This should be ingored
+    // This should be ignored
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[2]));
     stream2.onData(stream2.getID(), ByteBuffer.wrap(new byte[2]));
 
@@ -253,12 +242,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{4}, new int[][]{{0}});
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testFailureAfterData() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream pushBlock = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
 
@@ -270,12 +257,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     assertEquals("num-chunks", 0, blockMeta.getNumChunks());
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testFailureAfterMultipleDataBlocks() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream pushBlock = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
 
@@ -289,12 +274,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     assertEquals("num-chunks", 0, blockMeta.getNumChunks());
-    removeApplication(TEST_APP);
   }
 
   @Test
   public void testFailureAfterComplete() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream pushBlock = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
 
@@ -309,12 +292,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{9}, new int[][]{{0}});
-    removeApplication(TEST_APP);
   }
 
   @Test (expected = RuntimeException.class)
   public void testTooLateArrival() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream[] pushBlocks = new PushBlockStream[] {
       new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0),
@@ -340,14 +321,12 @@ public class RemoteBlockPushResolverSuite {
         "Block shuffle_0_1_0 received after merged shuffle is finalized", re.getMessage());
       MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
       validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{9}, new int[][]{{0}});
-      removeApplication(TEST_APP);
       throw re;
     }
   }
 
   @Test
   public void testIncompleteStreamsAreOverwritten() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
     PushBlockStream pbStream1 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
     StreamCallbackWithID stream1 =
@@ -364,12 +343,10 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{5}, new int[][]{{1}});
-    removeApplication(TEST_APP);
   }
 
   @Test (expected = RuntimeException.class)
   public void testFailureWith3Streams() throws IOException {
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, localDirs));
 
     PushBlockStream pbStream1 = new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0);
@@ -405,7 +382,6 @@ public class RemoteBlockPushResolverSuite {
     pushResolver.finalizeShuffleMerge(new FinalizeShuffleMerge(TEST_APP, 0));
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[] {4}, new int[][] {{0}});
-    removeApplication(TEST_APP);
     if (failedEx != null) {
       throw failedEx;
     }
@@ -414,7 +390,6 @@ public class RemoteBlockPushResolverSuite {
   @Test
   public void testAppUsingFewerLocalDirs() throws IOException {
     String[] activeLocalDirs = Arrays.stream(localDirs).skip(1).toArray(String[]::new);
-    registerApplication(TEST_APP, TEST_USER);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, activeLocalDirs));
     PushBlockStream[] pushBlocks = new PushBlockStream[] {
       new PushBlockStream(TEST_APP, "shuffle_0_0_0", 0),
@@ -431,13 +406,10 @@ public class RemoteBlockPushResolverSuite {
     pushBlockHelper(TEST_APP, pushBlocks, buffers);
     MergedBlockMeta blockMeta = pushResolver.getMergedBlockMeta(TEST_APP, 0, 0);
     validateChunks(TEST_APP, 0, 0, blockMeta, new int[]{5, 5, 3}, new int[][]{{0, 1}, {2}, {3}});
-    removeApplication(TEST_APP);
   }
 
   @Test(expected = NullPointerException.class)
   public void testUpdateLocalDirsOnlyOnce() throws IOException {
-    // First app init and executor register will store the active local dirs list
-    registerApplication(TEST_APP, TEST_USER);
     String[] activeLocalDirs = Arrays.stream(localDirs).skip(1).toArray(String[]::new);
     registerExecutor(TEST_APP, prepareBlockManagerLocalDirs(TEST_APP, TEST_USER, activeLocalDirs));
     assertEquals(pushResolver.getMergedBlockDirs(TEST_APP).length, 1);
