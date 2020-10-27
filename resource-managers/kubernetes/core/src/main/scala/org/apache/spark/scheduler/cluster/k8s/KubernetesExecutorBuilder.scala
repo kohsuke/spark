@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.client.KubernetesClient
 import org.apache.spark.SecurityManager
 import org.apache.spark.deploy.k8s._
 import org.apache.spark.deploy.k8s.features._
+import org.apache.spark.util.Utils
 
 private[spark] class KubernetesExecutorBuilder {
 
@@ -39,13 +40,18 @@ private[spark] class KubernetesExecutorBuilder {
       }
       .getOrElse(SparkPod.initialPod())
 
+    val userFeatureOpt = conf.get(Config.KUBERNETES_EXECUTOR_POD_FEATURE_STEP)
+      .map { className =>
+        Utils.classForName(className).newInstance().asInstanceOf[KubernetesFeatureConfigStep]
+      }
+
     val features = Seq(
       new BasicExecutorFeatureStep(conf, secMgr),
       new ExecutorKubernetesCredentialsFeatureStep(conf),
       new MountSecretsFeatureStep(conf),
       new EnvSecretsFeatureStep(conf),
       new MountVolumesFeatureStep(conf),
-      new LocalDirsFeatureStep(conf))
+      new LocalDirsFeatureStep(conf)) ++ userFeatureOpt
 
     val spec = KubernetesExecutorSpec(
       initialPod,
