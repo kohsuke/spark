@@ -88,7 +88,7 @@ def lit(col):
     """
     Creates a :class:`Column` of literal value.
 
-    .. versionadded:: 1.3
+    .. versionadded:: 1.3.0
 
     Examples
     --------
@@ -749,7 +749,7 @@ def approx_count_distinct(col, rsd=None):
     Parameters
     ----------
     col : :class:`Column` or str
-    rsd : float
+    rsd : float, optional
         maximum relative standard deviation allowed (default = 0.05).
         For rsd < 0.01, it is more efficient to use :func:`countDistinct`
 
@@ -2074,7 +2074,7 @@ def to_utc_timestamp(timestamp, tz):
         upported as aliases of '+00:00'. Other short names are not recommended to use
         because they can be ambiguous.
 
-        .. versionchanged:: 2.4
+        .. versionchanged:: 2.4.0
            `tz` can take a :class:`Column` containing timezone ID strings.
 
     Examples
@@ -3359,7 +3359,7 @@ def get_json_object(col, path):
     ----------
     col : :class:`Column` or str
         string column in json format
-    path : :class:`Column` or str
+    path : str
         path to the json object to extract
 
     Examples
@@ -3417,7 +3417,7 @@ def from_json(col, schema, options={}):
         .. versionchanged:: 2.3
             the DDL-formatted string or a JSON format string is also supported
             for ``schema``.
-    options : dict
+    options : dict, optional
         options to control parsing. accepts the same options as the json datasource
 
     Examples
@@ -3467,7 +3467,7 @@ def to_json(col, options={}):
     ----------
     col : :class:`Column` or str
         name of column containing a struct, an array or a map.
-    options : dict
+    options : dict, optional
         options to control converting. accepts the same options as the JSON datasource.
         Additionally the function supports the `pretty` option which enables
         pretty JSON generation.
@@ -3513,7 +3513,7 @@ def schema_of_json(json, options={}):
     ----------
     json : :class:`Column` or str
         a JSON string or a string literal containing a JSON string.
-    options : dict
+    options : dict, optional
         options to control parsing. accepts the same options as the JSON datasource
 
         .. versionchanged:: 3.0
@@ -3550,7 +3550,7 @@ def schema_of_csv(csv, options={}):
     ----------
     csv : :class:`Column` or str
         a CSV string or a string literal containing a CSV string.
-    options : dict
+    options : dict, optional
         options to control parsing. accepts the same options as the CSV datasource
 
     Examples
@@ -3584,7 +3584,7 @@ def to_csv(col, options={}):
     ----------
     col : :class:`Column` or str
         name of column containing a struct.
-    options: dict
+    options: dict, optional
         options to control converting. accepts the same options as the CSV datasource.
 
     Examples
@@ -3677,6 +3677,7 @@ def sort_array(col, asc=True):
     ----------
     col : :class:`Column` or str
         name of column or expression
+    asc : bool, optional
 
     Examples
     --------
@@ -3996,7 +3997,7 @@ def from_csv(col, schema, options={}):
         string column in CSV format
     schema :class:`Column` or str
         a string with schema in DDL format to use when parsing the CSV column.
-    options : dict
+    options : dict, optional
         options to control parsing. accepts the same options as the CSV datasource
 
     Examples
@@ -4315,7 +4316,7 @@ def aggregate(col, zero, merge, finish=None):
     ----------
     col : :class:`Column` or str
         name of column or expression
-    zero :
+    zero : :class:`Column` or str
         initial value. Name of column or expression
     merge : function
         a binary function ``(acc: Column, x: Column) -> Column...`` returning expression
