@@ -60,9 +60,10 @@ if (identical(Sys.getenv("NOT_CRAN"), "true")) {
     # set random seed for predictable results. mostly for base's sample() in tree and classification
     set.seed(42)
 
-    if (packageVersion("testthat")$major <= 1) stop("testhat 1.x is not supported")
-
-    test_runner <- if (packageVersion("testthat")$major == 2) {
+    test_runner <- if (packageVersion("testthat")$major <= 1) {
+      # testthat 1.x
+      testthat:::run_tests
+    } else if (packageVersion("testthat")$major == 2) {
       # testthat >= 2.0.0, < 3.0.0
       function(path, package, reporter, filter) {
         testthat:::test_package_dir(
@@ -77,20 +78,31 @@ if (identical(Sys.getenv("NOT_CRAN"), "true")) {
       testthat::test_dir
     }
 
-    dir.create("target/test-reports", showWarnings = FALSE)
-    reporter <- MultiReporter$new(list(
-      SummaryReporter$new(),
-      JunitReporter$new(
-        file = file.path(getwd(), "target/test-reports/test-results.xml")
-      )
-    ))
+    reporter <- if (packageVersion("testthat")$major <= 1) {
+      reporter <- "summary"
+    } else {
+      dir.create("target/test-reports", showWarnings = FALSE)
+      reporter <- MultiReporter$new(list(
+        SummaryReporter$new(),
+        JunitReporter$new(
+          file = file.path(getwd(), "target/test-reports/test-results.xml")
+        )
+      ))
+    }
 
-    test_runner(
-      path = file.path(sparkRDir, "pkg", "tests", "fulltests"),
-      package = "SparkR",
-      reporter = reporter,
-      filter = NULL
-    )
+    if (packageVersion("testthat")$major <= 1) {
+      test_runner("SparkR",
+                  file.path(sparkRDir, "pkg", "tests", "fulltests"),
+                  NULL,
+                  reporter)
+    } else {
+      test_runner(
+        path = file.path(sparkRDir, "pkg", "tests", "fulltests"),
+        package = "SparkR",
+        reporter = reporter,
+        filter = NULL
+      )
+    }
   }
 
   SparkR:::uninstallDownloadedSpark()
