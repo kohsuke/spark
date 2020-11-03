@@ -48,6 +48,8 @@ trait V2JDBCTest extends SharedSparkSession {
     assert(msg.contains("Cannot update missing field bad_column"))
   }
 
+  def notSupportsTableComment: Boolean = false
+
   test("SPARK-33034: ALTER TABLE ... add new columns") {
     withTable(s"$catalogName.alt_table") {
       sql(s"CREATE TABLE $catalogName.alt_table (ID STRING) USING _")
@@ -112,7 +114,7 @@ trait V2JDBCTest extends SharedSparkSession {
         .filter(_.getLevel == Level.WARN)
         .map(_.getRenderedMessage)
         .exists(_.contains("Cannot create JDBC table comment"))
-      assert(createCommentWarning === false)
+      assert(createCommentWarning === notSupportsTableComment)
     }
   }
 }
