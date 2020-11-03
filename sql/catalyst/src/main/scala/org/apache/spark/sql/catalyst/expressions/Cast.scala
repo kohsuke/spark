@@ -1784,12 +1784,14 @@ case class AnsiCast(child: Expression, dataType: DataType, timeZoneId: Option[St
 
     case (_: NumericType, _: NumericType) => true
     case (StringType, _: NumericType) => true
+    case (BooleanType, _: NumericType) => true
 
     case (_: NumericType, StringType) => true
     case (_: DateType, StringType) => true
     case (_: TimestampType, StringType) => true
     case (_: CalendarIntervalType, StringType) => true
     case (BooleanType, StringType) => true
+    case (BinaryType, StringType) => true
 
     case (StringType, DateType) => true
     case (TimestampType, DateType) => true
