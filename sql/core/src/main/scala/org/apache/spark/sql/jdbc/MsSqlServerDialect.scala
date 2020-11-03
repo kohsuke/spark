@@ -17,12 +17,10 @@
 
 package org.apache.spark.sql.jdbc
 
-import java.sql.SQLFeatureNotSupportedException
 import java.util.Locale
 
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
-
 
 private object MsSqlServerDialect extends JdbcDialect {
 
@@ -70,8 +68,14 @@ private object MsSqlServerDialect extends JdbcDialect {
   // https://docs.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-addextendedproperty-transact-sql?redirectedfrom=MSDN&view=sql-server-ver15
   // scalastyle:on line.size.limit
   // need to use the stored procedure called sp_addextendedproperty to add comments to tables
-  // in Sql Server,  schema name of the table needs to be specified in @level0name
-  override def getTableCommentQuery(table: String, comment: String): String = {
-    throw new SQLFeatureNotSupportedException(s"comment on table is not supported")
+  override def createTable(
+      table: String,
+      strSchema: String,
+      createTableOptions: String,
+      tableComment: String): Array[String] = {
+    if (!tableComment.isEmpty) {
+      logWarning("Cannot create JDBC table comment. The table comment will be ignored.")
+    }
+    Array(s"CREATE TABLE $table ($strSchema) $createTableOptions")
   }
 }
