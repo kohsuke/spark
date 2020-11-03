@@ -23,12 +23,11 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit._
 
 import org.apache.spark.SparkException
-
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.{TypeCheckResult, TypeCoercion}
+import org.apache.spark.sql.catalyst.expressions.Cast.{canCast, forceNullable, resolvableNullability}
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.expressions.codegen.Block._
-import org.apache.spark.sql.catalyst.expressions.Cast.{canCast, forceNullable, resolvableNullability}
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.catalyst.util.DateTimeConstants._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils._
@@ -1783,12 +1782,27 @@ case class AnsiCast(child: Expression, dataType: DataType, timeZoneId: Option[St
 
     case (NullType, _) => true
 
-    case (_: NumericType, _: NumericType) =>
+    case (_: NumericType, _: NumericType) => true
+    case (StringType, _: NumericType) => true
+
     case (_: NumericType, StringType) => true
     case (_: DateType, StringType) => true
     case (_: TimestampType, StringType) => true
     case (_: CalendarIntervalType, StringType) => true
-    case (_: BooleanType, StringType) => true
+    case (BooleanType, StringType) => true
+
+    case (StringType, DateType) => true
+    case (TimestampType, DateType) => true
+
+    case (StringType, TimestampType) => true
+    case (DateType, TimestampType) => true
+
+    case (StringType, _: CalendarIntervalType) => true
+
+    case (StringType, BooleanType) => true
+    case (_: NumericType, BooleanType) => true
+
+    case (StringType, _: BinaryType) => true
 
     case (ArrayType(fromType, fn), ArrayType(toType, tn)) =>
       canCast(fromType, toType) &&
