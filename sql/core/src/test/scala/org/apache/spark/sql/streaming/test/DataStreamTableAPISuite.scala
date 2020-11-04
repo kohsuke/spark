@@ -95,6 +95,23 @@ class DataStreamTableAPISuite extends StreamTest with BeforeAndAfter {
     }
   }
 
+  test("read: block stream temp view reading in spark.read") {
+    val tblName = "my_table"
+    val stream = MemoryStream[Int]
+    withTable(tblName) {
+      stream.toDF().createOrReplaceTempView(tblName)
+
+      val msg = intercept[UnsupportedOperationException](spark.table(tblName)
+        .writeStream.format("memory").queryName("test").start()).getMessage
+      assert(msg.contains("read streaming temp view is not allowed"))
+
+      withSQLConf(SQLConf.LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW.key -> "true") {
+        spark.table(tblName)
+          .writeStream.format("memory").queryName("test").start().stop()
+      }
+    }
+  }
+
   test("read: stream table API with non-streaming temp view") {
     val tblName = "my_table"
     withTable(tblName) {

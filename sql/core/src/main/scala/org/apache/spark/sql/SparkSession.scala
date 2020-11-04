@@ -586,10 +586,6 @@ class SparkSession private(
     read.table(tableName)
   }
 
-  private[sql] def table(multipartIdentifier: Seq[String]): DataFrame = {
-    Dataset.ofRows(self, UnresolvedRelation(multipartIdentifier))
-  }
-
   private[sql] def table(tableIdent: TableIdentifier): DataFrame = {
     Dataset.ofRows(self, UnresolvedRelation(tableIdent))
   }

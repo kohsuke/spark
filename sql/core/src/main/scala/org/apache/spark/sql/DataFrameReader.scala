@@ -831,6 +831,15 @@ class DataFrameReader private[sql](sparkSession: SparkSession) extends Logging {
    */
   def table(tableName: String): DataFrame = {
     assertNoSpecifiedSchema("table")
+    val isStreamingTempView =
+      sparkSession.sessionState.catalog.getTempView(tableName).exists(_.isStreaming) ||
+        sparkSession.sessionState.catalog.getGlobalTempView(tableName).exists(_.isStreaming)
+    if (!SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW)
+        && isStreamingTempView) {
+      throw new UnsupportedOperationException("Using `spark.table` or `spark.read.table` to " +
+        "read streaming temp view is not allowed. Please use `spark.readStream.table` or set " +
+        s"the config ${SQLConf.LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW.key} to true.")
+    }
     val multipartIdentifier =
       sparkSession.sessionState.sqlParser.parseMultipartIdentifier(tableName)
     Dataset.ofRows(sparkSession, UnresolvedRelation(multipartIdentifier,

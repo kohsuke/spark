@@ -2837,6 +2837,14 @@ object SQLConf {
       .booleanConf
       .createWithDefault(false)
 
+  val LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW =
+    buildConf("spark.sql.legacy.allowReadStreamingTempView")
+      .internal()
+      .doc("When set to true, user is allowed to use spark.table to read streaming temp view.")
+      .version("3.1.0")
+      .booleanConf
+      .createWithDefault(false)
+
   val TRUNCATE_TRASH_ENABLED =
     buildConf("spark.sql.truncate.trash.enabled")
       .doc("This configuration decides when truncating table, whether data files will be moved " +
