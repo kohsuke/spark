@@ -55,8 +55,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
   test("null cast") {
     import DataTypeTestUtils._
 
-    // follow [[org.apache.spark.sql.catalyst.expressions.Cast.canCast]] logic
-    // to ensure we test every possible cast situation here
     atomicTypes.zip(atomicTypes).foreach { case (from, to) =>
       checkNullCast(from, to)
     }
@@ -65,14 +63,10 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     atomicTypes.foreach(dt => checkNullCast(dt, StringType))
     checkNullCast(StringType, BinaryType)
     checkNullCast(StringType, BooleanType)
-    checkNullCast(DateType, BooleanType)
-    checkNullCast(TimestampType, BooleanType)
     numericTypes.foreach(dt => checkNullCast(dt, BooleanType))
 
     checkNullCast(StringType, TimestampType)
-    checkNullCast(BooleanType, TimestampType)
     checkNullCast(DateType, TimestampType)
-    numericTypes.foreach(dt => checkNullCast(dt, TimestampType))
 
     checkNullCast(StringType, DateType)
     checkNullCast(TimestampType, DateType)
@@ -80,8 +74,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     checkNullCast(StringType, CalendarIntervalType)
     numericTypes.foreach(dt => checkNullCast(StringType, dt))
     numericTypes.foreach(dt => checkNullCast(BooleanType, dt))
-    numericTypes.foreach(dt => checkNullCast(DateType, dt))
-    numericTypes.foreach(dt => checkNullCast(TimestampType, dt))
     for (from <- numericTypes; to <- numericTypes) checkNullCast(from, to)
   }
 
@@ -237,8 +229,10 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     checkCast(1.5, 1.toLong)
     checkCast(1.5, 1.5f)
     checkCast(1.5, "1.5")
-
-    checkEvaluation(cast(cast(1.toDouble, TimestampType), DoubleType), 1.toDouble)
+    // AnsiCast doesn't support casting DoubleType as TimestampType
+    if (requiredAnsiEnabledForOverflowTestCases) {
+      checkEvaluation(cast(cast(1.toDouble, TimestampType), DoubleType), 1.toDouble)
+    }
   }
 
   test("cast from string") {
@@ -305,17 +299,19 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       cast(cast("5", ByteType), ShortType), IntegerType), FloatType), DoubleType), LongType),
       5.toLong)
 
-    checkEvaluation(
-      cast(cast(cast(cast(cast(cast("5", ByteType), TimestampType),
-        DecimalType.SYSTEM_DEFAULT), LongType), StringType), ShortType),
-      5.toShort)
-    checkEvaluation(
-      cast(cast(cast(cast(cast(cast("5", TimestampType, UTC_OPT), ByteType),
-        DecimalType.SYSTEM_DEFAULT), LongType), StringType), ShortType),
-      null)
-    checkEvaluation(cast(cast(cast(cast(cast(cast("5", DecimalType.SYSTEM_DEFAULT),
-      ByteType), TimestampType), LongType), StringType), ShortType),
-      5.toShort)
+    if (requiredAnsiEnabledForOverflowTestCases) {
+      checkEvaluation(
+        cast(cast(cast(cast(cast(cast("5", ByteType), TimestampType),
+          DecimalType.SYSTEM_DEFAULT), LongType), StringType), ShortType),
+        5.toShort)
+      checkEvaluation(
+        cast(cast(cast(cast(cast(cast("5", TimestampType, UTC_OPT), ByteType),
+          DecimalType.SYSTEM_DEFAULT), LongType), StringType), ShortType),
+        null)
+      checkEvaluation(cast(cast(cast(cast(cast(cast("5", DecimalType.SYSTEM_DEFAULT),
+        ByteType), TimestampType), LongType), StringType), ShortType),
+        5.toShort)
+    }
 
     checkEvaluation(cast("23", DoubleType), 23d)
     checkEvaluation(cast("23", IntegerType), 23)
@@ -348,58 +344,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     checkCast(Decimal(1.5), 1.5f)
     checkCast(Decimal(1.5), 1.5)
     checkCast(Decimal(1.5), "1.5")
-  }
-
-  test("cast from date") {
-    val d = Date.valueOf("1970-01-01")
-    checkEvaluation(cast(d, ShortType), null)
-    checkEvaluation(cast(d, IntegerType), null)
-    checkEvaluation(cast(d, LongType), null)
-    checkEvaluation(cast(d, FloatType), null)
-    checkEvaluation(cast(d, DoubleType), null)
-    checkEvaluation(cast(d, DecimalType.SYSTEM_DEFAULT), null)
-    checkEvaluation(cast(d, DecimalType(10, 2)), null)
-    checkEvaluation(cast(d, StringType), "1970-01-01")
-
-    checkEvaluation(
-      cast(cast(d, TimestampType, UTC_OPT), StringType, UTC_OPT),
-      "1970-01-01 00:00:00")
-  }
-
-  test("cast from timestamp") {
-    val millis = 15 * 1000 + 3
-    val seconds = millis * 1000 + 3
-    val ts = new Timestamp(millis)
-    val tss = new Timestamp(seconds)
-    checkEvaluation(cast(ts, ShortType), 15.toShort)
-    checkEvaluation(cast(ts, IntegerType), 15)
-    checkEvaluation(cast(ts, LongType), 15.toLong)
-    checkEvaluation(cast(ts, FloatType), 15.003f)
-    checkEvaluation(cast(ts, DoubleType), 15.003)
-
-    checkEvaluation(cast(cast(tss, ShortType), TimestampType),
-      fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
-    checkEvaluation(cast(cast(tss, IntegerType), TimestampType),
-      fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
-    checkEvaluation(cast(cast(tss, LongType), TimestampType),
-      fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
-    checkEvaluation(
-      cast(cast(millis.toFloat / MILLIS_PER_SECOND, TimestampType), FloatType),
-      millis.toFloat / MILLIS_PER_SECOND)
-    checkEvaluation(
-      cast(cast(millis.toDouble / MILLIS_PER_SECOND, TimestampType), DoubleType),
-      millis.toDouble / MILLIS_PER_SECOND)
-    checkEvaluation(
-      cast(cast(Decimal(1), TimestampType), DecimalType.SYSTEM_DEFAULT),
-      Decimal(1))
-
-    // A test for higher precision than millis
-    checkEvaluation(cast(cast(0.000001, TimestampType), DoubleType), 0.000001)
-
-    checkEvaluation(cast(Double.NaN, TimestampType), null)
-    checkEvaluation(cast(1.0 / 0.0, TimestampType), null)
-    checkEvaluation(cast(Float.NaN, TimestampType), null)
-    checkEvaluation(cast(1.0f / 0.0f, TimestampType), null)
   }
 
   test("cast from array") {
@@ -763,9 +707,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       checkExceptionInExpression[ArithmeticException](
         cast(Literal("134.12"), DecimalType(3, 2)), "cannot be represented")
       checkExceptionInExpression[ArithmeticException](
-        cast(Literal(Timestamp.valueOf("2019-07-25 22:04:36")), DecimalType(3, 2)),
-        "cannot be represented")
-      checkExceptionInExpression[ArithmeticException](
         cast(Literal(BigDecimal(134.12)), DecimalType(3, 2)), "cannot be represented")
       checkExceptionInExpression[ArithmeticException](
         cast(Literal(134.12), DecimalType(3, 2)), "cannot be represented")
@@ -799,8 +740,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       checkExceptionInExpression[ArithmeticException](cast(value, dt), "overflow")
       checkExceptionInExpression[ArithmeticException](cast(Decimal(value.toString), dt), "overflow")
       checkExceptionInExpression[ArithmeticException](
-        cast(Literal(value * MICROS_PER_SECOND, TimestampType), dt), "overflow")
-      checkExceptionInExpression[ArithmeticException](
         cast(Literal(value * 1.5f, FloatType), dt), "overflow")
       checkExceptionInExpression[ArithmeticException](
         cast(Literal(value * 1.0, DoubleType), dt), "overflow")
@@ -825,8 +764,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       Seq(Byte.MaxValue + 1, Byte.MinValue - 1).foreach { value =>
         checkExceptionInExpression[ArithmeticException](cast(value, ByteType), "overflow")
         checkExceptionInExpression[ArithmeticException](
-          cast(Literal(value * MICROS_PER_SECOND, TimestampType), ByteType), "overflow")
-        checkExceptionInExpression[ArithmeticException](
           cast(Literal(value.toFloat, FloatType), ByteType), "overflow")
         checkExceptionInExpression[ArithmeticException](
           cast(Literal(value.toDouble, DoubleType), ByteType), "overflow")
@@ -836,8 +773,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
         checkEvaluation(cast(value, ByteType), value)
         checkEvaluation(cast(value.toString, ByteType), value)
         checkEvaluation(cast(Decimal(value.toString), ByteType), value)
-        checkEvaluation(cast(Literal(value * MICROS_PER_SECOND, TimestampType), ByteType), value)
-        checkEvaluation(cast(Literal(value.toInt, DateType), ByteType), null)
         checkEvaluation(cast(Literal(value.toFloat, FloatType), ByteType), value)
         checkEvaluation(cast(Literal(value.toDouble, DoubleType), ByteType), value)
       }
@@ -850,8 +785,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       Seq(Short.MaxValue + 1, Short.MinValue - 1).foreach { value =>
         checkExceptionInExpression[ArithmeticException](cast(value, ShortType), "overflow")
         checkExceptionInExpression[ArithmeticException](
-          cast(Literal(value * MICROS_PER_SECOND, TimestampType), ShortType), "overflow")
-        checkExceptionInExpression[ArithmeticException](
           cast(Literal(value.toFloat, FloatType), ShortType), "overflow")
         checkExceptionInExpression[ArithmeticException](
           cast(Literal(value.toDouble, DoubleType), ShortType), "overflow")
@@ -861,8 +794,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
         checkEvaluation(cast(value, ShortType), value)
         checkEvaluation(cast(value.toString, ShortType), value)
         checkEvaluation(cast(Decimal(value.toString), ShortType), value)
-        checkEvaluation(cast(Literal(value * MICROS_PER_SECOND, TimestampType), ShortType), value)
-        checkEvaluation(cast(Literal(value.toInt, DateType), ShortType), null)
         checkEvaluation(cast(Literal(value.toFloat, FloatType), ShortType), value)
         checkEvaluation(cast(Literal(value.toDouble, DoubleType), ShortType), value)
       }
@@ -878,7 +809,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
         checkEvaluation(cast(value, IntegerType), value)
         checkEvaluation(cast(value.toString, IntegerType), value)
         checkEvaluation(cast(Decimal(value.toString), IntegerType), value)
-        checkEvaluation(cast(Literal(value * MICROS_PER_SECOND, TimestampType), IntegerType), value)
         checkEvaluation(cast(Literal(value * 1.0, DoubleType), IntegerType), value)
       }
       checkEvaluation(cast(Int.MaxValue + 0.9D, IntegerType), Int.MaxValue)
@@ -894,8 +824,6 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
         checkEvaluation(cast(value, LongType), value)
         checkEvaluation(cast(value.toString, LongType), value)
         checkEvaluation(cast(Decimal(value.toString), LongType), value)
-        checkEvaluation(cast(Literal(value, TimestampType), LongType),
-          Math.floorDiv(value, MICROS_PER_SECOND))
       }
       checkEvaluation(cast(Long.MaxValue + 0.9F, LongType), Long.MaxValue)
       checkEvaluation(cast(Long.MinValue - 0.9F, LongType), Long.MinValue)
@@ -917,6 +845,17 @@ class CastSuite extends CastSuiteBase {
       case lit: Expression => Cast(lit, targetType, timeZoneId)
       case _ => Cast(Literal(v), targetType, timeZoneId)
     }
+  }
+
+  test("null cast: extra test cases for non-ANSI cast") {
+    import DataTypeTestUtils._
+
+    checkNullCast(DateType, BooleanType)
+    checkNullCast(TimestampType, BooleanType)
+    checkNullCast(BooleanType, TimestampType)
+    numericTypes.foreach(dt => checkNullCast(dt, TimestampType))
+    numericTypes.foreach(dt => checkNullCast(TimestampType, dt))
+    numericTypes.foreach(dt => checkNullCast(DateType, dt))
   }
 
   test("cast from int") {
@@ -1230,6 +1169,58 @@ class CastSuite extends CastSuiteBase {
         checkEvaluation(cast("badvalue", dataType), null)
       }
     }
+  }
+
+  test("cast from date") {
+    val d = Date.valueOf("1970-01-01")
+    checkEvaluation(cast(d, ShortType), null)
+    checkEvaluation(cast(d, IntegerType), null)
+    checkEvaluation(cast(d, LongType), null)
+    checkEvaluation(cast(d, FloatType), null)
+    checkEvaluation(cast(d, DoubleType), null)
+    checkEvaluation(cast(d, DecimalType.SYSTEM_DEFAULT), null)
+    checkEvaluation(cast(d, DecimalType(10, 2)), null)
+    checkEvaluation(cast(d, StringType), "1970-01-01")
+
+    checkEvaluation(
+      cast(cast(d, TimestampType, UTC_OPT), StringType, UTC_OPT),
+      "1970-01-01 00:00:00")
+  }
+
+  test("cast from timestamp") {
+    val millis = 15 * 1000 + 3
+    val seconds = millis * 1000 + 3
+    val ts = new Timestamp(millis)
+    val tss = new Timestamp(seconds)
+    checkEvaluation(cast(ts, ShortType), 15.toShort)
+    checkEvaluation(cast(ts, IntegerType), 15)
+    checkEvaluation(cast(ts, LongType), 15.toLong)
+    checkEvaluation(cast(ts, FloatType), 15.003f)
+    checkEvaluation(cast(ts, DoubleType), 15.003)
+
+    checkEvaluation(cast(cast(tss, ShortType), TimestampType),
+      fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
+    checkEvaluation(cast(cast(tss, IntegerType), TimestampType),
+      fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
+    checkEvaluation(cast(cast(tss, LongType), TimestampType),
+      fromJavaTimestamp(ts) * MILLIS_PER_SECOND)
+    checkEvaluation(
+      cast(cast(millis.toFloat / MILLIS_PER_SECOND, TimestampType), FloatType),
+      millis.toFloat / MILLIS_PER_SECOND)
+    checkEvaluation(
+      cast(cast(millis.toDouble / MILLIS_PER_SECOND, TimestampType), DoubleType),
+      millis.toDouble / MILLIS_PER_SECOND)
+    checkEvaluation(
+      cast(cast(Decimal(1), TimestampType), DecimalType.SYSTEM_DEFAULT),
+      Decimal(1))
+
+    // A test for higher precision than millis
+    checkEvaluation(cast(cast(0.000001, TimestampType), DoubleType), 0.000001)
+
+    checkEvaluation(cast(Double.NaN, TimestampType), null)
+    checkEvaluation(cast(1.0 / 0.0, TimestampType), null)
+    checkEvaluation(cast(Float.NaN, TimestampType), null)
+    checkEvaluation(cast(1.0f / 0.0f, TimestampType), null)
   }
 
   test("cast a timestamp before the epoch 1970-01-01 00:00:00Z") {

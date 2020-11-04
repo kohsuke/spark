@@ -1758,7 +1758,11 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
 
   override protected val ansiEnabled: Boolean = SQLConf.get.ansiEnabled
 
-  override def canCast(from: DataType, to: DataType): Boolean = Cast.canCast(from, to)
+  override def canCast(from: DataType, to: DataType): Boolean = if (ansiEnabled) {
+    AnsiCast.canCast(from, to)
+  } else {
+    Cast.canCast(from, to)
+  }
 }
 
 /**
@@ -1777,7 +1781,11 @@ case class AnsiCast(child: Expression, dataType: DataType, timeZoneId: Option[St
 
   override protected val ansiEnabled: Boolean = true
 
-  override def canCast(from: DataType, to: DataType): Boolean = (from, to) match {
+  override def canCast(from: DataType, to: DataType): Boolean = AnsiCast.canCast(from, to)
+}
+
+object AnsiCast {
+  def canCast(from: DataType, to: DataType): Boolean = (from, to) match {
     case (fromType, toType) if fromType == toType => true
 
     case (NullType, _) => true
