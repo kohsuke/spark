@@ -38,8 +38,11 @@ import org.apache.spark.unsafe.types.UTF8String
 
 abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
 
+  // Whether this test suite is for checking AnsiCast or default Cast.
+  protected def isAnsiCast: Boolean
+
   // Whether it is required to set SQLConf.ANSI_ENABLED as true for testing numeric overflow.
-  protected def requiredAnsiEnabledForOverflowTestCases: Boolean
+  protected val requiredAnsiEnabledForOverflowTestCases: Boolean = !isAnsiCast
 
   protected def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase
 
@@ -230,7 +233,7 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     checkCast(1.5, 1.5f)
     checkCast(1.5, "1.5")
     // AnsiCast doesn't support casting DoubleType as TimestampType
-    if (requiredAnsiEnabledForOverflowTestCases) {
+    if (!isAnsiCast) {
       checkEvaluation(cast(cast(1.toDouble, TimestampType), DoubleType), 1.toDouble)
     }
   }
@@ -299,7 +302,7 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
       cast(cast("5", ByteType), ShortType), IntegerType), FloatType), DoubleType), LongType),
       5.toLong)
 
-    if (requiredAnsiEnabledForOverflowTestCases) {
+    if (!isAnsiCast) {
       checkEvaluation(
         cast(cast(cast(cast(cast(cast("5", ByteType), TimestampType),
           DecimalType.SYSTEM_DEFAULT), LongType), StringType), ShortType),
@@ -838,7 +841,7 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
  */
 class CastSuite extends CastSuiteBase {
   // It is required to set SQLConf.ANSI_ENABLED as true for testing numeric overflow.
-  override protected def requiredAnsiEnabledForOverflowTestCases: Boolean = true
+  override def isAnsiCast: Boolean = false
 
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase = {
     v match {
@@ -1370,7 +1373,7 @@ class CastSuite extends CastSuiteBase {
  */
 class AnsiCastSuite extends CastSuiteBase {
   // It is not required to set SQLConf.ANSI_ENABLED as true for testing numeric overflow.
-  override protected def requiredAnsiEnabledForOverflowTestCases: Boolean = false
+  override def isAnsiCast: Boolean = true
 
   override def cast(v: Any, targetType: DataType, timeZoneId: Option[String] = None): CastBase = {
     v match {
