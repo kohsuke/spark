@@ -22,11 +22,11 @@ import io.fabric8.kubernetes.client.dsl.{FilterWatchListDeletable, MixedOperatio
 
 object Fabric8Aliases {
   type PODS = MixedOperation[Pod, PodList, DoneablePod, PodResource[Pod, DoneablePod]]
-  type CONFIGMAPS = MixedOperation[ConfigMap,
+  type CONFIG_MAPS = MixedOperation[ConfigMap,
     ConfigMapList, DoneableConfigMap, Resource[ConfigMap, DoneableConfigMap]]
   type LABELED_PODS = FilterWatchListDeletable[
     Pod, PodList, java.lang.Boolean, Watch, Watcher[Pod]]
-  type LABELED_CONFIGMAPS = FilterWatchListDeletable[ConfigMap, ConfigMapList,
+  type LABELED_CONFIG_MAPS = FilterWatchListDeletable[ConfigMap, ConfigMapList,
     java.lang.Boolean, Watch, Watcher[ConfigMap]]
   type SINGLE_POD = PodResource[Pod, DoneablePod]
   type RESOURCE_LIST = NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable[

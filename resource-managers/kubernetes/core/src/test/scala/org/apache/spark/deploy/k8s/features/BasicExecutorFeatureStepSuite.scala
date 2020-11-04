@@ -27,7 +27,7 @@ import io.fabric8.kubernetes.api.model._
 import org.scalatest.BeforeAndAfter
 
 import org.apache.spark.{SecurityManager, SparkConf, SparkException, SparkFunSuite}
-import org.apache.spark.deploy.k8s.{KubernetesExecutorConf, KubernetesTestConf, SparkPod}
+import org.apache.spark.deploy.k8s.{KubernetesExecutorConf, KubernetesTestConf, SecretVolumeUtils, SparkPod}
 import org.apache.spark.deploy.k8s.Config._
 import org.apache.spark.deploy.k8s.Constants._
 import org.apache.spark.deploy.k8s.features.KubernetesFeaturesTestUtils.TestResourceInformation
@@ -150,14 +150,14 @@ class BasicExecutorFeatureStepSuite extends SparkFunSuite with BeforeAndAfter {
     // There is exactly 1 container with no volume mounts and default memory limits.
     // Default memory limit is 1024M + 384M (minimum overhead constant).
     assert(executor.container.getImage === EXECUTOR_IMAGE)
-    assert(executor.container.getVolumeMounts.isEmpty)
+    assert(executor.container.getVolumeMounts.size() == 1)
     assert(executor.container.getResources.getLimits.size() === 1)
     assert(amountAndFormat(executor.container.getResources
       .getLimits.get("memory")) === "1408Mi")
 
     // The pod has no node selector, volumes.
     assert(executor.pod.getSpec.getNodeSelector.isEmpty)
-    assert(executor.pod.getSpec.getVolumes.isEmpty)
+    assert(executor.pod.getSpec.getVolumes.size() == 1)
 
     checkEnv(executor, baseConf, Map())
     checkOwnerReferences(executor.pod, DRIVER_POD_UID)
@@ -247,6 +247,18 @@ class BasicExecutorFeatureStepSuite extends SparkFunSuite with BeforeAndAfter {
     val executor = step.configurePod(SparkPod.initialPod())
     assert(!KubernetesFeaturesTestUtils.containerHasEnvVar(
       executor.container, SecurityManager.ENV_AUTH_SECRET))
+  }
+
+  test("Mount spark driver's conf dir as configmap on executor pod's container.") {
+    val baseDriverPod = SparkPod.initialPod()
+    val kubernetesConf = KubernetesTestConf.createExecutorConf()
+
+    val step = new BasicExecutorFeatureStep(newExecutorConf(),
+      new SecurityManager(baseConf))
+    val podConfigured = step.configurePod(baseDriverPod)
+    SecretVolumeUtils.containerHasVolume(podConfigured.container,
+      SPARK_CONF_VOLUME_EXEC, SPARK_CONF_DIR_INTERNAL)
+    SecretVolumeUtils.podHasVolume(podConfigured.pod, SPARK_CONF_VOLUME_EXEC)
   }
 
   // There is always exactly one controller reference, and it points to the driver pod.

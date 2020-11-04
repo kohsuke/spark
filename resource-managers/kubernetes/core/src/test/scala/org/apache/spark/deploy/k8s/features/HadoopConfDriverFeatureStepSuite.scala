@@ -27,13 +27,12 @@ import io.fabric8.kubernetes.api.model.ConfigMap
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.deploy.k8s._
 import org.apache.spark.deploy.k8s.Constants._
-import org.apache.spark.deploy.k8s.submit.JavaMainAppResource
 import org.apache.spark.util.{SparkConfWithEnv, Utils}
 
 class HadoopConfDriverFeatureStepSuite extends SparkFunSuite {
 
   import KubernetesFeaturesTestUtils._
-  import K8sVolumeTestUtils._
+  import SecretVolumeUtils._
 
   test("mount hadoop config map if defined") {
     val sparkConf = new SparkConf(false)
