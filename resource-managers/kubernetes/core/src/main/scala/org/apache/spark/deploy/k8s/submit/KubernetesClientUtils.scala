@@ -70,7 +70,8 @@ private[spark] object KubernetesClientUtils extends Logging {
   def buildKeyToPathObjects(confFilesMap: Map[String, String]): Seq[KeyToPath] = {
     confFilesMap.map {
       case (fileName: String, _: String) =>
-        new KeyToPath(fileName, 420, fileName) // 420 is decimal for 0644.
+        val filePermissionMode = 420  // 420 is decimal for octal literal 0644.
+        new KeyToPath(fileName, filePermissionMode, fileName)
     }.toList.sortBy(x => x.getKey) // List is sorted to make mocking based tests work
   }
 
