@@ -31,6 +31,8 @@ import org.apache.spark.deploy.k8s.Constants.ENV_SPARK_CONF_DIR
 import org.apache.spark.internal.Logging
 
 private[spark] object KubernetesClientUtils extends Logging {
+
+  // Config map name can be 63 chars at max.
   def configMapName(prefix: String): String = s"${prefix.take(50)}-conf-map"
 
   val configMapNameExecutor: String = configMapName(s"spark-exec-${KubernetesUtils.uniqueID()}")
@@ -73,7 +75,8 @@ private[spark] object KubernetesClientUtils extends Logging {
   }
 
   /**
-   * Build a Config Map that will hold the content for spark $SPARK_CONF_DIR on remote pods.
+   * Build a Config Map that will hold the content for environment variable SPARK_CONF_DIR
+   * on remote pods.
    */
   def buildConfigMap(configMapName: String, confFileMap: Map[String, String],
       withLabels: Map[String, String] = Map()): ConfigMap = {
@@ -99,14 +102,14 @@ private[spark] object KubernetesClientUtils extends Logging {
         mapping
       }.toMap
     } else {
-      logInfo(s"Spark configuration directory not detected, please set env:$ENV_SPARK_CONF_DIR")
+      logInfo(s"Spark configuration directory is not detected, please set env:$ENV_SPARK_CONF_DIR")
       Map()
     }
   }
 
   private def listConfFiles(confDir: String): Seq[File] = {
     // We exclude all the template files and user provided spark conf or properties.
-    // As spark properties is resolved in a different step.
+    // As spark properties are resolved in a different step.
     val fileFilter = (f: File) => {
       f.isFile && !(f.getName.endsWith("template") ||
         f.getName.matches("spark.*(conf|properties)"))

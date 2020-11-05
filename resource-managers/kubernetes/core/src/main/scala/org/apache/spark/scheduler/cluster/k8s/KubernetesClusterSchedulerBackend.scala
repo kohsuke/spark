@@ -75,6 +75,7 @@ private[spark] class KubernetesClusterSchedulerBackend(
     val configMap = KubernetesClientUtils.buildConfigMap(configMapName, confFilesMap, labels)
     kubernetesClient.configMaps().create(configMap)
   }
+
   /**
    * Get an application ID associated with the job.
    * This returns the string value of spark.app.id if set, otherwise
@@ -118,7 +119,9 @@ private[spark] class KubernetesClusterSchedulerBackend(
           .withLabel(SPARK_APP_ID_LABEL, applicationId())
           .withLabel(SPARK_ROLE_LABEL, SPARK_POD_EXECUTOR_ROLE)
           .delete()
-       kubernetesClient
+      }
+      Utils.tryLogNonFatalError {
+        kubernetesClient
           .configMaps()
           .withLabel(SPARK_APP_ID_LABEL, applicationId())
           .withLabel(SPARK_ROLE_LABEL, SPARK_POD_EXECUTOR_ROLE)
