@@ -32,6 +32,7 @@ import org.apache.spark.sql.types.{DataType, MetadataBuilder, StringType, Struct
 trait V2WriteCommand extends Command {
   def table: NamedRelation
   def query: LogicalPlan
+  def isByName: Boolean
 
   override def children: Seq[LogicalPlan] = Seq(query)
 
@@ -50,6 +51,8 @@ trait V2WriteCommand extends Command {
         }
     }
   }
+
+  def withNewQuery(newQuery: LogicalPlan): V2WriteCommand
 }
 
 /**
@@ -59,7 +62,9 @@ case class AppendData(
     table: NamedRelation,
     query: LogicalPlan,
     writeOptions: Map[String, String],
-    isByName: Boolean) extends V2WriteCommand
+    isByName: Boolean) extends V2WriteCommand {
+  override def withNewQuery(newQuery: LogicalPlan): AppendData = copy(query = newQuery)
+}
 
 object AppendData {
   def byName(
@@ -87,6 +92,8 @@ case class OverwriteByExpression(
     writeOptions: Map[String, String],
     isByName: Boolean) extends V2WriteCommand {
   override lazy val resolved: Boolean = outputResolved && deleteExpr.resolved
+  override def withNewQuery(newQuery: LogicalPlan): OverwriteByExpression =
+    copy(query = newQuery)
 }
 
 object OverwriteByExpression {
@@ -114,7 +121,10 @@ case class OverwritePartitionsDynamic(
     table: NamedRelation,
     query: LogicalPlan,
     writeOptions: Map[String, String],
-    isByName: Boolean) extends V2WriteCommand
+    isByName: Boolean) extends V2WriteCommand {
+  override def withNewQuery(newQuery: LogicalPlan): OverwritePartitionsDynamic =
+    copy(query = newQuery)
+}
 
 object OverwritePartitionsDynamic {
   def byName(
