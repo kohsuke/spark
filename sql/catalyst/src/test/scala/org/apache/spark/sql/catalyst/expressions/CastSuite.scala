@@ -587,8 +587,8 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     assert(cast(1.toShort, to).checkInputDataTypes().isFailure)
     assert(cast(1, to).checkInputDataTypes().isFailure)
     assert(cast(1L, to).checkInputDataTypes().isFailure)
-    assert(cast(1.0.toFloat, TimestampType).checkInputDataTypes().isFailure)
-    assert(cast(1.0, TimestampType).checkInputDataTypes().isFailure)
+    assert(cast(1.0.toFloat, to).checkInputDataTypes().isFailure)
+    assert(cast(1.0, to).checkInputDataTypes().isFailure)
   }
 
   test("SPARK-16729 type checking for casting to date type") {
@@ -598,14 +598,49 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     checkInvalidCastFromNumericType(DateType)
   }
 
-  test("ANSI mode: disallow type conversions between Numeric types and Timestamp types") {
+  test("ANSI mode: disallow type conversions between Numeric types and Timestamp type") {
     import DataTypeTestUtils.numericTypes
     withSQLConf(SQLConf.ANSI_ENABLED.key -> requiredAnsiEnabledForOverflowTestCases.toString) {
       checkInvalidCastFromNumericType(TimestampType)
-      val timestampLiteral = Literal(new Timestamp(1), TimestampType)
+      val timestampLiteral = Literal(1L, TimestampType)
       numericTypes.foreach { numericType =>
         assert(cast(timestampLiteral, numericType).checkInputDataTypes().isFailure)
       }
+    }
+  }
+
+  test("ANSI mode: disallow type conversions between Numeric types and Date type") {
+    import DataTypeTestUtils.numericTypes
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> requiredAnsiEnabledForOverflowTestCases.toString) {
+      checkInvalidCastFromNumericType(DateType)
+      val dateLiteral = Literal(1, DateType)
+      numericTypes.foreach { numericType =>
+        assert(cast(dateLiteral, numericType).checkInputDataTypes().isFailure)
+      }
+    }
+  }
+
+  test("ANSI mode: disallow type conversions between Numeric types and Binary type") {
+    import DataTypeTestUtils.numericTypes
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> requiredAnsiEnabledForOverflowTestCases.toString) {
+      checkInvalidCastFromNumericType(BinaryType)
+      val binaryLiteral = Literal(new Array[Byte](1.toByte), BinaryType)
+      numericTypes.foreach { numericType =>
+        assert(cast(binaryLiteral, numericType).checkInputDataTypes().isFailure)
+      }
+    }
+  }
+
+  test("ANSI mode: disallow type conversions between Datatime types and Boolean types") {
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> requiredAnsiEnabledForOverflowTestCases.toString) {
+      val timestampLiteral = Literal(1L, TimestampType)
+      assert(cast(timestampLiteral, BooleanType).checkInputDataTypes().isFailure)
+      val dateLiteral = Literal(1, DateType)
+      assert(cast(dateLiteral, BooleanType).checkInputDataTypes().isFailure)
+
+      val booleanLiteral = Literal(true, BooleanType)
+      assert(cast(booleanLiteral, TimestampType).checkInputDataTypes().isFailure)
+      assert(cast(booleanLiteral, DateType).checkInputDataTypes().isFailure)
     }
   }
 
