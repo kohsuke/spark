@@ -582,16 +582,31 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     checkEvaluation(cast("", BooleanType), null)
   }
 
+  private def checkInvalidCastFromNumericType(to: DataType): Unit = {
+    assert(cast(1.toByte, to).checkInputDataTypes().isFailure)
+    assert(cast(1.toShort, to).checkInputDataTypes().isFailure)
+    assert(cast(1, to).checkInputDataTypes().isFailure)
+    assert(cast(1L, to).checkInputDataTypes().isFailure)
+    assert(cast(1.0.toFloat, TimestampType).checkInputDataTypes().isFailure)
+    assert(cast(1.0, TimestampType).checkInputDataTypes().isFailure)
+  }
+
   test("SPARK-16729 type checking for casting to date type") {
     assert(cast("1234", DateType).checkInputDataTypes().isSuccess)
     assert(cast(new Timestamp(1), DateType).checkInputDataTypes().isSuccess)
     assert(cast(false, DateType).checkInputDataTypes().isFailure)
-    assert(cast(1.toByte, DateType).checkInputDataTypes().isFailure)
-    assert(cast(1.toShort, DateType).checkInputDataTypes().isFailure)
-    assert(cast(1, DateType).checkInputDataTypes().isFailure)
-    assert(cast(1L, DateType).checkInputDataTypes().isFailure)
-    assert(cast(1.0.toFloat, DateType).checkInputDataTypes().isFailure)
-    assert(cast(1.0, DateType).checkInputDataTypes().isFailure)
+    checkInvalidCastFromNumericType(DateType)
+  }
+
+  test("ANSI mode: disallow type conversions between Numeric types and Timestamp types") {
+    import DataTypeTestUtils.numericTypes
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> requiredAnsiEnabledForOverflowTestCases.toString) {
+      checkInvalidCastFromNumericType(TimestampType)
+      val timestampLiteral = Literal(new Timestamp(1), TimestampType)
+      numericTypes.foreach { numericType =>
+        assert(cast(timestampLiteral, numericType).checkInputDataTypes().isFailure)
+      }
+    }
   }
 
   test("SPARK-20302 cast with same structure") {
