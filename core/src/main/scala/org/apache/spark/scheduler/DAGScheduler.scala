@@ -249,8 +249,6 @@ private[spark] class DAGScheduler(
   private[spark] val eventProcessLoop = new DAGSchedulerEventProcessLoop(this)
   taskScheduler.setDAGScheduler(this)
 
-  private val pushBasedShuffleEnabled = Utils.isPushBasedShuffleEnabled(sc.getConf)
-
   /**
    * Called by the TaskSetManager to report task's starting.
    */
@@ -1267,8 +1265,6 @@ private[spark] class DAGScheduler(
     // TODO: disable shuffle merge for the retry/reuse cases
     val mergerLocs = sc.schedulerBackend.getShufflePushMergerLocations(
       stage.shuffleDep.partitioner.numPartitions, stage.resourceProfileId)
-    logDebug(s"List of shuffle push merger locations " +
-      s"${stage.shuffleDep.getMergerLocs.map(_.host).mkString(", ")}")
 
     if (mergerLocs.nonEmpty) {
       stage.shuffleDep.setMergerLocs(mergerLocs)
@@ -1278,6 +1274,9 @@ private[spark] class DAGScheduler(
       stage.shuffleDep.setShuffleMergeEnabled(false)
       logInfo("Shuffle merge disabled for %s (%s)".format(stage, stage.name))
     }
+
+    logDebug(s"List of shuffle push merger locations " +
+      s"${stage.shuffleDep.getMergerLocs.map(_.host).mkString(", ")}")
   }
 
   /** Called when stage's parents are available and we can now do its task. */
@@ -1312,7 +1311,7 @@ private[spark] class DAGScheduler(
         // Only generate merger location for a given shuffle dependency once. This way, even if
         // this stage gets retried, it would still be merging blocks using the same set of
         // shuffle services.
-        if (s.shuffleDep.shuffleMergeEnabled) {
+        if (s.shuffleDep.isShuffleMergeEnabled) {
           prepareShuffleServicesForShuffleMapStage(s)
         }
       case s: ResultStage =>

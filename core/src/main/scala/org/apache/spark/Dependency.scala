@@ -105,7 +105,7 @@ class ShuffleDependency[K: ClassTag, V: ClassTag, C: ClassTag](
     _shuffleMergeEnabled = shuffleMergeEnabled
   }
 
-  def shuffleMergeEnabled : Boolean = _shuffleMergeEnabled
+  def isShuffleMergeEnabled : Boolean = _shuffleMergeEnabled
 
   /**
    * Stores the location of the list of chosen external shuffle services for handling the
