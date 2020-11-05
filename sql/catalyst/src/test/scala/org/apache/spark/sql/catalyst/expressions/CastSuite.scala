@@ -644,6 +644,14 @@ abstract class CastSuiteBase extends SparkFunSuite with ExpressionEvalHelper {
     }
   }
 
+  test("ANSI mode: disallow casting complex types as String type") {
+    withSQLConf(SQLConf.ANSI_ENABLED.key -> requiredAnsiEnabledForOverflowTestCases.toString) {
+      assert(cast(Literal.create(Array(1, 2, 3, 4, 5)), StringType).checkInputDataTypes().isFailure)
+      assert(cast(Literal.create(Map(1 -> "a")), StringType).checkInputDataTypes().isFailure)
+      assert(cast(Literal.create((1, "a", 0.1)), StringType).checkInputDataTypes().isFailure)
+    }
+  }
+
   test("SPARK-20302 cast with same structure") {
     val from = new StructType()
       .add("a", IntegerType)
