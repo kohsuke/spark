@@ -249,10 +249,8 @@ class BasicExecutorFeatureStepSuite extends SparkFunSuite with BeforeAndAfter {
       executor.container, SecurityManager.ENV_AUTH_SECRET))
   }
 
-  test("Mount spark driver's conf dir as configmap on executor pod's container.") {
+  test("Verify spark conf dir is mounted as configmap volume on executor pod's container.") {
     val baseDriverPod = SparkPod.initialPod()
-    val kubernetesConf = KubernetesTestConf.createExecutorConf()
-
     val step = new BasicExecutorFeatureStep(newExecutorConf(), new SecurityManager(baseConf))
     val podConfigured = step.configurePod(baseDriverPod)
     SecretVolumeUtils.containerHasVolume(podConfigured.container,

@@ -64,10 +64,10 @@ class KubernetesClusterSchedulerBackendSuite extends SparkFunSuite with BeforeAn
   private var podOperations: PODS = _
 
   @Mock
-  private var configMapsOperations: CONFIG_MAPS = _
+  private var labeledPods: LABELED_PODS = _
 
   @Mock
-  private var labeledPods: LABELED_PODS = _
+  private var configMapsOperations: CONFIG_MAPS = _
 
   @Mock
   private var labledConfigMaps: LABELED_CONFIG_MAPS = _

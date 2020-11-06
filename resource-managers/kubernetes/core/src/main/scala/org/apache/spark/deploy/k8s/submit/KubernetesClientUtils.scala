@@ -33,7 +33,7 @@ import org.apache.spark.internal.Logging
 private[spark] object KubernetesClientUtils extends Logging {
 
   // Config map name can be 63 chars at max.
-  def configMapName(prefix: String): String = s"${prefix.take(50)}-conf-map"
+  def configMapName(prefix: String): String = s"${prefix.take(54)}-conf-map"
 
   val configMapNameExecutor: String = configMapName(s"spark-exec-${KubernetesUtils.uniqueID()}")
 
