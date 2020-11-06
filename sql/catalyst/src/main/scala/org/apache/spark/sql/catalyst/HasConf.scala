@@ -15,19 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.spark.sql.catalyst.rules
+package org.apache.spark.sql.catalyst
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.HasConf
-import org.apache.spark.sql.catalyst.trees.TreeNode
+import org.apache.spark.sql.internal.SQLConf
 
-abstract class Rule[TreeType <: TreeNode[_]] extends HasConf with Logging {
+/**
+ * Trait for shared SQLConf.
+ */
+trait HasConf {
 
-  /** Name for this rule, automatically inferred based on class name. */
-  val ruleName: String = {
-    val className = getClass.getName
-    if (className endsWith "$") className.dropRight(1) else className
-  }
-
-  def apply(plan: TreeType): TreeType
+  /**
+   * The active config object within the current scope.
+   * See [[SQLConf.get]] for more information.
+   */
+  def conf: SQLConf = SQLConf.get
 }
