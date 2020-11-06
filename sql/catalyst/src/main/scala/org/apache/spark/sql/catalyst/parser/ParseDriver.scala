@@ -33,7 +33,9 @@ import org.apache.spark.sql.types.{DataType, StructType}
 /**
  * Base SQL parsing infrastructure.
  */
-abstract class AbstractSqlParser(conf: SQLConf) extends ParserInterface with Logging {
+abstract class AbstractSqlParser extends ParserInterface with Logging {
+
+  private def conf = SQLConf.get
 
   /** Creates/Resolves DataType for a given SQL string. */
   override def parseDataType(sqlText: String): DataType = parse(sqlText) { parser =>
@@ -138,13 +140,13 @@ abstract class AbstractSqlParser(conf: SQLConf) extends ParserInterface with Log
 /**
  * Concrete SQL parser for Catalyst-only SQL statements.
  */
-class CatalystSqlParser(conf: SQLConf) extends AbstractSqlParser(conf) {
-  val astBuilder = new AstBuilder(conf)
+class CatalystSqlParser(deprecatedConf: SQLConf) extends AbstractSqlParser {
+  val astBuilder = new AstBuilder
 }
 
 /** For test-only. */
-object CatalystSqlParser extends AbstractSqlParser(SQLConf.get) {
-  val astBuilder = new AstBuilder(SQLConf.get)
+object CatalystSqlParser extends AbstractSqlParser {
+  val astBuilder = new AstBuilder
 }
 
 /**

@@ -64,6 +64,7 @@ view.catalogAndNamespace.part.0	spark_catalog
 view.catalogAndNamespace.part.1	default
 view.query.out.col.0	c1
 view.query.out.numCols	1
+view.query.sqlConfigs	{"spark.sql.codegen.fallback":"false","spark.sql.codegen.factoryMode":"CODEGEN_ONLY","spark.sql.optimizer.excludedRules":"org.apache.spark.sql.catalyst.optimizer.ConvertToLocalRelation","spark.sql.shuffle.partitions":"4"}
 
 
 -- !query

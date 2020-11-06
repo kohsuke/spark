@@ -21,7 +21,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
 import org.apache.spark.sql.catalyst.parser.ParseException
-import org.apache.spark.sql.internal.SQLConf.MAX_NESTED_VIEW_DEPTH
+import org.apache.spark.sql.internal.SQLConf._
 import org.apache.spark.sql.test.{SharedSparkSession, SQLTestUtils}
 
 class SimpleSQLViewSuite extends SQLViewSuite with SharedSparkSession
@@ -745,6 +745,32 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
         sql("CREATE TABLE t23519 USING parquet AS SELECT 1 AS c1")
         sql("CREATE VIEW v23519 (c1, c2) AS SELECT c1, c1 FROM t23519")
         checkAnswer(sql("SELECT * FROM v23519"), Row(1, 1))
+      }
+    }
+  }
+
+  test("SPARK-33141 view should be parsed and analyzed with configs set when creating") {
+    withTable("t33141") {
+      withView("v33141", "v33141_1", "v33141_2", "v33141_3") {
+        Seq(2, 3, 1).toDF("c1").write.format("parquet").saveAsTable("t33141")
+        sql("CREATE VIEW v33141 (c1) AS SELECT c1 FROM T33141")
+        sql("CREATE VIEW v33141_1 (c1) AS SELECT c1 FROM T33141 ORDER BY 1")
+        sql("CREATE VIEW v33141_2 (c1, count) AS SELECT c1, count(c1) FROM T33141 GROUP BY 1")
+        sql("CREATE VIEW v33141_3 (a, count) AS SELECT c1 as a, count(c1) FROM T33141 GROUP BY a")
+        withSQLConf(CASE_SENSITIVE.key -> "true") {
+          checkAnswer(sql("SELECT * FROM v33141"), Seq(Row(2), Row(3), Row(1)))
+        }
+        withSQLConf(ORDER_BY_ORDINAL.key -> "false") {
+          checkAnswer(sql("SELECT * FROM v33141_1 order by 1"), Seq(Row(1), Row(2), Row(3)))
+        }
+        withSQLConf(GROUP_BY_ORDINAL.key -> "false") {
+          checkAnswer(sql("SELECT * FROM v33141_2"),
+            Seq(Row(1, 1), Row(2, 1), Row(3, 1)))
+        }
+        withSQLConf(GROUP_BY_ALIASES.key -> "false") {
+          checkAnswer(sql("SELECT * FROM v33141_3"),
+            Seq(Row(1, 1), Row(2, 1), Row(3, 1)))
+        }
       }
     }
   }
