@@ -173,7 +173,7 @@ class CacheManager extends Logging with AdaptiveSparkPlanHelper {
       } else {
         _.sameResult(plan)
       }
-    uncacheByCondition(cd => shouldRemove(cd.plan))
+    uncacheByCondition(cd => shouldRemove(cd.plan), blocking = blocking)
 
     // Re-compile dependent cached queries after removing the cached query.
     if (!cascade) {
