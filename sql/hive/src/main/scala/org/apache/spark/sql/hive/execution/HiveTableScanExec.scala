@@ -38,7 +38,6 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.hive._
 import org.apache.spark.sql.hive.client.HiveClientImpl
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.util.Utils
 
@@ -59,8 +58,6 @@ case class HiveTableScanExec(
 
   require(partitionPruningPred.isEmpty || relation.isPartitioned,
     "Partition pruning predicates only supported for partitioned tables.")
-
-  override def conf: SQLConf = sparkSession.sessionState.conf
 
   override def nodeName: String = s"Scan hive ${relation.tableMeta.qualifiedName}"
 
@@ -172,7 +169,7 @@ case class HiveTableScanExec(
         prunePartitions(hivePartitions)
       }
     } else {
-      if (sparkSession.sessionState.conf.metastorePartitionPruning &&
+      if (conf.metastorePartitionPruning &&
         partitionPruningPred.nonEmpty) {
         rawPartitions
       } else {
@@ -184,7 +181,7 @@ case class HiveTableScanExec(
   // exposed for tests
   @transient lazy val rawPartitions: Seq[HivePartition] = {
     val prunedPartitions =
-      if (sparkSession.sessionState.conf.metastorePartitionPruning &&
+      if (conf.metastorePartitionPruning &&
         partitionPruningPred.nonEmpty) {
         // Retrieve the original attributes based on expression ID so that capitalization matches.
         val normalizedFilters = partitionPruningPred.map(_.transform {

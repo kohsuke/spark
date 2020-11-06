@@ -39,11 +39,10 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.{EmptyRDD, HadoopRDD, NewHadoopRDD, RDD, UnionRDD}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.catalyst.InternalRow
+import org.apache.spark.sql.catalyst.{HasConf, InternalRow}
 import org.apache.spark.sql.catalyst.analysis.CastSupport
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.{SerializableConfiguration, Utils}
 
@@ -68,7 +67,7 @@ class HadoopTableReader(
     @transient private val tableDesc: TableDesc,
     @transient private val sparkSession: SparkSession,
     hadoopConf: Configuration)
-  extends TableReader with CastSupport with Logging {
+  extends TableReader with CastSupport with Logging with HasConf {
 
   // Hadoop honors "mapreduce.job.maps" as hint,
   // but will ignore when mapreduce.jobtracker.address is "local".
@@ -88,8 +87,6 @@ class HadoopTableReader(
 
   private val _broadcastedHadoopConf =
     sparkSession.sparkContext.broadcast(new SerializableConfiguration(hadoopConf))
-
-  override def conf: SQLConf = sparkSession.sessionState.conf
 
   override def makeRDDForTable(hiveTable: HiveTable): RDD[InternalRow] =
     makeRDDForTable(

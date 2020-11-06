@@ -188,27 +188,29 @@ class BooleanSimplificationSuite extends PlanTest with ExpressionEvalHelper with
     checkCondition(!(('e || 'f) && ('g || 'h)), (!'e && !'f) || (!'g && !'h))
   }
 
-  private val caseInsensitiveConf = new SQLConf().copy(SQLConf.CASE_SENSITIVE -> false)
-  private val caseInsensitiveAnalyzer = new Analyzer(
-    new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry, caseInsensitiveConf),
-    caseInsensitiveConf)
+  private val analyzer = new Analyzer(
+    new SessionCatalog(new InMemoryCatalog, EmptyFunctionRegistry))
 
   test("(a && b) || (a && c) => a && (b || c) when case insensitive") {
-    val plan = caseInsensitiveAnalyzer.execute(
-      testRelation.where(('a > 2 && 'b > 3) || ('A > 2 && 'b < 5)))
-    val actual = Optimize.execute(plan)
-    val expected = caseInsensitiveAnalyzer.execute(
-      testRelation.where('a > 2 && ('b > 3 || 'b < 5)))
-    comparePlans(actual, expected)
+    withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
+      val plan = analyzer.execute(
+        testRelation.where(('a > 2 && 'b > 3) || ('A > 2 && 'b < 5)))
+      val actual = Optimize.execute(plan)
+      val expected = analyzer.execute(
+        testRelation.where('a > 2 && ('b > 3 || 'b < 5)))
+      comparePlans(actual, expected)
+    }
   }
 
   test("(a || b) && (a || c) => a || (b && c) when case insensitive") {
-    val plan = caseInsensitiveAnalyzer.execute(
-      testRelation.where(('a > 2 || 'b > 3) && ('A > 2 || 'b < 5)))
-    val actual = Optimize.execute(plan)
-    val expected = caseInsensitiveAnalyzer.execute(
-      testRelation.where('a > 2 || ('b > 3 && 'b < 5)))
-    comparePlans(actual, expected)
+    withSQLConf(SQLConf.CASE_SENSITIVE.key -> "false") {
+      val plan = analyzer.execute(
+        testRelation.where(('a > 2 || 'b > 3) && ('A > 2 || 'b < 5)))
+      val actual = Optimize.execute(plan)
+      val expected = analyzer.execute(
+        testRelation.where('a > 2 || ('b > 3 && 'b < 5)))
+      comparePlans(actual, expected)
+    }
   }
 
   test("Complementation Laws") {
