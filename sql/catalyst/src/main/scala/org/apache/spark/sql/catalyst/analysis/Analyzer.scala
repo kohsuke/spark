@@ -878,6 +878,14 @@ class Analyzer(
         case _ => None
       }
 
+      val isStreamingTmpView = tmpView.nonEmpty && tmpView.get.isStreaming
+      if (!isStreaming && !SQLConf.get.getConf(SQLConf.LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW)
+          && isStreamingTmpView) {
+        throw new UnsupportedOperationException("Using `spark.table` or `spark.read.table` to " +
+          "read streaming temp view is not allowed. Please use `spark.readStream.table` or set " +
+          s"the config ${SQLConf.LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW.key} to true.")
+      }
+
       if (isStreaming && tmpView.nonEmpty && !tmpView.get.isStreaming) {
         throw new AnalysisException(s"${identifier.quoted} is not a temp view of streaming " +
           s"logical plan, please use batch API such as `DataFrameReader.table` to read it.")

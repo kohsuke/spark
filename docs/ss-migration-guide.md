@@ -26,6 +26,10 @@ Note that this migration guide describes the items specific to Structured Stream
 Many items of SQL migration can be applied when migrating Structured Streaming to higher versions.
 Please refer [Migration Guide: SQL, Datasets and DataFrame](sql-migration-guide.html).
 
+## Upgrading from Spark SQL 3.0 to 3.1
+
+- In Spark 3.1, it is not allowed to read streaming temp view via API `spark.table` and `spark.read.table`. You can use `spark.readStream.table` instead, or set the config `spark.sql.legacy.allowReadingStreamingTempViewInBatchAPI` to true to restore the old behavior.
+
 ## Upgrading from Structured Streaming 2.4 to 3.0
 
 - In Spark 3.0, Structured Streaming forces the source schema into nullable when file-based datasources such as text, json, csv, parquet and orc are used via `spark.readStream(...)`. Previously, it respected the nullability in source schema; however, it caused issues tricky to debug with NPE. To restore the previous behavior, set `spark.sql.streaming.fileSource.schema.forceNullable` to `false`.

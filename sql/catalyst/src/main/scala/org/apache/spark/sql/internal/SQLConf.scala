@@ -2838,7 +2838,7 @@ object SQLConf {
       .createWithDefault(false)
 
   val LEGACY_ALLOW_READ_STREAMING_TEMP_VIEW =
-    buildConf("spark.sql.legacy.allowReadStreamingTempView")
+    buildConf("spark.sql.legacy.allowReadingStreamingTempViewInBatchAPI")
       .internal()
       .doc("When set to true, user is allowed to use spark.table to read streaming temp view.")
       .version("3.1.0")
