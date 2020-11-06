@@ -61,10 +61,11 @@ class SessionCatalog(
     externalCatalogBuilder: () => ExternalCatalog,
     globalTempViewManagerBuilder: () => GlobalTempViewManager,
     functionRegistry: FunctionRegistry,
-    conf: SQLConf,
     hadoopConf: Configuration,
     parser: ParserInterface,
-    functionResourceLoader: FunctionResourceLoader) extends Logging {
+    functionResourceLoader: FunctionResourceLoader,
+    cacheSize: Int = SQLConf.get.tableRelationCacheSize,
+    cacheTTL: Long = SQLConf.get.metadataCacheTTL) extends Logging with HasConf {
   import SessionCatalog._
   import CatalogTypes.TablePartitionSpec
 
@@ -72,23 +73,26 @@ class SessionCatalog(
   def this(
       externalCatalog: ExternalCatalog,
       functionRegistry: FunctionRegistry,
-      conf: SQLConf) = {
+      staticConf: SQLConf) = {
     this(
       () => externalCatalog,
-      () => new GlobalTempViewManager(conf.getConf(GLOBAL_TEMP_DATABASE)),
+      () => new GlobalTempViewManager(staticConf.getConf(GLOBAL_TEMP_DATABASE)),
       functionRegistry,
-      conf,
       new Configuration(),
-      new CatalystSqlParser(conf),
-      DummyFunctionResourceLoader)
+      new CatalystSqlParser(),
+      DummyFunctionResourceLoader,
+      staticConf.tableRelationCacheSize,
+      staticConf.metadataCacheTTL)
+  }
+
+  // For testing only.
+  def this(externalCatalog: ExternalCatalog, functionRegistry: FunctionRegistry) = {
+    this(externalCatalog, functionRegistry, SQLConf.get)
   }
 
   // For testing only.
   def this(externalCatalog: ExternalCatalog) = {
-    this(
-      externalCatalog,
-      new SimpleFunctionRegistry,
-      new SQLConf().copy(SQLConf.CASE_SENSITIVE -> true))
+    this(externalCatalog, new SimpleFunctionRegistry)
   }
 
   lazy val externalCatalog = externalCatalogBuilder()
@@ -136,9 +140,6 @@ class SessionCatalog(
   }
 
   private val tableRelationCache: Cache[QualifiedTableName, LogicalPlan] = {
-    val cacheSize = conf.tableRelationCacheSize
-    val cacheTTL = conf.metadataCacheTTL
-
     var builder = CacheBuilder.newBuilder()
       .maximumSize(cacheSize)
 
