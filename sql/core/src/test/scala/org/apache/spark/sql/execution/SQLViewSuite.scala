@@ -739,7 +739,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  test("SPARK-23519 view should be created even when query output contains duplicate col name") {
+  test("SPARK-23519: view should be created even when query output contains duplicate col name") {
     withTable("t23519") {
       withView("v23519") {
         sql("CREATE TABLE t23519 USING parquet AS SELECT 1 AS c1")
@@ -749,7 +749,7 @@ abstract class SQLViewSuite extends QueryTest with SQLTestUtils {
     }
   }
 
-  test("SPARK-33141 view should be parsed and analyzed with configs set when creating") {
+  test("SPARK-33141: view should be parsed and analyzed with configs set when creating") {
     withTable("t33141") {
       withView("v33141", "v33141_1", "v33141_2", "v33141_3") {
         Seq(2, 3, 1).toDF("c1").write.format("parquet").saveAsTable("t33141")
