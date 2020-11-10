@@ -1932,7 +1932,7 @@ object SQLConf {
       .doc(
         s"When true, the exception messages from Python UDFs are simplified. It hides " +
          "the Python worker, (de)serialization, etc from PySpark in tracebacks, and only" +
-         "shows the exception messages from UDFs.")
+         "shows the exception messages from UDFs. Note that this does not work with PyPy.")
       .version("3.1.0")
       .booleanConf
       .createWithDefault(false)

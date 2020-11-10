@@ -159,6 +159,9 @@ def simplify_traceback(tb):
     >>> exc_info_b.count("pyspark/util.py")
     1
     """
+    if "pypy" in platform.python_implementation().lower():
+        # Traceback modification is not supported with PyPy in PySpark.
+        return tb
 
     import pyspark
 
@@ -282,6 +285,10 @@ class InheritableThread(threading.Thread):
 
 if __name__ == "__main__":
     import doctest
-    (failure_count, test_count) = doctest.testmod()
-    if failure_count:
-        sys.exit(-1)
+    import platform
+
+    if "pypy" not in platform.python_implementation().lower():
+        # simplify_traceback does not work with PyPy.
+        (failure_count, test_count) = doctest.testmod()
+        if failure_count:
+            sys.exit(-1)
