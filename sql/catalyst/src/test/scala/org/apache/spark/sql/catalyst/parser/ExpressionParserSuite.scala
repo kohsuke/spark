@@ -610,11 +610,11 @@ class ExpressionParserSuite extends AnalysisTest {
 
           // The unescape special characters (e.g., "\\t") for 2.0+ don't work
           // when ESCAPED_STRING_LITERALS is enabled. They are parsed literally.
-          assertEqual("'\\\"'", "\\\"", parser) // Double quote
-          assertEqual("'\\b'", "\\b", parser) // Backspace
-          assertEqual("'\\n'", "\\n", parser) // Newline
-          assertEqual("'\\r'", "\\r", parser) // Carriage return
-          assertEqual("'\\t'", "\\t", parser) // Tab character
+          assertEqual("'\\\"'", "\\\"", parser)   // Double quote
+          assertEqual("'\\b'", "\\b", parser)     // Backspace
+          assertEqual("'\\n'", "\\n", parser)     // Newline
+          assertEqual("'\\r'", "\\r", parser)     // Carriage return
+          assertEqual("'\\t'", "\\t", parser)     // Tab character
 
           // The unescape Octals for 2.0+ don't work when ESCAPED_STRING_LITERALS is enabled.
           // They are parsed literally.
@@ -633,12 +633,12 @@ class ExpressionParserSuite extends AnalysisTest {
           // Escaped characters.
           // See: http://dev.mysql.com/doc/refman/5.7/en/string-literals.html
           assertEqual("'\\0'", "\u0000", parser) // ASCII NUL (X'00')
-          assertEqual("'\\''", "\'", parser) // Single quote
-          assertEqual("'\\\"'", "\"", parser) // Double quote
-          assertEqual("'\\b'", "\b", parser) // Backspace
-          assertEqual("'\\n'", "\n", parser) // Newline
-          assertEqual("'\\r'", "\r", parser) // Carriage return
-          assertEqual("'\\t'", "\t", parser) // Tab character
+          assertEqual("'\\''", "\'", parser)     // Single quote
+          assertEqual("'\\\"'", "\"", parser)    // Double quote
+          assertEqual("'\\b'", "\b", parser)     // Backspace
+          assertEqual("'\\n'", "\n", parser)     // Newline
+          assertEqual("'\\r'", "\r", parser)     // Carriage return
+          assertEqual("'\\t'", "\t", parser)     // Tab character
           assertEqual("'\\Z'", "\u001A", parser) // ASCII 26 - CTRL + Z (EOF on windows)
 
           // Octals
