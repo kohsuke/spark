@@ -44,7 +44,7 @@ from pyspark.serializers import write_with_length, write_int, read_long, read_bo
 from pyspark.sql.pandas.serializers import ArrowStreamPandasUDFSerializer, CogroupUDFSerializer
 from pyspark.sql.pandas.types import to_arrow_type
 from pyspark.sql.types import StructType
-from pyspark.util import fail_on_stopiteration
+from pyspark.util import fail_on_stopiteration, simplify_traceback
 from pyspark import shuffle
 
 pickleSer = PickleSerializer()
@@ -604,9 +604,15 @@ def main(infile, outfile):
         # reuse.
         TaskContext._setTaskContext(None)
         BarrierTaskContext._setTaskContext(None)
-    except BaseException:
+    except BaseException as e:
         try:
-            exc_info = traceback.format_exc()
+            if os.environ.get("SPARK_SIMPLIFIED_EXCEPTION", False):
+                e.__cause__ = None
+                exc_info = "".join(
+                    traceback.format_exception(type(e), e, simplify_traceback(sys.exc_info()[-1])))
+            else:
+                exc_info = traceback.format_exc()
+
             if isinstance(exc_info, bytes):
                 # exc_info may contains other encoding bytes, replace the invalid bytes and convert
                 # it back to utf-8 again

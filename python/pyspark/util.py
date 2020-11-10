@@ -20,6 +20,8 @@ import threading
 import re
 import sys
 import traceback
+import types
+import os
 
 from py4j.clientserver import ClientServer
 
@@ -73,6 +75,109 @@ def fail_on_stopiteration(f):
             )
 
     return wrapper
+
+
+def walk_tb(tb):
+    while tb is not None:
+        yield tb
+        tb = tb.tb_next
+
+
+def simplify_traceback(tb):
+    """
+    Simplify the traceback. It removes the tracebacks in the current package, and only
+    shows the traceback that is related to the thirdparty and user-specified codes.
+
+    Notes
+    -----
+    This keeps the tracebacks once it sees they are from a different file even
+    though the following tracebacks are from the current package.
+
+    Examples
+    --------
+    >>> import importlib
+    >>> import sys
+    >>> import traceback
+    >>> spec = importlib.util.spec_from_file_location("dummy_module", "data/dummy_module.py")
+    >>> dummy_module = importlib.util.module_from_spec(spec)
+    >>> spec.loader.exec_module(dummy_module)
+
+    Regular exceptions should show the file name of the current package as below.
+
+    >>> exc_info = None
+    >>> try:
+    ...    fail_on_stopiteration(dummy_module.raise_stop_iteration)()
+    ... except Exception as e:
+    ...     tb = sys.exc_info()[-1]
+    ...     e.__cause__ = None
+    ...     exc_info = "".join(
+    ...         traceback.format_exception(type(e), e, tb))
+    >>> print(exc_info)  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    Traceback (most recent call last):
+      File ...
+        ...
+      File "/.../pyspark/util.py", line ...
+        ...
+    RuntimeError: ...
+    >>> "pyspark/util.py" in exc_info
+    True
+
+    If the the traceback is simplified with this method, it hides the current package file name:
+
+    >>> exc_info = None
+    >>> try:
+    ...    fail_on_stopiteration(dummy_module.raise_stop_iteration)()
+    ... except Exception as e:
+    ...     tb = simplify_traceback(sys.exc_info()[-1])
+    ...     e.__cause__ = None
+    ...     exc_info = "".join(
+    ...         traceback.format_exception(type(e), e, simplify_traceback(tb)))
+    >>> print(exc_info)  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    Traceback (most recent call last):
+      File ...
+        ...
+    RuntimeError: ...
+    >>> "pyspark/util.py" in exc_info
+    False
+
+    In the case below, the traceback contains the current package in the middle.
+    In this case, it just hides the top occurrence only.
+
+    >>> exc_info = None
+    >>> try:
+    ...    fail_on_stopiteration(dummy_module.simple_wrapper(
+    ...        fail_on_stopiteration(dummy_module.raise_stop_iteration)))()
+    ... except Exception as e:
+    ...     tb = sys.exc_info()[-1]
+    ...     e.__cause__ = None
+    ...     exc_info_a = "".join(
+    ...         traceback.format_exception(type(e), e, tb))
+    ...     exc_info_b = "".join(
+    ...         traceback.format_exception(type(e), e, simplify_traceback(tb)))
+    >>> exc_info_a.count("pyspark/util.py")
+    2
+    >>> exc_info_b.count("pyspark/util.py")
+    1
+    """
+
+    import pyspark
+
+    root = os.path.dirname(pyspark.__file__)
+    tb_next = None
+    new_tb = None
+    should_skip = True
+
+    for cur_tb, cur_frame in reversed(list(zip(walk_tb(tb), traceback.extract_tb(tb)))):
+        if should_skip and cur_frame.filename.startswith(root):
+            continue  # Filter the stacktrace from the PySpark source itself.
+        should_skip = False  # Once we have seen the file names outside, don't skip.
+        new_tb = types.TracebackType(
+            tb_next=tb_next,
+            tb_frame=cur_tb.tb_frame,
+            tb_lasti=cur_tb.tb_frame.f_lasti,
+            tb_lineno=cur_tb.tb_frame.f_lineno)
+        tb_next = new_tb
+    return new_tb
 
 
 def _print_missing_jar(lib_name, pkg_name, jar_name, spark_version):
