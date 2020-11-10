@@ -1548,12 +1548,6 @@ class Analyzer(
 
         g.copy(resolvedSelectedExprs, resolvedGroupingExprs, g.child, resolvedAggExprs)
 
-      case o: OverwriteByExpression
-          if !(o.table.resolved && o.query.resolved && o.outputResolved) =>
-        // do not resolve expression attributes until the query attributes are resolved against the
-        // table by ResolveOutputRelation. that rule will alias the attributes to the table's names.
-        o
-
       case m @ MergeIntoTable(targetTable, sourceTable, _, _, _)
         if !m.resolved && targetTable.resolved && sourceTable.resolved =>
 
@@ -3093,7 +3087,12 @@ class Analyzer(
         val projection = TableOutputResolver.resolveOutputColumns(
           v2Write.table.name, v2Write.table.output, v2Write.query, v2Write.isByName, conf)
         if (projection != v2Write.query) {
-          v2Write.withNewQuery(projection)
+          val attrMapping = AttributeMap(v2Write.query.output.zip(projection.output).collect {
+            case (l: AttributeReference, r: AttributeReference) if !l.sameRef(r) => (l, r)
+          })
+          v2Write.withNewQuery(projection).transformExpressionsUp {
+            case a: AttributeReference => attrMapping.getOrElse(a, a)
+          }
         } else {
           v2Write
         }

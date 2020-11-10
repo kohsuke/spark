@@ -220,6 +220,26 @@ class DataFrameWriterV2Suite extends QueryTest with SharedSparkSession with Befo
       Seq(Row(1L, "a"), Row(2L, "b"), Row(4L, "d"), Row(5L, "e"), Row(6L, "f")))
   }
 
+  test("Overwrite: overwrite by expression with column reference") {
+    spark.sql(
+      "CREATE TABLE testcat.table_name (id bigint, data string) USING foo PARTITIONED BY (id)")
+
+    checkAnswer(spark.table("testcat.table_name"), Seq.empty)
+
+    spark.table("source").writeTo("testcat.table_name").append()
+
+    checkAnswer(
+      spark.table("testcat.table_name"),
+      Seq(Row(1L, "a"), Row(2L, "b"), Row(3L, "c")))
+
+    val input = spark.table("source2").withColumn("id", $"id".cast("int"))
+    input.writeTo("testcat.table_name").overwrite(input("id") === 3)
+
+    checkAnswer(
+      spark.table("testcat.table_name"),
+      Seq(Row(1L, "a"), Row(2L, "b"), Row(4L, "d"), Row(5L, "e"), Row(6L, "f")))
+  }
+
   test("Overwrite: write to a temp view of v2 relation") {
     spark.sql("CREATE TABLE testcat.table_name (id bigint, data string) USING foo")
     spark.table("source").writeTo("testcat.table_name").append()
