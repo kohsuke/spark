@@ -2543,10 +2543,8 @@ private[spark] object Utils extends Logging {
 
   /**
    * Push based shuffle can only be enabled when external shuffle service is enabled.
-   * In the initial version, we cannot support pushed based shuffle and adaptive execution
-   * at the same time. Will improve this in a later version.
    */
-  def isPushBasedShuffleEnabled(conf: SparkConf): Boolean = {
+  def isPushShuffleEnabled(conf: SparkConf): Boolean = {
     conf.get(PUSH_SHUFFLE_ENABLED) && conf.get(SHUFFLE_SERVICE_ENABLED)
   }
 
