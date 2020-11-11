@@ -16,7 +16,7 @@
  */
 package org.apache.spark.sql.catalyst.analysis
 
-import org.apache.spark.sql.catalyst.HasConf
+import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions.{Cast, Expression, ListQuery, TimeZoneAwareExpression}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -47,7 +47,7 @@ object ResolveTimeZone extends Rule[LogicalPlan] {
  * Mix-in trait for constructing valid [[Cast]] expressions.
  */
 trait CastSupport {
-  self: HasConf =>
+  self: SQLConfHelper =>
 
   /**
    * Create a Cast expression with the session local time zone.

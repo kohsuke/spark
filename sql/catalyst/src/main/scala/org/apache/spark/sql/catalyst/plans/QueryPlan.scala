@@ -20,7 +20,7 @@ package org.apache.spark.sql.catalyst.plans
 import scala.collection.mutable
 
 import org.apache.spark.sql.AnalysisException
-import org.apache.spark.sql.catalyst.HasConf
+import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, TreeNode, TreeNodeTag}
 import org.apache.spark.sql.internal.SQLConf
@@ -36,7 +36,8 @@ import org.apache.spark.sql.types.{DataType, StructType}
  * The tree traverse APIs like `transform`, `foreach`, `collect`, etc. that are
  * inherited from `TreeNode`, do not traverse into query plans inside subqueries.
  */
-abstract class QueryPlan[PlanType <: QueryPlan[PlanType]] extends TreeNode[PlanType] with HasConf {
+abstract class QueryPlan[PlanType <: QueryPlan[PlanType]]
+  extends TreeNode[PlanType] with SQLConfHelper {
   self: PlanType =>
 
   def output: Seq[Attribute]

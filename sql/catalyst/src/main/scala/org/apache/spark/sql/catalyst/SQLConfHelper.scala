@@ -20,9 +20,9 @@ package org.apache.spark.sql.catalyst
 import org.apache.spark.sql.internal.SQLConf
 
 /**
- * Trait for shared SQLConf.
+ * Trait for getting the active SQLConf.
  */
-trait HasConf {
+trait SQLConfHelper {
 
   /**
    * The active config object within the current scope.

@@ -65,7 +65,7 @@ class SessionCatalog(
     parser: ParserInterface,
     functionResourceLoader: FunctionResourceLoader,
     cacheSize: Int = SQLConf.get.tableRelationCacheSize,
-    cacheTTL: Long = SQLConf.get.metadataCacheTTL) extends Logging with HasConf {
+    cacheTTL: Long = SQLConf.get.metadataCacheTTL) extends Logging with SQLConfHelper {
   import SessionCatalog._
   import CatalogTypes.TablePartitionSpec
 

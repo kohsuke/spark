@@ -20,7 +20,7 @@ package org.apache.spark.sql.connector.catalog
 import scala.collection.mutable
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.sql.catalyst.HasConf
+import org.apache.spark.sql.catalyst.SQLConfHelper
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog
 import org.apache.spark.sql.internal.SQLConf
@@ -39,7 +39,7 @@ import org.apache.spark.sql.internal.SQLConf
 private[sql]
 class CatalogManager(
     defaultSessionCatalog: CatalogPlugin,
-    val v1SessionCatalog: SessionCatalog) extends Logging with HasConf {
+    val v1SessionCatalog: SessionCatalog) extends Logging with SQLConfHelper {
   import CatalogManager.SESSION_CATALOG_NAME
   import CatalogV2Util._
 
