@@ -38,6 +38,7 @@ import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.metric.SQLMetrics
 import org.apache.spark.sql.hive._
 import org.apache.spark.sql.hive.client.HiveClientImpl
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{BooleanType, DataType}
 import org.apache.spark.util.Utils
 
@@ -58,6 +59,8 @@ case class HiveTableScanExec(
 
   require(partitionPruningPred.isEmpty || relation.isPartitioned,
     "Partition pruning predicates only supported for partitioned tables.")
+
+  override def conf: SQLConf = sparkSession.sessionState.conf
 
   override def nodeName: String = s"Scan hive ${relation.tableMeta.qualifiedName}"
 

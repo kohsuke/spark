@@ -73,16 +73,16 @@ class SessionCatalog(
   def this(
       externalCatalog: ExternalCatalog,
       functionRegistry: FunctionRegistry,
-      staticConf: SQLConf) = {
+      conf: SQLConf) = {
     this(
       () => externalCatalog,
-      () => new GlobalTempViewManager(staticConf.getConf(GLOBAL_TEMP_DATABASE)),
+      () => new GlobalTempViewManager(conf.getConf(GLOBAL_TEMP_DATABASE)),
       functionRegistry,
       new Configuration(),
       new CatalystSqlParser(),
       DummyFunctionResourceLoader,
-      staticConf.tableRelationCacheSize,
-      staticConf.metadataCacheTTL)
+      conf.tableRelationCacheSize,
+      conf.metadataCacheTTL)
   }
 
   // For testing only.
