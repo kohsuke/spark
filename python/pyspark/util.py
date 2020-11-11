@@ -162,6 +162,10 @@ def simplify_traceback(tb):
     if "pypy" in platform.python_implementation().lower():
         # Traceback modification is not supported with PyPy in PySpark.
         return tb
+    if sys.version_info[:2] < (3, 7):
+        # Traceback creation is not supported Python < 3.7.
+        # See https://bugs.python.org/issue30579.
+        return tb
 
     import pyspark
 
@@ -287,8 +291,7 @@ if __name__ == "__main__":
     import doctest
     import platform
 
-    if "pypy" not in platform.python_implementation().lower():
-        # simplify_traceback does not work with PyPy.
+    if "pypy" not in platform.python_implementation().lower() and sys.version_info[:2] >= (3, 7):
         (failure_count, test_count) = doctest.testmod()
         if failure_count:
             sys.exit(-1)
