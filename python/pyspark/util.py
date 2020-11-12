@@ -104,9 +104,21 @@ def try_simplify_traceback(tb):
     >>> import importlib
     >>> import sys
     >>> import traceback
-    >>> spec = importlib.util.spec_from_file_location("dummy_module", "data/dummy_module.py")
-    >>> dummy_module = importlib.util.module_from_spec(spec)
-    >>> spec.loader.exec_module(dummy_module)
+    >>> import tempfile
+    >>> with tempfile.TemporaryDirectory() as tmp_dir:
+    ...     with open("%s/dummy_module.py" % tmp_dir, "w") as f:
+    ...         _ = f.write(
+    ...             'def raise_stop_iteration():\\n'
+    ...             '    raise StopIteration()\\n\\n'
+    ...             'def simple_wrapper(f):\\n'
+    ...             '    def wrapper(*a, **k):\\n'
+    ...             '        return f(*a, **k)\\n'
+    ...             '    return wrapper\\n')
+    ...         f.flush()
+    ...         spec = importlib.util.spec_from_file_location(
+    ...             "dummy_module", "%s/dummy_module.py" % tmp_dir)
+    ...         dummy_module = importlib.util.module_from_spec(spec)
+    ...         spec.loader.exec_module(dummy_module)
 
     Regular exceptions should show the file name of the current package as below.
 
