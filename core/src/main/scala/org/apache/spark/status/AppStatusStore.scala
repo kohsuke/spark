@@ -370,9 +370,9 @@ private[spark] class AppStatusStore(
    * Calculates a summary of the executor metrics for executors, returning the
    * requested quantiles for the recorded metrics.
    */
-  def executorMetricSummary(activeOnly: Boolean,
-                            unsortedQuantiles: Array[Double])
-  : Option[ExecutorMetricsDistributions] = {
+  def executorMetricSummary(
+      activeOnly: Boolean,
+      unsortedQuantiles: Array[Double]): Option[ExecutorMetricsDistributions] = {
     val quantiles = unsortedQuantiles.sorted
     val executors = executorList(activeOnly).flatMap(_.peakMemoryMetrics).toIndexedSeq
     Some(new ExecutorMetricsDistributions(quantiles, executors))

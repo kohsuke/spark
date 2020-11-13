@@ -54,7 +54,7 @@ private[v1] class AbstractApplicationResource extends BaseAppResource {
   def executorList(): Seq[ExecutorSummary] = withUI(_.store.executorList(true))
 
   @GET
-  @Path("executorSummary")
+  @Path("executorMetricsDistribution")
   def executorSummary(
       @QueryParam("activeOnly") @DefaultValue("true") activeOnly: Boolean,
       @DefaultValue("0.05,0.25,0.5,0.75,0.95") @QueryParam("quantiles") quantileString: String)

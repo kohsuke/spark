@@ -519,9 +519,9 @@ can be identified by their `[attempt-id]`. In the API listed below, when running
     <td>A list of all(active and dead) executors for the given application.</td>
   </tr>
   <tr>
-    <td><code>/applications/[app-id]/executorSummary</code></td>
+    <td><code>/applications/[app-id]/executorMetricsDistribution</code></td>
     <td>
-      Summary peak memory metrics of executors.
+      Distributions of peak memory metrics for executors.
       <br><code>?activeOnly=[true (default) | false]</code> lists only active executors
       <br><code>?quantiles</code> summarize the metrics with the given quantiles.
       <br>Example: <code>?activeOnly=false&quantiles=0.01,0.5,0.99</code>
