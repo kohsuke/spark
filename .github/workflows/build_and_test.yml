@@ -369,7 +369,7 @@ jobs:
         cd docs
         jekyll build
 
-  java11:
+  java-11:
     name: Java 11 build (Maven)
     runs-on: ubuntu-20.04
     steps:
