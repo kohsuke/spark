@@ -14,28 +14,6 @@ on:
         required: true
 
 jobs:
-  # This is on the top to give the most visibility in case of failures
-  hadoop-2:
-    name: Hadoop 2 build
-    runs-on: ubuntu-20.04
-    steps:
-    - name: Checkout Spark repository
-      uses: actions/checkout@v2
-    - name: Cache Coursier local repository
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/coursier
-        key: hadoop-2-coursier-${{ hashFiles('**/pom.xml', '**/plugins.sbt') }}
-        restore-keys: |
-          hadoop-2-coursier-
-    - name: Install Java 8
-      uses: actions/setup-java@v1
-      with:
-        java-version: 1.8
-    - name: Build with SBT
-      run: |
-        ./build/sbt -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pkinesis-asl -Phadoop-2.7 compile test:compile
-
   # Build: build Spark and run the tests for specified modules.
   build:
     name: "Build modules: ${{ matrix.modules }} ${{ matrix.comment }} (JDK ${{ matrix.java }}, ${{ matrix.hadoop }}, ${{ matrix.hive }})"
@@ -123,16 +101,10 @@ jobs:
           build/zinc-*
           build/scala-*
           build/*.jar
+          ~/.sbt
         key: build-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/mvn', 'build/sbt', 'build/sbt-launch-lib.bash', 'build/spark-build-info') }}
         restore-keys: |
           build-
-    - name: Cache Maven local repository
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2/repository
-        key: ${{ matrix.java }}-${{ matrix.hadoop }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ matrix.java }}-${{ matrix.hadoop }}-maven-
     - name: Cache Coursier local repository
       uses: actions/cache@v2
       with:
@@ -163,9 +135,7 @@ jobs:
       run: |
         # Hive and SQL tests become flaky when running in parallel as it's too intensive.
         if [[ "$MODULES_TO_TEST" == "hive" ]] || [[ "$MODULES_TO_TEST" == "sql" ]]; then export SERIAL_SBT_TESTS=1; fi
-        mkdir -p ~/.m2
         ./dev/run-tests --parallelism 2 --modules "$MODULES_TO_TEST" --included-tags "$INCLUDED_TAGS" --excluded-tags "$EXCLUDED_TAGS"
-        rm -rf ~/.m2/repository/org/apache/spark
     - name: Upload test results to report
       if: always()
       uses: actions/upload-artifact@v2
@@ -218,16 +188,10 @@ jobs:
           build/zinc-*
           build/scala-*
           build/*.jar
+          ~/.sbt
         key: build-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/mvn', 'build/sbt', 'build/sbt-launch-lib.bash', 'build/spark-build-info') }}
         restore-keys: |
           build-
-    - name: Cache Maven local repository
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2/repository
-        key: pyspark-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          pyspark-maven-
     - name: Cache Coursier local repository
       uses: actions/cache@v2
       with:
@@ -250,9 +214,7 @@ jobs:
     # Run the tests.
     - name: Run tests
       run: |
-        mkdir -p ~/.m2
         ./dev/run-tests --parallelism 2 --modules "$MODULES_TO_TEST"
-        rm -rf ~/.m2/repository/org/apache/spark
     - name: Upload test results to report
       if: always()
       uses: actions/upload-artifact@v2
@@ -294,16 +256,10 @@ jobs:
           build/zinc-*
           build/scala-*
           build/*.jar
+          ~/.sbt
         key: build-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/mvn', 'build/sbt', 'build/sbt-launch-lib.bash', 'build/spark-build-info') }}
         restore-keys: |
           build-
-    - name: Cache Maven local repository
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2/repository
-        key: sparkr-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          sparkr-maven-
     - name: Cache Coursier local repository
       uses: actions/cache@v2
       with:
@@ -313,13 +269,11 @@ jobs:
           sparkr-coursier-
     - name: Run tests
       run: |
-        mkdir -p ~/.m2
         # The followings are also used by `r-lib/actions/setup-r` to avoid
         # R issues at docker environment
         export TZ=UTC
         export _R_CHECK_SYSTEM_CLOCK_=FALSE
         ./dev/run-tests --parallelism 2 --modules sparkr
-        rm -rf ~/.m2/repository/org/apache/spark
     - name: Upload test results to report
       if: always()
       uses: actions/upload-artifact@v2
@@ -334,11 +288,31 @@ jobs:
     steps:
     - name: Checkout Spark repository
       uses: actions/checkout@v2
+    # Cache local repositories. Note that GitHub Actions cache has a 2G limit.
+    - name: Cache Scala, SBT, Maven and Zinc
+      uses: actions/cache@v2
+      with:
+        path: |
+          build/apache-maven-*
+          build/zinc-*
+          build/scala-*
+          build/*.jar
+          ~/.sbt
+        key: build-${{ hashFiles('**/pom.xml', 'project/build.properties', 'build/mvn', 'build/sbt', 'build/sbt-launch-lib.bash', 'build/spark-build-info') }}
+        restore-keys: |
+          build-
+    - name: Cache Coursier local repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/coursier
+        key: docs-coursier-${{ hashFiles('**/pom.xml', '**/plugins.sbt') }}
+        restore-keys: |
+          docs-coursier-
     - name: Cache Maven local repository
       uses: actions/cache@v2
       with:
         path: ~/.m2/repository
-        key: docs-maven-repo-${{ hashFiles('**/pom.xml') }}
+        key: docs-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           docs-maven-
     - name: Install JDK 1.8
@@ -396,7 +370,7 @@ jobs:
         jekyll build
 
   java11:
-    name: Java 11 build
+    name: Java 11 build (Maven)
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout Spark repository
@@ -421,7 +395,7 @@ jobs:
         rm -rf ~/.m2/repository/org/apache/spark
 
   scala-213:
-    name: Scala 2.13 build
+    name: Scala 2.13 build (SBT)
     runs-on: ubuntu-20.04
     steps:
     - name: Checkout Spark repository
@@ -433,11 +407,32 @@ jobs:
         key: scala-213-coursier-${{ hashFiles('**/pom.xml', '**/plugins.sbt') }}
         restore-keys: |
           scala-213-coursier-
-    - name: Install Java 11
+    - name: Install Java 8
       uses: actions/setup-java@v1
       with:
-        java-version: 11
+        java-version: 8
     - name: Build with SBT
       run: |
         ./dev/change-scala-version.sh 2.13
         ./build/sbt -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pkinesis-asl -Djava.version=11 -Pscala-2.13 compile test:compile
+
+  hadoop-2:
+    name: Hadoop 2 build (SBT)
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout Spark repository
+      uses: actions/checkout@v2
+    - name: Cache Coursier local repository
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/coursier
+        key: hadoop-2-coursier-${{ hashFiles('**/pom.xml', '**/plugins.sbt') }}
+        restore-keys: |
+          hadoop-2-coursier-
+    - name: Install Java 8
+      uses: actions/setup-java@v1
+      with:
+        java-version: 1.8
+    - name: Build with SBT
+      run: |
+        ./build/sbt -Pyarn -Pmesos -Pkubernetes -Phive -Phive-thriftserver -Phadoop-cloud -Pkinesis-asl -Phadoop-2.7 compile test:compile
