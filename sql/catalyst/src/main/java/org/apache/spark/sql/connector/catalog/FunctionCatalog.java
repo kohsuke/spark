@@ -19,6 +19,7 @@ package org.apache.spark.sql.connector.catalog;
 
 import org.apache.spark.sql.catalyst.analysis.NoSuchFunctionException;
 import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException;
+import org.apache.spark.sql.connector.catalog.functions.UnboundFunction;
 
 /**
  * Catalog methods for working with Functions.
