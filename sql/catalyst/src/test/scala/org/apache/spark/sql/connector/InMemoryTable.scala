@@ -27,7 +27,7 @@ import scala.collection.mutable
 import org.scalatest.Assertions._
 
 import org.apache.spark.sql.catalyst.InternalRow
-import org.apache.spark.sql.catalyst.util.DateTimeUtils
+import org.apache.spark.sql.catalyst.util.{CharVarcharUtils, DateTimeUtils}
 import org.apache.spark.sql.connector.catalog._
 import org.apache.spark.sql.connector.expressions.{BucketTransform, DaysTransform, HoursTransform, IdentityTransform, MonthsTransform, Transform, YearsTransform}
 import org.apache.spark.sql.connector.read._
@@ -97,11 +97,12 @@ class InMemoryTable(
       }
     }
 
+    val cleanedSchema = CharVarcharUtils.replaceCharVarcharWithStringInSchema(schema)
     partitioning.map {
       case IdentityTransform(ref) =>
-        extractor(ref.fieldNames, schema, row)._1
+        extractor(ref.fieldNames, cleanedSchema, row)._1
       case YearsTransform(ref) =>
-        extractor(ref.fieldNames, schema, row) match {
+        extractor(ref.fieldNames, cleanedSchema, row) match {
           case (days: Int, DateType) =>
             ChronoUnit.YEARS.between(EPOCH_LOCAL_DATE, DateTimeUtils.daysToLocalDate(days))
           case (micros: Long, TimestampType) =>
@@ -111,7 +112,7 @@ class InMemoryTable(
             throw new IllegalArgumentException(s"Match: unsupported argument(s) type - ($v, $t)")
         }
       case MonthsTransform(ref) =>
-        extractor(ref.fieldNames, schema, row) match {
+        extractor(ref.fieldNames, cleanedSchema, row) match {
           case (days: Int, DateType) =>
             ChronoUnit.MONTHS.between(EPOCH_LOCAL_DATE, DateTimeUtils.daysToLocalDate(days))
           case (micros: Long, TimestampType) =>
@@ -121,7 +122,7 @@ class InMemoryTable(
             throw new IllegalArgumentException(s"Match: unsupported argument(s) type - ($v, $t)")
         }
       case DaysTransform(ref) =>
-        extractor(ref.fieldNames, schema, row) match {
+        extractor(ref.fieldNames, cleanedSchema, row) match {
           case (days, DateType) =>
             days
           case (micros: Long, TimestampType) =>
@@ -130,14 +131,14 @@ class InMemoryTable(
             throw new IllegalArgumentException(s"Match: unsupported argument(s) type - ($v, $t)")
         }
       case HoursTransform(ref) =>
-        extractor(ref.fieldNames, schema, row) match {
+        extractor(ref.fieldNames, cleanedSchema, row) match {
           case (micros: Long, TimestampType) =>
             ChronoUnit.HOURS.between(Instant.EPOCH, DateTimeUtils.microsToInstant(micros))
           case (v, t) =>
             throw new IllegalArgumentException(s"Match: unsupported argument(s) type - ($v, $t)")
         }
       case BucketTransform(numBuckets, ref) =>
-        (extractor(ref.fieldNames, schema, row).hashCode() & Integer.MAX_VALUE) % numBuckets
+        (extractor(ref.fieldNames, cleanedSchema, row).hashCode() & Integer.MAX_VALUE) % numBuckets
     }
   }
 
