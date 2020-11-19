@@ -171,7 +171,6 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
       SQLConf.PartitionOverwriteMode.DYNAMIC.toString,
       SQLConf.FILE_COMMIT_PROTOCOL_CLASS.key ->
         classOf[PartitionFileExistCommitProtocol].getName) {
-      // trigger ut
       withTempDir { d =>
         withTable("t") {
           sql(
