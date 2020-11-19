@@ -36,7 +36,7 @@ import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.BlockFetchingListener
 import org.apache.spark.network.shuffle.ErrorHandler.BlockPushErrorHandler
 import org.apache.spark.network.util.TransportConf
-import org.apache.spark.shuffle.PushShuffleComponent._
+import org.apache.spark.shuffle.PushShuffleWriterComponent._
 import org.apache.spark.storage.{BlockId, BlockManagerId, ShufflePushBlockId}
 import org.apache.spark.util.{ThreadUtils, Utils}
 
@@ -53,7 +53,7 @@ import org.apache.spark.util.{ThreadUtils, Utils}
  * @param partitionId      map index of the shuffle map task
  * @param conf             spark configuration
  */
-private[spark] class PushShuffleComponent(
+private[spark] class PushShuffleWriterComponent(
     dataFile: File,
     partitionLengths: Array[Long],
     dep: ShuffleDependency[_, _, _],
@@ -416,7 +416,7 @@ private[spark] class PushShuffleComponent(
   }
 }
 
-private[spark] object PushShuffleComponent {
+private[spark] object PushShuffleWriterComponent {
 
   /**
    * A request to push blocks to a remote shuffle service

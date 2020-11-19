@@ -67,7 +67,7 @@ private[spark] class ShuffleWriteProcessor extends Serializable with Logging {
         if (Utils.isPushShuffleEnabled(SparkEnv.get.conf) && dep.getMergerLocs.nonEmpty) {
           val dataFile = manager.shuffleBlockResolver.asInstanceOf[IndexShuffleBlockResolver]
             .getDataFile(dep.shuffleId, mapId)
-          new PushShuffleComponent(dataFile, writer.getPartitionLengths(), dep,
+          new PushShuffleWriterComponent(dataFile, writer.getPartitionLengths(), dep,
             partition.index, SparkEnv.get.conf).initiateBlockPush()
         }
       }
