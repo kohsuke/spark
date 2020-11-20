@@ -69,8 +69,6 @@ class NoSuchFunctionException(
     msg: String,
     cause: Option[Throwable]) extends AnalysisException(msg, cause = cause) {
 
-  import org.apache.spark.sql.connector.catalog.CatalogV2Implicits.IdentifierHelper
-
   def this(db: String, func: String, cause: Option[Throwable] = None) = {
     this(s"Undefined function: '$func'. " +
         s"This function is neither a registered temporary function nor " +
