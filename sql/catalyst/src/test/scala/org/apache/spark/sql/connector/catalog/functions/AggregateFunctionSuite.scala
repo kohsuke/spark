@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.connector.catalog.functions
 
+import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.types.{DataType, IntegerType, LongType, StructType}
 
