@@ -443,7 +443,7 @@ private[spark] object PushShuffleWriterComponent {
 
   private val BLOCK_PUSHER_POOL: ExecutorService = {
     val conf = SparkEnv.get.conf
-    if (Utils.isPushShuffleEnabled(conf)) {
+    if (Utils.isPushBasedShuffleEnabled(conf)) {
       val numThreads = conf.get(SHUFFLE_NUM_PUSH_THREADS)
         .getOrElse(conf.getInt(SparkLauncher.EXECUTOR_CORES, 1))
       ThreadUtils.newDaemonFixedThreadPool(numThreads, "block-push-thread")
