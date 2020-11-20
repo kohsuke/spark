@@ -705,10 +705,12 @@ case class DateFormatClass(left: Expression, right: Expression, timeZoneId: Opti
 case class ToUnixTimestamp(
     timeExp: Expression,
     format: Expression,
-    timeZoneId: Option[String] = None)
+    timeZoneId: Option[String] = None,
+    failOnError: Boolean = SQLConf.get.ansiEnabled)
   extends UnixTime {
 
-  def this(timeExp: Expression, format: Expression) = this(timeExp, format, None)
+  def this(timeExp: Expression, format: Expression) =
+    this(timeExp, format, None, SQLConf.get.ansiEnabled)
 
   override def left: Expression = timeExp
   override def right: Expression = format
@@ -752,10 +754,15 @@ case class ToUnixTimestamp(
   group = "datetime_funcs",
   since = "1.5.0")
 // scalastyle:on line.size.limit
-case class UnixTimestamp(timeExp: Expression, format: Expression, timeZoneId: Option[String] = None)
+case class UnixTimestamp(
+    timeExp: Expression,
+    format: Expression,
+    timeZoneId: Option[String] = None,
+    failOnError: Boolean = SQLConf.get.ansiEnabled)
   extends UnixTime {
 
-  def this(timeExp: Expression, format: Expression) = this(timeExp, format, None)
+  def this(timeExp: Expression, format: Expression) =
+    this(timeExp, format, None, SQLConf.get.ansiEnabled)
 
   override def left: Expression = timeExp
   override def right: Expression = format
@@ -790,6 +797,15 @@ abstract class ToTimestamp
   override def dataType: DataType = LongType
   override def nullable: Boolean = true
 
+  def failOnError: Boolean
+
+  private def isParseError(e: Throwable): Boolean = e match {
+    case _: DateTimeParseException |
+         _: DateTimeException |
+         _: ParseException => true
+    case _ => false
+  }
+
   override def eval(input: InternalRow): Any = {
     val t = left.eval(input)
     if (t == null) {
@@ -809,9 +825,12 @@ abstract class ToTimestamp
             try {
               formatter.parse(t.asInstanceOf[UTF8String].toString) / downScaleFactor
             } catch {
-              case _: DateTimeParseException |
-                   _: DateTimeException |
-                   _: ParseException => null
+              case e if isParseError(e) =>
+                if (failOnError) {
+                  throw e
+                } else {
+                  null
+                }
             }
           }
       }
@@ -820,6 +839,7 @@ abstract class ToTimestamp
 
   override def doGenCode(ctx: CodegenContext, ev: ExprCode): ExprCode = {
     val javaType = CodeGenerator.javaType(dataType)
+    val parseErrorBranch = if (failOnError) "throw e;" else s"${ev.isNull} = true;"
     left.dataType match {
       case StringType => formatterOption.map { fmt =>
         val df = classOf[TimestampFormatter].getName
@@ -829,11 +849,11 @@ abstract class ToTimestamp
              |try {
              |  ${ev.value} = $formatterName.parse($datetimeStr.toString()) / $downScaleFactor;
              |} catch (java.time.DateTimeException e) {
-             |  ${ev.isNull} = true;
+             |  $parseErrorBranch
              |} catch (java.time.format.DateTimeParseException e) {
-             |  ${ev.isNull} = true;
+             |  $parseErrorBranch
              |} catch (java.text.ParseException e) {
-             |  ${ev.isNull} = true;
+             |  $parseErrorBranch
              |}
              |""".stripMargin)
       }.getOrElse {
@@ -851,11 +871,11 @@ abstract class ToTimestamp
              |try {
              |  ${ev.value} = $timestampFormatter.parse($string.toString()) / $downScaleFactor;
              |} catch (java.time.format.DateTimeParseException e) {
-             |    ${ev.isNull} = true;
+             |    $parseErrorBranch
              |} catch (java.time.DateTimeException e) {
-             |    ${ev.isNull} = true;
+             |    $parseErrorBranch
              |} catch (java.text.ParseException e) {
-             |    ${ev.isNull} = true;
+             |    $parseErrorBranch
              |}
              |""".stripMargin)
       }
@@ -1722,7 +1742,8 @@ case class DateDiff(endDate: Expression, startDate: Expression)
 private case class GetTimestamp(
     left: Expression,
     right: Expression,
-    timeZoneId: Option[String] = None)
+    timeZoneId: Option[String] = None,
+    failOnError: Boolean = SQLConf.get.ansiEnabled)
   extends ToTimestamp {
 
   override val downScaleFactor = 1
