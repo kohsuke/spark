@@ -36,7 +36,7 @@ import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.BlockFetchingListener
 import org.apache.spark.network.shuffle.ErrorHandler.BlockPushErrorHandler
 import org.apache.spark.network.util.TransportConf
-import org.apache.spark.shuffle.PushShuffleSupport._
+import org.apache.spark.shuffle.PushShuffleWriterComponent._
 import org.apache.spark.storage.{BlockId, BlockManagerId, ShufflePushBlockId}
 import org.apache.spark.util.{ThreadUtils, Utils}
 
@@ -53,7 +53,7 @@ import org.apache.spark.util.{ThreadUtils, Utils}
  * @param partitionId      map index of the shuffle map task
  * @param conf             spark configuration
  */
-private[spark] class PushShuffleSupport(
+private[spark] class PushShuffleWriterComponent(
     dataFile: File,
     partitionLengths: Array[Long],
     dep: ShuffleDependency[_, _, _],
@@ -70,8 +70,6 @@ private[spark] class PushShuffleSupport(
   private[this] val errorHandler = createErrorHandler()
   private[this] val unreachableBlockMgrs = new HashSet[BlockManagerId]()
 
-  initiateBlockPush()
-
   // VisibleForTesting
   private[shuffle] def createErrorHandler(): BlockPushErrorHandler = {
     new BlockPushErrorHandler() {
@@ -85,12 +83,12 @@ private[spark] class PushShuffleSupport(
     }
   }
 
-  def initiateBlockPush(): Unit = {
+  private[shuffle] def initiateBlockPush(): Unit = {
     val numPartitions = dep.partitioner.numPartitions
     val transportConf = SparkTransportConf.fromSparkConf(conf, "shuffle")
 
-    val maxBlockSizeToPush = conf.get(PUSH_SHUFFLE_MAX_BLOCK_SIZE_TO_PUSH) * 1024
-    val maxBlockBatchSize = conf.get(PUSH_SHUFFLE_MAX_BLOCK_BATCH_SIZE) * 1024 * 1024
+    val maxBlockSizeToPush = conf.get(SHUFFLE_MAX_BLOCK_SIZE_TO_PUSH) * 1024
+    val maxBlockBatchSize = conf.get(SHUFFLE_PUSH_MAX_BLOCK_BATCH_SIZE) * 1024 * 1024
     val mergerLocs = dep.getMergerLocs.map(loc =>
       BlockManagerId("", loc.host, loc.port))
 
@@ -418,7 +416,7 @@ private[spark] class PushShuffleSupport(
   }
 }
 
-private[spark] object PushShuffleSupport {
+private[spark] object PushShuffleWriterComponent {
 
   /**
    * A request to push blocks to a remote shuffle service
@@ -446,7 +444,7 @@ private[spark] object PushShuffleSupport {
   private val BLOCK_PUSHER_POOL: ExecutorService = {
     val conf = SparkEnv.get.conf
     if (Utils.isPushShuffleEnabled(conf)) {
-      val numThreads = conf.get(PUSH_SHUFFLE_NUM_PUSH_THREADS)
+      val numThreads = conf.get(SHUFFLE_NUM_PUSH_THREADS)
         .getOrElse(conf.getInt(SparkLauncher.EXECUTOR_CORES, 1))
       ThreadUtils.newDaemonFixedThreadPool(numThreads, "block-push-thread")
     } else {
