@@ -54,6 +54,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
   import HiveExternalCatalogVersionsSuite._
   private val wareHousePath = Utils.createTempDir(namePrefix = "warehouse")
   private val tmpDataDir = Utils.createTempDir(namePrefix = "test-data")
+  private val ivyPath = Utils.createTempDir(namePrefix = s"test-ivy-path")
   // For local test, you can set `spark.test.cache-dir` to a static value like `/tmp/test-spark`, to
   // avoid downloading Spark of different versions in each run.
   private val sparkTestingDir = Option(System.getProperty(SPARK_TEST_CACHE_DIR_SYSTEM_PROPERTY))
@@ -64,6 +65,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
     try {
       Utils.deleteRecursively(wareHousePath)
       Utils.deleteRecursively(tmpDataDir)
+      Utils.deleteRecursively(ivyPath)
       // Only delete sparkTestingDir if it wasn't defined to a static location by the system prop
       if (Option(System.getProperty(SPARK_TEST_CACHE_DIR_SYSTEM_PROPERTY)).isEmpty) {
         Utils.deleteRecursively(sparkTestingDir)
@@ -205,7 +207,7 @@ class HiveExternalCatalogVersionsSuite extends SparkSubmitTestUtils {
         "--conf", s"${WAREHOUSE_PATH.key}=${wareHousePath.getCanonicalPath}",
         "--conf", s"spark.sql.test.version.index=$index",
         "--driver-java-options", s"-Dderby.system.home=${wareHousePath.getCanonicalPath}" +
-          s" -Duser.home=/home/runner/for-test",
+          s" -Duser.home=${ivyPath.getAbsolutePath}",
         tempPyFile.getCanonicalPath)
       runSparkSubmit(args, Some(sparkHome.getCanonicalPath), false)
     }
