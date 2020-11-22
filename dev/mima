@@ -27,10 +27,10 @@ cd "$FWDIR"
 SPARK_PROFILES=${1:-"-Pmesos -Pkubernetes -Pyarn -Pspark-ganglia-lgpl -Pkinesis-asl -Phive-thriftserver -Phive"}
 TOOLS_CLASSPATH=$(build/sbt -DcopyDependencies=false "export tools/fullClasspath" | tail -n1)
 echo "======================="
-build/sbt -DcopyDependencies=false "export tools/fullClasspath" | tail -n1
+build/sbt -DcopyDependencies=false "export tools/fullClasspath"
 OLD_DEPS_CLASSPATH=$(build/sbt -DcopyDependencies=false $SPARK_PROFILES "export oldDeps/fullClasspath" | tail -n1)
 echo "======================="
-build/sbt -DcopyDependencies=false $SPARK_PROFILES "export oldDeps/fullClasspath" | tail -n1
+build/sbt -DcopyDependencies=false $SPARK_PROFILES "export oldDeps/fullClasspath"
 
 rm -f .generated-mima*
 
