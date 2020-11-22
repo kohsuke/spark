@@ -55,12 +55,6 @@ jobs:
             included-tags: org.apache.spark.tags.SlowHiveTest
             comment: "- slow tests"
           - modules: hive
-            java: 11
-            hadoop: hadoop3.2
-            hive: hive2.3
-            included-tags: org.apache.spark.tags.SlowHiveTest
-            comment: "- slow tests(jdk11)"
-          - modules: hive
             java: 8
             hadoop: hadoop3.2
             hive: hive2.3
