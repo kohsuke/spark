@@ -26,7 +26,6 @@ cd "$FWDIR"
 
 SPARK_PROFILES=${1:-"-Pmesos -Pkubernetes -Pyarn -Pspark-ganglia-lgpl -Pkinesis-asl -Phive-thriftserver -Phive"}
 TOOLS_CLASSPATH="$(build/sbt -DcopyDependencies=false "export tools/fullClasspath" | tail -n1)"
-build/sbt -DcopyDependencies=false "export tools/fullClasspath"
 OLD_DEPS_CLASSPATH="$(build/sbt -DcopyDependencies=false $SPARK_PROFILES "export oldDeps/fullClasspath" | tail -n1)"
 
 rm -f .generated-mima*
@@ -37,6 +36,8 @@ else
   JAVA_CMD=java
 fi
 
+echo $TOOLS_CLASSPATH
+echo $OLD_DEPS_CLASSPATH
 echo $JAVA_CMD -Xmx2g -cp "$TOOLS_CLASSPATH:$OLD_DEPS_CLASSPATH" org.apache.spark.tools.GenerateMIMAIgnore
 $JAVA_CMD \
   -Xmx2g \
