@@ -36,6 +36,7 @@ else
   JAVA_CMD=java
 fi
 
+echo $JAVA_CMD -Xmx2g -cp "$TOOLS_CLASSPATH:$OLD_DEPS_CLASSPATH" org.apache.spark.tools.GenerateMIMAIgnore
 $JAVA_CMD \
   -Xmx2g \
   -cp "$TOOLS_CLASSPATH:$OLD_DEPS_CLASSPATH" \
