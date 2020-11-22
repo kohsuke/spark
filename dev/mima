@@ -26,7 +26,7 @@ cd "$FWDIR"
 
 SPARK_PROFILES=${1:-"-Pmesos -Pkubernetes -Pyarn -Pspark-ganglia-lgpl -Pkinesis-asl -Phive-thriftserver -Phive"}
 TOOLS_CLASSPATH=$(build/sbt -DcopyDependencies=false "export tools/fullClasspath" | tail -n1)
-echo "========== tail ============="
+echo "========== no tail ============="
 build/sbt -DcopyDependencies=false "export tools/fullClasspath"
 echo "========== tail -n1 ============="
 build/sbt -DcopyDependencies=false "export tools/fullClasspath" | tail -n1
