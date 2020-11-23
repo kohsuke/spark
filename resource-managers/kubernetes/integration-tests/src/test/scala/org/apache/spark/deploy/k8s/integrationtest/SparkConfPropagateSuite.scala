@@ -60,7 +60,4 @@ private[spark] trait SparkConfPropagateSuite { k8sSuite: KubernetesSuite =>
     }
   }
 
-  test("Verify the size limits and file filters are correctly applied.", k8sTestTag) {
-
-  }
 }
