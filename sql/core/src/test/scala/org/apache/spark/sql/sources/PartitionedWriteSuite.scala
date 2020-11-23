@@ -159,6 +159,7 @@ class PartitionedWriteSuite extends QueryTest with SharedSparkSession {
   }
 
   test("SPARK-31968: duplicate partition columns check") {
+    // retest
     withTempPath { f =>
       val e = intercept[AnalysisException](
         Seq((3, 2)).toDF("a", "b").write.partitionBy("b", "b").csv(f.getAbsolutePath))
