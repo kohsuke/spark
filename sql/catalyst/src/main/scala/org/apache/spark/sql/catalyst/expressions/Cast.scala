@@ -98,6 +98,19 @@ object Cast {
     case _ => false
   }
 
+  def typeCheckFailureMessage(from: DataType, to: DataType): String = (from, to) match {
+    case (_: NumericType, TimestampType) =>
+      // scalastyle:off line.size.limit
+      s"""
+         | cannot cast ${from.catalogString} to ${to.catalogString},
+         | you can enable the casting by setting ${SQLConf.LEGACY_ALLOW_CAST_NUMERIC_TO_TIMESTAMP.key}
+         | to true, but we strongly recommend using function TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instead.
+         |""".stripMargin
+      // scalastyle:on line.size.limit
+
+    case _ => s"cannot cast ${from.catalogString} to ${to.catalogString}"
+  }
+
   /**
    * Return true if we need to use the `timeZone` information casting `from` type to `to` type.
    * The patterns matched reflect the current implementation in the Cast node.
@@ -266,8 +279,7 @@ abstract class CastBase extends UnaryExpression with TimeZoneAwareExpression wit
   /**
    * Returns the error message if casting from one type to another one is invalid.
    */
-  def typeCheckFailureMessage: String =
-    s"cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}"
+  def typeCheckFailureMessage: String
 
   override def toString: String = {
     val ansi = if (ansiEnabled) "ansi_" else ""
@@ -1762,18 +1774,11 @@ case class Cast(child: Expression, dataType: DataType, timeZoneId: Option[String
     Cast.canCast(from, to)
   }
 
-  override def typeCheckFailureMessage: String = (child.dataType, dataType) match {
-    case (_: NumericType, TimestampType) =>
-      // scalastyle:off line.size.limit
-      s"""
-         | cannot cast ${child.dataType.catalogString} to ${dataType.catalogString},
-         | you can enable the casting by setting ${SQLConf.LEGACY_ALLOW_CAST_NUMERIC_TO_TIMESTAMP.key}
-         | to true, but we strongly recommend using function TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instead.
-         |""".stripMargin
-      // scalastyle:on line.size.limit
-
-    case _ =>
-      super.typeCheckFailureMessage
+  override def typeCheckFailureMessage: String = if (ansiEnabled) {
+    AnsiCast.typeCheckFailureMessage(child.dataType, dataType, SQLConf.ANSI_ENABLED.key, "false")
+  } else {
+    Cast.typeCheckFailureMessage(child.dataType, dataType)
+  }
 }
 
 /**
@@ -1794,32 +1799,13 @@ case class AnsiCast(child: Expression, dataType: DataType, timeZoneId: Option[St
 
   override def canCast(from: DataType, to: DataType): Boolean = AnsiCast.canCast(from, to)
 
-  override def typeCheckFailureMessage: String = (child.dataType, dataType) match {
-    case (_: NumericType, TimestampType) =>
-      // scalastyle:off line.size.limit
-      s"""
-         | cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}.
-         | We strongly recommend using function TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instead.
-         |""".stripMargin
-      // scalastyle:on line.size.limit
+  // For now, this expression is only used in table insertion.
+  // If there are more scenarios for this expression,  we should update the error message on type
+  // check failure.
+  override def typeCheckFailureMessage: String =
+    AnsiCast.typeCheckFailureMessage(child.dataType, dataType,
+      SQLConf.STORE_ASSIGNMENT_POLICY.key, SQLConf.StoreAssignmentPolicy.LEGACY.toString)
 
-    case (_: ArrayType, StringType) =>
-      s"""
-         | cannot cast ${child.dataType.catalogString} to ${dataType.catalogString}.
-         | If you have to cast ${child.dataType.catalogString} to ${dataType.catalogString}, you
-         | can try using the function array_join or setting ${SQLConf.ANSI_ENABLED.key} as false.
-         |""".stripMargin
-
-    case _ if Cast.canCast(child.dataType, dataType) =>
-      s"""
-         | cannot cast ${child.dataType.catalogString} to ${dataType.catalogString} with ANSI mode on.
-         | If you have to cast ${child.dataType.catalogString} to ${dataType.catalogString}, you
-         | can set ${SQLConf.ANSI_ENABLED.key} as false.
-         |""".stripMargin
-
-    case _ =>
-      super.typeCheckFailureMessage
-  }
 }
 
 object AnsiCast {
@@ -1922,6 +1908,35 @@ object AnsiCast {
 
     case _ => false
   }
+
+  def typeCheckFailureMessage(
+      from: DataType,
+      to: DataType,
+      fallbackConfKey: String,
+      fallbackConfValue: String): String =
+    (from, to) match {
+      case (_: NumericType, TimestampType) =>
+        // scalastyle:off line.size.limit
+        s"""
+           | cannot cast ${from.catalogString} to ${from.catalogString}.
+           | We strongly recommend using function TIMESTAMP_SECONDS/TIMESTAMP_MILLIS/TIMESTAMP_MICROS instead.
+           |""".stripMargin
+
+      case (_: ArrayType, StringType) =>
+        s"""
+           | cannot cast ${from.catalogString} to ${to.catalogString} with ANSI mode on.
+           | If you have to cast ${from.catalogString} to ${to.catalogString}, you can use the function array_join or set $fallbackConfKey as $fallbackConfValue.
+           |""".stripMargin
+
+      case _ if Cast.canCast(from, to) =>
+        s"""
+           | cannot cast ${from.catalogString} to ${to.catalogString} with ANSI mode on.
+           | If you have to cast ${from.catalogString} to ${to.catalogString}, you can set $fallbackConfKey as $fallbackConfValue.
+           |""".stripMargin
+
+      case _ => s"cannot cast ${from.catalogString} to ${to.catalogString}"
+      // scalastyle:on line.size.limit
+    }
 }
 
 /**
