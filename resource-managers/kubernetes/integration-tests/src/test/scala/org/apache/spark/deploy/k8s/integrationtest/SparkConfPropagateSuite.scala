@@ -59,8 +59,4 @@ private[spark] trait SparkConfPropagateSuite { k8sSuite: KubernetesSuite =>
       new File(logConfFilePath).delete()
     }
   }
-
-  test("Verify the size limits and file filters are correctly applied.", k8sTestTag) {
-
-  }
 }
